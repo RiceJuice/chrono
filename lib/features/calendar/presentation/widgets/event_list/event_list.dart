@@ -12,43 +12,61 @@ class EventList extends ConsumerStatefulWidget {
 
 class _EventListState extends ConsumerState<EventList> {
   late PageController _pageController;
+  int? _currentIndex;
   // Ein Referenzdatum, um Index in Datum umzurechnen (z.B. heute vor 500 Tagen)
-  final DateTime _startDate = DateTime.now().subtract(
-    const Duration(days: 500),
-  );
+  late final DateTime _startDate;
+
+  DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
 
   @override
   void initState() {
     super.initState();
+    final today = _dateOnly(DateTime.now());
+    _startDate = today.subtract(const Duration(days: 500));
+
     // Wir berechnen den Start-Index basierend auf dem aktuellen selectedDay
-    final initialDay = ref.read(selectedDayProvider);
+    final initialDay = _dateOnly(ref.read(selectedDayProvider));
     final initialIndex = initialDay.difference(_startDate).inDays;
+    _currentIndex = initialIndex;
     _pageController = PageController(initialPage: initialIndex);
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
-      final targetIndex = next.difference(_startDate).inDays;
+      final targetIndex = _dateOnly(next).difference(_startDate).inDays;
+      final currentIndex = _currentIndex;
 
       // Nur springen, wenn wir nicht schon auf der Seite sind
       // (verhindert Endlosschleifen beim Wischen)
-      if (_pageController.hasClients &&
-          _pageController.page?.round() != targetIndex) {
-        _pageController.animateToPage(
-          targetIndex,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+      if (_pageController.hasClients && currentIndex != targetIndex) {
+        final isLongJump =
+            currentIndex != null && (targetIndex - currentIndex).abs() > 1;
+
+        if (isLongJump) {
+          // Bei großen Sprüngen direkt zum Ziel springen
+          // statt jede Zwischenseite zu animieren.
+          _pageController.jumpToPage(targetIndex);
+        } else {
+          _pageController.animateToPage(
+            targetIndex,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+        _currentIndex = targetIndex;
       }
     });
     return PageView.builder(
       controller: _pageController,
       onPageChanged: (index) {
+        _currentIndex = index;
         // Berechne das neue Datum basierend auf dem Index
-        final newDate = _startDate.add(Duration(days: index));
+        final newDate = _dateOnly(_startDate.add(Duration(days: index)));
         // Update den Provider (Notify die App)
-        ref.read(selectedDayProvider.notifier).update(newDate);
+        if (_dateOnly(ref.read(selectedDayProvider)) != newDate) {
+          ref.read(selectedDayProvider.notifier).update(newDate);
+        }
       },
       itemBuilder: (context, index) {
         final dateForPage = _startDate.add(Duration(days: index));

@@ -5,7 +5,7 @@ class AppTheme {
   AppTheme._();
 
   static const _darkBackground = Color(0xFF000000); // 000000
-  static const _darkSurface = Color(0xFF0D0D0D); // 0D0D0D
+  static const _darkSurface = Color.fromARGB(255, 16, 16, 16); // 0D0D0D
   static const _accent = Color(0xFFCBBBA0); // CBBBA0
   static const _lightBackground = Color(0xFFFFFFFF); // FFFFFF
   static const _lightSurfaceContainer = Color(0xFFF6F6F6); // F6F6F6
