@@ -103,17 +103,6 @@ flutter run
 
 ---
 
-### 🤝 Mitmachen
-
-Beiträge sind willkommen!
-
-1. Repository forken
-2. Branch erstellen
-3. Änderungen machen
-4. Pull Request öffnen
-
----
-
 ## 🇬🇧 English
 
 ### 🧠 Idea Behind Chrono
@@ -180,17 +169,6 @@ flutter run
 * [ ] Dark mode
 * [ ] Offline support
 * [ ] Home screen widgets
-
----
-
-### 🤝 Contributing
-
-Contributions are welcome!
-
-1. Fork repo
-2. Create branch
-3. Commit changes
-4. Open PR
 
 ---
 
