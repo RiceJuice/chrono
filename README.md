@@ -51,9 +51,9 @@ Und das Ganze **personalisiert auf dich zugeschnitten**.
 | Feature              | Beschreibung                                       |
 | -------------------- | -------------------------------------------------- |
 | 🎵 Chorpläne         | Proben, Termine und Aufgaben für deinen Chor       |
-| 📚 Stundenplan       | Schule / Uni automatisch integriert                |
-| 🎤 Konzerte & Events | Auftritte und besondere Ereignisse                 |
-| 🍽️ Speiseplan       | Mensa- oder Kantinenpläne                          |
+| 📚 Stundenplan       | Schule automatisch integriert                      |
+| 🎤 Konzerte & Events | Konzerte und besondere Ereignisse                  |
+| 🍽️ Speiseplan        | Speisepläne übersichtlich an einem Ort             |
 | 🔄 Vertretungspläne  | Änderungen im Stundenplan, Ausfälle & Vertretungen |
 | 🎯 Personalisierung  | Nur relevante Inhalte werden angezeigt             |
 | 📱 Cross-Platform    | Smartphone & Tablet Support                        |
@@ -128,9 +128,9 @@ All of this is **personalized for you**.
 | Feature               | Description                                     |
 | --------------------- | ----------------------------------------------- |
 | 🎵 Choir schedules    | Rehearsals, tasks, and planning                 |
-| 📚 Timetable          | School / university integration                 |
+| 📚 Timetable          | School integration.                             |
 | 🎤 Events             | Concerts and performances                       |
-| 🍽️ Meal plans        | Canteen / cafeteria menus                       |
+| 🍽️ Meal plans         | cafeteria menus in one place                    |
 | 🔄 Substitution plans | Schedule changes, cancellations & substitutions |
 | 🎯 Personalization    | Only relevant data shown                        |
 | 📱 Cross-platform     | Phone & tablet support                          |
