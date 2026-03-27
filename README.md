@@ -12,12 +12,6 @@
 
 ---
 
-# Chrono
-
-Ein Kalender. Für alle Pläne.
-
----
-
 Wer bei den Regensburger Domspatzen ist, kennt das Problem: Chorplan hier, Stundenplan da, der Speiseplan irgendwo auf einem Aushang, Konzerttermine in einer anderen mail – und man verliert den Überblick.
 
 Chrono soll das ändern.
