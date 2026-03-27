@@ -12,7 +12,7 @@
 
 ---
 
-# ⚠️ Project Status / Projektstatus
+#Project Status / Projektstatus
 
 🇩🇪 Dieses Projekt befindet sich aktuell **in einer frühen Entwicklungsphase**.
 
