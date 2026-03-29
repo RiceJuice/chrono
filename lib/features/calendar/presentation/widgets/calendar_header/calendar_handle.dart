@@ -35,11 +35,11 @@ class CalendarHandle extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
-          width: isPressed ? 40 : 36,
+          width: 36,
           height: 5,
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.onSurface.withValues(
-              alpha: isPressed ? 0.55 : 0.35,
+              alpha: isPressed ? 1 : 0.6,
             ),
             borderRadius: BorderRadius.circular(999),
           ),

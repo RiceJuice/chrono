@@ -24,6 +24,7 @@ class DayPage extends ConsumerWidget {
           padding: const EdgeInsets.all(16.0),
           itemCount: entries.length,
           itemBuilder: (context, index) {
+            
             final entry = entries[index];
             if (entry.type == CalendarEntryType.lesson) {
               return EventCard(entry: entry);

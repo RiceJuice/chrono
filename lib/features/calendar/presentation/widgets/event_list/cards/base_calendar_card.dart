@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/calendar_entry_bottom_modal.dart';
 import 'package:flutter/material.dart';
 
 class BaseCalendarCard extends StatelessWidget {
@@ -20,6 +21,16 @@ class BaseCalendarCard extends StatelessWidget {
     final timeStyle = Theme.of(context).textTheme.bodyMedium;
 
     return ListTile(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (context) {
+            return CalendarEntryBottomModal(entry: entry);
+          },
+        );
+      },
       contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
       leading: _buildTimeColumn(timeStyle),
       title: Container(
