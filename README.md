@@ -12,174 +12,66 @@
 
 ---
 
-# ⚠️ Project Status / Projektstatus
+Wer bei den Regensburger Domspatzen ist, kennt das Problem: Chorplan hier, Stundenplan da, der Speiseplan irgendwo auf einem Aushang, Konzerttermine in einer anderen mail – und man verliert den Überblick.
 
-🇩🇪 Dieses Projekt befindet sich aktuell **in einer frühen Entwicklungsphase**.
+Chrono soll das ändern.
 
-➡️ Der aktuelle Stand ist ein **Base-Code / Grundgerüst** der App.
-➡️ Die unten aufgeführten Features sind **geplant, aber noch nicht vollständig implementiert**.
-
-🇬🇧 This project is currently in an **early development stage**.
-
-➡️ The current version is a **base structure / foundation** of the app.
-➡️ The features listed below are **planned but not fully implemented yet**.
+Keine fünf verschiedenen nachrichten mehr. Kein ständiges Suchen. Alles an einem Ort, auf dich persönlich zugeschnitten.
 
 ---
 
-## 🇩🇪 Deutsch
+## Was Chrono können soll
 
-### 🧠 Idee hinter Chrono
+Wenn alles fertig ist, bündelt Chrono folgendes:
 
-**Chrono** ist ein intelligenter Kalender, der speziell für die **Regensburger Domspatzen** entwickelt wird und verschiedene Arten von Plänen in **einer einzigen App** zusammenführt.
+- **Chorpläne** – Proben, Termine, was auch immer der Chor von dir braucht
+- **Stundenplan** – Schule direkt integriert, kein manuelles Eintragen
+- **Konzerte & Events** – Auftritte und besondere Termine auf einen Blick
+- **Speiseplan** – Was gibt's heute in der Mensa?
+- **Vertretungsplan** – Ausfälle und Änderungen, bevor du in den falschen Raum läufst
 
-Ziel ist es, dass du nicht mehr zwischen mehreren Apps wechseln musst.
-
-➡️ Alles wird in einem Kalender gebündelt (speziell für die Domspatzen):
-
-* Chorpläne
-* Stundenpläne
-* Konzerte & Events
-* Speisepläne
-* Vertretungspläne
-
-Und das Ganze **personalisiert auf dich zugeschnitten**.
+Und das Wichtigste: Du siehst nur, was für *dich* relevant ist.
 
 ---
 
-### ✨ Geplante Features
+## Stand der Dinge
 
-| Feature              | Beschreibung                                       |
-| -------------------- | -------------------------------------------------- |
-| 🎵 Chorpläne         | Proben, Termine und Aufgaben für deinen Chor       |
-| 📚 Stundenplan       | Schule automatisch integriert                      |
-| 🎤 Konzerte & Events | Konzerte und besondere Ereignisse                  |
-| 🍽️ Speiseplan        | Speisepläne übersichtlich an einem Ort             |
-| 🔄 Vertretungspläne  | Änderungen im Stundenplan, Ausfälle & Vertretungen |
-| 🎯 Personalisierung  | Nur relevante Inhalte werden angezeigt             |
-| 📱 Cross-Platform    | Smartphone & Tablet Support                        |
+Das Flutter-Grundgerüst steht, die Struktur ist da – aber die eigentlichen Features kommen erst noch. Diese README beschreibt, wo die Reise hingeht, nicht wo sie gerade ist.
 
 ---
 
-### 🏗️ Aktueller Stand
+## Roadmap
 
-* ✅ Flutter-Projekt eingerichtet
-* ✅ Grundstruktur der App vorhanden
-* ⏳ Feature-Implementierung läuft
+Was noch kommt, in ungefähr dieser Reihenfolge:
+
+- Chorplan-System
+- Stundenplan-Integration
+- Konzert- und Event-System
+- Speiseplan-Anbindung
+- Vertretungsplan
+- Benutzer-Accounts
+- Push-Benachrichtigungen
+- Dark Mode
+- Offline-Modus
+- Home-Screen-Widgets
 
 ---
 
-### 🚀 Installation & Setup
+## Lokal aufsetzen
 
-#### Voraussetzungen
-
-* Flutter SDK (≥ 3.0)
-* Dart (≥ 3.0)
-* Android Studio oder Xcode
-
-#### Start
+Du brauchst Flutter (≥ 3.0) und Dart (≥ 3.0), der Rest ergibt sich:
 
 ```bash
 git clone https://github.com/RiceJuice/chrono.git
 cd chrono
-
 flutter pub get
 flutter run
 ```
 
 ---
 
-### 🗺️ Roadmap
+## Technisches
 
-* [ ] Chorplan-System
-* [ ] Stundenplan-Integration
-* [ ] Event-/Konzertsystem
-* [ ] Speiseplan-Anbindung
-* [ ] Vertretungsplan-System
-* [ ] Benutzer-Accounts
-* [ ] Push-Benachrichtigungen
-* [ ] Dark Mode
-* [ ] Offline-Modus
-* [ ] Widgets (Home-Screen)
+Gebaut mit Flutter. Läuft auf Android und iOS.
 
 ---
-
-## 🇬🇧 English
-
-### 🧠 Idea Behind Chrono
-
-**Chrono** is an intelligent calendar specifically designed for the **Regensburger Domspatzen**, combining multiple types of schedules into **one single app**.
-
-The goal: members of the **Regensburger Domspatzen** don’t need multiple apps anymore.
-
-➡️ Everything in one place (tailored for the Domspatzen):
-
-* Choir schedules
-* Timetables
-* Concerts & events
-* Meal plans
-* Substitution plans
-
-All of this is **personalized for you**.
-
----
-
-### ✨ Planned Features
-
-| Feature               | Description                                     |
-| --------------------- | ----------------------------------------------- |
-| 🎵 Choir schedules    | Rehearsals, tasks, and planning                 |
-| 📚 Timetable          | School integration.                             |
-| 🎤 Events             | Concerts and performances                       |
-| 🍽️ Meal plans         | cafeteria menus in one place                    |
-| 🔄 Substitution plans | Schedule changes, cancellations & substitutions |
-| 🎯 Personalization    | Only relevant data shown                        |
-| 📱 Cross-platform     | Phone & tablet support                          |
-
----
-
-### 🏗️ Current Status
-
-* ✅ Flutter project setup
-* ✅ Basic app structure
-* ⏳ Features in development
-
----
-
-### 🚀 Setup
-
-```bash
-git clone https://github.com/RiceJuice/chrono.git
-cd chrono
-
-flutter pub get
-flutter run
-```
-
----
-
-### 🗺️ Roadmap
-
-* [ ] Choir system
-* [ ] Timetable integration
-* [ ] Event system
-* [ ] Meal plan integration
-* [ ] Substitution plan system
-* [ ] User accounts
-* [ ] Push notifications
-* [ ] Dark mode
-* [ ] Offline support
-* [ ] Home screen widgets
-
----
-
-### 📄 License
-
-
-
----
-
-<div align="center">
-
-Made with ❤️ and Flutter
-
-</div>
