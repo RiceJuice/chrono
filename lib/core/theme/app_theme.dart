@@ -13,7 +13,7 @@ class AppTheme {
   static ThemeData get dark {
     final scheme = ColorScheme.dark(
       primary: _accent,
-      secondary: _accent,
+      secondary: const Color(0xFF111827),
       tertiary: _accent,
       surface: _darkSurface,
       onSurface: Colors.white,
