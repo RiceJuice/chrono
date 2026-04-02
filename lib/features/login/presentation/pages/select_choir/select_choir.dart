@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/models/login_flow_step.dart';
 import '../../routes/login_routes.dart';
-import '../../widgets/login_choir_selection.dart';
+import '../../state/login_flow_draft.dart';
 import '../login_step_scaffold.dart';
+import 'widgets/login_choir_selection.dart';
 
 class ChoirPage extends StatefulWidget {
   const ChoirPage({super.key});
@@ -13,8 +14,16 @@ class ChoirPage extends StatefulWidget {
 }
 
 class _ChoirPageState extends State<ChoirPage> {
-  String _selectedVoice = 'Tenor';
-  int _choirPage = 1;
+  final _draft = LoginFlowDraft.instance;
+  late String _selectedVoice;
+  late int _choirPage;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedVoice = _draft.voice;
+    _choirPage = _draft.choirPage;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +33,14 @@ class _ChoirPageState extends State<ChoirPage> {
       child: LoginChoirSelection(
         selectedPage: _choirPage,
         selectedVoice: _selectedVoice,
-        onPageChanged: (page) => setState(() => _choirPage = page),
-        onVoiceChanged: (voice) => setState(() => _selectedVoice = voice),
+        onPageChanged: (page) => setState(() {
+          _choirPage = page;
+          _draft.choirPage = page;
+        }),
+        onVoiceChanged: (voice) => setState(() {
+          _selectedVoice = voice;
+          _draft.voice = voice;
+        }),
       ),
     );
   }

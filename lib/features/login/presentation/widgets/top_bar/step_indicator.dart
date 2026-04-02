@@ -5,7 +5,7 @@ class LoginStepIndicator extends StatelessWidget {
     super.key,
     required this.currentStep,
     this.totalSteps = 4,
-    this.width = 44,
+    this.width = 50,
   });
 
   final int currentStep;
@@ -17,7 +17,7 @@ class LoginStepIndicator extends StatelessWidget {
     return Row(
       children: List.generate(totalSteps * 2 - 1, (index) {
         if (index.isOdd) {
-          return const SizedBox(width: 8);
+          return const SizedBox(width: 20);
         }
 
         final step = (index ~/ 2) + 1;
@@ -25,7 +25,7 @@ class LoginStepIndicator extends StatelessWidget {
 
         return AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          height: 3,
+          height: 4,
           width: width,
           decoration: BoxDecoration(
             color: isActive

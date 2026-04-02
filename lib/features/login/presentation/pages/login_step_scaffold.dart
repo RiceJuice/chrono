@@ -14,12 +14,14 @@ class LoginStepScaffold extends StatelessWidget {
     required this.child,
     this.backPath,
     this.nextPath,
+    this.canProceed,
   });
 
   final LoginFlowStep step;
   final Widget child;
   final String? backPath;
   final String? nextPath;
+  final bool Function()? canProceed;
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +41,9 @@ class LoginStepScaffold extends StatelessWidget {
                   }
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               LoginStepIndicator(currentStep: step.stepNumber),
-              const SizedBox(height: 18),
+              const SizedBox(height: 30),
               Text(
                 step.title,
                 style: GoogleFonts.libreBaskerville(
@@ -50,14 +52,17 @@ class LoginStepScaffold extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 28),
               Expanded(child: child),
               Align(
-                alignment: Alignment.bottomRight,
                 child: LoginPrimaryButton(
                   label: 'Speichern',
                   color: step.accentColor,
                   onPressed: () {
+                    final shouldProceed = canProceed?.call() ?? true;
+                    if (!shouldProceed) {
+                      return;
+                    }
+
                     final path = nextPath;
                     if (path == null) {
                       context.go('/calendar');

@@ -9,12 +9,14 @@ class LoginTextField extends StatelessWidget {
     required this.hintText,
     this.keyboardType,
     this.obscureText = false,
+    this.validator,
   });
 
   final TextEditingController controller;
   final String hintText;
   final TextInputType? keyboardType;
   final bool obscureText;
+  final String? Function(String?)? validator;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +24,7 @@ class LoginTextField extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
+      validator: validator,
       style: const TextStyle(color: Colors.white),
       decoration: loginInputDecoration(hintText),
     );

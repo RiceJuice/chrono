@@ -14,7 +14,7 @@ class LoginChoirCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -22,29 +22,10 @@ class LoginChoirCard extends StatelessWidget {
               ? Colors.white.withValues(alpha: 0.35)
               : Colors.white.withValues(alpha: 0.12),
         ),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF6A7488), Color(0xFF181818)],
-        ),
+        color: Color(0xFFCBBBA0),
       ),
       child: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.7),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
+        children: [ 
           Positioned(
             left: 14,
             bottom: 12,
@@ -62,3 +43,4 @@ class LoginChoirCard extends StatelessWidget {
     );
   }
 }
+

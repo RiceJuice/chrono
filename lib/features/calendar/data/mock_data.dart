@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../domain/models/calendar_entry.dart'; 
+import '../domain/models/calendar_entry.dart';
 
 class CalendarMockData {
   static List<CalendarEntry> getEntries() {
@@ -31,11 +31,16 @@ class CalendarMockData {
         subtitle: 'Nudeln mit Rinderhackfleisch',
         startTime: DateTime(2026, 3, 2, 12, 15),
         endTime: DateTime(2026, 3, 2, 13, 0),
-        imageUrl: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c6',
+        // Jetzt als Liste von Strings
+        imageUrls: [
+          'https://images.unsplash.com/photo-1598103442097-8b74394b95c6',
+          'https://images.unsplash.com/photo-1622973536968-3ead9e780960', // Zusätzliches Pasta-Bild
+        ],
         accentColor: Colors.transparent,
         type: CalendarEntryType.meal,
         tags: ['Mit Linsen'],
       ),
+
       CalendarEntry(
         id: '4',
         title: 'Konzert: Pueri Gaudentes',
@@ -43,11 +48,15 @@ class CalendarMockData {
         location: 'St. Cäcilia',
         startTime: DateTime(2026, 3, 2, 14, 0),
         endTime: DateTime(2026, 3, 2, 17, 30),
-        imageUrl: 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2',
+        // Jetzt als Liste von Strings
+        imageUrls: [
+          'https://images.unsplash.com/photo-1515162305285-0293e4767cc2',
+          'https://images.unsplash.com/photo-1459749411177-042180ce673c', // Zusätzliches Konzert-Bild
+        ],
         accentColor: Colors.transparent,
         type: CalendarEntryType.event,
       ),
-      
+
       // --- DIENSTAG, 03. MÄRZ 2026 ---
       CalendarEntry(
         id: '5',

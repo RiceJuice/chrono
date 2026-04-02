@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../pages/select_choir/widgets/login_choir_card.dart';
-import 'login_input_decoration.dart';
+import 'login_choir_card.dart';
+import '../../../widgets/login_input_decoration.dart';
 
 class LoginChoirSelection extends StatefulWidget {
   const LoginChoirSelection({
@@ -22,13 +22,14 @@ class LoginChoirSelection extends StatefulWidget {
 }
 
 class _LoginChoirSelectionState extends State<LoginChoirSelection> {
+  static const int _initialPageOffset = 10000;
+  static const _voices = ['Tenor', 'Sopran', 'Alt', 'Bass'];
+  static const _choirs = ['Giehl', 'DKM', 'Rädlinger', 'Szucies', 'Schola Iuvenum'];
+
   late final PageController _controller = PageController(
     viewportFraction: 0.74,
-    initialPage: widget.selectedPage,
+    initialPage: _initialPageOffset + widget.selectedPage,
   );
-
-  static const _voices = ['Tenor', 'Sopran', 'Alt', 'Bass'];
-  static const _choirs = ['JMK', 'DKM', 'JKM'];
 
   @override
   void dispose() {
@@ -40,20 +41,26 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         SizedBox(
-          height: 220,
+          height: 350,
+          width: double.infinity,
           child: PageView.builder(
             controller: _controller,
-            onPageChanged: widget.onPageChanged,
-            itemCount: _choirs.length,
+            onPageChanged: (index) {
+              widget.onPageChanged(index % _choirs.length);
+            },
             itemBuilder: (context, index) {
+              final choirIndex = index % _choirs.length;
               return AnimatedBuilder(
                 animation: _controller,
                 builder: (context, child) {
+                  final initialVirtualPage =
+                      (_initialPageOffset + widget.selectedPage).toDouble();
                   final currentPage = _controller.hasClients
-                      ? (_controller.page ?? widget.selectedPage.toDouble())
-                      : widget.selectedPage.toDouble();
+                      ? (_controller.page ?? initialVirtualPage)
+                      : initialVirtualPage;
                   final distance = (currentPage - index).abs();
                   final scale = (1 - (distance * 0.08)).clamp(0.90, 1.0);
                   final opacity = (1 - (distance * 0.35)).clamp(0.35, 1.0);
@@ -64,8 +71,8 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
                   );
                 },
                 child: LoginChoirCard(
-                  label: _choirs[index],
-                  isActive: index == widget.selectedPage,
+                  label: _choirs[choirIndex],
+                  isActive: choirIndex == widget.selectedPage,
                 ),
               );
             },
@@ -81,8 +88,8 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  width: selected ? 18 : 8,
-                  height: 3,
+                  width: selected ? 24 : 12,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: selected
                         ? const Color(0xFFCBBBA0)
@@ -98,7 +105,7 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
         const Text('Stimme', style: TextStyle(color: Colors.white70)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          initialValue: widget.selectedVoice,
+          value: widget.selectedVoice,
           dropdownColor: const Color(0xFF121212),
           iconEnabledColor: Colors.white,
           style: const TextStyle(color: Colors.white),
@@ -119,3 +126,4 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
     );
   }
 }
+

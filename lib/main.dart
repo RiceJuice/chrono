@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
         return '/loading';
       }
       if (_appStartup.isReady && isLoadingRoute) {
-        return '/login';
+        return '/calendar';
       }
       return null;
     },

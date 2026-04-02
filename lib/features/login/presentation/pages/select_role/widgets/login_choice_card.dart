@@ -22,7 +22,7 @@ class LoginChoiceCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        height: 92,
+        height: 100,
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
@@ -51,3 +51,4 @@ class LoginChoiceCard extends StatelessWidget {
     );
   }
 }
+

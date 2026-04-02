@@ -9,7 +9,7 @@ class CalendarEntry {
   final String? location;
   final DateTime startTime;
   final DateTime endTime;
-  final String? imageUrl;
+  final List<String>? imageUrls;
   final Color accentColor;
   final CalendarEntryType type;
   final List<String>? tags;
@@ -21,7 +21,7 @@ class CalendarEntry {
     this.location,
     required this.startTime,
     required this.endTime,
-    this.imageUrl,
+    this.imageUrls,
     required this.accentColor,
     required this.type,
     this.tags,

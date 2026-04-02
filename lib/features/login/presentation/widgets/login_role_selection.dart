@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'login_choice_card.dart';
+import '../pages/select_role/widgets/login_choice_card.dart';
 
 class LoginRoleSelection extends StatelessWidget {
   const LoginRoleSelection({
@@ -15,7 +15,7 @@ class LoginRoleSelection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [
+      children: [ 
         LoginChoiceCard(
           title: 'Schüler',
           isSelected: selectedRole == 'Schüler',
@@ -33,4 +33,3 @@ class LoginRoleSelection extends StatelessWidget {
     );
   }
 }
-

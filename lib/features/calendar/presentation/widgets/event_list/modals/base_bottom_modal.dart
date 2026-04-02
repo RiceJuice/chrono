@@ -1,71 +1,53 @@
-import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:flutter/material.dart';
+
+import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/chor_bottom_modal.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/event_bottom_modal.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/lesson_bottom_modal.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/meal_bottom_modal.dart';
 
 class BaseBottomModal extends StatelessWidget {
   final CalendarEntry entry;
-  final Widget? extraContent;
-  final double minHeight;
+  final double? minHeight;
 
   const BaseBottomModal({
     super.key,
     required this.entry,
-    this.extraContent,
-    this.minHeight = 600,
+    this.minHeight,
   });
-
-  String _formatTime(DateTime value) {
-    final hours = value.hour.toString().padLeft(2, '0');
-    final minutes = value.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: true,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: minHeight),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 6),
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-              
-              Text(entry.title, style: Theme.of(context).textTheme.titleLarge),
-              if ((entry.subtitle ?? '').trim().isNotEmpty) ...[
-                const SizedBox(height: 18),
-                Text(entry.subtitle!, style: Theme.of(context).textTheme.bodyMedium),
-              ],
-              const SizedBox(height: 4),
-              Text(
-                '${_formatTime(entry.startTime)} - ${_formatTime(entry.endTime)} Uhr',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              if ((entry.location ?? '').trim().isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text('Ort: ${entry.location!}', style: Theme.of(context).textTheme.bodyMedium),
-              ],
-              if (extraContent != null) ...[
-                const SizedBox(height: 30),
-                extraContent!,
-              ],
-            ],
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double effectiveMinHeight = minHeight ?? (screenHeight * 0.6);
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: effectiveMinHeight,
+            maxHeight: screenHeight * 0.9,
+          ),
+          child: SingleChildScrollView(
+            child: _buildModalContent(),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildModalContent() {
+    return switch (entry.type) {
+      CalendarEntryType.lesson => LessonBottomModal(entry: entry),
+      CalendarEntryType.meal => MealBottomModal(entry: entry),
+      CalendarEntryType.event => EventBottomModal(entry: entry),
+      CalendarEntryType.chor => ChorBottomModal(entry: entry),
+    };
   }
 }
