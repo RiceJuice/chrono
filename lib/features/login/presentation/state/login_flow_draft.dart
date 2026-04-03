@@ -22,6 +22,6 @@ class LoginFlowDraft {
     lastName = '';
     schoolClass = null;
     choirPage = 1;
-    voice = 'Tenor';
+    voice = '';
   }
 }

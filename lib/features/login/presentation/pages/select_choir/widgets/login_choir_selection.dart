@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'login_choir_card.dart';
-import '../../../widgets/login_input_decoration.dart';
 
 class LoginChoirSelection extends StatefulWidget {
   const LoginChoirSelection({
@@ -23,8 +22,7 @@ class LoginChoirSelection extends StatefulWidget {
 
 class _LoginChoirSelectionState extends State<LoginChoirSelection> {
   static const int _initialPageOffset = 10000;
-  static const _voices = ['Tenor', 'Sopran', 'Alt', 'Bass'];
-  static const _choirs = ['Giehl', 'DKM', 'Rädlinger', 'Szucies', 'Schola Iuvenum'];
+  static const _choirs = ['Giehl', 'DKM', 'Rädlinger', 'Szucies', 'Schola'];
 
   late final PageController _controller = PageController(
     viewportFraction: 0.74,
@@ -51,6 +49,7 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
             onPageChanged: (index) {
               widget.onPageChanged(index % _choirs.length);
             },
+            
             itemBuilder: (context, index) {
               final choirIndex = index % _choirs.length;
               return AnimatedBuilder(
@@ -101,27 +100,7 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
             }),
           ),
         ),
-        const SizedBox(height: 22),
-        const Text('Stimme', style: TextStyle(color: Colors.white70)),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: widget.selectedVoice,
-          dropdownColor: const Color(0xFF121212),
-          iconEnabledColor: Colors.white,
-          style: const TextStyle(color: Colors.white),
-          decoration: loginInputDecoration('Stimme'),
-          items: _voices
-              .map(
-                (voice) =>
-                    DropdownMenuItem<String>(value: voice, child: Text(voice)),
-              )
-              .toList(),
-          onChanged: (voice) {
-            if (voice != null) {
-              widget.onVoiceChanged(voice);
-            }
-          },
-        ),
+
       ],
     );
   }

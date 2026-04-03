@@ -50,8 +50,10 @@ class CalendarMockData {
         endTime: DateTime(2026, 3, 2, 17, 30),
         // Jetzt als Liste von Strings
         imageUrls: [
-          'https://images.unsplash.com/photo-1515162305285-0293e4767cc2',
-          'https://images.unsplash.com/photo-1459749411177-042180ce673c', // Zusätzliches Konzert-Bild
+          "https://cdn-static.matricula-online.eu/media/parish_images/3240px-St_C%C3%A4cilia_-_Regensburg_0811.jpg",
+          "https://bistum-regensburg.de//fileadmin/Bilder/News_u._Kirchenjahr/News_2021/News_2021_12/211206_100_Jahre_Pfarrei_Caecilia_Regensburg_Header.JPG",
+          "https://data.matricula-online.eu/de/deutschland/regensburg/regensburg-st-caecilia/"
+
         ],
         accentColor: Colors.transparent,
         type: CalendarEntryType.event,

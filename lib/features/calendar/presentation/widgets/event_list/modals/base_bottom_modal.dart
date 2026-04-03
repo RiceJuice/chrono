@@ -19,7 +19,7 @@ class BaseBottomModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
-    final double effectiveMinHeight = minHeight ?? (screenHeight * 0.6);
+    final double effectiveMinHeight = minHeight ?? (screenHeight * 0.7);
 
     return Container(
       clipBehavior: Clip.antiAlias,

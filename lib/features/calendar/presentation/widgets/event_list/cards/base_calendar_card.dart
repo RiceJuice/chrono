@@ -1,4 +1,6 @@
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
 import 'package:flutter/material.dart';
 
@@ -18,7 +20,6 @@ class BaseCalendarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStyle = Theme.of(context).textTheme.bodyMedium;
 
     return ListTile(
       onTap: () {
@@ -32,7 +33,7 @@ class BaseCalendarCard extends StatelessWidget {
         );
       },
       contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-      leading: _buildTimeColumn(timeStyle),
+      leading: TimeColumn(entry: entry),
       title: Container(
         padding: contentPadding,
         decoration: BoxDecoration(
@@ -45,45 +46,12 @@ class BaseCalendarCard extends StatelessWidget {
             children: [
               if (leadingIndicator != null) leadingIndicator!,
               Expanded(
-                child: _buildTextContent(context),
+                child: TextContent(entry: entry,),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  // Hilfsmethode für die Zeit (Identisch für alle)
-  Widget _buildTimeColumn(TextStyle? style) {
-    String formatTime(DateTime time) =>
-        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(formatTime(entry.startTime), style: style),
-        Text(formatTime(entry.endTime), style: style),
-      ],
-    );
-  }
-
-  // Hilfsmethode für Titel/Untertitel
-  Widget _buildTextContent(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(entry.title),
-        if ((entry.subtitle ?? '').trim().isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(
-            entry.subtitle!,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-      ],
     );
   }
 }

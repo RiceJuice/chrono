@@ -36,11 +36,11 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final minColor = Color.alphaBlend(
-      colorScheme.onSurface.withOpacity(0.06),
+      colorScheme.onSurface.withOpacity(0.060),
       colorScheme.surfaceContainerHighest,
     );
     final maxColor = Color.alphaBlend(
-      colorScheme.onSurface.withOpacity(0.15),
+      colorScheme.onSurface.withOpacity(0.151),
       colorScheme.surfaceContainerHighest,
     );
 

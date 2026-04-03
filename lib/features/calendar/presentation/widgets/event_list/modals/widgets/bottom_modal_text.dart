@@ -2,9 +2,10 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:flutter/material.dart';
 
 class BottomModalText extends StatelessWidget {
-  const BottomModalText({super.key, required this.entry});
+  const BottomModalText({super.key, required this.entry, this.titleStyle});
 
   final CalendarEntry entry;
+  final TextStyle? titleStyle;
 
   String _formatTime(DateTime value) {
     final hours = value.hour.toString().padLeft(2, '0');
@@ -21,7 +22,10 @@ class BottomModalText extends StatelessWidget {
         children: [
           const SizedBox(height: 30),
 
-          Text(entry.title, style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            entry.title,
+            style: titleStyle ?? Theme.of(context).textTheme.titleLarge,
+          ), // Komma hier nicht vergessen
 
           if ((entry.subtitle ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 18),
@@ -45,7 +49,6 @@ class BottomModalText extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
-          
         ],
       ),
     );

@@ -8,18 +8,12 @@ part of 'calendar_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Hält das aktuell ausgewählte Datum.
-/// Nutzt 'Notifier', da sich der Zustand durch Nutzerinteraktion ändert.
 
 @ProviderFor(SelectedDay)
 final selectedDayProvider = SelectedDayProvider._();
 
-/// Hält das aktuell ausgewählte Datum.
-/// Nutzt 'Notifier', da sich der Zustand durch Nutzerinteraktion ändert.
 final class SelectedDayProvider
     extends $NotifierProvider<SelectedDay, DateTime> {
-  /// Hält das aktuell ausgewählte Datum.
-  /// Nutzt 'Notifier', da sich der Zustand durch Nutzerinteraktion ändert.
   SelectedDayProvider._()
     : super(
         from: null,
@@ -49,9 +43,6 @@ final class SelectedDayProvider
 
 String _$selectedDayHash() => r'7646bc9f7552998a989e316eb00d2b96baaf8238';
 
-/// Hält das aktuell ausgewählte Datum.
-/// Nutzt 'Notifier', da sich der Zustand durch Nutzerinteraktion ändert.
-
 abstract class _$SelectedDay extends $Notifier<DateTime> {
   DateTime build();
   @$mustCallSuper
@@ -70,14 +61,10 @@ abstract class _$SelectedDay extends $Notifier<DateTime> {
   }
 }
 
-/// Hält den aktuell fokussierten Tag des Kalenders (z.B. beim Monatswechsel).
-
 @ProviderFor(FocusedDay)
 final focusedDayProvider = FocusedDayProvider._();
 
-/// Hält den aktuell fokussierten Tag des Kalenders (z.B. beim Monatswechsel).
 final class FocusedDayProvider extends $NotifierProvider<FocusedDay, DateTime> {
-  /// Hält den aktuell fokussierten Tag des Kalenders (z.B. beim Monatswechsel).
   FocusedDayProvider._()
     : super(
         from: null,
@@ -107,8 +94,6 @@ final class FocusedDayProvider extends $NotifierProvider<FocusedDay, DateTime> {
 
 String _$focusedDayHash() => r'690e060784d52ac2eda5c0579f4fde7079b0d54e';
 
-/// Hält den aktuell fokussierten Tag des Kalenders (z.B. beim Monatswechsel).
-
 abstract class _$FocusedDay extends $Notifier<DateTime> {
   DateTime build();
   @$mustCallSuper
@@ -127,12 +112,8 @@ abstract class _$FocusedDay extends $Notifier<DateTime> {
   }
 }
 
-/// Stellt das Repository bereit.
-
 @ProviderFor(calendarRepository)
 final calendarRepositoryProvider = CalendarRepositoryProvider._();
-
-/// Stellt das Repository bereit.
 
 final class CalendarRepositoryProvider
     extends
@@ -142,7 +123,6 @@ final class CalendarRepositoryProvider
           CalendarRepository
         >
     with $Provider<CalendarRepository> {
-  /// Stellt das Repository bereit.
   CalendarRepositoryProvider._()
     : super(
         from: null,
@@ -180,12 +160,8 @@ final class CalendarRepositoryProvider
 String _$calendarRepositoryHash() =>
     r'd7a42bb0fb0e8cc063d41b2d7ae2b1bb66dd7444';
 
-/// Lädt die Einträge basierend auf dem ausgewählten Tag.
-
 @ProviderFor(calendarEntries)
 final calendarEntriesProvider = CalendarEntriesProvider._();
-
-/// Lädt die Einträge basierend auf dem ausgewählten Tag.
 
 final class CalendarEntriesProvider
     extends
@@ -197,7 +173,6 @@ final class CalendarEntriesProvider
     with
         $FutureModifier<List<CalendarEntry>>,
         $FutureProvider<List<CalendarEntry>> {
-  /// Lädt die Einträge basierend auf dem ausgewählten Tag.
   CalendarEntriesProvider._()
     : super(
         from: null,

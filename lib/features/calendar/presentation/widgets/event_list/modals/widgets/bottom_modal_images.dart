@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 class BottomModalImages extends StatelessWidget {
   final CalendarEntry entry;
   final double height;
-  const BottomModalImages({super.key, required this.entry, this.height = 180});
+  const BottomModalImages({super.key, required this.entry, this.height = 120});
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         SizedBox(
-          height: 250,
+          height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -20,30 +20,28 @@ class BottomModalImages extends StatelessWidget {
             itemBuilder: (context, index) {
               return Padding(
                 padding: const EdgeInsets.only(right: 6.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12), // Abrundung für schöneren Look
-                  child: AspectRatio(
-                    aspectRatio: 1.5,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        const SkeletonLoader(),
-                        Image.network(
-                          entry.imageUrls![index],
-                          fit: BoxFit.cover,
-                          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                            if (wasSynchronouslyLoaded || frame != null) {
-                              return child;
-                            }
-                            return const SizedBox.shrink();
-                          },
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: Theme.of(context).colorScheme.surfaceVariant,
-                            child: const Icon(Icons.broken_image, size: 50),
-                          ),
+                child: AspectRatio(
+                  aspectRatio: 1.5,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      const SkeletonLoader(),
+                      Image.network(
+                        entry.imageUrls![index],
+                        fit: BoxFit.cover,
+                        frameBuilder:
+                            (context, child, frame, wasSynchronouslyLoaded) {
+                              if (wasSynchronouslyLoaded || frame != null) {
+                                return child;
+                              }
+                              return const SizedBox.shrink();
+                            },
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          child: const Icon(Icons.broken_image, size: 50),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               );

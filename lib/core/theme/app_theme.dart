@@ -5,8 +5,9 @@ class AppTheme {
   AppTheme._();
 
   static const _darkBackground = Color(0xFF000000); // 000000
-  static const _darkSurface = Color.fromARGB(255, 16, 16, 16); // 0D0D0D
+  static const _darkSurface = Color.fromARGB(255, 15, 15, 15); // 0D0D0D
   static const _accent = Color(0xFFCBBBA0); // CBBBA0
+  static const _lightAccent = Color(0xFF273655);
   static const _lightBackground = Color(0xFFFFFFFF); // FFFFFF
   static const _lightSurfaceContainer = Color(0xFFF6F6F6); // F6F6F6
 
@@ -90,7 +91,7 @@ class AppTheme {
     final scheme = ColorScheme.light(
       primary: _accent,
       secondary: _accent,
-      tertiary: _accent,
+      tertiary: _lightAccent,
       surface: Colors.white,
       onSurface: Colors.black,
       error: const Color(0xFFB00020),

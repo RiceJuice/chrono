@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/lession_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/meal_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/chor_card.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +13,6 @@ class DayPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Riverpod lädt die Daten für DIESES Datum automatisch im Hintergrund
     final entriesAsync = ref.watch(calendarEntriesForDayProvider(date));
 
     return entriesAsync.when(
@@ -27,7 +27,7 @@ class DayPage extends ConsumerWidget {
             
             final entry = entries[index];
             if (entry.type == CalendarEntryType.lesson) {
-              return EventCard(entry: entry);
+              return LessionCard(entry: entry);
             } else if (entry.type == CalendarEntryType.chor) {
               return ChorCard(entry: entry);
             } else if (entry.type == CalendarEntryType.meal) {

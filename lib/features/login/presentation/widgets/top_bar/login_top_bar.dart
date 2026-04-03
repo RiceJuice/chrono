@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 
 class LoginTopBar extends StatelessWidget {
   const LoginTopBar({super.key, required this.canGoBack, required this.onBack});
@@ -20,7 +21,7 @@ class LoginTopBar extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
         ),
         const Spacer(),
-        const Icon(Icons.flutter_dash, color: Colors.white, size: 20),
+        SvgPicture.asset("assets/domspatzen.svg", height: 20, width: 20,),
       ],
     );
   }
