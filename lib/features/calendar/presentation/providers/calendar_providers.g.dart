@@ -158,21 +158,13 @@ final class CalendarRepositoryProvider
 }
 
 String _$calendarRepositoryHash() =>
-    r'd7a42bb0fb0e8cc063d41b2d7ae2b1bb66dd7444';
+    r'b4ae9598806ae6fdab651962806f5c1dabc9f233';
 
-@ProviderFor(calendarEntries)
+@ProviderFor(CalendarEntries)
 final calendarEntriesProvider = CalendarEntriesProvider._();
 
 final class CalendarEntriesProvider
-    extends
-        $FunctionalProvider<
-          AsyncValue<List<CalendarEntry>>,
-          List<CalendarEntry>,
-          FutureOr<List<CalendarEntry>>
-        >
-    with
-        $FutureModifier<List<CalendarEntry>>,
-        $FutureProvider<List<CalendarEntry>> {
+    extends $StreamNotifierProvider<CalendarEntries, List<CalendarEntry>> {
   CalendarEntriesProvider._()
     : super(
         from: null,
@@ -189,14 +181,119 @@ final class CalendarEntriesProvider
 
   @$internal
   @override
-  $FutureProviderElement<List<CalendarEntry>> $createElement(
-    $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  CalendarEntries create() => CalendarEntries();
+}
 
+String _$calendarEntriesHash() => r'7b703cf6637ab766cd6cfff317413a8a2f44e05c';
+
+abstract class _$CalendarEntries extends $StreamNotifier<List<CalendarEntry>> {
+  Stream<List<CalendarEntry>> build();
+  @$mustCallSuper
   @override
-  FutureOr<List<CalendarEntry>> create(Ref ref) {
-    return calendarEntries(ref);
+  void runBuild() {
+    final ref =
+        this.ref as $Ref<AsyncValue<List<CalendarEntry>>, List<CalendarEntry>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<List<CalendarEntry>>, List<CalendarEntry>>,
+              AsyncValue<List<CalendarEntry>>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
   }
 }
 
-String _$calendarEntriesHash() => r'f0698f923ea99e681fc7c904b36db101ebebd4b3';
+@ProviderFor(CalendarEntriesForDay)
+final calendarEntriesForDayProvider = CalendarEntriesForDayFamily._();
+
+final class CalendarEntriesForDayProvider
+    extends
+        $StreamNotifierProvider<CalendarEntriesForDay, List<CalendarEntry>> {
+  CalendarEntriesForDayProvider._({
+    required CalendarEntriesForDayFamily super.from,
+    required DateTime super.argument,
+  }) : super(
+         retry: null,
+         name: r'calendarEntriesForDayProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$calendarEntriesForDayHash();
+
+  @override
+  String toString() {
+    return r'calendarEntriesForDayProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  CalendarEntriesForDay create() => CalendarEntriesForDay();
+
+  @override
+  bool operator ==(Object other) {
+    return other is CalendarEntriesForDayProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$calendarEntriesForDayHash() =>
+    r'ebb8dc0babe1c1083cacbd2bb672753ad0fed80e';
+
+final class CalendarEntriesForDayFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          CalendarEntriesForDay,
+          AsyncValue<List<CalendarEntry>>,
+          List<CalendarEntry>,
+          Stream<List<CalendarEntry>>,
+          DateTime
+        > {
+  CalendarEntriesForDayFamily._()
+    : super(
+        retry: null,
+        name: r'calendarEntriesForDayProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  CalendarEntriesForDayProvider call(DateTime day) =>
+      CalendarEntriesForDayProvider._(argument: day, from: this);
+
+  @override
+  String toString() => r'calendarEntriesForDayProvider';
+}
+
+abstract class _$CalendarEntriesForDay
+    extends $StreamNotifier<List<CalendarEntry>> {
+  late final _$args = ref.$arg as DateTime;
+  DateTime get day => _$args;
+
+  Stream<List<CalendarEntry>> build(DateTime day);
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref =
+        this.ref as $Ref<AsyncValue<List<CalendarEntry>>, List<CalendarEntry>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<List<CalendarEntry>>, List<CalendarEntry>>,
+              AsyncValue<List<CalendarEntry>>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, () => build(_$args));
+  }
+}

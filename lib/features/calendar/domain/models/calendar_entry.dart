@@ -13,6 +13,7 @@ class CalendarEntry {
   final Color accentColor;
   final CalendarEntryType type;
   final List<String>? tags;
+  final String? userId;
 
   CalendarEntry({
     required this.id,
@@ -25,5 +26,6 @@ class CalendarEntry {
     required this.accentColor,
     required this.type,
     this.tags,
+    this.userId,
   });
 }

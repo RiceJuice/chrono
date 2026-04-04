@@ -32,7 +32,7 @@ class BaseCalendarCard extends StatelessWidget {
           },
         );
       },
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0,),
       leading: TimeColumn(entry: entry),
       title: Container(
         padding: contentPadding,

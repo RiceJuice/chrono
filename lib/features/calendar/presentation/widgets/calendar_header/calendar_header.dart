@@ -72,7 +72,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
       child: Column(
         children: [
           AppBar(
-            title: Text(monthName),
+            title: Text(monthName, style: TextStyle(fontSize: 36)),
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             actions: [
               IconButton(onPressed: () {}, icon: const Icon(Icons.add)),

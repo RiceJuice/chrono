@@ -43,7 +43,7 @@ class CalendarMockData {
 
       CalendarEntry(
         id: '4',
-        title: 'Konzert: Pueri Gaudentes',
+        title: "Pueri Gaudentes",
         subtitle: 'Mittwoch, 4. März 2026',
         location: 'St. Cäcilia',
         startTime: DateTime(2026, 3, 2, 14, 0),

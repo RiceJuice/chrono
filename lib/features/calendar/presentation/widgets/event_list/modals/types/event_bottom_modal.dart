@@ -19,7 +19,7 @@ class EventBottomModal extends StatelessWidget {
           entry: entry, 
           // Hier wird die Schriftart korrekt zugewiesen:
           titleStyle: GoogleFonts.libreBaskerville(
-            fontSize: 20, 
+            fontSize: 32, 
             fontWeight: FontWeight.bold,
           ),
         ),

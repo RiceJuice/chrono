@@ -34,10 +34,11 @@ class MealCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsetsGeometry.fromLTRB(14, 8, 0, 8),
+                  padding: const EdgeInsetsGeometry.fromLTRB(14, 20, 0, 20),
                   child: TextContent(entry: entry),
                 ),
               ),
+              if (entry.imageUrls != null && entry.imageUrls!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadiusGeometry.only(
                   topRight: Radius.circular(10),

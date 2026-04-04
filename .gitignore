@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local Supabase / dart-define secrets (do not commit)
+config/dart_defines.local.json

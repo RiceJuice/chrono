@@ -48,6 +48,7 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return LoginStepScaffold(
       step: LoginFlowStep.register,
+      backPath: LoginPaths.login,
       nextPath: LoginPaths.role,
       canProceed: () => _formKey.currentState?.validate() ?? false,
       child: Form(

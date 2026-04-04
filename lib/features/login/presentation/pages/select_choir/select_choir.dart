@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/auth_repository.dart';
+import '../../../data/profile_reference_ids.dart';
 import '../../../domain/models/login_flow_step.dart';
+import '../../providers/auth_repository_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 import '../login_step_scaffold.dart';
@@ -20,6 +23,7 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
   final _draft = LoginFlowDraft.instance;
   late String _selectedVoice;
   late int _choirPage;
+  bool _busy = false;
 
   static const List<String> _voices = ['Tenor', 'Sopran', 'Alt', 'Bass'];
   static const List<String> _choirs = ['Giehl', 'DKM', 'Rädlinger', 'Szucies', 'Schola'];
@@ -36,6 +40,7 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
     return LoginStepScaffold(
       step: LoginFlowStep.choir,
       backPath: LoginPaths.personalData,
+      submitBusy: _busy,
       canProceed: () {
         final bool isVoiceSelected = _voices.contains(_selectedVoice);
         final bool isChoirSelected = ref.read(selectedChoirProvider) != null;
@@ -55,6 +60,34 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
         }
 
         return true;
+      },
+      onAsyncProceed: (goNext) async {
+        setState(() => _busy = true);
+        try {
+          final draft = LoginFlowDraft.instance;
+          final choirLabel = ref.read(selectedChoirProvider);
+          final klasseId = draft.schoolClass != null
+              ? klasseIdByLabel[draft.schoolClass!]
+              : null;
+          final chorId =
+              choirLabel != null ? choirIdByLabel[choirLabel] : null;
+
+          await ref.read(authRepositoryProvider).updateProfile(
+                klasseId: klasseId,
+                chorId: chorId,
+                stimmgruppe: draft.voice,
+                role: draft.role,
+              );
+          if (!context.mounted) return;
+          goNext();
+        } on AuthRepositoryException catch (e) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message)),
+          );
+        } finally {
+          if (context.mounted) setState(() => _busy = false);
+        }
       },
       child: Column(
         children: [

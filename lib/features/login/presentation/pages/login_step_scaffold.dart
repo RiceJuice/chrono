@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,6 +17,8 @@ class LoginStepScaffold extends StatelessWidget {
     this.backPath,
     this.nextPath,
     this.canProceed,
+    this.onAsyncProceed,
+    this.submitBusy = false,
   });
 
   final LoginFlowStep step;
@@ -22,6 +26,11 @@ class LoginStepScaffold extends StatelessWidget {
   final String? backPath;
   final String? nextPath;
   final bool Function()? canProceed;
+
+  /// Wenn gesetzt: nach erfolgreicher [canProceed]-Prüfung ausführen; Navigation erfolgt im Callback (z. B. `goNext`).
+  final Future<void> Function(void Function() goNext)? onAsyncProceed;
+
+  final bool submitBusy;
 
   @override
   Widget build(BuildContext context) {
@@ -55,21 +64,32 @@ class LoginStepScaffold extends StatelessWidget {
               Expanded(child: child),
               Align(
                 child: LoginPrimaryButton(
-                  label: 'Speichern',
+                  label: submitBusy ? 'Wird gespeichert…' : 'Speichern',
                   color: step.accentColor,
-                  onPressed: () {
-                    final shouldProceed = canProceed?.call() ?? true;
-                    if (!shouldProceed) {
-                      return;
-                    }
+                  onPressed: submitBusy
+                      ? null
+                      : () {
+                          final shouldProceed = canProceed?.call() ?? true;
+                          if (!shouldProceed) {
+                            return;
+                          }
 
-                    final path = nextPath;
-                    if (path == null) {
-                      context.go('/calendar');
-                      return;
-                    }
-                    context.go(path);
-                  },
+                          void goNext() {
+                            final path = nextPath;
+                            if (path == null) {
+                              context.go('/calendar');
+                              return;
+                            }
+                            context.go(path);
+                          }
+
+                          final asyncProceed = onAsyncProceed;
+                          if (asyncProceed != null) {
+                            unawaited(asyncProceed(goNext));
+                          } else {
+                            goNext();
+                          }
+                        },
                 ),
               ),
             ],

@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 
+import '../pages/auth_hub/auth_hub_page.dart';
 import '../pages/select_choir/select_choir.dart';
 import '../pages/select_personal_data/personalData.dart';
 import '../pages/register/register.dart';
@@ -16,12 +17,7 @@ abstract final class LoginPaths {
 final List<RouteBase> loginRoutes = [
   GoRoute(
     path: LoginPaths.login,
-    redirect: (context, state) {
-      if (state.uri.path == LoginPaths.login) {
-        return LoginPaths.register;
-      }
-      return null;
-    },
+    builder: (context, state) => const AuthHubPage(),
     routes: [
       GoRoute(
         path: 'register',

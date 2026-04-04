@@ -1,0 +1,80 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../features/calendar/presentation/pages/calendar_page.dart';
+import '../../features/login/presentation/routes/login_routes.dart';
+import '../loading_page.dart';
+
+/// Löst [GoRouter.refresh] bei Auth-Änderungen aus.
+class AuthSessionNotifier extends ChangeNotifier {
+  AuthSessionNotifier() {
+    _subscription = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      notifyListeners();
+    });
+  }
+
+  late final StreamSubscription<AuthState> _subscription;
+
+  @override
+  void dispose() {
+    unawaited(_subscription.cancel());
+    super.dispose();
+  }
+}
+
+class AppRouter {
+  AppRouter({
+    required AppStartupNotifier startupNotifier,
+    required AuthSessionNotifier authSessionNotifier,
+  })  : _startup = startupNotifier,
+        _refresh = Listenable.merge([startupNotifier, authSessionNotifier]);
+
+  final AppStartupNotifier _startup;
+  final Listenable _refresh;
+
+  late final router = GoRouter(
+    refreshListenable: _refresh,
+    initialLocation: '/loading',
+    redirect: (context, state) {
+      final loc = state.matchedLocation;
+      final isLoadingRoute = loc == '/loading';
+      final session = Supabase.instance.client.auth.currentSession;
+      final loggedIn = session != null;
+
+      if (!_startup.isReady) {
+        if (!isLoadingRoute) return '/loading';
+        return null;
+      }
+
+      if (!loggedIn) {
+        if (isLoadingRoute) return LoginPaths.login;
+        if (loc == '/calendar') return LoginPaths.login;
+        return null;
+      }
+
+      if (loggedIn) {
+        if (isLoadingRoute) return '/calendar';
+        if (loc == LoginPaths.login) return '/calendar';
+      }
+
+      return null;
+    },
+    routes: [
+      GoRoute(path: '/loading', builder: (context, state) => const LoadingPage()),
+      GoRoute(path: '/calendar', builder: (context, state) => const CalendarPage()),
+      ...loginRoutes,
+    ],
+  );
+}
+
+class AppStartupNotifier extends ChangeNotifier {
+  bool isReady = false;
+
+  void setReady() {
+    isReady = true;
+    notifyListeners();
+  }
+}

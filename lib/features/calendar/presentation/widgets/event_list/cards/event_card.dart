@@ -41,7 +41,12 @@ class EventCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(entry.title, style: TextStyle(color: Theme.of(context).colorScheme.tertiary),),
+                      Text(
+                        entry.title,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.tertiary,
+                        ),
+                      ),
                       if ((entry.subtitle ?? '').trim().isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Text(
@@ -53,18 +58,19 @@ class EventCard extends StatelessWidget {
                   ),
                 ),
               ),
-              ClipRRect(
-                borderRadius: BorderRadiusGeometry.only(
-                  topRight: Radius.circular(10),
-                  bottomRight: Radius.circular(10),
+              if (entry.imageUrls != null && entry.imageUrls!.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadiusGeometry.only(
+                    topRight: Radius.circular(10),
+                    bottomRight: Radius.circular(10),
+                  ),
+                  child: Image.network(
+                    entry.imageUrls![0],
+                    width: 120,
+                    height: 130,
+                    fit: BoxFit.cover,
+                  ),
                 ),
-                child: Image.network(
-                  entry.imageUrls![0],
-                  width: 120,
-                  height: 130,
-                  fit: BoxFit.cover,
-                ),
-              ),
             ],
           ),
         ),

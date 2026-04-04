@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
+import '../../providers/auth_repository_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 import '../login_step_scaffold.dart';
 import 'widgets/forms.dart';
 
-class PersonalDataPage extends StatefulWidget {
+class PersonalDataPage extends ConsumerStatefulWidget {
   const PersonalDataPage({super.key});
 
   @override
-  State<PersonalDataPage> createState() => _PersonalDataPageState();
+  ConsumerState<PersonalDataPage> createState() => _PersonalDataPageState();
 }
 
-class _PersonalDataPageState extends State<PersonalDataPage> {
+class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
   final _draft = LoginFlowDraft.instance;
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   String? _selectedClass;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -46,7 +52,44 @@ class _PersonalDataPageState extends State<PersonalDataPage> {
       step: LoginFlowStep.personalData,
       backPath: LoginPaths.role,
       nextPath: LoginPaths.choir,
+      submitBusy: _busy,
       canProceed: () => _formKey.currentState?.validate() ?? false,
+      onAsyncProceed: (goNext) async {
+        setState(() => _busy = true);
+        try {
+          final draft = LoginFlowDraft.instance;
+          await ref.read(authRepositoryProvider).signUp(
+                email: draft.email,
+                password: draft.password,
+                firstName: _firstNameController.text,
+                lastName: _lastNameController.text,
+              );
+          if (!context.mounted) return;
+
+          if (Supabase.instance.client.auth.currentSession == null) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Konto angelegt. Bitte bestätige deine E-Mail, falls dein Projekt das vorsieht. Danach kannst du dich unter „Anmelden“ einloggen.',
+                ),
+              ),
+            );
+            context.go(LoginPaths.login);
+            return;
+          }
+
+          if (!context.mounted) return;
+          goNext();
+        } on AuthRepositoryException catch (e) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message)),
+          );
+        } finally {
+          if (context.mounted) setState(() => _busy = false);
+        }
+      },
       child: Padding(
         padding: const EdgeInsets.only(top: 80),
         child: Form(
