@@ -10,11 +10,7 @@ class BaseBottomModal extends StatelessWidget {
   final CalendarEntry entry;
   final double? minHeight;
 
-  const BaseBottomModal({
-    super.key,
-    required this.entry,
-    this.minHeight,
-  });
+  const BaseBottomModal({super.key, required this.entry, this.minHeight});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +20,7 @@ class BaseBottomModal extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
       ),
       child: SafeArea(
@@ -34,9 +30,7 @@ class BaseBottomModal extends StatelessWidget {
             minHeight: effectiveMinHeight,
             maxHeight: screenHeight * 0.9,
           ),
-          child: SingleChildScrollView(
-            child: _buildModalContent(),
-          ),
+          child: SingleChildScrollView(child: _buildModalContent()),
         ),
       ),
     );
@@ -47,7 +41,7 @@ class BaseBottomModal extends StatelessWidget {
       CalendarEntryType.lesson => LessonBottomModal(entry: entry),
       CalendarEntryType.meal => MealBottomModal(entry: entry),
       CalendarEntryType.event => EventBottomModal(entry: entry),
-      CalendarEntryType.chor => ChorBottomModal(entry: entry),
+      CalendarEntryType.choir => ChorBottomModal(entry: entry),
     };
   }
 }

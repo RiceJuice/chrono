@@ -7,8 +7,8 @@ class CalendarMockData {
       // --- MONTAG, 02. MÄRZ 2026 ---
       CalendarEntry(
         id: '1',
-        title: 'Mathe',
-        subtitle: 'Volker Herfeld',
+        eventName: 'Mathe',
+        description: 'Volker Herfeld',
         location: 'Raum 2.07',
         startTime: DateTime(2026, 3, 2, 8, 45),
         endTime: DateTime(2026, 3, 2, 9, 30),
@@ -17,8 +17,8 @@ class CalendarMockData {
       ),
       CalendarEntry(
         id: '2',
-        title: 'Englisch',
-        subtitle: 'Volker Herfeld',
+        eventName: 'Englisch',
+        description: 'Volker Herfeld',
         location: 'Raum 2.07',
         startTime: DateTime(2026, 3, 2, 10, 0),
         endTime: DateTime(2026, 3, 2, 11, 30),
@@ -27,8 +27,8 @@ class CalendarMockData {
       ),
       CalendarEntry(
         id: '3',
-        title: 'Spaghetti Bolognese',
-        subtitle: 'Nudeln mit Rinderhackfleisch',
+        eventName: 'Spaghetti Bolognese',
+        description: 'Nudeln mit Rinderhackfleisch',
         startTime: DateTime(2026, 3, 2, 12, 15),
         endTime: DateTime(2026, 3, 2, 13, 0),
         // Jetzt als Liste von Strings
@@ -43,8 +43,8 @@ class CalendarMockData {
 
       CalendarEntry(
         id: '4',
-        title: "Pueri Gaudentes",
-        subtitle: 'Mittwoch, 4. März 2026',
+        eventName: "Pueri Gaudentes",
+        description: 'Mittwoch, 4. März 2026',
         location: 'St. Cäcilia',
         startTime: DateTime(2026, 3, 2, 14, 0),
         endTime: DateTime(2026, 3, 2, 17, 30),
@@ -62,8 +62,8 @@ class CalendarMockData {
       // --- DIENSTAG, 03. MÄRZ 2026 ---
       CalendarEntry(
         id: '5',
-        title: 'Informatik',
-        subtitle: 'Dr. Tech',
+        eventName: 'Informatik',
+        description: 'Dr. Tech',
         location: 'Labor 01',
         startTime: DateTime(2026, 3, 3, 9, 0),
         endTime: DateTime(2026, 3, 3, 10, 30),
@@ -74,8 +74,8 @@ class CalendarMockData {
       // --- MITTWOCH, 04. MÄRZ 2026 ---
       CalendarEntry(
         id: '7',
-        title: 'Sport',
-        subtitle: 'Hr. Trainer',
+        eventName: 'Sport',
+        description: 'Hr. Trainer',
         location: 'Turnhalle Süd',
         startTime: DateTime(2026, 3, 4, 11, 15),
         endTime: DateTime(2026, 3, 4, 12, 45),

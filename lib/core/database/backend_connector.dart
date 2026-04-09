@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'package:chronoapp/core/widgets/app_toast.dart';
+import 'package:flutter/material.dart';
 import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -67,7 +68,7 @@ class BackendConnector extends PowerSyncBackendConnector {
               op.op,
               op.table,
               op.id,
-              data['title'],
+              data['event_name'],
             );
             await table.upsert(data);
           case UpdateType.patch:
@@ -96,4 +97,25 @@ class BackendConnector extends PowerSyncBackendConnector {
       }
     }
   }
+
+  static Future<void> logout(BuildContext context) async {
+  try {
+    // 1. Abmelden bei Supabase
+    await Supabase.instance.client.auth.signOut();
+
+    // 2. Navigation zum Login (alle vorherigen Routen entfernen)
+    //if (context.mounted) {
+    //  context.go('/login');
+    //}
+  } catch (error) {
+    // Fehlerbehandlung
+    if (context.mounted) {
+      showAppToast(
+        context,
+        'Fehler beim Abmelden: $error',
+        kind: AppToastKind.error,
+      );
+    }
+  }
+}
 }

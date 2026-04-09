@@ -23,14 +23,14 @@ class BottomModalText extends StatelessWidget {
           const SizedBox(height: 30),
 
           Text(
-            entry.title,
+            entry.eventName,
             style: titleStyle ?? Theme.of(context).textTheme.titleLarge,
           ), // Komma hier nicht vergessen
 
-          if ((entry.subtitle ?? '').trim().isNotEmpty) ...[
+          if ((entry.description ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 18),
             Text(
-              entry.subtitle!,
+              entry.description!,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],

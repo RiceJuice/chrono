@@ -1,0 +1,15 @@
+config:
+  edition: 3
+
+streams:
+  appointments_calendar:
+    auto_subscribe: true
+    query: SELECT * FROM calendar_events
+
+  profile_self:
+    auto_subscribe: true
+    query: SELECT * FROM profiles WHERE id = auth.user_id()
+
+  reference_klassen:
+    auto_subscribe: true
+    query: SELECT * FROM klassen

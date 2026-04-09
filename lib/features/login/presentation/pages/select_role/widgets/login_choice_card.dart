@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 
 class LoginChoiceCard extends StatelessWidget {
   const LoginChoiceCard({
@@ -19,31 +19,30 @@ class LoginChoiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadius.s),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         height: 100,
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: AppInsets.cardPadding,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.s),
           color: isSelected
-              ? activeColor.withValues(alpha: 0.44)
-              : Colors.white.withValues(alpha: 0.08),
+              ? activeColor.withValues(alpha: AppOpacity.selectedFill)
+              : Colors.white.withValues(alpha: AppOpacity.subtle),
           border: Border.all(
             color: isSelected
-                ? activeColor.withValues(alpha: 0.95)
-                : Colors.white.withValues(alpha: 0.10),
+                ? activeColor.withValues(alpha: AppOpacity.selectedStroke)
+                : Colors.white.withValues(alpha: AppOpacity.low),
           ),
         ),
         child: Align(
           alignment: Alignment.topLeft,
           child: Text(
             title,
-            style: GoogleFonts.libreBaskerville(
+            style: Theme.of(context).textTheme.displaySmall?.copyWith(
               color: Colors.white,
               fontSize: 34,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ),

@@ -7,7 +7,14 @@ import 'calendar_handle.dart';
 import 'custom_table_calendar.dart';
 
 class CalendarHeader extends ConsumerStatefulWidget {
-  const CalendarHeader({super.key});
+  const CalendarHeader({
+    required this.onSearchPressed,
+    required this.onFilterPressed,
+    super.key,
+  });
+
+  final VoidCallback onSearchPressed;
+  final VoidCallback onFilterPressed;
 
   @override
   ConsumerState<CalendarHeader> createState() => _CalendarHeaderState();
@@ -61,21 +68,32 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
 
   @override
   Widget build(BuildContext context) {
-
     final selectedDay = ref.watch(selectedDayProvider);
     String monthName = DateFormat.MMMM('de').format(selectedDay);
 
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: Theme.of(context).colorScheme.surfaceContainer,
       ),
       child: Column(
         children: [
           AppBar(
-            title: Text(monthName, style: TextStyle(fontSize: 36)),
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            title: Text(
+              monthName,
+              style: Theme.of(context).textTheme.headlineLarge,
+            ),
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainer,
             actions: [
-              IconButton(onPressed: () {}, icon: const Icon(Icons.add)),
+              IconButton(
+                onPressed: widget.onFilterPressed,
+                icon: const Icon(Icons.filter_list),
+              ),
+              IconButton(
+                onPressed: widget.onSearchPressed,
+                icon: const Icon(Icons.search),
+              ),
             ],
           ),
           CustomTableCalendar(

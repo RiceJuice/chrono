@@ -9,15 +9,15 @@ class LoginPersonalDataFields extends StatelessWidget {
     required this.firstNameController,
     required this.lastNameController,
     required this.selectedClass,
+    required this.classOptions,
     required this.onClassChanged,
   });
 
   final TextEditingController firstNameController;
   final TextEditingController lastNameController;
   final String? selectedClass;
+  final List<String> classOptions;
   final ValueChanged<String?> onClassChanged;
-
-  static const _classes = ['5A', '6B', '7C', '8D', '9A', 'Q1', 'Q2'];
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +46,7 @@ class LoginPersonalDataFields extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         DropdownButtonFormField<String>(
-          value: selectedClass,
+          initialValue: selectedClass,
           hint: const Text(
             'Klasse auswählen',
             style: TextStyle(color: Colors.white54, fontSize: 13),
@@ -55,13 +55,16 @@ class LoginPersonalDataFields extends StatelessWidget {
           iconEnabledColor: Colors.white,
           style: const TextStyle(color: Colors.white),
           decoration: loginInputDecoration('Klasse'),
-          items: _classes
+          items: classOptions
               .map(
                 (item) =>
                     DropdownMenuItem<String>(value: item, child: Text(item)),
               )
               .toList(),
           validator: (value) {
+            if (classOptions.isEmpty) {
+              return 'Keine Klassen verfuegbar. Bitte spaeter erneut versuchen.';
+            }
             if (value == null || value.trim().isEmpty) {
               return 'Bitte eine Klasse auswaehlen.';
             }

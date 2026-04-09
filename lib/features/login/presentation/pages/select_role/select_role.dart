@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
-import '../login_step_scaffold.dart';
+import '../../providers/login_step_scaffold.dart';
 import 'widgets/login_role_selection.dart';
 
 class SelectRolePage extends StatefulWidget {
@@ -27,7 +27,7 @@ class _SelectRolePageState extends State<SelectRolePage> {
   Widget build(BuildContext context) {
     return LoginStepScaffold(
       step: LoginFlowStep.role,
-      backPath: LoginPaths.register,
+      backPath: LoginPaths.credentials,
       nextPath: LoginPaths.personalData,
       child: Padding(
         padding: const EdgeInsets.only(top: 80),

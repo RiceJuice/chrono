@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 
 class LoginPrimaryButton extends StatelessWidget {
   const LoginPrimaryButton({
@@ -6,30 +7,40 @@ class LoginPrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     required this.color,
+    this.isLoading = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final Color color;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
+    final baseStyle = Theme.of(context).elevatedButtonTheme.style!;
     return SizedBox(
       height: 60,
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.black,
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+        onPressed: isLoading ? null : onPressed,
+        style: baseStyle.copyWith(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return color.withValues(alpha: AppOpacity.disabled);
+            }
+            return color;
+          }),
         ),
-        child: Text(label),
+        child: isLoading
+            ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                ),
+              )
+            : Text(label),
       ),
     );
   }

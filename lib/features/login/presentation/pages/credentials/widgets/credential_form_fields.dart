@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../../widgets/login_text_field.dart';
 
-class LoginRegisterFields extends StatelessWidget {
-  const LoginRegisterFields({
+class CredentialFormFields extends StatelessWidget {
+  const CredentialFormFields({
     super.key,
     required this.emailController,
     required this.passwordController,
     required this.passwordConfirmController,
+    required this.requirePasswordConfirmation,
   });
 
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final TextEditingController passwordConfirmController;
+  final bool requirePasswordConfirmation;
 
   @override
   Widget build(BuildContext context) {
@@ -46,30 +48,31 @@ class LoginRegisterFields extends StatelessWidget {
             if (input.isEmpty) {
               return 'Bitte Passwort eingeben.';
             }
-            if (input.length < 8) {
+            if (requirePasswordConfirmation && input.length < 8) {
               return 'Passwort muss mindestens 8 Zeichen haben.';
             }
             return null;
           },
         ),
-        const SizedBox(height: 14),
-        LoginTextField(
-          controller: passwordConfirmController,
-          hintText: 'Passwort bestätigen',
-          obscureText: true,
-          validator: (value) {
-            final input = value ?? '';
-            if (input.isEmpty) {
-              return 'Bitte Passwort bestätigen.';
-            }
-            if (input != passwordController.text) {
-              return 'Passwörter stimmen nicht überein.';
-            }
-            return null;
-          },
-        ),
+        if (requirePasswordConfirmation) ...[
+          const SizedBox(height: 14),
+          LoginTextField(
+            controller: passwordConfirmController,
+            hintText: 'Passwort bestätigen',
+            obscureText: true,
+            validator: (value) {
+              final input = value ?? '';
+              if (input.isEmpty) {
+                return 'Bitte Passwort bestätigen.';
+              }
+              if (input != passwordController.text) {
+                return 'Passwörter stimmen nicht überein.';
+              }
+              return null;
+            },
+          ),
+        ],
       ],
     );
   }
 }
-

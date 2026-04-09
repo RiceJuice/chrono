@@ -13,11 +13,11 @@ class TextContent extends StatelessWidget{
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(entry.title),
-        if ((entry.subtitle ?? '').trim().isNotEmpty) ...[
+        Text(entry.eventName),
+        if ((entry.description ?? '').trim().isNotEmpty) ...[
           const SizedBox(height: 2),
           Text(
-            entry.subtitle!,
+            entry.description!,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

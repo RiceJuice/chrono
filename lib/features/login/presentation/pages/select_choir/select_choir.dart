@@ -1,13 +1,13 @@
+import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/auth_repository.dart';
-import '../../../data/profile_reference_ids.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
-import '../login_step_scaffold.dart';
+import '../../providers/login_step_scaffold.dart';
 import 'provider/select_choir_provider.dart';
 import 'widgets/dropdown.dart';
 import 'widgets/login_choir_selection.dart';
@@ -46,15 +46,19 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
         final bool isChoirSelected = ref.read(selectedChoirProvider) != null;
 
         if (!isVoiceSelected) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bitte wähle eine Stimme aus.')),
+          showAppToast(
+            context,
+            'Bitte wähle eine Stimme aus.',
+            kind: AppToastKind.info,
           );
           return false;
         }
 
         if (!isChoirSelected) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bitte wähle einen Chor aus.')),
+          showAppToast(
+            context,
+            'Bitte wähle einen Chor aus.',
+            kind: AppToastKind.info,
           );
           return false;
         }
@@ -65,25 +69,30 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
         setState(() => _busy = true);
         try {
           final draft = LoginFlowDraft.instance;
-          final choirLabel = ref.read(selectedChoirProvider);
-          final klasseId = draft.schoolClass != null
-              ? klasseIdByLabel[draft.schoolClass!]
-              : null;
-          final chorId =
-              choirLabel != null ? choirIdByLabel[choirLabel] : null;
 
-          await ref.read(authRepositoryProvider).updateProfile(
-                klasseId: klasseId,
-                chorId: chorId,
-                stimmgruppe: draft.voice,
+          final saved = await ref.read(authRepositoryProvider).updateProfile(
+                firstName: draft.firstName,
+                lastName: draft.lastName,
+                className: draft.schoolClass,
+                voice: draft.voice,
                 role: draft.role,
               );
+          if (!saved) {
+            throw AuthRepositoryException(
+              'Profil konnte nicht gespeichert werden. Bitte erneut versuchen.',
+            );
+          }
           if (!context.mounted) return;
           goNext();
         } on AuthRepositoryException catch (e) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message)),
+          showAppToast(context, e.message, kind: AppToastKind.error);
+        } catch (_) {
+          if (!context.mounted) return;
+          showAppToast(
+            context,
+            'Profil konnte nicht gespeichert werden. Bitte erneut versuchen.',
+            kind: AppToastKind.error,
           );
         } finally {
           if (context.mounted) setState(() => _busy = false);
@@ -91,14 +100,7 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
       },
       child: Column(
         children: [
-          Dropdown(
-            selectedVoice: _selectedVoice,
-            onVoiceChanged: (voice) => setState(() {
-              _selectedVoice = voice;
-              _draft.voice = voice;
-            }),
-          ),
-          const SizedBox(height: 20),
+          
           Expanded(
             child: LoginChoirSelection(
               selectedPage: _choirPage,
@@ -119,6 +121,15 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
               }),
             ),
           ),
+          
+          Dropdown(
+            selectedVoice: _selectedVoice,
+            onVoiceChanged: (voice) => setState(() {
+              _selectedVoice = voice;
+              _draft.voice = voice;
+            }),
+          ),
+          const SizedBox(height: 30),
         ],
       ),
     );

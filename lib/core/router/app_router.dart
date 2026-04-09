@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/calendar/presentation/pages/calendar_page.dart';
 import '../../features/login/presentation/routes/login_routes.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 import '../loading_page.dart';
 
 /// Löst [GoRouter.refresh] bei Auth-Änderungen aus.
@@ -51,23 +52,50 @@ class AppRouter {
 
       if (!loggedIn) {
         if (isLoadingRoute) return LoginPaths.login;
-        if (loc == '/calendar') return LoginPaths.login;
+        if (loc == '/calendar' || loc == '/settings') return LoginPaths.login;
         return null;
       }
 
       if (loggedIn) {
         if (isLoadingRoute) return '/calendar';
-        if (loc == LoginPaths.login) return '/calendar';
+        if (loc.startsWith(LoginPaths.login) && !_isAllowedOnboardingPath(loc)) {
+          return '/calendar';
+        }
       }
 
       return null;
     },
     routes: [
       GoRoute(path: '/loading', builder: (context, state) => const LoadingPage()),
-      GoRoute(path: '/calendar', builder: (context, state) => const CalendarPage()),
+      GoRoute(
+        path: '/calendar',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const CalendarPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/settings',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const SettingsPage(),
+        ),
+      ),
       ...loginRoutes,
     ],
   );
+
+  bool _isAllowedOnboardingPath(String location) {
+    const allowed = <String>{
+      LoginPaths.login,
+      LoginPaths.credentials,
+      LoginPaths.role,
+      LoginPaths.personalData,
+      LoginPaths.choir,
+      LoginPaths.emailConfirmation,
+    };
+    return allowed.contains(location);
+  }
 }
 
 class AppStartupNotifier extends ChangeNotifier {

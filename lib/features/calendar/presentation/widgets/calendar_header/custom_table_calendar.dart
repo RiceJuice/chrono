@@ -15,6 +15,7 @@ class CustomTableCalendar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
     final selectedDay = ref.watch(selectedDayProvider);
     final focusedDay = ref.watch(focusedDayProvider);
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
@@ -38,26 +39,26 @@ class CustomTableCalendar extends ConsumerWidget {
       calendarStyle: CalendarStyle(
         cellMargin: const EdgeInsets.all(2),
         selectedDecoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.tertiaryContainer,
+          color: scheme.primary,
           shape: BoxShape.circle,
         ),
         selectedTextStyle: TextStyle(
-          color: Theme.of(context).colorScheme.onSurface,
+          color: scheme.onSurface,
           fontWeight: FontWeight.w600,
         ),
         todayDecoration: const BoxDecoration(
           color: Colors.transparent,
           shape: BoxShape.circle,
         ),
-        todayTextStyle: const TextStyle(
-          color: Colors.red,
+        todayTextStyle: TextStyle(
+          color: scheme.error,
           fontWeight: FontWeight.w700,
         ),
         weekendTextStyle: TextStyle(
-          color: Theme.of(context).colorScheme.onSurface,
+          color: scheme.onSurface,
         ),
         outsideTextStyle: TextStyle(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+          color: scheme.onSurface.withValues(alpha: 0.3),
         ),
       ),
       headerStyle: const HeaderStyle(
@@ -74,7 +75,6 @@ class CustomTableCalendar extends ConsumerWidget {
       },
       onPageChanged: (newFocusedDay) {
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
-        
       },
     );
   }

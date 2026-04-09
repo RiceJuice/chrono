@@ -1,14 +1,12 @@
+import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
-import '../../providers/auth_repository_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
-import '../login_step_scaffold.dart';
+import '../../providers/login_step_scaffold.dart';
+import '../../providers/klassen_provider.dart';
 import 'widgets/forms.dart';
 
 class PersonalDataPage extends ConsumerStatefulWidget {
@@ -48,6 +46,9 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
 
   @override
   Widget build(BuildContext context) {
+    final classOptionsAsync = ref.watch(availableClassesProvider);
+    final classOptions = classOptionsAsync.asData?.value ?? const <String>[];
+
     return LoginStepScaffold(
       step: LoginFlowStep.personalData,
       backPath: LoginPaths.role,
@@ -57,35 +58,18 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
       onAsyncProceed: (goNext) async {
         setState(() => _busy = true);
         try {
-          final draft = LoginFlowDraft.instance;
-          await ref.read(authRepositoryProvider).signUp(
-                email: draft.email,
-                password: draft.password,
-                firstName: _firstNameController.text,
-                lastName: _lastNameController.text,
-              );
+          _draft.firstName = _firstNameController.text.trim();
+          _draft.lastName = _lastNameController.text.trim();
           if (!context.mounted) return;
-
-          if (Supabase.instance.client.auth.currentSession == null) {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Konto angelegt. Bitte bestätige deine E-Mail, falls dein Projekt das vorsieht. Danach kannst du dich unter „Anmelden“ einloggen.',
-                ),
-              ),
+          if (_draft.firstName.isEmpty || _draft.lastName.isEmpty) {
+            showAppToast(
+              context,
+              'Bitte Vorname und Nachname ausfüllen.',
+              kind: AppToastKind.info,
             );
-            context.go(LoginPaths.login);
             return;
           }
-
-          if (!context.mounted) return;
           goNext();
-        } on AuthRepositoryException catch (e) {
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message)),
-          );
         } finally {
           if (context.mounted) setState(() => _busy = false);
         }
@@ -98,6 +82,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
             firstNameController: _firstNameController,
             lastNameController: _lastNameController,
             selectedClass: _selectedClass,
+            classOptions: classOptions,
             onClassChanged: (value) => setState(() {
               _selectedClass = value;
               _draft.schoolClass = value;

@@ -10,7 +10,6 @@ class LessionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BaseCalendarCard(
       entry: entry,
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       contentPadding: EdgeInsetsGeometry.symmetric(vertical: 8, horizontal: 14),
       leadingIndicator: Padding(
         padding: const EdgeInsets.only(right: 12.0),

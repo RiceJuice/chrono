@@ -7,8 +7,8 @@
                                "type":  "dart",
                                "program":  "lib/main.dart",
                                "toolArgs":  [
-                                                 "--dart-define-from-file=config/dart_defines.local.json"
-                                             ],
+                                                "--dart-define-from-file=config/dart_defines.local.json"
+                                            ],
                                "args":  [
                                             "-d",
                                             "emulator-5554"

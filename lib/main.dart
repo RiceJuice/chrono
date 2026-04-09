@@ -14,20 +14,33 @@ const String _defaultSupabaseUrl = 'https://chrbvfaknykaycwumuba.supabase.co';
 const String _defaultSupabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNocmJ2ZmFrbnlrYXljd3VtdWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ0MjEsImV4cCI6MjA5MDQ3MDQyMX0.K7ChUbeWNd_-wCWCswo0b-dVpe50x57qK-dsBkN9NrE';
 
-const String _supabaseUrl = String.fromEnvironment(
+const String _supabaseUrlFromEnv = String.fromEnvironment(
   'SUPABASE_URL',
-  defaultValue: _defaultSupabaseUrl,
+  defaultValue: '',
 );
-const String _supabaseAnonKey = String.fromEnvironment(
+const String _supabaseAnonKeyFromEnv = String.fromEnvironment(
   'SUPABASE_ANON_KEY',
-  defaultValue: _defaultSupabaseAnonKey,
+  defaultValue: '',
 );
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final supabaseUrl = _supabaseUrlFromEnv.trim().isEmpty
+      ? _defaultSupabaseUrl
+      : _supabaseUrlFromEnv.trim();
+  final supabaseAnonKey = _supabaseAnonKeyFromEnv.trim().isEmpty
+      ? _defaultSupabaseAnonKey
+      : _supabaseAnonKeyFromEnv.trim();
+
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    throw StateError(
+      'Supabase Konfiguration fehlt. SUPABASE_URL und SUPABASE_ANON_KEY prüfen.',
+    );
+  }
+
   // 1. Supabase & DB Setup
-  await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnonKey);
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
   final powerSyncDb = await initializeDatabase();
   attachCalendarEventsDebugLogs(powerSyncDb);
   scheduleCalendarEventsLocalSnapshots(powerSyncDb);

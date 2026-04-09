@@ -15,8 +15,8 @@ final dbProvider = Provider<PowerSyncDatabase>((ref) {
 
 Future<PowerSyncDatabase> initializeDatabase() async {
   final dir = await getApplicationDocumentsDirectory();
-  // v2: Schema nutzt `calendar_events` wie in Postgres/PowerSync (vorher fälschlich `appointments`).
-  final path = p.join(dir.path, 'chrono_powersync_v2.db');
+  // v6: calendar_events updated (`class`, `image_paths`) + profiles + klassen.
+  final path = p.join(dir.path, 'chrono_powersync_v6.db');
   final db = PowerSyncDatabase(schema: powersyncSchema, path: path);
   await db.initialize();
   return db;

@@ -7,6 +7,7 @@ import 'powersync_schema.dart';
 
 const String _tag = '[CalendarEvents]';
 
+
 /// Zeigt, ob die lokale Tabelle Zeilen hat (unabhängig vom Kalenderfilter).
 Future<void> logCalendarEventsLocalSnapshot(
   PowerSyncDatabase db, {
@@ -24,16 +25,6 @@ Future<void> logCalendarEventsLocalSnapshot(
     final raw = row['c'];
     final count = raw is int ? raw : int.parse(raw.toString());
     debugPrint('$_tag[debug][$label] COUNT(*) = $count');
-    if (count > 0) {
-      final samples = await db.getAll(
-        'SELECT id, start_time, title FROM $kCalendarEventsTable ORDER BY start_time LIMIT 15',
-      );
-      for (final r in samples) {
-        debugPrint(
-          '$_tag[debug][$label] Zeile id=${r['id']} start_time=${r['start_time']} title=${r['title']}',
-        );
-      }
-    }
   } catch (e) {
     debugPrint('$_tag[debug][$label] Fehler: $e');
   }
@@ -60,11 +51,11 @@ void attachCalendarEventsDebugLogs(PowerSyncDatabase db) {
   db.getCrudTransactions().listen((CrudTransaction tx) {
     for (final op in tx.crud) {
       if (op.table != kCalendarEventsTable) continue;
-      final title = op.opData?['title'];
+      final eventName = op.opData?['event_name'];
       switch (op.op) {
         case UpdateType.put:
           debugPrint(
-            '$_tag[lokal→Upload-Queue] PUT id=${op.id} title=${title ?? "?"}',
+            '$_tag[lokal→Upload-Queue] PUT id=${op.id} event_name=${eventName ?? "?"}',
           );
         case UpdateType.patch:
           debugPrint(

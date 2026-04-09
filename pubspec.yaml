@@ -45,6 +45,7 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.5
   sqlite3: ^2.9.4
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:

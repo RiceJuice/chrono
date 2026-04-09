@@ -33,13 +33,13 @@ class CalendarRepository {
     return _db
         .watch(
           '''
-SELECT id, title, subtitle, location, start_time, end_time, type,
-       accent_color, image_urls, tags, user_id
-FROM $kCalendarEventsTable
-WHERE julianday(start_time) >= julianday(?)
-  AND julianday(start_time) < julianday(?)
-ORDER BY julianday(start_time) ASC
-''',
+          SELECT id, event_name, description, location, note, start_time, end_time, type,
+                choir, voices, schooltrack, class, image_paths
+          FROM $kCalendarEventsTable
+          WHERE julianday(start_time) >= julianday(?)
+            AND julianday(start_time) < julianday(?)
+          ORDER BY julianday(start_time) ASC
+          ''',
           parameters: [lo, hi],
           triggerOnTables: const {kCalendarEventsTable},
         )
@@ -50,19 +50,75 @@ ORDER BY julianday(start_time) ASC
               '${rows.length} Zeile(n) in $kCalendarEventsTable',
             );
           }
-          final out = <CalendarEntry>[];
-          for (final row in rows) {
-            try {
-              out.add(CalendarEntryMapper.fromRow(row));
-            } catch (e) {
-              if (kDebugMode) {
-                debugPrint(
-                  '[Calendar] Mapper-Fehler id=${row['id']} start_time=${row['start_time']}: $e',
-                );
-              }
-            }
-          }
-          return out;
+          return _mapRows(rows, isSearch: false);
         });
+  }
+
+  Stream<List<CalendarEntry>> watchEntriesByQuery(String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) {
+      return Stream.value(const <CalendarEntry>[]);
+    }
+
+    final likeArg = '%$normalizedQuery%';
+    return _db
+        .watch(
+          '''
+          SELECT id, event_name, description, location, note, start_time, end_time, type,
+                choir, voices, schooltrack, class, image_paths
+          FROM $kCalendarEventsTable
+          WHERE lower(event_name) LIKE ?
+            OR lower(COALESCE(description, '')) LIKE ?
+            OR lower(COALESCE(location, '')) LIKE ?
+            OR lower(COALESCE(note, '')) LIKE ?
+          ORDER BY julianday(start_time) ASC
+          ''',
+          parameters: [likeArg, likeArg, likeArg, likeArg],
+          triggerOnTables: const {kCalendarEventsTable},
+        )
+        .map((ResultSet rows) {
+          return _mapRows(rows, isSearch: true);
+        });
+  }
+
+  Stream<List<CalendarEntry>> watchAllEntries() {
+    return _db
+        .watch(
+          '''
+          SELECT id, event_name, description, location, note, start_time, end_time, type,
+                choir, voices, schooltrack, class, image_paths
+          FROM $kCalendarEventsTable
+          ORDER BY julianday(start_time) ASC
+          ''',
+          triggerOnTables: const {kCalendarEventsTable},
+        )
+        .map((ResultSet rows) => _mapRows(rows, isSearch: true));
+  }
+
+  List<CalendarEntry> _mapRows(ResultSet rows, {required bool isSearch}) {
+    final out = <CalendarEntry>[];
+    for (final row in rows) {
+      try {
+        out.add(CalendarEntryMapper.fromRow(row));
+      } catch (e) {
+        if (kDebugMode) {
+          final id = _safeRowValue(row, 'id');
+          final startTime = _safeRowValue(row, 'start_time');
+          final prefix = isSearch ? 'Search-' : '';
+          debugPrint(
+            '[Calendar] ${prefix}Mapper-Fehler id=$id start_time=$startTime: $e',
+          );
+        }
+      }
+    }
+    return out;
+  }
+
+  Object? _safeRowValue(Row row, String key) {
+    try {
+      return row[key];
+    } catch (_) {
+      return null;
+    }
   }
 }
