@@ -42,10 +42,10 @@ class AppComponentThemes {
   }
 
   static DividerThemeData dividerTheme(ColorScheme scheme) {
-    final alpha = scheme.brightness == Brightness.dark ? 0.10 : 0.08;
+    final alpha = scheme.brightness == Brightness.dark ? 0.20 : 0.15;
     return DividerThemeData(
       color: scheme.onSurface.withValues(alpha: alpha),
-      thickness: 1,
+      thickness: 0.5,
       space: 1,
     );
   }
@@ -163,7 +163,7 @@ class AppComponentThemes {
       backgroundColor: scheme.surfaceContainer,
       indicatorColor: Colors.transparent,
       elevation: 0,
-      height: 60,
+      height: 55,
       overlayColor: WidgetStateProperty.all(Colors.transparent),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {

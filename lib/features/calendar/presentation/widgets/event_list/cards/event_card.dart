@@ -7,10 +7,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import '../../../../data/calendar_image_url_resolver.dart';
 import '../../../../domain/models/calendar_entry.dart';
+import 'calendar_card_style_resolver.dart';
+import 'calendar_entry_temporal_state.dart';
 
 class EventCard extends StatefulWidget {
   final CalendarEntry entry;
-  const EventCard({super.key, required this.entry});
+  final bool applyPastStyling;
+  const EventCard({
+    super.key,
+    required this.entry,
+    this.applyPastStyling = false,
+  });
 
   @override
   State<EventCard> createState() => _EventCardState();
@@ -63,6 +70,13 @@ class _EventCardState extends State<EventCard> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final entry = widget.entry;
+    final temporalState = CalendarEntryTemporalState.fromEntry(entry);
+    final style = CalendarCardStyleResolver.resolve(
+      context: context,
+      baseBackgroundColor: scheme.secondary,
+      temporalState: temporalState,
+      applyPastStyling: widget.applyPastStyling,
+    );
     final hasImageCandidate =
         (entry.imageUrls?.isNotEmpty ?? false) ||
         (entry.imagePaths?.isNotEmpty ?? false);
@@ -77,11 +91,11 @@ class _EventCardState extends State<EventCard> {
         );
       },
       contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      leading: TimeColumn(entry: entry),
+      leading: TimeColumn(entry: entry, textColor: style.timeTextColor),
       title: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.s),
-          color: scheme.secondary,
+          color: style.cardBackgroundColor,
         ),
         // IntrinsicHeight sorgt dafür, dass die Row so hoch ist wie ihr höchstes Kind
         child: IntrinsicHeight(
@@ -99,14 +113,16 @@ class _EventCardState extends State<EventCard> {
                       Text(
                         entry.eventName,
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: scheme.tertiary,
+                          color: style.primaryTextColor,
                         ),
                       ),
                       if ((entry.description ?? '').trim().isNotEmpty) ...[
                         const SizedBox(height: AppDimensions.eventCardDescriptionSpacing),
                         Text(
                           entry.description!,
-                          style: theme.textTheme.bodySmall,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: style.secondaryTextColor,
+                          ),
                         ),
                       ],
                     ],
@@ -117,50 +133,62 @@ class _EventCardState extends State<EventCard> {
                 SizedBox(
                   width: AppDimensions.eventCardImageWidth,
                   height: AppDimensions.eventCardImageHeight,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadiusGeometry.only(
-                      topRight: Radius.circular(AppRadius.s),
-                      bottomRight: Radius.circular(AppRadius.s),
-                    ),
-                    child: FutureBuilder<String?>(
-                      future: _firstImageUrlFuture,
-                      builder: (context, snapshot) {
-                        final url = snapshot.data;
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadiusGeometry.only(
+                          topRight: Radius.circular(AppRadius.s),
+                          bottomRight: Radius.circular(AppRadius.s),
+                        ),
+                        child: FutureBuilder<String?>(
+                          future: _firstImageUrlFuture,
+                          builder: (context, snapshot) {
+                            final url = snapshot.data;
 
-                        if (url == null &&
-                            snapshot.connectionState == ConnectionState.done) {
-                          return Container(
-                            color: scheme.surfaceContainerHighest,
-                            alignment: Alignment.center,
-                            child: const Icon(Icons.broken_image),
-                          );
-                        }
+                            if (url == null &&
+                                snapshot.connectionState == ConnectionState.done) {
+                              return Container(
+                                color: scheme.surfaceContainerHighest,
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.broken_image),
+                              );
+                            }
 
-                        if (url == null) {
-                          return Container(
-                            color: scheme.surfaceContainerHighest,
-                          );
-                        }
+                            if (url == null) {
+                              return Container(
+                                color: scheme.surfaceContainerHighest,
+                              );
+                            }
 
-                        return CachedNetworkImage(
-                          imageUrl: url,
-                          cacheKey: _thumbnailCacheKey(entry),
-                          fit: BoxFit.cover,
-                          fadeInDuration: Duration.zero,
-                          fadeOutDuration: Duration.zero,
-                          placeholder: (context, _) => Container(
-                            color: scheme.surfaceContainerHighest,
-                          ),
-                          errorWidget: (context, _, error) {
-                            return Container(
-                              color: scheme.surfaceContainerHighest,
-                              alignment: Alignment.center,
-                              child: const Icon(Icons.broken_image),
+                            return CachedNetworkImage(
+                              imageUrl: url,
+                              cacheKey: _thumbnailCacheKey(entry),
+                              fit: BoxFit.cover,
+                              fadeInDuration: Duration.zero,
+                              fadeOutDuration: Duration.zero,
+                              placeholder: (context, _) => Container(
+                                color: scheme.surfaceContainerHighest,
+                              ),
+                              errorWidget: (context, _, error) {
+                                return Container(
+                                  color: scheme.surfaceContainerHighest,
+                                  alignment: Alignment.center,
+                                  child: const Icon(Icons.broken_image),
+                                );
+                              },
                             );
                           },
-                        );
-                      },
-                    ),
+                        ),
+                      ),
+                      if (style.imageOverlayOpacity > 0)
+                        Positioned.fill(
+                          child: ColoredBox(
+                            color: scheme.surface.withValues(
+                              alpha: style.imageOverlayOpacity,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
             ],

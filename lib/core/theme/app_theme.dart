@@ -53,7 +53,12 @@ class AppTheme {
       inputDecorationTheme: AppComponentThemes.inputDecorationTheme(scheme),
       chipTheme: AppComponentThemes.chipTheme(scheme),
       bottomSheetTheme: AppComponentThemes.bottomSheetTheme(scheme),
-      navigationBarTheme: AppComponentThemes.navigationBarTheme(scheme),
+      navigationBarTheme: AppComponentThemes.navigationBarTheme(
+        scheme,
+      ).copyWith(backgroundColor: scaffoldBackgroundColor),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: scaffoldBackgroundColor,
+      ),
     );
   }
 }

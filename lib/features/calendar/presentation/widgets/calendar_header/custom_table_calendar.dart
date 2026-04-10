@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../providers/calendar_providers.dart';
+import '../../theme/calendar_presentation_theme.dart';
 
 class CustomTableCalendar extends ConsumerWidget {
   const CustomTableCalendar({
@@ -12,6 +13,31 @@ class CustomTableCalendar extends ConsumerWidget {
 
   final CalendarFormat calendarFormat;
   final ValueChanged<CalendarFormat> onFormatChanged;
+
+  DateTime _startOfWeek(DateTime day) {
+    final normalizedDay = DateTime(day.year, day.month, day.day);
+    final offsetFromMonday = normalizedDay.weekday - DateTime.monday;
+    return normalizedDay.subtract(Duration(days: offsetFromMonday));
+  }
+
+  DateTime _selectedDayForPage(DateTime focusedDay, DateTime currentSelectedDay) {
+    final normalizedDay = DateTime(
+      focusedDay.year,
+      focusedDay.month,
+      focusedDay.day,
+    );
+
+    switch (calendarFormat) {
+      case CalendarFormat.month:
+        return DateTime(normalizedDay.year, normalizedDay.month, 1);
+      case CalendarFormat.week:
+        final weekStart = _startOfWeek(normalizedDay);
+        final weekdayOffset = currentSelectedDay.weekday - DateTime.monday;
+        return weekStart.add(Duration(days: weekdayOffset));
+      case CalendarFormat.twoWeeks:
+        return _startOfWeek(normalizedDay);
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,7 +52,7 @@ class CustomTableCalendar extends ConsumerWidget {
     });
 
     return TableCalendar(
-      locale: 'de_DE', //TODO: make this dynamic
+      locale: 'de_DE', 
       startingDayOfWeek: StartingDayOfWeek.monday,
       firstDay: DateTime(2020, 1, 1), //TODO: make this dynamic
       lastDay: DateTime(2030, 12, 31), //TODO: make this dynamic
@@ -51,7 +77,7 @@ class CustomTableCalendar extends ConsumerWidget {
           shape: BoxShape.circle,
         ),
         todayTextStyle: TextStyle(
-          color: scheme.error,
+          color: CalendarPresentationTheme.todayAccentColor(context),
           fontWeight: FontWeight.w700,
         ),
         weekendTextStyle: TextStyle(
@@ -74,7 +100,13 @@ class CustomTableCalendar extends ConsumerWidget {
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },
       onPageChanged: (newFocusedDay) {
-        ref.read(focusedDayProvider.notifier).update(newFocusedDay);
+        final currentSelectedDay = ref.read(selectedDayProvider);
+        final nextSelectedDay = _selectedDayForPage(
+          newFocusedDay,
+          currentSelectedDay,
+        );
+        ref.read(selectedDayProvider.notifier).update(nextSelectedDay);
+        ref.read(focusedDayProvider.notifier).update(nextSelectedDay);
       },
     );
   }

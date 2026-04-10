@@ -4,12 +4,18 @@ import '../../../../domain/models/calendar_entry.dart';
 
 class LessionCard extends StatelessWidget {
   final CalendarEntry entry;
-  const LessionCard({super.key, required this.entry});
+  final bool applyPastStyling;
+  const LessionCard({
+    super.key,
+    required this.entry,
+    this.applyPastStyling = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return BaseCalendarCard(
       entry: entry,
+      applyPastStyling: applyPastStyling,
       contentPadding: EdgeInsetsGeometry.symmetric(vertical: 8, horizontal: 14),
       leadingIndicator: Padding(
         padding: const EdgeInsets.only(right: 12.0),

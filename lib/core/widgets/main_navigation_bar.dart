@@ -7,6 +7,7 @@ class MainNavigationBar extends StatelessWidget {
 
   static const _calendarPath = '/calendar';
   static const _settingsPath = '/settings';
+  static const _iconLabelSpacingOffset = 5.0;
 
 
   int _indexFromLocation(String location) {
@@ -33,25 +34,31 @@ class MainNavigationBar extends StatelessWidget {
           },
           destinations: [
             NavigationDestination(
-              icon: SvgPicture.asset(
-                'assets/domspatzen.svg',
-                height: 24,
-                width: 24,
-                colorFilter: currentIndex != 0
-                    ? ColorFilter.mode(
-                        Theme.of(context).colorScheme.onSurfaceVariant,
-                        BlendMode.srcIn,
-                      )
-                    : null,
+              icon: Transform.translate(
+                offset: const Offset(0, _iconLabelSpacingOffset),
+                child: SvgPicture.asset(
+                  'assets/domspatzen.svg',
+                  height: 24,
+                  width: 24,
+                  colorFilter: currentIndex != 0
+                      ? ColorFilter.mode(
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                          BlendMode.srcIn,
+                        )
+                      : null,
+                ),
               ),
               label: 'Kalender',
             ),
             NavigationDestination(
-              icon: Icon(
-                currentIndex == 1 ? Icons.settings : Icons.settings_outlined,
-                color: currentIndex == 1
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              icon: Transform.translate(
+                offset: const Offset(0, _iconLabelSpacingOffset),
+                child: Icon(
+                  currentIndex == 1 ? Icons.settings : Icons.settings_outlined,
+                  color: currentIndex == 1
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               label: 'Dein Chrono',
             ),

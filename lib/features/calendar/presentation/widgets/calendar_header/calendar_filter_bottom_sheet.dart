@@ -5,17 +5,28 @@ import '../../../../../core/database/backend_enums.dart';
 import '../../../../../core/theme/theme_tokens.dart';
 import '../../providers/calendar_providers.dart';
 
+enum CalendarFilterBottomSheetMode { calendarSettings, searchFilter }
+
 class CalendarFilterBottomSheet extends ConsumerWidget {
-  const CalendarFilterBottomSheet({super.key});
+  const CalendarFilterBottomSheet({
+    required this.mode,
+    super.key,
+  });
+
+  final CalendarFilterBottomSheetMode mode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final filters = ref.watch(calendarLocalFiltersProvider);
+    final isCalendarSettings = mode == CalendarFilterBottomSheetMode.calendarSettings;
+    final filters = ref.watch(
+      isCalendarSettings ? calendarFiltersProvider : searchFiltersProvider,
+    );
     final choirOptions = ref.watch(calendarChoirFilterOptionsProvider);
     final voiceOptions = ref.watch(calendarVoiceFilterOptionsProvider);
     final classOptionsAsync = ref.watch(calendarClassFilterOptionsProvider);
     final classOptions = classOptionsAsync.asData?.value ?? const <String>[];
+    final title = isCalendarSettings ? 'Kalender Einstellungen' : 'Such Filter';
 
     return ColoredBox(
       color: colorScheme.surface,
@@ -28,50 +39,89 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
               Text(
-                'Kalender-Filter',
+                title,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 12),
               _FilterSection(
                 title: 'Chor',
-                selectedValue: filters.choir,
+                selectedValues: filters.choirs,
                 options: choirOptions,
                 labelFor: _choirLabel,
                 selectedColor: colorScheme.primary,
                 chipBackgroundColor: colorScheme.surfaceContainerHighest,
-                onSelected: (value) => ref
-                    .read(calendarLocalFiltersProvider.notifier)
-                    .setChoir(value),
+                onToggle: (value) {
+                  if (isCalendarSettings) {
+                    ref.read(calendarFiltersProvider.notifier).toggleChoir(value);
+                  } else {
+                    ref.read(searchFiltersProvider.notifier).toggleChoir(value);
+                  }
+                },
+                onClear: () {
+                  if (isCalendarSettings) {
+                    ref.read(calendarFiltersProvider.notifier).clearChoirs();
+                  } else {
+                    ref.read(searchFiltersProvider.notifier).clearChoirs();
+                  }
+                },
               ),
               const SizedBox(height: 12),
               _FilterSection(
                 title: 'Stimme',
-                selectedValue: filters.voice,
+                selectedValues: filters.voices,
                 options: voiceOptions,
                 labelFor: _voiceLabel,
                 selectedColor: colorScheme.primary,
                 chipBackgroundColor: colorScheme.surfaceContainerHighest,
-                onSelected: (value) => ref
-                    .read(calendarLocalFiltersProvider.notifier)
-                    .setVoice(value),
+                onToggle: (value) {
+                  if (isCalendarSettings) {
+                    ref.read(calendarFiltersProvider.notifier).toggleVoice(value);
+                  } else {
+                    ref.read(searchFiltersProvider.notifier).toggleVoice(value);
+                  }
+                },
+                onClear: () {
+                  if (isCalendarSettings) {
+                    ref.read(calendarFiltersProvider.notifier).clearVoices();
+                  } else {
+                    ref.read(searchFiltersProvider.notifier).clearVoices();
+                  }
+                },
               ),
               const SizedBox(height: 12),
               _FilterSection(
                 title: 'Klasse',
-                selectedValue: filters.className,
+                selectedValues: filters.classNames,
                 options: classOptions,
                 labelFor: _classLabel,
                 selectedColor: colorScheme.primary,
                 chipBackgroundColor: colorScheme.surfaceContainerHighest,
-                onSelected: (value) => ref
-                    .read(calendarLocalFiltersProvider.notifier)
-                    .setClassName(value),
+                onToggle: (value) {
+                  if (isCalendarSettings) {
+                    ref
+                        .read(calendarFiltersProvider.notifier)
+                        .toggleClassName(value);
+                  } else {
+                    ref.read(searchFiltersProvider.notifier).toggleClassName(value);
+                  }
+                },
+                onClear: () {
+                  if (isCalendarSettings) {
+                    ref.read(calendarFiltersProvider.notifier).clearClassNames();
+                  } else {
+                    ref.read(searchFiltersProvider.notifier).clearClassNames();
+                  }
+                },
               ),
               const SizedBox(height: 16),
               _FilterActionButtons(
-                onReset: () => ref
-                    .read(calendarLocalFiltersProvider.notifier)
-                    .resetToProfileDefaults(),
+                onReset: () {
+                  if (isCalendarSettings) {
+                    ref.read(calendarFiltersProvider.notifier).resetToDefaults();
+                  } else {
+                    ref.read(searchFiltersProvider.notifier).resetToDefaults();
+                  }
+                },
                 onDone: () => Navigator.of(context).maybePop(),
               ),
               ],
@@ -141,7 +191,7 @@ class _FilterActionButtons extends StatelessWidget {
             style: resetStyle,
             onPressed: onReset,
             icon: const Icon(Icons.restart_alt),
-            label: const Text('Auf Profil zurücksetzen'),
+            label: const Text('Auf Standard zurücksetzen'),
           ),
         ),
         const SizedBox(height: 12),
@@ -160,21 +210,23 @@ class _FilterActionButtons extends StatelessWidget {
 class _FilterSection extends StatelessWidget {
   const _FilterSection({
     required this.title,
-    required this.selectedValue,
+    required this.selectedValues,
     required this.options,
     required this.labelFor,
     required this.selectedColor,
     required this.chipBackgroundColor,
-    required this.onSelected,
+    required this.onToggle,
+    required this.onClear,
   });
 
   final String title;
-  final String? selectedValue;
+  final List<String> selectedValues;
   final List<String> options;
   final String Function(String value) labelFor;
   final Color selectedColor;
   final Color chipBackgroundColor;
-  final ValueChanged<String?> onSelected;
+  final ValueChanged<String> onToggle;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -189,20 +241,20 @@ class _FilterSection extends StatelessWidget {
           children: [
             ChoiceChip(
               label: const Text('Alle'),
-              selected: selectedValue == null,
+              selected: selectedValues.isEmpty,
               selectedColor: selectedColor,
               backgroundColor: chipBackgroundColor,
               side: BorderSide.none,
-              onSelected: (_) => onSelected(null),
+              onSelected: (_) => onClear(),
             ),
             for (final option in options)
               ChoiceChip(
                 label: Text(labelFor(option)),
-                selected: selectedValue == option,
+                selected: selectedValues.contains(option),
                 selectedColor: selectedColor,
                 backgroundColor: chipBackgroundColor,
                 side: BorderSide.none,
-                onSelected: (_) => onSelected(option),
+                onSelected: (_) => onToggle(option),
               ),
           ],
         ),

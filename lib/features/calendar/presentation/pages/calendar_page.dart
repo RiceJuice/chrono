@@ -32,12 +32,25 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     });
   }
 
-  Future<void> _openFilters() async {
+  Future<void> _openCalendarFilters() async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => const CalendarFilterBottomSheet(),
+      builder: (_) => const CalendarFilterBottomSheet(
+        mode: CalendarFilterBottomSheetMode.calendarSettings,
+      ),
+    );
+  }
+
+  Future<void> _openSearchFilters() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const CalendarFilterBottomSheet(
+        mode: CalendarFilterBottomSheetMode.searchFilter,
+      ),
     );
   }
 
@@ -78,15 +91,16 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   Widget build(BuildContext context) {
     ref.listen(syncedProfileProvider, (_, next) {
       next.whenData((profile) {
-        ref.read(calendarLocalFiltersProvider.notifier).initializeFromProfile(profile);
+        ref.read(calendarFiltersProvider.notifier).initializeFromProfile(profile);
       });
     });
-
+    ref.listen<CalendarFiltersState>(calendarFiltersProvider, (_, next) {
+      ref.read(searchFiltersProvider.notifier).initializeFromCalendar(next);
+    });
+    final searchFilters = ref.watch(searchFiltersProvider);
+    final hasActiveSearchFilters = searchFilters.hasActiveFilters;
     final showSearchResults = _debouncedSearchQuery.isNotEmpty;
     final mediaPadding = MediaQuery.paddingOf(context);
-    final filters = ref.watch(calendarLocalFiltersProvider);
-    final hasActiveSearchFilters =
-        filters.choir != null || filters.voice != null || filters.className != null;
     // Overlay: SafeArea + 8 + Toolbar + optionale Chip-Zeile + 8
     const chipRowExtent = 48.0;
     final searchBarBottomInset = mediaPadding.top +
@@ -106,7 +120,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 if (!showSearchResults) ...[
                   CalendarHeader(
                     onSearchPressed: _openSearch,
-                    onFilterPressed: _openFilters,
+                    onFilterPressed: _openCalendarFilters,
                   ),
                   const Divider(),
                   const Expanded(child: EventList()),
@@ -125,7 +139,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             isOpen: _isSearchOpen,
             onClose: _closeSearch,
             onQueryChanged: _onSearchQueryChanged,
-            onFilterPressed: _openFilters,
+            onFilterPressed: _openSearchFilters,
           ),
         ],
       ),

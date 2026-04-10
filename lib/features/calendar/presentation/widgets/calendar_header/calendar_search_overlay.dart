@@ -55,8 +55,8 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final filters = ref.watch(calendarLocalFiltersProvider);
-    final filtersNotifier = ref.read(calendarLocalFiltersProvider.notifier);
+    final filters = ref.watch(searchFiltersProvider);
+    final filtersNotifier = ref.read(searchFiltersProvider.notifier);
 
     return IgnorePointer(
       ignoring: !widget.isOpen,
@@ -67,55 +67,60 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
           curve: Curves.easeOutCubic,
           offset: widget.isOpen ? Offset.zero : const Offset(0, -1.2),
           child: Material(
-            elevation: 3,
+            elevation: 0,
             color: Theme.of(context).colorScheme.surfaceContainer,
             child: SafeArea(
               bottom: false,
               child: SizedBox(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 8),
+                  padding: const EdgeInsets.only(top: 12, bottom: 8),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
                         height: kToolbarHeight,
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                focusNode: _searchFocusNode,
-                                textInputAction: TextInputAction.search,
-                                onChanged: widget.onQueryChanged,
-                                decoration: const InputDecoration(
-                                  prefixIcon: Icon(Icons.search),
-                                  hintText: 'Suchen...',
-                                  border: InputBorder.none,
+                        child: Center(
+                          child: Row(
+                            children: [
+                              IconButton(
+                                onPressed: () {
+                                  _searchController.clear();
+                                  widget.onQueryChanged('');
+                                  widget.onClose();
+                                },
+                                icon: const Icon(Icons.close),
+                              ),
+                          
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  focusNode: _searchFocusNode,
+                                  textInputAction: TextInputAction.search,
+                                  onChanged: widget.onQueryChanged,
+                                  decoration: const InputDecoration(
+                                    prefixIcon: Icon(Icons.search),
+                                    hintText: 'Suchen...',
+                                    border: InputBorder.none,
+                                  ),
                                 ),
                               ),
-                            ),
-                            IconButton(
-                              onPressed: widget.onFilterPressed,
-                              tooltip: 'Filter',
-                              icon: const Icon(Icons.tune),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                _searchController.clear();
-                                widget.onQueryChanged('');
-                                widget.onClose();
-                              },
-                              icon: const Icon(Icons.close),
-                            ),
-                          ],
+                              IconButton(
+                                onPressed: widget.onFilterPressed,
+                                tooltip: 'Filter',
+                                icon: const Icon(Icons.tune),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       _SearchOverlayActiveFiltersBar(
                         filters: filters,
-                        onRemoveChoir: () => filtersNotifier.setChoir(null),
-                        onRemoveVoice: () => filtersNotifier.setVoice(null),
-                        onRemoveClass: () => filtersNotifier.setClassName(null),
+                        onRemoveChoir: (value) =>
+                            filtersNotifier.removeChoir(value),
+                        onRemoveVoice: (value) =>
+                            filtersNotifier.removeVoice(value),
+                        onRemoveClass: (value) =>
+                            filtersNotifier.removeClassName(value),
                       ),
                     ],
                   ),
@@ -137,44 +142,44 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     required this.onRemoveClass,
   });
 
-  final CalendarLocalFilters filters;
-  final VoidCallback onRemoveChoir;
-  final VoidCallback onRemoveVoice;
-  final VoidCallback onRemoveClass;
+  final CalendarFiltersState filters;
+  final ValueChanged<String> onRemoveChoir;
+  final ValueChanged<String> onRemoveVoice;
+  final ValueChanged<String> onRemoveClass;
 
   @override
   Widget build(BuildContext context) {
     final chips = <Widget>[];
 
-    if (filters.choir != null) {
+    for (final choir in filters.choirs) {
       chips.add(
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: InputChip(
-            label: Text('Chor: ${_formatFilterChipValue(filters.choir!)}'),
-            onDeleted: onRemoveChoir,
+            label: Text('Chor: ${_formatFilterChipValue(choir)}'),
+            onDeleted: () => onRemoveChoir(choir),
           ),
         ),
       );
     }
-    if (filters.voice != null) {
+    for (final voice in filters.voices) {
       chips.add(
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: InputChip(
-            label: Text('Stimme: ${_formatFilterChipValue(filters.voice!)}'),
-            onDeleted: onRemoveVoice,
+            label: Text('Stimme: ${_formatFilterChipValue(voice)}'),
+            onDeleted: () => onRemoveVoice(voice),
           ),
         ),
       );
     }
-    if (filters.className != null) {
+    for (final className in filters.classNames) {
       chips.add(
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: InputChip(
-            label: Text('Klasse: ${_formatFilterChipValue(filters.className!)}'),
-            onDeleted: onRemoveClass,
+            label: Text('Klasse: ${_formatFilterChipValue(className)}'),
+            onDeleted: () => onRemoveClass(className),
           ),
         ),
       );
@@ -185,7 +190,7 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       child: Align(
         alignment: Alignment.centerLeft,
         child: SingleChildScrollView(

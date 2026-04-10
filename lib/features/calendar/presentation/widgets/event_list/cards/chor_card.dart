@@ -6,13 +6,19 @@ import '../../../../domain/models/calendar_entry.dart';
 
 class ChorCard extends StatelessWidget {
   final CalendarEntry entry;
-  const ChorCard({super.key, required this.entry});
+  final bool applyPastStyling;
+  const ChorCard({
+    super.key,
+    required this.entry,
+    this.applyPastStyling = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return BaseCalendarCard(
       entry: entry,
+      applyPastStyling: applyPastStyling,
       backgroundColor: scheme.secondary,
       contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 14),
       leadingIndicator: Padding(

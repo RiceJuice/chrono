@@ -2,21 +2,26 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:flutter/material.dart';
 
 class TimeColumn extends StatelessWidget {
-  const TimeColumn({super.key, required this.entry});
+  const TimeColumn({super.key, required this.entry, this.textColor});
 
   final CalendarEntry entry;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
     String formatTime(DateTime time) =>
         '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
+    final textStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+      color: textColor,
+    );
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(formatTime(entry.startTime)),
-        Text(formatTime(entry.endTime)),
+        Text(formatTime(entry.startTime), style: textStyle),
+        Text(formatTime(entry.endTime), style: textStyle),
       ],
     );
   }

@@ -4,14 +4,28 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:flutter/material.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import '../../../../domain/models/calendar_entry.dart';
+import 'calendar_card_style_resolver.dart';
+import 'calendar_entry_temporal_state.dart';
 
 class MealCard extends StatelessWidget {
   final CalendarEntry entry;
-  const MealCard({super.key, required this.entry});
+  final bool applyPastStyling;
+  const MealCard({
+    super.key,
+    required this.entry,
+    this.applyPastStyling = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final temporalState = CalendarEntryTemporalState.fromEntry(entry);
+    final style = CalendarCardStyleResolver.resolve(
+      context: context,
+      baseBackgroundColor: scheme.surface,
+      temporalState: temporalState,
+      applyPastStyling: applyPastStyling,
+    );
     return ListTile(
       onTap: () {
         showModalBottomSheet(
@@ -22,11 +36,11 @@ class MealCard extends StatelessWidget {
         );
       },
       contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      leading: TimeColumn(entry: entry),
+      leading: TimeColumn(entry: entry, textColor: style.timeTextColor),
       title: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.s),
-          color: scheme.surface,
+          color: style.cardBackgroundColor,
         ),
         // IntrinsicHeight sorgt dafür, dass die Row so hoch ist wie ihr höchstes Kind
         child: IntrinsicHeight(
@@ -37,22 +51,38 @@ class MealCard extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(14, 20, 0, 20),
-                  child: TextContent(entry: entry),
+                  child: TextContent(
+                    entry: entry,
+                    primaryTextColor: style.primaryTextColor,
+                    secondaryTextColor: style.secondaryTextColor,
+                  ),
                 ),
               ),
               if (entry.imageUrls != null && entry.imageUrls!.isNotEmpty)
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(AppRadius.s),
-                  bottomRight: Radius.circular(AppRadius.s),
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(AppRadius.s),
+                        bottomRight: Radius.circular(AppRadius.s),
+                      ),
+                      child: Image.network(
+                        entry.imageUrls![0],
+                        width: 120,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    if (style.imageOverlayOpacity > 0)
+                      Positioned.fill(
+                        child: ColoredBox(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surface.withValues(alpha: style.imageOverlayOpacity),
+                        ),
+                      ),
+                  ],
                 ),
-                child: Image.network(
-                  entry.imageUrls![0],
-                  width: 120,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              ),
             ],
           ),
         ),
