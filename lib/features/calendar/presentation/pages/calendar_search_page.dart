@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -26,6 +27,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   int _stickySectionIndex = 0;
   bool _showStickyHeader = false;
   double _stickyHeaderPushOffset = 0;
+  bool _didTriggerStickyCollisionHaptic = false;
 
   @override
   void didUpdateWidget(covariant CalendarSearchPage oldWidget) {
@@ -229,6 +231,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     }
 
     var pushOffset = 0.0;
+    var isInStickyCollision = false;
     final nextIndex = currentIndex + 1;
     if (nextIndex < dayHeaderKeys.length) {
       final nextContext = dayHeaderKeys[nextIndex].currentContext;
@@ -236,9 +239,17 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
       if (nextBox != null) {
         final nextDy = nextBox.localToGlobal(Offset.zero).dy - viewportTop;
         if (nextDy < _stickyHeaderHeight) {
+          isInStickyCollision = true;
           pushOffset = nextDy - _stickyHeaderHeight;
         }
       }
+    }
+
+    if (isInStickyCollision && !_didTriggerStickyCollisionHaptic) {
+      HapticFeedback.selectionClick();
+      _didTriggerStickyCollisionHaptic = true;
+    } else if (!isInStickyCollision && _didTriggerStickyCollisionHaptic) {
+      _didTriggerStickyCollisionHaptic = false;
     }
 
     final showSticky = _scrollController.hasClients && _scrollController.offset > 0;

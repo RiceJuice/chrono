@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -43,6 +44,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
       setState(() {
         _calendarFormat = _formats[nextIndex];
       });
+      HapticFeedback.selectionClick();
     }
   }
 
@@ -99,9 +101,11 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
           CustomTableCalendar(
             calendarFormat: _calendarFormat,
             onFormatChanged: (format) {
+              if (_calendarFormat == format) return;
               setState(() {
                 _calendarFormat = format;
               });
+              HapticFeedback.selectionClick();
             },
           ),
           CalendarHandle(

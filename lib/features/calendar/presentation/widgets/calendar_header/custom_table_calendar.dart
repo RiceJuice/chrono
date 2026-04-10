@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../providers/calendar_providers.dart';
@@ -96,6 +97,9 @@ class CustomTableCalendar extends ConsumerWidget {
       selectedDayPredicate: (day) => isSameDay(selectedDay, day),
       onFormatChanged: onFormatChanged,
       onDaySelected: (newSelectedDay, newFocusedDay) {
+        final currentSelectedDay = ref.read(selectedDayProvider);
+        if (isSameDay(currentSelectedDay, newSelectedDay)) return;
+        HapticFeedback.selectionClick();
         ref.read(selectedDayProvider.notifier).update(newSelectedDay);
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },
@@ -105,6 +109,9 @@ class CustomTableCalendar extends ConsumerWidget {
           newFocusedDay,
           currentSelectedDay,
         );
+        if (!isSameDay(currentSelectedDay, nextSelectedDay)) {
+          HapticFeedback.selectionClick();
+        }
         ref.read(selectedDayProvider.notifier).update(nextSelectedDay);
         ref.read(focusedDayProvider.notifier).update(nextSelectedDay);
       },
