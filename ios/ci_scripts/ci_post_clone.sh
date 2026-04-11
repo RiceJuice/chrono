@@ -1,14 +1,30 @@
 #!/bin/sh
 
-# 1. Flutter installieren (Homebrew ist auf Xcode Cloud vorinstalliert)
-brew install --cask flutter
+# 1. Verhindern, dass Homebrew versucht, interaktiv zu werden oder Updates zu erzwingen
+export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_INSTALL_CLEANUP=1
 
-# 2. Flutter in den Pfad aufnehmen
-export PATH="$PATH:/usr/local/bin"
+# 2. Flutter Pfad definieren (Wir installieren es lokal im CI-Verzeichnis, um sudo zu vermeiden)
+cd .. # Gehe vom scripts Ordner ins ios Verzeichnis
+cd .. # Gehe ins Root Verzeichnis des Projekts
 
-# 3. Flutter Abhängigkeiten laden
+# 3. Flutter via Git klonen (schneller und sicherer als brew in der CI)
+if [ ! -d "flutter" ]; then
+  echo "Cloning Flutter..."
+  git clone https://github.com/flutter/flutter.git -b stable flutter
+fi
+
+# 4. Flutter zum Pfad hinzufügen
+export PATH="$PWD/flutter/bin:$PATH"
+
+# 5. Flutter Pre-cache (lädt benötigte Artefakte für iOS)
+flutter precache --ios
+
+# 6. Abhängigkeiten laden
 flutter pub get
 
-# 4. Flutter iOS Build vorbereiten (generiert die notwendigen nativen Dateien)
-# --release sorgt dafür, dass alles für den Store optimiert wird
-flutter build ios --release --no-codesign
+# 7. CocoaPods Installation (Xcode Cloud hat diese oft schon, aber sicher ist sicher)
+cd ios
+pod install
+
+echo "Flutter setup complete. Starting build..."
