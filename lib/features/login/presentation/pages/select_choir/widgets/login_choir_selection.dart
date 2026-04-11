@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'login_choir_card.dart';
 
@@ -23,6 +24,7 @@ class LoginChoirSelection extends StatefulWidget {
 class _LoginChoirSelectionState extends State<LoginChoirSelection> {
   static const int _initialPageOffset = 10000;
   static const _choirs = ['Giehl', 'DKM', 'Rädlinger', 'Szucies', 'Schola'];
+  static const double _loginStepScaffoldHorizontalPadding = 20;
 
   late final PageController _controller = PageController(
     viewportFraction: 0.74,
@@ -44,37 +46,46 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
         SizedBox(
           height: 350,
           width: double.infinity,
-          child: PageView.builder(
-            controller: _controller,
-            onPageChanged: (index) {
-              widget.onPageChanged(index % _choirs.length);
-            },
-            
-            itemBuilder: (context, index) {
-              final choirIndex = index % _choirs.length;
-              return AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  final initialVirtualPage =
-                      (_initialPageOffset + widget.selectedPage).toDouble();
-                  final currentPage = _controller.hasClients
-                      ? (_controller.page ?? initialVirtualPage)
-                      : initialVirtualPage;
-                  final distance = (currentPage - index).abs();
-                  final scale = (1 - (distance * 0.08)).clamp(0.90, 1.0);
-                  final opacity = (1 - (distance * 0.35)).clamp(0.35, 1.0);
+          child: OverflowBox(
+            maxWidth:
+                MediaQuery.sizeOf(context).width + (_loginStepScaffoldHorizontalPadding * 2),
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: MediaQuery.sizeOf(context).width +
+                  (_loginStepScaffoldHorizontalPadding * 2),
+              child: PageView.builder(
+                controller: _controller,
+                onPageChanged: (index) {
+                  HapticFeedback.mediumImpact();
+                  widget.onPageChanged(index % _choirs.length);
+                },
+                itemBuilder: (context, index) {
+                  final choirIndex = index % _choirs.length;
+                  return AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      final initialVirtualPage =
+                          (_initialPageOffset + widget.selectedPage).toDouble();
+                      final currentPage = _controller.hasClients
+                          ? (_controller.page ?? initialVirtualPage)
+                          : initialVirtualPage;
+                      final distance = (currentPage - index).abs();
+                      final scale = (1 - (distance * 0.08)).clamp(0.90, 1.0);
+                      final opacity = (1 - (distance * 0.35)).clamp(0.35, 1.0);
 
-                  return Transform.scale(
-                    scale: scale,
-                    child: Opacity(opacity: opacity, child: child),
+                      return Transform.scale(
+                        scale: scale,
+                        child: Opacity(opacity: opacity, child: child),
+                      );
+                    },
+                    child: LoginChoirCard(
+                      label: _choirs[choirIndex],
+                      isActive: choirIndex == widget.selectedPage,
+                    ),
                   );
                 },
-                child: LoginChoirCard(
-                  label: _choirs[choirIndex],
-                  isActive: choirIndex == widget.selectedPage,
-                ),
-              );
-            },
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 10),

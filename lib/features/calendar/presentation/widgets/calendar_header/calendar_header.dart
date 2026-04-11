@@ -44,7 +44,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
       setState(() {
         _calendarFormat = _formats[nextIndex];
       });
-      HapticFeedback.selectionClick();
+      HapticFeedback.mediumImpact();
     }
   }
 
@@ -105,7 +105,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
               setState(() {
                 _calendarFormat = format;
               });
-              HapticFeedback.selectionClick();
+              HapticFeedback.mediumImpact();
             },
           ),
           CalendarHandle(

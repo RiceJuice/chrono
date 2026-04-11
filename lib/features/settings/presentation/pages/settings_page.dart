@@ -6,6 +6,7 @@ import 'package:chronoapp/features/login/presentation/providers/auth_repository_
 import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/settings_profile_providers.dart';
@@ -203,6 +204,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     required Future<void> Function(String) onSave,
   }) async {
     var draftValue = (initialValue ?? '').trim();
+    HapticFeedback.heavyImpact();
     final value = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -244,6 +246,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return;
     }
 
+    HapticFeedback.heavyImpact();
     final value = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,

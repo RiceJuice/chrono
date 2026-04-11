@@ -50,7 +50,11 @@ class _EventListState extends ConsumerState<EventList>
     super.initState();
     final today = DateTime.now();
     final normalizedToday = DateTime(today.year, today.month, today.day);
-    _startDate = normalizedToday.subtract(const Duration(days: 500));
+    _startDate = DateTime(
+      normalizedToday.year,
+      normalizedToday.month,
+      normalizedToday.day - 500,
+    );
     _navigationLogic = EventListNavigationLogic(startDate: _startDate);
     _transitionController = AnimationController(
       vsync: this,

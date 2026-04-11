@@ -163,7 +163,7 @@ class AppComponentThemes {
       backgroundColor: scheme.surfaceContainer,
       indicatorColor: Colors.transparent,
       elevation: 0,
-      height: 55,
+      height: 50,
       overlayColor: WidgetStateProperty.all(Colors.transparent),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {

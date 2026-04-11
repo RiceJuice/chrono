@@ -3,6 +3,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/card
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'calendar_card_style_resolver.dart';
 import 'calendar_entry_temporal_state.dart';
@@ -39,6 +40,7 @@ class BaseCalendarCard extends StatelessWidget {
 
     return ListTile(
       onTap: () {
+        HapticFeedback.heavyImpact();
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,

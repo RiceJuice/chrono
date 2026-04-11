@@ -3,6 +3,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import '../../../../data/calendar_image_url_resolver.dart';
@@ -83,6 +84,7 @@ class _EventCardState extends State<EventCard> {
 
     return ListTile(
       onTap: () {
+        HapticFeedback.heavyImpact();
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,

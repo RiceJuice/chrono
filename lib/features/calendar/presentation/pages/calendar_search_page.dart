@@ -246,7 +246,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     }
 
     if (isInStickyCollision && !_didTriggerStickyCollisionHaptic) {
-      HapticFeedback.selectionClick();
+      HapticFeedback.mediumImpact();
       _didTriggerStickyCollisionHaptic = true;
     } else if (!isInStickyCollision && _didTriggerStickyCollisionHaptic) {
       _didTriggerStickyCollisionHaptic = false;

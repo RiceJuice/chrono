@@ -1,5 +1,6 @@
 import 'package:chronoapp/features/login/presentation/pages/select_choir/provider/select_choir_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -26,6 +27,7 @@ class LoginChoirCard extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () {
+        HapticFeedback.heavyImpact();
         // Wir rufen die Logik im Notifier auf (Toggle & Exklusivität).
         ref.read(selectedChoirProvider.notifier).selectChoir(label);
       },

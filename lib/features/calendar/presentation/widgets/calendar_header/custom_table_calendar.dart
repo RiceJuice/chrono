@@ -18,11 +18,15 @@ class CustomTableCalendar extends ConsumerWidget {
   DateTime _startOfWeek(DateTime day) {
     final normalizedDay = DateTime(day.year, day.month, day.day);
     final offsetFromMonday = normalizedDay.weekday - DateTime.monday;
-    return normalizedDay.subtract(Duration(days: offsetFromMonday));
+    return DateTime(
+      normalizedDay.year,
+      normalizedDay.month,
+      normalizedDay.day - offsetFromMonday,
+    );
   }
 
   DateTime _selectedDayForPage(DateTime focusedDay, DateTime currentSelectedDay) {
-    final normalizedDay = DateTime(
+    final normalizedFocusedDay = DateTime(
       focusedDay.year,
       focusedDay.month,
       focusedDay.day,
@@ -30,13 +34,17 @@ class CustomTableCalendar extends ConsumerWidget {
 
     switch (calendarFormat) {
       case CalendarFormat.month:
-        return DateTime(normalizedDay.year, normalizedDay.month, 1);
+        return DateTime(normalizedFocusedDay.year, normalizedFocusedDay.month, 1);
       case CalendarFormat.week:
-        final weekStart = _startOfWeek(normalizedDay);
+        final weekStart = _startOfWeek(normalizedFocusedDay);
         final weekdayOffset = currentSelectedDay.weekday - DateTime.monday;
-        return weekStart.add(Duration(days: weekdayOffset));
+        return DateTime(
+          weekStart.year,
+          weekStart.month,
+          weekStart.day + weekdayOffset,
+        );
       case CalendarFormat.twoWeeks:
-        return _startOfWeek(normalizedDay);
+        return normalizedFocusedDay;
     }
   }
 
@@ -99,7 +107,7 @@ class CustomTableCalendar extends ConsumerWidget {
       onDaySelected: (newSelectedDay, newFocusedDay) {
         final currentSelectedDay = ref.read(selectedDayProvider);
         if (isSameDay(currentSelectedDay, newSelectedDay)) return;
-        HapticFeedback.selectionClick();
+        HapticFeedback.mediumImpact();
         ref.read(selectedDayProvider.notifier).update(newSelectedDay);
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },
@@ -109,9 +117,6 @@ class CustomTableCalendar extends ConsumerWidget {
           newFocusedDay,
           currentSelectedDay,
         );
-        if (!isSameDay(currentSelectedDay, nextSelectedDay)) {
-          HapticFeedback.selectionClick();
-        }
         ref.read(selectedDayProvider.notifier).update(nextSelectedDay);
         ref.read(focusedDayProvider.notifier).update(nextSelectedDay);
       },

@@ -6,6 +6,7 @@ import 'package:chronoapp/features/calendar/presentation/providers/calendar_prov
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_filter_bottom_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chronoapp/features/settings/presentation/providers/settings_profile_providers.dart';
 
@@ -33,6 +34,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   }
 
   Future<void> _openCalendarFilters() async {
+    HapticFeedback.heavyImpact();
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -44,6 +46,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   }
 
   Future<void> _openSearchFilters() async {
+    HapticFeedback.heavyImpact();
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
