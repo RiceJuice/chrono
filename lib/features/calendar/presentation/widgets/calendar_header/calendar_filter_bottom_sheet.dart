@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/database/backend_enums.dart';
@@ -122,7 +123,10 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
                     ref.read(searchFiltersProvider.notifier).resetToDefaults();
                   }
                 },
-                onDone: () => Navigator.of(context).maybePop(),
+                onDone: () {
+                  HapticFeedback.mediumImpact();
+                  Navigator.of(context).maybePop();
+                },
               ),
               ],
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/login_dropdown_menu.dart';
 import '../../../widgets/login_input_decoration.dart';
 import '../../../widgets/login_text_field.dart';
 
@@ -22,6 +23,8 @@ class LoginPersonalDataFields extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LoginTextField(
           controller: firstNameController,
@@ -45,33 +48,39 @@ class LoginPersonalDataFields extends StatelessWidget {
           },
         ),
         const SizedBox(height: 24),
-        DropdownButtonFormField<String>(
-          initialValue: selectedClass,
-          hint: const Text(
-            'Klasse auswählen',
-            style: TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-          dropdownColor: const Color(0xFF121212),
-          iconEnabledColor: Colors.white,
-          style: const TextStyle(color: Colors.white),
-          decoration: loginInputDecoration('Klasse'),
-          items: classOptions
-              .map(
-                (item) =>
-                    DropdownMenuItem<String>(value: item, child: Text(item)),
-              )
-              .toList(),
-          validator: (value) {
-            if (classOptions.isEmpty) {
-              return 'Keine Klassen verfuegbar. Bitte spaeter erneut versuchen.';
-            }
-            if (value == null || value.trim().isEmpty) {
-              return 'Bitte eine Klasse auswaehlen.';
-            }
-            return null;
-          },
-          onChanged: (value) {
-            onClassChanged(value);
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double w = constraints.maxWidth;
+            return DropdownMenuFormField<String>(
+              width: w,
+              menuHeight: loginDropdownMenuMaxHeight(context),
+              menuStyle: loginDropdownMenuSurfaceStyle(),
+              hintText: 'Klasse auswählen',
+              decorationBuilder: (BuildContext context, MenuController _) {
+                assert(debugCheckHasMaterial(context));
+                return loginInputDecoration('Klasse');
+              },
+              initialSelection: selectedClass,
+              onSelected: onClassChanged,
+              enableSearch: false,
+              enableFilter: false,
+              textStyle: const TextStyle(color: Colors.white),
+              enabled: classOptions.isNotEmpty,
+              dropdownMenuEntries: loginDropdownMenuEntries<String>(
+                classOptions,
+                width: w,
+                labelOf: (String v) => v,
+              ),
+              validator: (String? value) {
+                if (classOptions.isEmpty) {
+                  return 'Keine Klassen verfuegbar. Bitte spaeter erneut versuchen.';
+                }
+                if (value == null || value.trim().isEmpty) {
+                  return 'Bitte eine Klasse auswaehlen.';
+                }
+                return null;
+              },
+            );
           },
         ),
       ],

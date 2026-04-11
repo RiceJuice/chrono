@@ -112,6 +112,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
 
     return LoginStepScaffold(
       step: LoginFlowStep.credentials,
+      resizeToAvoidBottomInset: false,
       titleOverride: isSignIn ? 'Anmelden' : 'Registrieren',
       submitLabel: isSignIn ? 'Anmelden' : 'Registrieren',
       submitBusy: _busy,
@@ -125,13 +126,15 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
       onAsyncProceed: (goNext) async {
         if (_mode == AccountAuthMode.signIn) {
           final success = await _runSignIn();
-          if (!success || !context.mounted) return;
+          if (!context.mounted) return;
+          if (!success) throw const LoginStepErrorAlreadyShown();
           context.go('/calendar');
           return;
         }
 
         final signUpResult = await _runSignUp();
-        if (signUpResult == null || !context.mounted) return;
+        if (!context.mounted) return;
+        if (signUpResult == null) throw const LoginStepErrorAlreadyShown();
         if (signUpResult.outcome == SignUpOutcome.registeredAndSignedIn) {
           goNext();
           return;
@@ -142,6 +145,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
       child: Form(
         key: _formKey,
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             children: [
               CredentialFormFields(

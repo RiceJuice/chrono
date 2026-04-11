@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../widgets/login_dropdown_menu.dart';
 import '../../../widgets/login_input_decoration.dart';
 
 class Dropdown extends StatelessWidget {
@@ -15,8 +17,7 @@ class Dropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String? value =
-        _voices.contains(selectedVoice) ? selectedVoice : null;
+    final bool hasSelection = _voices.contains(selectedVoice);
 
     return Column(
       children: [
@@ -24,22 +25,33 @@ class Dropdown extends StatelessWidget {
 
         const Text('Stimme', style: TextStyle(color: Colors.white70)),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: value,
-          dropdownColor: const Color(0xFF121212),
-          iconEnabledColor: Colors.white,
-          style: const TextStyle(color: Colors.white),
-          decoration: loginInputDecoration('Stimme'),
-          items: _voices
-              .map(
-                (voice) =>
-                    DropdownMenuItem<String>(value: voice, child: Text(voice)),
-              )
-              .toList(),
-          onChanged: (voice) {
-            if (voice != null) {
-              onVoiceChanged(voice);
-            }
+        LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double w = constraints.maxWidth;
+            return DropdownMenu<String>(
+              width: w,
+              menuHeight: loginDropdownMenuMaxHeight(context),
+              menuStyle: loginDropdownMenuSurfaceStyle(),
+              decorationBuilder: (BuildContext context, MenuController _) {
+                assert(debugCheckHasMaterial(context));
+                return loginInputDecoration('Stimme');
+              },
+              initialSelection: hasSelection ? selectedVoice : null,
+              onSelected: (String? voice) {
+                if (voice != null) {
+                  onVoiceChanged(voice);
+                }
+              },
+              enableSearch: false,
+              enableFilter: false,
+              selectOnly: true,
+              textStyle: const TextStyle(color: Colors.white),
+              dropdownMenuEntries: loginDropdownMenuEntries<String>(
+                _voices,
+                width: w,
+                labelOf: (String v) => v,
+              ),
+            );
           },
         ),
       ],

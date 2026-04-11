@@ -17,9 +17,9 @@ class LoginChoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.s),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         height: 100,

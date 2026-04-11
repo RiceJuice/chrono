@@ -51,8 +51,14 @@ class AppRouter {
       }
 
       if (!loggedIn) {
-        if (isLoadingRoute) return LoginPaths.login;
-        if (loc == '/calendar' || loc == '/settings') return LoginPaths.login;
+        if (isLoadingRoute) {
+          LoginRouteTransitionTracker.reset();
+          return LoginPaths.login;
+        }
+        if (loc == '/calendar' || loc == '/settings') {
+          LoginRouteTransitionTracker.reset();
+          return LoginPaths.login;
+        }
         return null;
       }
 

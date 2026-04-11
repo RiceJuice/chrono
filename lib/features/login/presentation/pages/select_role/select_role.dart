@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../domain/models/login_flow_step.dart';
 import '../../routes/login_routes.dart';
@@ -33,10 +34,13 @@ class _SelectRolePageState extends State<SelectRolePage> {
         padding: const EdgeInsets.only(top: 80),
         child: LoginRoleSelection(
           selectedRole: _selectedRole,
-          onSelect: (role) => setState(() {
-            _selectedRole = role;
-            _draft.role = role;
-          }),
+          onSelect: (role) {
+            HapticFeedback.selectionClick();
+            setState(() {
+              _selectedRole = role;
+              _draft.role = role;
+            });
+          },
         ),
       ),
     );

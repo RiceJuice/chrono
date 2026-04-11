@@ -51,6 +51,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
 
     return LoginStepScaffold(
       step: LoginFlowStep.personalData,
+      resizeToAvoidBottomInset: false,
       backPath: LoginPaths.role,
       nextPath: LoginPaths.choir,
       submitBusy: _busy,
@@ -67,7 +68,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
               'Bitte Vorname und Nachname ausfüllen.',
               kind: AppToastKind.info,
             );
-            return;
+            throw const LoginStepErrorAlreadyShown();
           }
           goNext();
         } finally {
@@ -75,18 +76,21 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
         }
       },
       child: Padding(
-        padding: const EdgeInsets.only(top: 80),
+        padding: const EdgeInsets.only(top: 24),
         child: Form(
           key: _formKey,
-          child: LoginPersonalDataFields(
-            firstNameController: _firstNameController,
-            lastNameController: _lastNameController,
-            selectedClass: _selectedClass,
-            classOptions: classOptions,
-            onClassChanged: (value) => setState(() {
-              _selectedClass = value;
-              _draft.schoolClass = value;
-            }),
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: LoginPersonalDataFields(
+              firstNameController: _firstNameController,
+              lastNameController: _lastNameController,
+              selectedClass: _selectedClass,
+              classOptions: classOptions,
+              onClassChanged: (value) => setState(() {
+                _selectedClass = value;
+                _draft.schoolClass = value;
+              }),
+            ),
           ),
         ),
       ),

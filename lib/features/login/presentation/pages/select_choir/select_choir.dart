@@ -84,16 +84,6 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
           }
           if (!context.mounted) return;
           goNext();
-        } on AuthRepositoryException catch (e) {
-          if (!context.mounted) return;
-          showAppToast(context, e.message, kind: AppToastKind.error);
-        } catch (_) {
-          if (!context.mounted) return;
-          showAppToast(
-            context,
-            'Profil konnte nicht gespeichert werden. Bitte erneut versuchen.',
-            kind: AppToastKind.error,
-          );
         } finally {
           if (context.mounted) setState(() => _busy = false);
         }
