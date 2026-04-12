@@ -12,7 +12,7 @@ cd ../..
 
 # 4. Flutter Installation (Feste Version für Stabilität)
 # TIPP: Schau lokal mit 'flutter --version' nach und trage sie hier ein.
-FLUTTER_VERSION="3.45.5" 
+FLUTTER_VERSION="3.41.5" 
 
 if [ ! -d "flutter" ]; then
   echo "--- Cloning Flutter $FLUTTER_VERSION ---"
