@@ -21,6 +21,75 @@ class _EventListState extends ConsumerState<EventList>
   late final AnimationController _transitionController;
   _TransitionData? _activeTransition;
 
+  static const double _scrollVelocityBlend = 0.22;
+  double _horizontalVelocityEma = 0;
+  int? _lastVelocitySampleWallMicros;
+  double _peakAbsNormVelocity = 0;
+  double _latchedNormVelocity = 0;
+  DateTime? _latchedVelocityValidUntil;
+
+  bool _onPageViewScrollNotification(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.horizontal) return false;
+
+    if (notification is ScrollStartNotification) {
+      _horizontalVelocityEma = 0;
+      _lastVelocitySampleWallMicros = null;
+      _peakAbsNormVelocity = 0;
+    }
+
+    if (notification is ScrollUpdateNotification &&
+        notification.scrollDelta != null) {
+      final nowMicros = DateTime.now().microsecondsSinceEpoch;
+      if (_lastVelocitySampleWallMicros != null) {
+        final dtMicros = nowMicros - _lastVelocitySampleWallMicros!;
+        if (dtMicros > 0) {
+          final dt = dtMicros / Duration.microsecondsPerSecond;
+          if (dt > 1e-6) {
+            final sample = notification.scrollDelta! / dt;
+            _horizontalVelocityEma = _horizontalVelocityEma *
+                    (1 - _scrollVelocityBlend) +
+                sample * _scrollVelocityBlend;
+          }
+        }
+      }
+      _lastVelocitySampleWallMicros = nowMicros;
+      if (_pageController.hasClients) {
+        final extent = _pageController.position.viewportDimension;
+        if (extent > 0) {
+          final norm = (_horizontalVelocityEma / extent).abs();
+          if (norm > _peakAbsNormVelocity) {
+            _peakAbsNormVelocity = norm;
+          }
+        }
+      }
+    }
+
+    if (notification is ScrollEndNotification) {
+      final sign = _horizontalVelocityEma >= 0 ? 1.0 : -1.0;
+      _latchedNormVelocity =
+          (sign * _peakAbsNormVelocity).clamp(-14.0, 14.0);
+      _latchedVelocityValidUntil =
+          DateTime.now().add(const Duration(milliseconds: 240));
+      _horizontalVelocityEma = 0;
+      _lastVelocitySampleWallMicros = null;
+      _peakAbsNormVelocity = 0;
+    }
+
+    return false;
+  }
+
+  /// Zuletzt gemessene horizontale Wisch-Geschwindigkeit (Seiten/s), einmalig gültig.
+  double _consumePageViewVelocityForTransition() {
+    if (_latchedVelocityValidUntil == null ||
+        DateTime.now().isAfter(_latchedVelocityValidUntil!)) {
+      return 0;
+    }
+    final v = _latchedNormVelocity;
+    _latchedVelocityValidUntil = null;
+    _latchedNormVelocity = 0;
+    return v;
+  }
+
   void _startOverlayTransition({
     required int fromIndex,
     required int toIndex,
@@ -35,7 +104,11 @@ class _EventListState extends ConsumerState<EventList>
       _activeTransition = transition;
     });
 
-    _transitionController.forward(from: 0).whenComplete(() {
+    final swipeSpeed = _consumePageViewVelocityForTransition();
+    _transitionController.duration =
+        eventListTransitionDuration(swipeSpeed);
+    _transitionController.reset();
+    _transitionController.forward().whenComplete(() {
       if (!mounted) return;
       if (_activeTransition == transition) {
         setState(() {
@@ -58,9 +131,7 @@ class _EventListState extends ConsumerState<EventList>
     _navigationLogic = EventListNavigationLogic(startDate: _startDate);
     _transitionController = AnimationController(
       vsync: this,
-      duration: const Duration(
-        milliseconds: EventListNavigationLogic.transitionDurationMs,
-      ),
+      duration: const Duration(milliseconds: 90),
     );
 
     final initialDay = _navigationLogic.normalize(ref.read(selectedDayProvider));
@@ -98,20 +169,26 @@ class _EventListState extends ConsumerState<EventList>
 
     return Stack(
       children: [
-        PageView.builder(
-          controller: _pageController,
-          onPageChanged: (index) {
-            _currentIndex = index;
-            final newDate = _navigationLogic.dateFromIndex(index);
-            if (_navigationLogic.normalize(ref.read(selectedDayProvider)) !=
-                newDate) {
-              ref.read(selectedDayProvider.notifier).update(newDate);
-            }
-          },
-          itemBuilder: (context, index) {
-            final dateForPage = _navigationLogic.dateFromIndex(index);
-            return DayPage(date: dateForPage);
-          },
+        NotificationListener<ScrollNotification>(
+          onNotification: _onPageViewScrollNotification,
+          child: PageView.builder(
+            controller: _pageController,
+            physics: _SnappyPageViewPhysics().applyTo(
+              ScrollConfiguration.of(context).getScrollPhysics(context),
+            ),
+            onPageChanged: (index) {
+              _currentIndex = index;
+              final newDate = _navigationLogic.dateFromIndex(index);
+              if (_navigationLogic.normalize(ref.read(selectedDayProvider)) !=
+                  newDate) {
+                ref.read(selectedDayProvider.notifier).update(newDate);
+              }
+            },
+            itemBuilder: (context, index) {
+              final dateForPage = _navigationLogic.dateFromIndex(index);
+              return DayPage(date: dateForPage);
+            },
+          ),
         ),
         if (_activeTransition != null)
           Positioned.fill(
@@ -125,6 +202,23 @@ class _EventListState extends ConsumerState<EventList>
       ],
     );
   }
+}
+
+/// Steifere Feder als Standard-[PageScrollPhysics]: Seite schneller zur Ruhe,
+/// weniger „Nachgleiten“ nach dem Loslassen (das ist nicht die Overlay-Kurve).
+class _SnappyPageViewPhysics extends ScrollPhysics {
+  const _SnappyPageViewPhysics({super.parent});
+
+  @override
+  _SnappyPageViewPhysics applyTo(ScrollPhysics? ancestor) =>
+      _SnappyPageViewPhysics(parent: buildParent(ancestor));
+
+  @override
+  SpringDescription get spring => SpringDescription.withDampingRatio(
+        mass: 0.30,
+        stiffness: 270.0,
+        ratio: 1.07,
+      );
 }
 
 class _TransitionData {

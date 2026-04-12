@@ -2,7 +2,6 @@ class EventListNavigationLogic {
   EventListNavigationLogic({required DateTime startDate})
       : _startDate = _dateOnly(startDate);
 
-  static const transitionDurationMs = 300;
   final DateTime _startDate;
 
   static DateTime _dateOnly(DateTime date) =>

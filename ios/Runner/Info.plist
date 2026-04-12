@@ -26,6 +26,9 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Export-Compliance: nur von der Ausnahme abgedeckte Verschlüsselung (z. B. HTTPS, Apple-Frameworks). Bei eigener Kryptografie auf true setzen und Compliance in ASC pflegen. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
