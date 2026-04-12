@@ -1,30 +1,49 @@
 #!/bin/sh
 
-# 1. Verhindern, dass Homebrew versucht, interaktiv zu werden oder Updates zu erzwingen
+# 1. Fehlerbehandlung: Stop bei jedem Fehler
+set -e
+
+# 2. Homebrew-Interaktionen unterdrücken
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1
 
-# 2. Flutter Pfad definieren (Wir installieren es lokal im CI-Verzeichnis, um sudo zu vermeiden)
-cd .. # Gehe vom scripts Ordner ins ios Verzeichnis
-cd .. # Gehe ins Root Verzeichnis des Projekts
+# 3. Ins Root-Verzeichnis wechseln
+cd ../..
 
-# 3. Flutter via Git klonen (schneller und sicherer als brew in der CI)
+# 4. Flutter Installation (Feste Version für Stabilität)
+# TIPP: Schau lokal mit 'flutter --version' nach und trage sie hier ein.
+FLUTTER_VERSION="3.45.5" 
+
 if [ ! -d "flutter" ]; then
-  echo "Cloning Flutter..."
-  git clone https://github.com/flutter/flutter.git -b stable flutter
+  echo "--- Cloning Flutter $FLUTTER_VERSION ---"
+  git clone https://github.com/flutter/flutter.git -b $FLUTTER_VERSION --depth 1 flutter
 fi
 
-# 4. Flutter zum Pfad hinzufügen
+# 5. Pfad setzen
 export PATH="$PWD/flutter/bin:$PATH"
 
-# 5. Flutter Pre-cache (lädt benötigte Artefakte für iOS)
-flutter precache --ios
-
 # 6. Abhängigkeiten laden
+echo "--- Fetching dependencies ---"
+flutter precache --ios
 flutter pub get
 
-# 7. CocoaPods Installation (Xcode Cloud hat diese oft schon, aber sicher ist sicher)
+# 7. UNIT TESTS HINZUFÜGEN
+# Wenn die Tests fehlschlagen, bricht der Build hier ab (wegen set -e)
+echo "--- Running Unit Tests ---"
+flutter test
+
+# 8. iOS / CocoaPods Fixes
+echo "--- Preparing iOS build ---"
 cd ios
+
+# Radikaler Cleanup um die XCFileList Fehler zu vermeiden
+rm -rf Pods
+rm -rf DevPods
+rm -f Podfile.lock
+
+# Pods sauber neu installieren
 pod install
 
-echo "Flutter setup complete. Starting build..."
+cd ..
+
+echo "--- Setup & Tests successful. Starting Xcode Cloud build ---"
