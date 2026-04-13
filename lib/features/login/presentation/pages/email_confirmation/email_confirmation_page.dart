@@ -51,11 +51,13 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage> {
       goNext();
     } on AuthRepositoryException catch (e) {
       await _showMessage(e.message, kind: AppToastKind.error);
+      throw const LoginStepErrorAlreadyShown();
     } catch (_) {
       await _showMessage(
         'Bestätigungsstatus konnte nicht geprüft werden. Bitte versuche es erneut.',
         kind: AppToastKind.error,
       );
+      throw const LoginStepErrorAlreadyShown();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -97,7 +99,6 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage> {
       titleOverride: 'E-Mail bestätigen',
       submitLabel: 'Erneut prüfen',
       submitBusy: _busy,
-      backPath: LoginPaths.credentials,
       nextPath: LoginPaths.role,
       onAsyncProceed: _retryVerification,
       footer: Column(

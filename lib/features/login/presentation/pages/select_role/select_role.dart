@@ -27,7 +27,6 @@ class _SelectRolePageState extends State<SelectRolePage> {
   Widget build(BuildContext context) {
     return LoginStepScaffold(
       step: LoginFlowStep.role,
-      backPath: LoginPaths.credentials,
       nextPath: LoginPaths.personalData,
       child: Padding(
         padding: const EdgeInsets.only(top: 80),

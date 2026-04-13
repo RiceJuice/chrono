@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 
-class MainNavigationBar extends StatelessWidget {
+import '../../features/calendar/presentation/providers/calendar_providers.dart';
+
+class MainNavigationBar extends ConsumerWidget {
   const MainNavigationBar({super.key});
 
   static const _calendarPath = '/calendar';
@@ -16,7 +19,7 @@ class MainNavigationBar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.path;
     final currentIndex = _indexFromLocation(location);
 
@@ -28,6 +31,13 @@ class MainNavigationBar extends StatelessWidget {
           selectedIndex: currentIndex,
           onDestinationSelected: (int index) {
             final target = index == 0 ? _calendarPath : _settingsPath;
+            if (target == _calendarPath && location == _calendarPath) {
+              final now = DateTime.now().toLocal();
+              final today = DateTime(now.year, now.month, now.day);
+              ref.read(selectedDayProvider.notifier).update(today);
+              ref.read(focusedDayProvider.notifier).update(today);
+              return;
+            }
             if (target != location) {
               context.go(target);
             }

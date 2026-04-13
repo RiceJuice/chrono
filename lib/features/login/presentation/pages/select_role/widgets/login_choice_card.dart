@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class LoginChoiceCard extends StatelessWidget {
   const LoginChoiceCard({
@@ -17,9 +18,12 @@ class LoginChoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.s),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         height: 100,

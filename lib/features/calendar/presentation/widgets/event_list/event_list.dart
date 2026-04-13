@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/calendar_providers.dart';
 import 'day_page.dart';
@@ -27,6 +28,11 @@ class _EventListState extends ConsumerState<EventList>
   double _peakAbsNormVelocity = 0;
   double _latchedNormVelocity = 0;
   DateTime? _latchedVelocityValidUntil;
+  static const SpringDescription _overlaySpring = SpringDescription(
+    mass: 0.85,
+    stiffness: 430,
+    damping: 34,
+  );
 
   bool _onPageViewScrollNotification(ScrollNotification notification) {
     if (notification.metrics.axis != Axis.horizontal) return false;
@@ -104,11 +110,26 @@ class _EventListState extends ConsumerState<EventList>
       _activeTransition = transition;
     });
 
-    final swipeSpeed = _consumePageViewVelocityForTransition();
-    _transitionController.duration =
-        eventListTransitionDuration(swipeSpeed);
-    _transitionController.reset();
-    _transitionController.forward().whenComplete(() {
+    final swipeSpeed = _consumePageViewVelocityForTransition().abs();
+    final pageDelta = (toIndex - fromIndex).abs();
+    final simulationVelocity = swipeSpeed > 0
+        ? swipeSpeed.clamp(1.2, 8.0)
+        : (1.1 + pageDelta * 0.22).clamp(1.1, 3.8);
+
+    _transitionController.stop();
+    _transitionController.value = 0;
+    final simulation = SpringSimulation(
+      _overlaySpring,
+      0,
+      1,
+      simulationVelocity,
+      tolerance: const Tolerance(
+        velocity: 1 / 1000,
+        distance: 1 / 1000,
+      ),
+    );
+
+    _transitionController.animateWith(simulation).whenComplete(() {
       if (!mounted) return;
       if (_activeTransition == transition) {
         setState(() {
@@ -131,7 +152,7 @@ class _EventListState extends ConsumerState<EventList>
     _navigationLogic = EventListNavigationLogic(startDate: _startDate);
     _transitionController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 90),
+      duration: const Duration(milliseconds: 120),
     );
 
     final initialDay = _navigationLogic.normalize(ref.read(selectedDayProvider));

@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'account_auth_mode.dart';
 
 class AccountAuthModeSelector extends StatelessWidget {
@@ -30,6 +31,7 @@ class AccountAuthModeSelector extends StatelessWidget {
             ),
             recognizer: TapGestureRecognizer()
               ..onTap = () {
+                HapticFeedback.selectionClick();
                 onChanged(
                   isSignIn ? AccountAuthMode.signUp : AccountAuthMode.signIn,
                 );

@@ -189,6 +189,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               color: Theme.of(context).colorScheme.error,
             ),
             onTap: () async {
+              HapticFeedback.mediumImpact();
               await BackendConnector.logout(context);
             },
           ),
@@ -218,11 +219,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                Navigator.of(context).pop();
+              },
               child: const Text('Abbrechen'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(draftValue),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                Navigator.of(context).pop(draftValue);
+              },
               child: const Text('Speichern'),
             ),
           ],
@@ -266,7 +273,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   trailing: option == initialValue
                       ? const Icon(Icons.check)
                       : null,
-                  onTap: () => Navigator.of(context).pop(option),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).pop(option);
+                  },
                 ),
               ),
             ],

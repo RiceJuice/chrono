@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/login_dropdown_menu.dart';
 import '../../../widgets/login_input_decoration.dart';
 import '../../../widgets/login_text_field.dart';
 
@@ -21,7 +22,11 @@ class LoginPersonalDataFields extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
     return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LoginTextField(
           controller: firstNameController,
@@ -45,22 +50,8 @@ class LoginPersonalDataFields extends StatelessWidget {
           },
         ),
         const SizedBox(height: 24),
-        DropdownButtonFormField<String>(
+        FormField<String>(
           initialValue: selectedClass,
-          hint: const Text(
-            'Klasse auswählen',
-            style: TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-          dropdownColor: const Color(0xFF121212),
-          iconEnabledColor: Colors.white,
-          style: const TextStyle(color: Colors.white),
-          decoration: loginInputDecoration('Klasse'),
-          items: classOptions
-              .map(
-                (item) =>
-                    DropdownMenuItem<String>(value: item, child: Text(item)),
-              )
-              .toList(),
           validator: (value) {
             if (classOptions.isEmpty) {
               return 'Keine Klassen verfuegbar. Bitte spaeter erneut versuchen.';
@@ -70,8 +61,46 @@ class LoginPersonalDataFields extends StatelessWidget {
             }
             return null;
           },
-          onChanged: (value) {
-            onClassChanged(value);
+          builder: (FormFieldState<String> field) {
+            return LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final double w = constraints.maxWidth;
+                return DropdownMenu<String>(
+                  width: w,
+                  menuHeight: loginDropdownMenuMaxHeight(context),
+                  menuStyle: loginDropdownMenuSurfaceStyle(context),
+                  decorationBuilder: (BuildContext context, MenuController _) {
+                    assert(debugCheckHasMaterial(context));
+                    return loginDropdownDecorationWithOpenHaptic(
+                      loginInputDecoration('Klasse').copyWith(
+                        hintText: 'Klasse auswählen',
+                        hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
+                        errorText: field.errorText,
+                      ),
+                    );
+                  },
+                  initialSelection: field.value,
+                  onSelected: (String? value) {
+                    if (value != null) {
+                      loginDropdownSelectionHaptic();
+                    }
+                    field.didChange(value);
+                    onClassChanged(value);
+                  },
+                  enableSearch: false,
+                  enableFilter: false,
+                  selectOnly: true,
+                  textStyle: TextStyle(color: scheme.onSurface),
+                  trailingIcon: Icon(Icons.arrow_drop_down, color: scheme.onSurface),
+                  dropdownMenuEntries: loginDropdownMenuEntries<String>(
+                    context,
+                    classOptions,
+                    width: w,
+                    labelOf: (String v) => v,
+                  ),
+                );
+              },
+            );
           },
         ),
       ],

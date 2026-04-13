@@ -51,7 +51,6 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
 
     return LoginStepScaffold(
       step: LoginFlowStep.personalData,
-      backPath: LoginPaths.role,
       nextPath: LoginPaths.choir,
       submitBusy: _busy,
       canProceed: () => _formKey.currentState?.validate() ?? false,
@@ -67,7 +66,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
               'Bitte Vorname und Nachname ausfüllen.',
               kind: AppToastKind.info,
             );
-            return;
+            throw const LoginStepErrorAlreadyShown();
           }
           goNext();
         } finally {

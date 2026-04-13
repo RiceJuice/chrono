@@ -118,29 +118,34 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                 _updateStickyHeaderState(dayHeaderKeys);
                 return false;
               },
-              child: ListView.builder(
-                key: _listViewportKey,
+              child: Scrollbar(
                 controller: _scrollController,
-                padding: const EdgeInsets.only(bottom: 16),
-                itemCount: sections.length,
-                itemBuilder: (context, index) {
-                  final section = sections[index];
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildDayHeader(
-                        context: context,
-                        key: dayHeaderKeys[index],
-                        day: section.day,
+                thumbVisibility: true,
+                trackVisibility: true,
+                interactive: true,
+                child: ListView(
+                  key: _listViewportKey,
+                  controller: _scrollController,
+                  padding: const EdgeInsets.only(bottom: 16),
+                  children: [
+                    for (var index = 0; index < sections.length; index++)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDayHeader(
+                            context: context,
+                            key: dayHeaderKeys[index],
+                            day: sections[index].day,
+                          ),
+                          for (final entry in sections[index].entries)
+                            CalendarEntryCard(
+                              entry: entry,
+                              applyPastStyling: true,
+                            ),
+                        ],
                       ),
-                      for (final entry in section.entries)
-                        CalendarEntryCard(
-                          entry: entry,
-                          applyPastStyling: true,
-                        ),
-                    ],
-                  );
-                },
+                  ],
+                ),
               ),
             ),
             if (_showStickyHeader)
@@ -161,7 +166,11 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
           ],
         );
       },
-      loading: () => const _DebouncedLoadingIndicator(),
+      loading: () {
+        _didAutoScroll = false;
+        _lastAnchorSignature = null;
+        return const _DebouncedLoadingIndicator();
+      },
       error: (err, stack) => Center(child: Text('Fehler: $err')),
     );
   }

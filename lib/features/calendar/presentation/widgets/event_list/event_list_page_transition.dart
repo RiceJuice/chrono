@@ -12,6 +12,14 @@ Duration eventListTransitionDuration(double normalizedSwipeSpeed) {
   return Duration(milliseconds: ms);
 }
 
+/// Längere Dauer für Navigation ohne Swipe-Geschwindigkeit (z. B. Header-Auswahl).
+Duration eventListSelectionTransitionDuration(int pageDelta) {
+  const baseMs = 200;
+  const maxMs = 350;
+  final ms = (baseMs + pageDelta.abs() * 10).clamp(baseMs, maxMs);
+  return Duration(milliseconds: ms);
+}
+
 class EventListPageTransition extends StatelessWidget {
   const EventListPageTransition({
     super.key,

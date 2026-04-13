@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../providers/calendar_providers.dart';
@@ -51,6 +50,7 @@ class CustomTableCalendar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final todayAccentColor = CalendarPresentationTheme.todayAccentColor(context);
     final selectedDay = ref.watch(selectedDayProvider);
     final focusedDay = ref.watch(focusedDayProvider);
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
@@ -102,12 +102,33 @@ class CustomTableCalendar extends ConsumerWidget {
         leftChevronVisible: false,
         rightChevronVisible: false,
       ),
+      calendarBuilders: CalendarBuilders(
+        selectedBuilder: (context, day, focusedDay) {
+          final isToday = isSameDay(day, DateTime.now());
+          if (!isToday) return null;
+
+          return Container(
+            margin: const EdgeInsets.all(2),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '${day.day}',
+              style: TextStyle(
+                color: todayAccentColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          );
+        },
+      ),
       selectedDayPredicate: (day) => isSameDay(selectedDay, day),
       onFormatChanged: onFormatChanged,
       onDaySelected: (newSelectedDay, newFocusedDay) {
         final currentSelectedDay = ref.read(selectedDayProvider);
         if (isSameDay(currentSelectedDay, newSelectedDay)) return;
-        HapticFeedback.mediumImpact();
         ref.read(selectedDayProvider.notifier).update(newSelectedDay);
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },

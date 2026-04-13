@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
@@ -22,7 +23,14 @@ class SelectedDay extends _$SelectedDay {
 
   void update(DateTime newDate) {
     final localDay = newDate.toLocal();
-    state = DateTime(localDay.year, localDay.month, localDay.day);
+    final next = DateTime(localDay.year, localDay.month, localDay.day);
+    if (state.year == next.year &&
+        state.month == next.month &&
+        state.day == next.day) {
+      return;
+    }
+    HapticFeedback.mediumImpact();
+    state = next;
   }
 }
 
