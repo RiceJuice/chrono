@@ -61,6 +61,12 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
     }
   }
 
+  void _onVerticalDragStart(DragStartDetails details) {
+    setState(() {
+      _isHandlePressed = true;
+    });
+  }
+
   void _onVerticalDragEnd(DragEndDetails details) {
     _dragDelta = 0;
     setState(() {
@@ -73,67 +79,66 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
     final selectedDay = ref.watch(selectedDayProvider);
     String monthName = DateFormat.MMMM('de').format(selectedDay);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-      ),
-      child: Column(
-        children: [
-          AppBar(
-            title: Text(
-              monthName,
-              style: Theme.of(context).textTheme.headlineLarge,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragStart: _onVerticalDragStart,
+      onVerticalDragUpdate: _onVerticalDragUpdate,
+      onVerticalDragEnd: _onVerticalDragEnd,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainer,
+        ),
+        child: Column(
+          children: [
+            AppBar(
+              title: Text(
+                monthName,
+                style: Theme.of(context).textTheme.headlineLarge,
+              ),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainer,
+              actions: [
+                IconButton(
+                  onPressed: widget.onFilterPressed,
+                  icon: const Icon(Icons.filter_list),
+                ),
+                IconButton(
+                  onPressed: widget.onSearchPressed,
+                  icon: const Icon(Icons.search),
+                ),
+              ],
             ),
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainer,
-            actions: [
-              IconButton(
-                onPressed: widget.onFilterPressed,
-                icon: const Icon(Icons.filter_list),
-              ),
-              IconButton(
-                onPressed: widget.onSearchPressed,
-                icon: const Icon(Icons.search),
-              ),
-            ],
-          ),
-          CustomTableCalendar(
-            calendarFormat: _calendarFormat,
-            onFormatChanged: (format) {
-              if (_calendarFormat == format) return;
-              setState(() {
-                _calendarFormat = format;
-              });
-              HapticFeedback.mediumImpact();
-            },
-          ),
-          CalendarHandle(
-            isPressed: _isHandlePressed,
-            onTapDown: (_) {
-              setState(() {
-                _isHandlePressed = true;
-              });
-            },
-            onTapUp: (_) {
-              setState(() {
-                _isHandlePressed = false;
-              });
-            },
-            onTapCancel: () {
-              setState(() {
-                _isHandlePressed = false;
-              });
-            },
-            onVerticalDragStart: (_) {
-              setState(() {
-                _isHandlePressed = true;
-              });
-            },
-            onVerticalDragUpdate: _onVerticalDragUpdate,
-            onVerticalDragEnd: _onVerticalDragEnd,
-          ),
-        ],
+            CustomTableCalendar(
+              calendarFormat: _calendarFormat,
+              onFormatChanged: (format) {
+                if (_calendarFormat == format) return;
+                setState(() {
+                  _calendarFormat = format;
+                });
+                HapticFeedback.mediumImpact();
+              },
+            ),
+            CalendarHandle(
+              isPressed: _isHandlePressed,
+              onTapDown: (_) {
+                setState(() {
+                  _isHandlePressed = true;
+                });
+              },
+              onTapUp: (_) {
+                setState(() {
+                  _isHandlePressed = false;
+                });
+              },
+              onTapCancel: () {
+                setState(() {
+                  _isHandlePressed = false;
+                });
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

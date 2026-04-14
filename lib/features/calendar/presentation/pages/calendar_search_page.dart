@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
+import '../../domain/models/calendar_entry.dart';
 import '../providers/calendar_providers.dart';
 import '../theme/calendar_presentation_theme.dart';
 import '../widgets/event_list/cards/calendar_entry_card.dart';
-import 'search_results/search_results_initial_scroll.dart';
 import 'search_results/search_results_sections.dart';
 
 class CalendarSearchPage extends ConsumerStatefulWidget {
@@ -19,31 +19,32 @@ class CalendarSearchPage extends ConsumerStatefulWidget {
 }
 
 class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
-  static const double _stickyHeaderHeight = 32;
-  final ScrollController _scrollController = ScrollController();
-  final GlobalKey _listViewportKey = GlobalKey();
-  bool _didAutoScroll = false;
-  String? _lastAnchorSignature;
-  int _stickySectionIndex = 0;
-  bool _showStickyHeader = false;
+  static const double _stickyHeaderHeight = 40;
+  final ItemPositionsListener _itemPositionsListener =
+      ItemPositionsListener.create();
+  DateTime? _stickyDay;
   double _stickyHeaderPushOffset = 0;
-  bool _didTriggerStickyCollisionHaptic = false;
+  double _listViewportHeight = 0;
+  List<_SearchListRow> _rowsForSticky = const <_SearchListRow>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _itemPositionsListener.itemPositions.addListener(_updateStickyDayFromPositions);
+  }
 
   @override
   void didUpdateWidget(covariant CalendarSearchPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query != widget.query) {
-      _didAutoScroll = false;
-      _lastAnchorSignature = null;
-      _stickySectionIndex = 0;
-      _showStickyHeader = false;
+      _stickyDay = null;
       _stickyHeaderPushOffset = 0;
     }
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _itemPositionsListener.itemPositions.removeListener(_updateStickyDayFromPositions);
     super.dispose();
   }
 
@@ -85,70 +86,38 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
         }
 
         final sectionsResult = buildSearchResultsSections(entries: entries);
-        final sections = sectionsResult.sections;
-        final dayHeaderKeys = List<GlobalKey>.generate(
-          sections.length,
-          (_) => GlobalKey(),
+        final rows = _buildRows(sectionsResult.sections);
+        _rowsForSticky = rows;
+        final targetRowIndex = _firstRowIndexForSection(
+          rows: rows,
+          sectionIndex: sectionsResult.initialSectionIndex,
         );
-        final signature = '${entries.length}-${sectionsResult.initialSectionIndex}'
-            '-${sectionsResult.firstUpcomingEntryId ?? 'none'}'
-            '-${entries.first.id}-${entries.last.id}';
-        if (!_didAutoScroll || _lastAnchorSignature != signature) {
-          _lastAnchorSignature = signature;
-          scheduleInitialSearchResultsScroll(
-            controller: _scrollController,
-            sectionKeys: dayHeaderKeys,
-            targetSectionIndex: sectionsResult.initialSectionIndex,
-            onScrolled: () {
-              _didAutoScroll = true;
-            },
-          );
-        }
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _updateStickyHeaderState(dayHeaderKeys);
-        });
-
-        final clampedStickyIndex = _stickySectionIndex.clamp(0, sections.length - 1);
 
         return Stack(
           children: [
-            NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                _updateStickyHeaderState(dayHeaderKeys);
-                return false;
+            LayoutBuilder(
+              builder: (context, constraints) {
+                _listViewportHeight = constraints.maxHeight;
+                return ScrollablePositionedList.builder(
+                  key: ValueKey('search-list-${widget.query}'),
+                  itemPositionsListener: _itemPositionsListener,
+                  padding: const EdgeInsets.only(top: _stickyHeaderHeight),
+                  itemCount: rows.length,
+                  initialScrollIndex: targetRowIndex,
+                  itemBuilder: (context, index) {
+                    final row = rows[index];
+                    if (row.headerDay != null) {
+                      return _buildDayHeader(context: context, day: row.headerDay!);
+                    }
+                    return CalendarEntryCard(
+                      entry: row.entry!,
+                      applyPastStyling: true,
+                    );
+                  },
+                );
               },
-              child: Scrollbar(
-                controller: _scrollController,
-                thumbVisibility: true,
-                trackVisibility: true,
-                interactive: true,
-                child: ListView(
-                  key: _listViewportKey,
-                  controller: _scrollController,
-                  padding: const EdgeInsets.only(bottom: 16),
-                  children: [
-                    for (var index = 0; index < sections.length; index++)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildDayHeader(
-                            context: context,
-                            key: dayHeaderKeys[index],
-                            day: sections[index].day,
-                          ),
-                          for (final entry in sections[index].entries)
-                            CalendarEntryCard(
-                              entry: entry,
-                              applyPastStyling: true,
-                            ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
             ),
-            if (_showStickyHeader)
+            if (_stickyDay != null)
               Positioned(
                 top: 0,
                 left: 0,
@@ -156,10 +125,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                 child: IgnorePointer(
                   child: Transform.translate(
                     offset: Offset(0, _stickyHeaderPushOffset),
-                    child: _buildDayHeader(
-                      context: context,
-                      day: sections[clampedStickyIndex].day,
-                    ),
+                    child: _buildDayHeader(context: context, day: _stickyDay!),
                   ),
                 ),
               ),
@@ -167,8 +133,8 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
         );
       },
       loading: () {
-        _didAutoScroll = false;
-        _lastAnchorSignature = null;
+        _stickyDay = null;
+        _stickyHeaderPushOffset = 0;
         return const _DebouncedLoadingIndicator();
       },
       error: (err, stack) => Center(child: Text('Fehler: $err')),
@@ -194,7 +160,6 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   Widget _buildDayHeader({
     required BuildContext context,
     required DateTime day,
-    Key? key,
   }) {
     final baseStyle = Theme.of(context).textTheme.titleMedium;
     final isToday = _isToday(day);
@@ -206,7 +171,6 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
             : baseStyle;
 
     return Container(
-      key: key,
       height: _stickyHeaderHeight,
       color: Theme.of(context).scaffoldBackgroundColor,
       alignment: Alignment.centerLeft,
@@ -218,60 +182,107 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     );
   }
 
-  void _updateStickyHeaderState(List<GlobalKey> dayHeaderKeys) {
-    final viewportContext = _listViewportKey.currentContext;
-    if (viewportContext == null || dayHeaderKeys.isEmpty) return;
-    final viewportBox = viewportContext.findRenderObject() as RenderBox?;
-    if (viewportBox == null) return;
-    final viewportTop = viewportBox.localToGlobal(Offset.zero).dy;
-
-    var currentIndex = 0;
-    for (var i = 0; i < dayHeaderKeys.length; i++) {
-      final headerContext = dayHeaderKeys[i].currentContext;
-      if (headerContext == null) continue;
-      final headerBox = headerContext.findRenderObject() as RenderBox?;
-      if (headerBox == null) continue;
-      final headerDy = headerBox.localToGlobal(Offset.zero).dy - viewportTop;
-      if (headerDy <= 0) {
-        currentIndex = i;
-      } else {
-        break;
+  List<_SearchListRow> _buildRows(List<SearchDaySection> sections) {
+    final rows = <_SearchListRow>[];
+    for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+      rows.add(_SearchListRow.header(sectionIndex: sectionIndex, day: sections[sectionIndex].day));
+      for (final entry in sections[sectionIndex].entries) {
+        rows.add(_SearchListRow.entry(sectionIndex: sectionIndex, entry: entry));
       }
     }
+    return rows;
+  }
 
-    var pushOffset = 0.0;
-    var isInStickyCollision = false;
-    final nextIndex = currentIndex + 1;
-    if (nextIndex < dayHeaderKeys.length) {
-      final nextContext = dayHeaderKeys[nextIndex].currentContext;
-      final nextBox = nextContext?.findRenderObject() as RenderBox?;
-      if (nextBox != null) {
-        final nextDy = nextBox.localToGlobal(Offset.zero).dy - viewportTop;
-        if (nextDy < _stickyHeaderHeight) {
-          isInStickyCollision = true;
-          pushOffset = nextDy - _stickyHeaderHeight;
+  int _firstRowIndexForSection({
+    required List<_SearchListRow> rows,
+    required int sectionIndex,
+  }) {
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].sectionIndex == sectionIndex && rows[i].headerDay != null) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  void _updateStickyDayFromPositions() {
+    if (!mounted || _rowsForSticky.isEmpty) return;
+    final positions = _itemPositionsListener.itemPositions.value;
+    if (positions.isEmpty) return;
+
+    final visible = positions
+        .where((p) => p.itemTrailingEdge > 0 && p.itemLeadingEdge < 1)
+        .toList();
+    if (visible.isEmpty) return;
+
+    visible.sort((a, b) => a.index.compareTo(b.index));
+    final topIndex = visible.first.index;
+
+    DateTime? nextStickyDay = _rowsForSticky[topIndex].headerDay;
+    if (nextStickyDay == null) {
+      for (var i = topIndex; i >= 0; i--) {
+        final candidate = _rowsForSticky[i].headerDay;
+        if (candidate != null) {
+          nextStickyDay = candidate;
+          break;
         }
       }
     }
 
-    if (isInStickyCollision && !_didTriggerStickyCollisionHaptic) {
-      HapticFeedback.mediumImpact();
-      _didTriggerStickyCollisionHaptic = true;
-    } else if (!isInStickyCollision && _didTriggerStickyCollisionHaptic) {
-      _didTriggerStickyCollisionHaptic = false;
+    if (nextStickyDay == null) return;
+    var pushOffset = 0.0;
+    if (_listViewportHeight > 0) {
+      final nextHeaderPosition = visible
+          .where((p) => p.index > topIndex && _rowsForSticky[p.index].headerDay != null)
+          .toList()
+        ..sort((a, b) => a.index.compareTo(b.index));
+      if (nextHeaderPosition.isNotEmpty) {
+        final leadingPx = nextHeaderPosition.first.itemLeadingEdge * _listViewportHeight;
+        if (leadingPx < _stickyHeaderHeight) {
+          pushOffset = leadingPx - _stickyHeaderHeight;
+        }
+      }
     }
 
-    final showSticky = _scrollController.hasClients && _scrollController.offset > 0;
-    if (currentIndex != _stickySectionIndex ||
-        showSticky != _showStickyHeader ||
-        pushOffset != _stickyHeaderPushOffset) {
+    if (_stickyDay == null ||
+        !_isSameDay(_stickyDay!, nextStickyDay) ||
+        (_stickyHeaderPushOffset - pushOffset).abs() > 0.1) {
       setState(() {
-        _stickySectionIndex = currentIndex;
-        _showStickyHeader = showSticky;
+        _stickyDay = nextStickyDay;
         _stickyHeaderPushOffset = pushOffset;
       });
     }
   }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    final aLocal = a.toLocal();
+    final bLocal = b.toLocal();
+    return aLocal.year == bLocal.year &&
+        aLocal.month == bLocal.month &&
+        aLocal.day == bLocal.day;
+  }
+}
+
+class _SearchListRow {
+  const _SearchListRow._({
+    required this.sectionIndex,
+    this.headerDay,
+    this.entry,
+  });
+
+  factory _SearchListRow.header({
+    required int sectionIndex,
+    required DateTime day,
+  }) => _SearchListRow._(sectionIndex: sectionIndex, headerDay: day);
+
+  factory _SearchListRow.entry({
+    required int sectionIndex,
+    required CalendarEntry entry,
+  }) => _SearchListRow._(sectionIndex: sectionIndex, entry: entry);
+
+  final int sectionIndex;
+  final DateTime? headerDay;
+  final CalendarEntry? entry;
 }
 
 class _DebouncedLoadingIndicator extends StatefulWidget {

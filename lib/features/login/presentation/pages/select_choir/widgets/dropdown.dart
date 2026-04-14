@@ -29,8 +29,9 @@ class Dropdown extends StatelessWidget {
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final double w = constraints.maxWidth;
+            final double menuWidth = w > 360 ? 360 : w;
             return DropdownMenu<String>(
-              width: w,
+              width: menuWidth,
               menuHeight: loginDropdownMenuMaxHeight(context),
               menuStyle: loginDropdownMenuSurfaceStyle(context),
               decorationBuilder: (BuildContext context, MenuController _) {
@@ -54,7 +55,7 @@ class Dropdown extends StatelessWidget {
               dropdownMenuEntries: loginDropdownMenuEntries<String>(
                 context,
                 _voices,
-                width: w,
+                width: menuWidth,
                 labelOf: (String v) => v,
               ),
             );

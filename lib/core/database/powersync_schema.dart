@@ -3,6 +3,7 @@ import 'package:powersync/powersync.dart';
 /// Muss exakt zum **Postgres-Tabellennamen** passen, den PowerSync sync’t
 /// (z. B. `SELECT * FROM calendar_events` → lokale Tabelle `calendar_events`).
 const String kCalendarEventsTable = 'calendar_events';
+const String kCalendarSeriesTable = 'calendar_series';
 const String kProfilesTable = 'profiles';
 const String kKlassenTable = 'klassen';
 
@@ -33,11 +34,35 @@ const powersyncSchema = Schema([
       Column.text('schooltrack'),
       Column.text('class'),
       Column.text('image_paths'),
+      Column.text('series_id'),
+      Column.text('recurrence_id'),
     ],
     indexes: [
       Index(
         'calendar_events_start_time',
         [IndexedColumn('start_time')],
+      ),
+    ],
+  ),
+  Table(
+    kCalendarSeriesTable,
+    [
+      Column.text('event_name'),
+      Column.text('rrule'),
+      Column.text('start_time'),
+      Column.text('end_time'),
+      Column.text('location'),
+      Column.text('type'),
+      Column.text('choir'),
+      Column.text('voices'),
+      Column.text('class'),
+      Column.text('series_start'),
+      Column.text('series_end'),
+    ],
+    indexes: [
+      Index(
+        'calendar_series_series_start',
+        [IndexedColumn('series_start')],
       ),
     ],
   ),

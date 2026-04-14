@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../data/auth_repository.dart';
 import '../../domain/models/login_flow_step.dart';
+import '../routes/login_routes.dart';
 import '../widgets/buttons.dart';
 import '../widgets/login_scroll_surface.dart';
 
@@ -44,6 +45,9 @@ class LoginStepScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String location = GoRouterState.of(context).matchedLocation;
+    final double buttonHorizontalPadding = location == LoginPaths.choir ? 20 : 0;
+
     // SafeArea/Padding/Scaffold liefert [LoginOnboardingShell].
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,49 +67,52 @@ class LoginStepScaffold extends StatelessWidget {
           Align(alignment: Alignment.center, child: footer!),
           const SizedBox(height: 32),
         ],
-        Align(
-          child: LoginPrimaryButton(
-            label: submitLabel ?? 'Speichern',
-            color: step.accentColor,
-            isLoading: submitBusy,
-            onPressed: () async {
-              final shouldProceed = canProceed?.call() ?? true;
-              if (!shouldProceed) {
-                throw const LoginStepProceedBlocked();
-              }
-
-              void goNext() {
-                final path = nextPath;
-                if (path == null) {
-                  context.go('/calendar');
-                  return;
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: buttonHorizontalPadding),
+          child: Align(
+            child: LoginPrimaryButton(
+              label: submitLabel ?? 'Speichern',
+              color: step.accentColor,
+              isLoading: submitBusy,
+              onPressed: () async {
+                final shouldProceed = canProceed?.call() ?? true;
+                if (!shouldProceed) {
+                  throw const LoginStepProceedBlocked();
                 }
-                context.go(path);
-              }
 
-              final asyncProceed = onAsyncProceed;
-              if (asyncProceed != null) {
-                try {
-                  await asyncProceed(goNext);
-                } catch (e) {
-                  if (e is LoginStepErrorAlreadyShown) {
+                void goNext() {
+                  final path = nextPath;
+                  if (path == null) {
+                    context.go('/calendar');
+                    return;
+                  }
+                  context.go(path);
+                }
+
+                final asyncProceed = onAsyncProceed;
+                if (asyncProceed != null) {
+                  try {
+                    await asyncProceed(goNext);
+                  } catch (e) {
+                    if (e is LoginStepErrorAlreadyShown) {
+                      rethrow;
+                    }
+                    if (!context.mounted) return;
+                    final message = e is AuthRepositoryException
+                        ? e.message
+                        : 'Der Schritt konnte nicht abgeschlossen werden. Bitte erneut versuchen.';
+                    showAppToast(
+                      context,
+                      message,
+                      kind: AppToastKind.error,
+                    );
                     rethrow;
                   }
-                  if (!context.mounted) return;
-                  final message = e is AuthRepositoryException
-                      ? e.message
-                      : 'Der Schritt konnte nicht abgeschlossen werden. Bitte erneut versuchen.';
-                  showAppToast(
-                    context,
-                    message,
-                    kind: AppToastKind.error,
-                  );
-                  rethrow;
+                } else {
+                  goNext();
                 }
-              } else {
-                goNext();
-              }
-            },
+              },
+            ),
           ),
         ),
       ],

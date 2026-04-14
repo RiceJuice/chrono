@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:flutter/material.dart';
 
@@ -15,8 +16,12 @@ class BottomModalText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final noteText = (entry.note ?? '').trim();
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 0, 0),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -24,14 +29,14 @@ class BottomModalText extends StatelessWidget {
 
           Text(
             entry.eventName,
-            style: titleStyle ?? Theme.of(context).textTheme.titleLarge,
-          ), // Komma hier nicht vergessen
+            style: titleStyle ?? theme.textTheme.titleLarge,
+          ),
 
           if ((entry.description ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 18),
             Text(
               entry.description!,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium,
             ),
           ],
 
@@ -39,16 +44,46 @@ class BottomModalText extends StatelessWidget {
 
           Text(
             '${_formatTime(entry.startTime)} - ${_formatTime(entry.endTime)} Uhr',
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: theme.textTheme.bodyMedium,
           ),
 
           if ((entry.location ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
               'Ort: ${entry.location!}',
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium,
             ),
           ],
+
+          if (noteText.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.l),
+            Container(
+              width: double.infinity,
+              padding: AppInsets.cardPadding,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppRadius.s),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Notiz',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s),
+                  Text(
+                    noteText,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );

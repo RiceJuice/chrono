@@ -59,6 +59,7 @@ class LoginOnboardingShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = state.matchedLocation;
     final isStart = location == LoginPaths.login;
+    final isChoirPage = location == LoginPaths.choir;
     final back = _backPath(location);
     final step = _stepNumber(location);
 
@@ -66,22 +67,35 @@ class LoginOnboardingShell extends StatelessWidget {
       resizeToAvoidBottomInset: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              LoginTopBar(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: LoginTopBar(
                 onBack: back != null ? () => context.go(back) : null,
               ),
-              if (!isStart && step != null) ...[
-                const SizedBox(height: 20),
-                LoginStepIndicator(currentStep: step),
-                const SizedBox(height: 30),
-              ],
-              Expanded(child: child),
+            ),
+            if (!isStart && step != null) ...[
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: LoginStepIndicator(currentStep: step),
+              ),
+              const SizedBox(height: 30),
             ],
-          ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isChoirPage ? 0 : 20,
+                  0,
+                  isChoirPage ? 0 : 20,
+                  18,
+                ),
+                child: child,
+              ),
+            ),
+          ],
         ),
       ),
     );

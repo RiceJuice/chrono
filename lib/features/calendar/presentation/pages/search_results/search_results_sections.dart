@@ -40,6 +40,7 @@ SearchResultsSections buildSearchResultsSections({
   }
 
   final nowLocal = now ?? DateTime.now();
+  final today = _dayKey(nowLocal);
   final sortedEntries = List<CalendarEntry>.from(entries)
     ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
@@ -54,28 +55,28 @@ SearchResultsSections buildSearchResultsSections({
       .map((day) => SearchDaySection(day: day, entries: grouped[day]!))
       .toList(growable: false);
 
-  DateTime? firstUpcomingDay;
-  String? firstUpcomingEntryId;
-  for (final entry in sortedEntries) {
-    if (!entry.endTime.isBefore(nowLocal)) {
-      firstUpcomingDay = _dayKey(entry.startTime);
-      firstUpcomingEntryId = entry.id;
-      break;
-    }
-  }
-
-  if (firstUpcomingDay == null) {
+  final todayIndex = days.indexOf(today);
+  if (todayIndex >= 0) {
     return SearchResultsSections(
       sections: sections,
-      initialSectionIndex: sections.length - 1,
+      initialSectionIndex: todayIndex,
       firstUpcomingEntryId: null,
     );
   }
 
-  final initialIndex = days.indexOf(firstUpcomingDay);
+  final nextDayIndex = days.indexWhere((day) => !day.isBefore(today));
+  if (nextDayIndex >= 0) {
+    return SearchResultsSections(
+      sections: sections,
+      initialSectionIndex: nextDayIndex,
+      firstUpcomingEntryId: null,
+    );
+  }
+
+  // Wenn nur Vergangenheit vorhanden ist: letzten Tag zeigen.
   return SearchResultsSections(
     sections: sections,
-    initialSectionIndex: initialIndex < 0 ? 0 : initialIndex,
-    firstUpcomingEntryId: firstUpcomingEntryId,
+    initialSectionIndex: sections.length - 1,
+    firstUpcomingEntryId: null,
   );
 }

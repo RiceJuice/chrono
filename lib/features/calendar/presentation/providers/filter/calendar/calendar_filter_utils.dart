@@ -38,13 +38,18 @@ bool matchesFilters({
   }
 
   if (filters.voices.isNotEmpty) {
-    final value = normalizeFilterText(entry.voice.toBackend());
-    if (!_matchesCategory(
-      selectedValues: filters.voices,
-      entryValue: value,
-      isUnknown: entry.voice == BackendVoice.unknown,
-      hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
-    )) {
+    final values = entry.voices
+        .map((voice) => normalizeFilterText(voice.toBackend()))
+        .whereType<String>()
+        .toSet();
+    final fallback = normalizeFilterText(entry.voice.toBackend());
+    if (values.isEmpty &&
+        entry.voice != BackendVoice.unknown &&
+        fallback != null) {
+      values.add(fallback);
+    }
+    final hasVoiceMatch = values.any(filters.voices.contains);
+    if (!hasVoiceMatch && (hideUnknownWhenFilterActive || values.isNotEmpty)) {
       return false;
     }
   }

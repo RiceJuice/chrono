@@ -5,6 +5,10 @@ streams:
   appointments_calendar:
     auto_subscribe: true
     query: SELECT * FROM calendar_events
+  
+  appointments_calendar_series:
+    auto_subscribe: true
+    query: SELECT * FROM calendar_series
 
   profile_self:
     auto_subscribe: true
@@ -12,4 +16,4 @@ streams:
 
   reference_klassen:
     auto_subscribe: true
-    query: SELECT * FROM klassen
+    query: SELECT class_name AS id, class_name FROM klassen
