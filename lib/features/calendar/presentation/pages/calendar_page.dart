@@ -59,6 +59,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   void _closeSearch() {
     _debounceTimer?.cancel();
+    ref.read(searchFiltersProvider.notifier).resetToDefaults();
     setState(() {
       _isSearchOpen = false;
       _debouncedSearchQuery = '';
@@ -102,14 +103,15 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     });
     final searchFilters = ref.watch(searchFiltersProvider);
     final hasActiveSearchFilters = searchFilters.hasActiveFilters;
-    final showSearchResults = _debouncedSearchQuery.isNotEmpty;
+    final showSearchResults =
+        _debouncedSearchQuery.isNotEmpty || searchFilters.hasUserOverrides;
     final mediaPadding = MediaQuery.paddingOf(context);
     // Overlay: SafeArea + 8 + Toolbar + optionale Chip-Zeile + 8
     const chipRowExtent = 48.0;
     final searchBarBottomInset = mediaPadding.top +
         8 +
         kToolbarHeight +
-        (hasActiveSearchFilters ? chipRowExtent : 0) +
+        (_isSearchOpen && hasActiveSearchFilters ? chipRowExtent : 0) +
         8;
 
     return Scaffold(

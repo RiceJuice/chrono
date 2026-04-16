@@ -11,7 +11,7 @@ class AppColorSchemes {
 
   static const lightAccent = Color(0xFF273655);
   static const lightBackground = Color(0xFFFFFFFF);
-  static const lightSurfaceContainer = Color(0xFFF6F6F6);
+  static const lightSurfaceContainer = Color.fromARGB(255, 250, 250, 250);
   static const lightSurfaceContainerHighest = Color(0xFFE7E7E7);
 
   static const eventCardDark = Color(0xFF111827);
@@ -41,7 +41,7 @@ class AppColorSchemes {
   static ColorScheme lightScheme() {
     return const ColorScheme.light(
       primary: accent,
-      secondary: accent,
+      secondary: lightAccent,
       tertiary: lightAccent,
       surface: Colors.white,
       onSurface: Colors.black,
