@@ -11,7 +11,7 @@ class AppColorSchemes {
 
   static const lightAccent = Color(0xFF273655);
   static const lightBackground = Color(0xFFFFFFFF);
-  static const lightSurfaceContainer = Color.fromARGB(255, 250, 250, 250);
+  static const lightSurfaceContainer = Color.fromARGB(255, 248, 248, 248);
   static const lightSurfaceContainerHighest = Color(0xFFE7E7E7);
 
   static const eventCardDark = Color(0xFF111827);
