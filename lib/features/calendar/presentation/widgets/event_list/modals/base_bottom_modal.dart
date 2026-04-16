@@ -17,21 +17,14 @@ class BaseBottomModal extends StatelessWidget {
     final double screenHeight = MediaQuery.of(context).size.height;
     final double effectiveMinHeight = minHeight ?? (screenHeight * 0.7);
 
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: effectiveMinHeight,
-            maxHeight: screenHeight * 0.9,
-          ),
-          child: SingleChildScrollView(child: _buildModalContent()),
+    return SafeArea(
+      top: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: effectiveMinHeight,
+          maxHeight: screenHeight * 0.9,
         ),
+        child: SingleChildScrollView(child: _buildModalContent()),
       ),
     );
   }

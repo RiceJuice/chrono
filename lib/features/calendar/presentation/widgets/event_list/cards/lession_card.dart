@@ -13,9 +13,12 @@ class LessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return BaseCalendarCard(
       entry: entry,
       applyPastStyling: applyPastStyling,
+      backgroundColor: scheme.surfaceContainerHigh,
       contentPadding: EdgeInsetsGeometry.symmetric(vertical: 8, horizontal: 14),
       leadingIndicator: Padding(
         padding: const EdgeInsets.only(right: 12.0),

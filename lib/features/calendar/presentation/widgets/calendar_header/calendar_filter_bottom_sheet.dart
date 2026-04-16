@@ -19,6 +19,7 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final bottomSheetTheme = Theme.of(context).bottomSheetTheme;
     final isCalendarSettings = mode == CalendarFilterBottomSheetMode.calendarSettings;
     final filters = ref.watch(
       isCalendarSettings ? calendarFiltersProvider : searchFiltersProvider,
@@ -27,10 +28,10 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
     final voiceOptions = ref.watch(calendarVoiceFilterOptionsProvider);
     final classOptionsAsync = ref.watch(calendarClassFilterOptionsProvider);
     final classOptions = classOptionsAsync.asData?.value ?? const <String>[];
-    final title = isCalendarSettings ? 'Kalender Einstellungen' : 'Such Filter';
+    final title = isCalendarSettings ? 'Kalender-Einstellungen' : 'Suchfilter';
 
     return ColoredBox(
-      color: colorScheme.surface,
+      color: bottomSheetTheme.modalBackgroundColor ?? colorScheme.surfaceContainer,
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -152,6 +153,7 @@ class _FilterActionButtons extends StatelessWidget {
     final scheme = theme.colorScheme;
     final base = theme.elevatedButtonTheme.style!;
     final surfaceHighest = scheme.surfaceContainerHighest;
+    final onSurface = scheme.onSurface;
     final resetStyle = base.copyWith(
       backgroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
@@ -161,25 +163,25 @@ class _FilterActionButtons extends StatelessWidget {
       }),
       foregroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return Colors.white.withValues(alpha: AppOpacity.disabled);
+          return onSurface.withValues(alpha: AppOpacity.disabled);
         }
-        return Colors.white;
+        return onSurface;
       }),
       iconColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return Colors.white.withValues(alpha: AppOpacity.disabled);
+          return onSurface.withValues(alpha: AppOpacity.disabled);
         }
-        return Colors.white;
+        return onSurface;
       }),
       overlayColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.pressed)) {
-          return Colors.white.withValues(alpha: 0.12);
+          return onSurface.withValues(alpha: 0.12);
         }
         if (states.contains(WidgetState.hovered)) {
-          return Colors.white.withValues(alpha: 0.08);
+          return onSurface.withValues(alpha: 0.08);
         }
         if (states.contains(WidgetState.focused)) {
-          return Colors.white.withValues(alpha: 0.10);
+          return onSurface.withValues(alpha: 0.10);
         }
         return null;
       }),
@@ -195,7 +197,7 @@ class _FilterActionButtons extends StatelessWidget {
             style: resetStyle,
             onPressed: onReset,
             icon: const Icon(Icons.restart_alt),
-            label: const Text('Auf Standard zurücksetzen'),
+            label: const Text('Auf Standardwerte zurücksetzen'),
           ),
         ),
         const SizedBox(height: 12),
@@ -246,6 +248,7 @@ class _FilterSection extends StatelessWidget {
             ChoiceChip(
               label: const Text('Alle'),
               selected: selectedValues.isEmpty,
+              showCheckmark: false,
               selectedColor: selectedColor,
               backgroundColor: chipBackgroundColor,
               side: BorderSide.none,
@@ -255,6 +258,7 @@ class _FilterSection extends StatelessWidget {
               ChoiceChip(
                 label: Text(labelFor(option)),
                 selected: selectedValues.contains(option),
+                showCheckmark: false,
                 selectedColor: selectedColor,
                 backgroundColor: chipBackgroundColor,
                 side: BorderSide.none,

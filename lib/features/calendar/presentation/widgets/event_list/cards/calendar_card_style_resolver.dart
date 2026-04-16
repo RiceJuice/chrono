@@ -22,6 +22,12 @@ class CalendarCardStyle {
 class CalendarCardStyleResolver {
   CalendarCardStyleResolver._();
 
+  /// Reines Schwarz oder Weiß je nach [background], für maximalen Kontrast auf der Kartenfläche.
+  static Color highContrastOnBackground(Color background) {
+    final brightness = ThemeData.estimateBrightnessForColor(background);
+    return brightness == Brightness.dark ? Colors.white : Colors.black;
+  }
+
   static CalendarCardStyle resolve({
     required BuildContext context,
     required Color baseBackgroundColor,
@@ -30,10 +36,11 @@ class CalendarCardStyleResolver {
   }) {
     if (!applyPastStyling || !temporalState.isPast) {
       final scheme = Theme.of(context).colorScheme;
+      final onCard = highContrastOnBackground(baseBackgroundColor);
       return CalendarCardStyle(
         cardBackgroundColor: baseBackgroundColor,
-        primaryTextColor: scheme.onSurface,
-        secondaryTextColor: scheme.onSurface.withValues(alpha: 0.8),
+        primaryTextColor: onCard,
+        secondaryTextColor: onCard.withValues(alpha: 0.82),
         timeTextColor: scheme.onSurface,
         imageOverlayOpacity: 0,
       );

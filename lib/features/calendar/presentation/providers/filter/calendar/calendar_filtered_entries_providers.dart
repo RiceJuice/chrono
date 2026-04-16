@@ -1,10 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
+import '../../../../domain/filter/calendar_filters_logic.dart';
 import '../../../../domain/models/calendar_entry.dart';
-import 'calendar_filter_utils.dart';
-import 'calendar_filters_provider.dart';
 import '../../calendar_providers.dart';
-import '../search/search_filters_provider.dart';
 
 final filteredCalendarEntriesForDayProvider = fr
     .Provider.family<fr.AsyncValue<List<CalendarEntry>>, DateTime>((ref, day) {
@@ -12,7 +10,7 @@ final filteredCalendarEntriesForDayProvider = fr
       final filters = ref.watch(calendarFiltersProvider);
       return source.whenData((entries) {
         return entries
-            .where((entry) => matchesFilters(
+            .where((entry) => calendarEntryMatchesFilters(
                   entry: entry,
                   filters: filters,
                   hideUnknownWhenFilterActive: false,
@@ -26,11 +24,14 @@ final filteredCalendarEntriesByQueryProvider =
       ref,
       query,
     ) {
-      final source = ref.watch(calendarEntriesByQueryProvider(query));
+      final normalizedQuery = query.trim();
+      final source = normalizedQuery.isEmpty
+          ? ref.watch(calendarAllEntriesProvider)
+          : ref.watch(calendarEntriesByQueryProvider(normalizedQuery));
       final filters = ref.watch(searchFiltersProvider);
       return source.whenData((entries) {
         return entries
-            .where((entry) => matchesFilters(
+            .where((entry) => calendarEntryMatchesFilters(
                   entry: entry,
                   filters: filters,
                   hideUnknownWhenFilterActive: true,
