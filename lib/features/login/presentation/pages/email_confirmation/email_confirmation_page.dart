@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,7 @@ import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../providers/login_step_scaffold.dart';
+import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 
@@ -18,9 +21,40 @@ class EmailConfirmationPage extends ConsumerStatefulWidget {
       _EmailConfirmationPageState();
 }
 
-class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage> {
-  bool _busy = false;
+class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage>
+    with WidgetsBindingObserver {
+  static const _pollInterval = Duration(seconds: 5);
+
+  Timer? _pollTimer;
+  bool _advancing = false;
+  bool _manualBusy = false;
   bool _resendBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _pollTimer = Timer.periodic(_pollInterval, (_) {
+      unawaited(_runAdvanceCheck(silent: true));
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_runAdvanceCheck(silent: true));
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_runAdvanceCheck(silent: true));
+    }
+  }
 
   Future<void> _showMessage(
     String message, {
@@ -30,36 +64,45 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage> {
     showAppToast(context, message, kind: kind);
   }
 
-  Future<void> _retryVerification(void Function() goNext) async {
-    setState(() => _busy = true);
+  Future<void> _runAdvanceCheck({required bool silent}) async {
+    if (!mounted || _advancing) return;
+    _advancing = true;
+    if (!silent && mounted) setState(() => _manualBusy = true);
     try {
       final repo = ref.read(authRepositoryProvider);
       final draft = LoginFlowDraft.instance;
 
-      final hasVerifiedSession = await repo.refreshUserVerificationState();
-      if (hasVerifiedSession) {
-        if (!mounted) return;
-        context.go(LoginPaths.role);
-        return;
-      }
-
-      await repo.signInWithPassword(
+      final advanced = await repo.tryAdvanceAfterEmailConfirmation(
         email: draft.email,
         password: draft.password,
       );
+      if (!advanced || !mounted) return;
+
+      await ref.read(profileGateProvider).refresh();
       if (!mounted) return;
-      goNext();
+      final target =
+          ref.read(profileGateProvider).requiredPath ?? LoginPaths.role;
+      context.go(target);
     } on AuthRepositoryException catch (e) {
+      if (!mounted) return;
+      if (silent) {
+        debugPrint('E-Mail-Bestätigung (Hintergrund): ${e.message}');
+        return;
+      }
       await _showMessage(e.message, kind: AppToastKind.error);
-      throw const LoginStepErrorAlreadyShown();
     } catch (_) {
+      if (!mounted) return;
+      if (silent) {
+        debugPrint('E-Mail-Bestätigung (Hintergrund): unbekannter Fehler');
+        return;
+      }
       await _showMessage(
         'Bestätigungsstatus konnte nicht geprüft werden. Bitte versuche es erneut.',
         kind: AppToastKind.error,
       );
-      throw const LoginStepErrorAlreadyShown();
     } finally {
-      if (mounted) setState(() => _busy = false);
+      _advancing = false;
+      if (mounted && !silent) setState(() => _manualBusy = false);
     }
   }
 
@@ -73,8 +116,8 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage> {
           ? draft.email
           : (sessionUserEmail ?? '');
       await repo.resendConfirmationEmail(
-            email: targetEmail,
-          );
+        email: targetEmail,
+      );
       await _showMessage(
         'Bestätigungs-E-Mail wurde erneut gesendet.',
         kind: AppToastKind.success,
@@ -97,14 +140,24 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage> {
     return LoginStepScaffold(
       step: LoginFlowStep.credentials,
       titleOverride: 'E-Mail bestätigen',
-      submitLabel: 'Erneut prüfen',
-      submitBusy: _busy,
+      showPrimaryButton: false,
       nextPath: LoginPaths.role,
-      onAsyncProceed: _retryVerification,
       footer: Column(
         children: [
           TextButton(
-            onPressed: _resendBusy ? null : _resendEmail,
+            onPressed: (_manualBusy || _resendBusy)
+                ? null
+                : () => unawaited(_runAdvanceCheck(silent: false)),
+            child: _manualBusy
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Jetzt prüfen'),
+          ),
+          TextButton(
+            onPressed: _resendBusy ? null : () => unawaited(_resendEmail()),
             child: _resendBusy
                 ? const SizedBox(
                     height: 18,
@@ -123,7 +176,8 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage> {
         padding: const EdgeInsets.only(top: 60),
         child: Text(
           'Wir haben eine Bestätigungs-E-Mail an $email gesendet. '
-          'Bitte bestätige deine Adresse und tippe dann auf „Erneut prüfen“.',
+          'Bitte bestätige deine Adresse — wir prüfen automatisch im Hintergrund, '
+          'sobald du den Link in der Mail nutzt.',
           style: const TextStyle(color: Colors.white70, fontSize: 16, height: 1.4),
         ),
       ),

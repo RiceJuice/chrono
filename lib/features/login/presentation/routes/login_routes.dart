@@ -9,35 +9,10 @@ import '../pages/select_personal_data/personalData.dart';
 import '../pages/start_screen/start_screen_page.dart';
 import '../pages/select_role/select_role.dart';
 import '../widgets/login_onboarding_shell.dart';
+import 'login_flow_specs.dart';
+import 'login_paths.dart';
 
-abstract final class LoginPaths {
-  static const login = '/login';
-  static const credentials = '/login/credentials';
-  static const role = '/login/role';
-  static const personalData = '/login/personal-data';
-  static const choir = '/login/choir';
-  static const emailConfirmation = '/login/email-confirmation';
-
-  /// Reihenfolge im Onboarding für Slide-Richtung (größer = weiter im Flow).
-  static int slideIndex(String location) {
-    switch (location) {
-      case login:
-        return 0;
-      case credentials:
-        return 1;
-      case emailConfirmation:
-        return 2;
-      case role:
-        return 3;
-      case personalData:
-        return 4;
-      case choir:
-        return 5;
-      default:
-        return -1;
-    }
-  }
-}
+export 'login_paths.dart';
 
 /// Slide-Richtung für Login-Unterseiten: wird im [ShellRoute]-Builder gesetzt,
 /// bevor die [CustomTransitionPage]s gebaut werden (vermeidet falsche Richtung
@@ -61,8 +36,8 @@ abstract final class LoginRouteTransitionTracker {
     if (_lastLocation != null &&
         location.startsWith(LoginPaths.login) &&
         _lastLocation!.startsWith(LoginPaths.login)) {
-      final prevIdx = LoginPaths.slideIndex(_lastLocation!);
-      final nextIdx = LoginPaths.slideIndex(location);
+      final prevIdx = loginFlowOrderIndex(_lastLocation!);
+      final nextIdx = loginFlowOrderIndex(location);
       if (prevIdx >= 0 && nextIdx >= 0) {
         _transitionForward = nextIdx > prevIdx;
       } else {
@@ -111,8 +86,8 @@ CustomTransitionPage<void> loginSlidePage({
 
 AccountAuthMode _authModeFromQuery(GoRouterState state) {
   final raw = state.uri.queryParameters['mode'];
-  if (raw == 'signUp') return AccountAuthMode.signUp;
-  return AccountAuthMode.signIn;
+  if (raw == 'signIn') return AccountAuthMode.signIn;
+  return AccountAuthMode.signUp;
 }
 
 final List<RouteBase> loginRoutes = [

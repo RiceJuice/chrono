@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../widgets/login_dropdown_menu.dart';
-import '../../../widgets/login_input_decoration.dart';
+import '../../../widgets/login_dropdown_field.dart';
 import '../../../widgets/login_text_field.dart';
 
 class LoginPersonalDataFields extends StatelessWidget {
@@ -22,15 +21,25 @@ class LoginPersonalDataFields extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+    const fieldContentPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 15);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          'Vorname',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
         LoginTextField(
           controller: firstNameController,
-          hintText: 'Vorname',
+          hintText: 'Max',
+          prefixIcon: Icons.person_outline_rounded,
+          contentPadding: fieldContentPadding,
           validator: (value) {
             if ((value ?? '').trim().isEmpty) {
               return 'Bitte Vornamen eingeben.';
@@ -38,10 +47,20 @@ class LoginPersonalDataFields extends StatelessWidget {
             return null;
           },
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
+        const Text(
+          'Nachname',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
         LoginTextField(
           controller: lastNameController,
-          hintText: 'Nachname',
+          hintText: 'Mustermann',
+          prefixIcon: Icons.badge_outlined,
+          contentPadding: fieldContentPadding,
           validator: (value) {
             if ((value ?? '').trim().isEmpty) {
               return 'Bitte Nachnamen eingeben.';
@@ -49,9 +68,21 @@ class LoginPersonalDataFields extends StatelessWidget {
             return null;
           },
         ),
-        const SizedBox(height: 24),
-        FormField<String>(
-          initialValue: selectedClass,
+        const SizedBox(height: 16),
+        const Text(
+          'Klasse',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        LoginDropdownField(
+          selectedValue: selectedClass,
+          options: classOptions,
+          label: 'Klasse',
+          hintText: 'z. B. 10a',
+          leadingIcon: const Icon(Icons.school_outlined, color: Colors.white70),
           validator: (value) {
             if (classOptions.isEmpty) {
               return 'Keine Klassen verfuegbar. Bitte spaeter erneut versuchen.';
@@ -61,47 +92,7 @@ class LoginPersonalDataFields extends StatelessWidget {
             }
             return null;
           },
-          builder: (FormFieldState<String> field) {
-            return LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-                final double w = constraints.maxWidth;
-                return DropdownMenu<String>(
-                  width: w,
-                  menuHeight: loginDropdownMenuMaxHeight(context),
-                  menuStyle: loginDropdownMenuSurfaceStyle(context),
-                  decorationBuilder: (BuildContext context, MenuController _) {
-                    assert(debugCheckHasMaterial(context));
-                    return loginDropdownDecorationWithOpenHaptic(
-                      loginInputDecoration('Klasse').copyWith(
-                        hintText: 'Klasse auswählen',
-                        hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
-                        errorText: field.errorText,
-                      ),
-                    );
-                  },
-                  initialSelection: field.value,
-                  onSelected: (String? value) {
-                    if (value != null) {
-                      loginDropdownSelectionHaptic();
-                    }
-                    field.didChange(value);
-                    onClassChanged(value);
-                  },
-                  enableSearch: false,
-                  enableFilter: false,
-                  selectOnly: true,
-                  textStyle: TextStyle(color: scheme.onSurface),
-                  trailingIcon: Icon(Icons.arrow_drop_down, color: scheme.onSurface),
-                  dropdownMenuEntries: loginDropdownMenuEntries<String>(
-                    context,
-                    classOptions,
-                    width: w,
-                    labelOf: (String v) => v,
-                  ),
-                );
-              },
-            );
-          },
+          onChanged: onClassChanged,
         ),
       ],
     );

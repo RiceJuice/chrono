@@ -78,6 +78,7 @@ const powersyncSchema = Schema([
       Column.text('diet'),
       Column.text('created_at'),
       Column.text('updated_at'),
+      Column.text('onboarding_completed_at'),
     ],
     indexes: [
       Index(

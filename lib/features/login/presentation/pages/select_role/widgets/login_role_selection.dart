@@ -22,7 +22,7 @@ class LoginRoleSelection extends StatelessWidget {
           activeColor: const Color(0xFFCBBBA0),
           onTap: () => onSelect('Schüler'),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 18),
         LoginChoiceCard(
           title: 'Elternteil',
           isSelected: selectedRole == 'Elternteil',

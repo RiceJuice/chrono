@@ -5,8 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
-import '../../state/login_flow_draft.dart';
 import '../../providers/login_step_scaffold.dart';
+import '../../providers/profile_gate_provider.dart';
+import '../../state/login_flow_draft.dart';
 import 'provider/select_choir_provider.dart';
 import 'widgets/dropdown.dart';
 import 'widgets/login_choir_selection.dart';
@@ -23,9 +24,13 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
   late String _selectedVoice;
   late int _choirPage;
   bool _busy = false;
+  bool _syncedChoirFromCarousel = false;
 
   static const List<String> _voices = ['Tenor', 'Sopran', 'Alt', 'Bass'];
-  static const List<String> _choirs = ['Giehl', 'DKM', 'Rädlinger', 'Szucies', 'Schola'];
+  static const List<String> _choirs = ['Giehl', 'DKM', 'Rädlinger', 'Szuczies', 'Schola'];
+
+  String get _choirLabelForCurrentPage =>
+      _choirs[_choirPage % _choirs.length];
 
   @override
   void initState() {
@@ -35,13 +40,26 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_syncedChoirFromCarousel) return;
+    _syncedChoirFromCarousel = true;
+    // Nicht synchron während des Builds: Riverpod verbietet State-Updates hier
+    // (SyncProviderElement / setValueFromState).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(selectedChoirProvider.notifier).selectChoir(_choirLabelForCurrentPage);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LoginStepScaffold(
       step: LoginFlowStep.choir,
+      centerChildInScrollViewport: true,
       submitBusy: _busy,
       canProceed: () {
         final bool isVoiceSelected = _voices.contains(_selectedVoice);
-        final bool isChoirSelected = ref.read(selectedChoirProvider) != null;
 
         if (!isVoiceSelected) {
           showAppToast(
@@ -52,41 +70,39 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
           return false;
         }
 
-        if (!isChoirSelected) {
-          showAppToast(
-            context,
-            'Bitte wähle einen Chor aus.',
-            kind: AppToastKind.info,
-          );
-          return false;
-        }
-
+        // Chor wird automatisch durch Karussell-Position gesetzt
         return true;
       },
       onAsyncProceed: (goNext) async {
         setState(() => _busy = true);
         try {
-          final draft = LoginFlowDraft.instance;
-
+          // Immer den sichtbaren Chor mitschicken — sonst bleibt `choir` in der DB
+          // leer, das Gate verlangt weiter /login/choir und /calendar wird sofort
+          // wieder umgeleitet.
+          final selectedChoir = ref.read(selectedChoirProvider) ??
+              _choirLabelForCurrentPage;
           final saved = await ref.read(authRepositoryProvider).updateProfile(
-                firstName: draft.firstName,
-                lastName: draft.lastName,
-                className: draft.schoolClass,
-                voice: draft.voice,
-                role: draft.role,
+                voice: _selectedVoice,
+                choir: selectedChoir,
               );
           if (!saved) {
             throw AuthRepositoryException(
               'Profil konnte nicht gespeichert werden. Bitte erneut versuchen.',
             );
           }
+          await ref.read(profileGateProvider).refresh();
           if (!context.mounted) return;
+          // Nicht zu `requiredPath` navigieren: Nach dem Speichern kann die
+          // Profil-Abfrage kurz hinterherhinken und noch alte/leere Werte
+          // liefern → fälschlich z. B. wieder `/login/role`. Der Router leitet
+          // von `/calendar` ggf. zurück auf den richtigen Schritt.
           goNext();
         } finally {
           if (context.mounted) setState(() => _busy = false);
         }
       },
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           LoginChoirSelection(
             selectedPage: _choirPage,
@@ -94,9 +110,6 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
             onPageChanged: (page) => setState(() {
               _choirPage = page;
               _draft.choirPage = page;
-
-              // Damit "Chor ausgewählt" auch wirklich dem UI-Selection-Stand entspricht,
-              // synchronisieren wir den Provider bei Page-Changes.
               final choirLabel = _choirs[page % _choirs.length];
               ref.read(selectedChoirProvider.notifier).selectChoir(choirLabel);
             }),

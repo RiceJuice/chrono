@@ -95,11 +95,21 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   Widget build(BuildContext context) {
     ref.listen(syncedProfileProvider, (_, next) {
       next.whenData((profile) {
-        ref.read(calendarFiltersProvider.notifier).initializeFromProfile(profile);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          ref
+              .read(calendarFiltersProvider.notifier)
+              .initializeFromProfile(profile);
+        });
       });
     });
     ref.listen<CalendarFiltersState>(calendarFiltersProvider, (_, next) {
-      ref.read(searchFiltersProvider.notifier).initializeFromCalendar(next);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        ref
+            .read(searchFiltersProvider.notifier)
+            .initializeFromCalendar(next);
+      });
     });
     final searchFilters = ref.watch(searchFiltersProvider);
     final hasActiveSearchFilters = searchFilters.hasActiveFilters;

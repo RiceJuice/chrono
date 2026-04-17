@@ -26,7 +26,7 @@ class LoginChoiceCard extends StatelessWidget {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        height: 100,
+        height: 120,
         width: double.infinity,
         padding: AppInsets.cardPadding,
         decoration: BoxDecoration(

@@ -9,24 +9,42 @@ class CredentialFormFields extends StatelessWidget {
     required this.passwordController,
     required this.passwordConfirmController,
     required this.requirePasswordConfirmation,
+    required this.emailFieldKey,
+    required this.passwordFieldKey,
+    required this.passwordConfirmFieldKey,
   });
 
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final TextEditingController passwordConfirmController;
   final bool requirePasswordConfirmation;
+  final GlobalKey<FormFieldState<String>> emailFieldKey;
+  final GlobalKey<FormFieldState<String>> passwordFieldKey;
+  final GlobalKey<FormFieldState<String>> passwordConfirmFieldKey;
 
   @override
   Widget build(BuildContext context) {
     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 80),
+        const Text(
+          'E-Mail',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
         LoginTextField(
+          formFieldKey: emailFieldKey,
           controller: emailController,
-          hintText: 'E-mail',
+          hintText: 'name@beispiel.de',
           keyboardType: TextInputType.emailAddress,
+          prefixIcon: Icons.email_outlined,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
           validator: (value) {
             final input = value?.trim() ?? '';
             if (input.isEmpty) {
@@ -38,11 +56,22 @@ class CredentialFormFields extends StatelessWidget {
             return null;
           },
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        const Text(
+          'Passwort',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
         LoginTextField(
+          formFieldKey: passwordFieldKey,
           controller: passwordController,
-          hintText: 'Passwort',
+          hintText: 'Passwort eingeben',
           obscureText: true,
+          prefixIcon: Icons.lock_outline_rounded,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
           validator: (value) {
             final input = value ?? '';
             if (input.isEmpty) {
@@ -55,11 +84,23 @@ class CredentialFormFields extends StatelessWidget {
           },
         ),
         if (requirePasswordConfirmation) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          const Text(
+            'Passwort wiederholen',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
           LoginTextField(
+            formFieldKey: passwordConfirmFieldKey,
             controller: passwordConfirmController,
-            hintText: 'Passwort bestätigen',
+            hintText: 'Passwort bestätigen	',
             obscureText: true,
+            prefixIcon: Icons.lock_reset_rounded,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
             validator: (value) {
               final input = value ?? '';
               if (input.isEmpty) {

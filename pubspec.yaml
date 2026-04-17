@@ -42,6 +42,7 @@ dependencies:
   powersync: ^1.18.0
   postgrest: ^2.6.0
   supabase_flutter: ^2.12.2
+  app_links: ^7.0.0
   path: ^1.9.1
   path_provider: ^2.1.5
   sqlite3: ^2.9.4

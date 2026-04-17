@@ -11,7 +11,7 @@ class LoginFlowDraft {
   String lastName = '';
   String? schoolClass;
   int choirPage = 1;
-  String voice = 'Tenor';
+  String voice = '';
 
   void reset() {
     email = '';

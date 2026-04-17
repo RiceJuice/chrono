@@ -37,7 +37,7 @@ class Dropdown extends StatelessWidget {
               decorationBuilder: (BuildContext context, MenuController _) {
                 assert(debugCheckHasMaterial(context));
                 return loginDropdownDecorationWithOpenHaptic(
-                  loginInputDecoration('Stimme'),
+                  loginInputDecoration(context, 'Stimme'),
                 );
               },
               initialSelection: hasSelection ? selectedVoice : null,
@@ -51,7 +51,10 @@ class Dropdown extends StatelessWidget {
               enableFilter: false,
               selectOnly: true,
               textStyle: TextStyle(color: scheme.onSurface),
-              trailingIcon: Icon(Icons.arrow_drop_down, color: scheme.onSurface),
+              trailingIcon: Icon(
+                Icons.arrow_drop_down,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
               dropdownMenuEntries: loginDropdownMenuEntries<String>(
                 context,
                 _voices,

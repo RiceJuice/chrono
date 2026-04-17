@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'core/auth/supabase_apple_auth_deep_links.dart';
 import 'core/database/calendar_events_debug_log.dart';
 import 'core/database/database_provider.dart';
 import 'core/database/powersync_auth_binding.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/login/presentation/providers/profile_gate_notifier.dart';
+import 'features/login/presentation/providers/profile_gate_provider.dart';
 
 
 const String _defaultSupabaseUrl = 'https://chrbvfaknykaycwumuba.supabase.co';
@@ -39,8 +42,10 @@ void main() async {
     );
   }
 
-  // 1. Supabase & DB Setup
+  // 1. Supabasboard eintragen (s. core/auth/auth_redirect_config.dart).e & DB Setup
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  // iOS/macOS: Mail-Bestätigungslink → App; Redirect-URL im Supabase-Dash
+  await attachSupabaseAppleAuthDeepLinks();
   final powerSyncDb = await initializeDatabase();
   attachCalendarEventsDebugLogs(powerSyncDb);
   scheduleCalendarEventsLocalSnapshots(powerSyncDb);
@@ -48,15 +53,18 @@ void main() async {
 
   final startupNotifier = AppStartupNotifier();
   final authSessionNotifier = AuthSessionNotifier();
+  final profileGateNotifier = ProfileGateNotifier();
 
   runApp(
     ProviderScope(
       overrides: [
         dbProvider.overrideWithValue(powerSyncDb),
+        profileGateProvider.overrideWithValue(profileGateNotifier),
       ],
       child: MyApp(
         startupNotifier: startupNotifier,
         authSessionNotifier: authSessionNotifier,
+        profileGateNotifier: profileGateNotifier,
       ),
     ),
   );
@@ -72,10 +80,12 @@ class MyApp extends StatefulWidget {
     super.key,
     required this.startupNotifier,
     required this.authSessionNotifier,
+    required this.profileGateNotifier,
   });
 
   final AppStartupNotifier startupNotifier;
   final AuthSessionNotifier authSessionNotifier;
+  final ProfileGateNotifier profileGateNotifier;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -85,12 +95,14 @@ class _MyAppState extends State<MyApp> {
   late final AppRouter _appRouter = AppRouter(
     startupNotifier: widget.startupNotifier,
     authSessionNotifier: widget.authSessionNotifier,
+    profileGateNotifier: widget.profileGateNotifier,
   );
 
   @override
   void dispose() {
     PowerSyncAuthBinding.dispose();
     widget.authSessionNotifier.dispose();
+    widget.profileGateNotifier.dispose();
     super.dispose();
   }
 

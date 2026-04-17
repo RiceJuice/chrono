@@ -28,9 +28,15 @@ class LoginStepScaffold extends StatelessWidget {
     this.canProceed,
     this.onAsyncProceed,
     this.submitBusy = false,
+    this.showPrimaryButton = true,
     this.titleOverride,
+    this.subtitleOverride,
     this.submitLabel,
     this.footer,
+    /// Wenn true: [child] wird im verbleibenden Bereich des Scroll-Viewports
+    /// (unter Titel/Untertitel) vertikal zentriert — nötig, weil [SingleChildScrollView]
+    /// sonst unbegrenzte Höhe liefert und [MainAxisAlignment.center] nicht wirkt.
+    this.centerChildInScrollViewport = false,
   });
 
   final LoginFlowStep step;
@@ -39,9 +45,43 @@ class LoginStepScaffold extends StatelessWidget {
   final bool Function()? canProceed;
   final Future<void> Function(void Function() goNext)? onAsyncProceed;
   final bool submitBusy;
+  final bool showPrimaryButton;
   final String? titleOverride;
+  final String? subtitleOverride;
   final String? submitLabel;
   final Widget? footer;
+  final bool centerChildInScrollViewport;
+
+  List<Widget> _header(BuildContext context) {
+    return [
+      Text(
+        titleOverride ?? step.title,
+        style: GoogleFonts.libreBaskerville(
+          color: Colors.white,
+          fontSize: 44,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      if (subtitleOverride != null)
+        Text(
+          subtitleOverride!,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+    ];
+  }
+
+  List<Widget> _footerBlock() {
+    if (footer == null) return const [];
+    return [
+      const SizedBox(height: 160),
+      Align(alignment: Alignment.center, child: footer!),
+      const SizedBox(height: 32),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,69 +92,93 @@ class LoginStepScaffold extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          titleOverride ?? step.title,
-          style: GoogleFonts.libreBaskerville(
-            color: Colors.white,
-            fontSize: 44,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
         Expanded(
-          child: LoginScrollSurface(child: child),
+          child: centerChildInScrollViewport
+              ? LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints viewport) {
+                    return LoginScrollSurface(
+                      child: SizedBox(
+                        height: viewport.maxHeight,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ..._header(context),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  child,
+                                ],
+                              ),
+                            ),
+                            ..._footerBlock(),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : LoginScrollSurface(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ..._header(context),
+                      child,
+                      ..._footerBlock(),
+                    ],
+                  ),
+                ),
         ),
-        if (footer != null) ...[
-          Align(alignment: Alignment.center, child: footer!),
-          const SizedBox(height: 32),
-        ],
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: buttonHorizontalPadding),
-          child: Align(
-            child: LoginPrimaryButton(
-              label: submitLabel ?? 'Speichern',
-              color: step.accentColor,
-              isLoading: submitBusy,
-              onPressed: () async {
-                final shouldProceed = canProceed?.call() ?? true;
-                if (!shouldProceed) {
-                  throw const LoginStepProceedBlocked();
-                }
-
-                void goNext() {
-                  final path = nextPath;
-                  if (path == null) {
-                    context.go('/calendar');
-                    return;
+        if (showPrimaryButton)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: buttonHorizontalPadding),
+            child: Align(
+              child: LoginPrimaryButton(
+                label: submitLabel ?? 'Speichern',
+                color: step.accentColor,
+                isLoading: submitBusy,
+                onPressed: () async {
+                  final shouldProceed = canProceed?.call() ?? true;
+                  if (!shouldProceed) {
+                    throw const LoginStepProceedBlocked();
                   }
-                  context.go(path);
-                }
 
-                final asyncProceed = onAsyncProceed;
-                if (asyncProceed != null) {
-                  try {
-                    await asyncProceed(goNext);
-                  } catch (e) {
-                    if (e is LoginStepErrorAlreadyShown) {
+                  void goNext() {
+                    final path = nextPath;
+                    if (path == null) {
+                      context.go('/calendar');
+                      return;
+                    }
+                    context.go(path);
+                  }
+
+                  final asyncProceed = onAsyncProceed;
+                  if (asyncProceed != null) {
+                    try {
+                      await asyncProceed(goNext);
+                    } catch (e) {
+                      if (e is LoginStepErrorAlreadyShown) {
+                        rethrow;
+                      }
+                      if (!context.mounted) return;
+                      final message = e is AuthRepositoryException
+                          ? e.message
+                          : 'Der Schritt konnte nicht abgeschlossen werden. Bitte erneut versuchen.';
+                      showAppToast(
+                        context,
+                        message,
+                        kind: AppToastKind.error,
+                      );
                       rethrow;
                     }
-                    if (!context.mounted) return;
-                    final message = e is AuthRepositoryException
-                        ? e.message
-                        : 'Der Schritt konnte nicht abgeschlossen werden. Bitte erneut versuchen.';
-                    showAppToast(
-                      context,
-                      message,
-                      kind: AppToastKind.error,
-                    );
-                    rethrow;
+                  } else {
+                    goNext();
                   }
-                } else {
-                  goNext();
-                }
-              },
+                },
+              ),
             ),
           ),
-        ),
       ],
     );
   }

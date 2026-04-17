@@ -13,14 +13,8 @@ class SelectedChoir extends _$SelectedChoir {
     return null; 
   }
 
-  // Die Methode, um die Auswahl zu steuern
+  /// Setzt den Chor passend zur aktuell zentrierten Karussell-Seite (ohne Tap-Bestätigung).
   void selectChoir(String label) {
-    if (state == label) {
-      // Toggle-Logik: Wenn schon ausgewählt, dann abwählen
-      state = null;
-    } else {
-      // Ansonsten: Den neuen Namen als Status setzen
-      state = label;
-    }
+    state = label;
   }
 }

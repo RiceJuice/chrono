@@ -2,11 +2,14 @@ import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
+import '../../providers/auth_repository_provider.dart';
+import '../../providers/klassen_provider.dart';
+import '../../providers/login_step_scaffold.dart';
+import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
-import '../../providers/login_step_scaffold.dart';
-import '../../providers/klassen_provider.dart';
 import 'widgets/forms.dart';
 
 class PersonalDataPage extends ConsumerStatefulWidget {
@@ -59,8 +62,8 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
         try {
           _draft.firstName = _firstNameController.text.trim();
           _draft.lastName = _lastNameController.text.trim();
-          if (!context.mounted) return;
           if (_draft.firstName.isEmpty || _draft.lastName.isEmpty) {
+            if (!context.mounted) return;
             showAppToast(
               context,
               'Bitte Vorname und Nachname ausfüllen.',
@@ -68,7 +71,26 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
             );
             throw const LoginStepErrorAlreadyShown();
           }
+          final className = _draft.schoolClass;
+          if (className == null || className.trim().isEmpty) {
+            if (!context.mounted) return;
+            showAppToast(
+              context,
+              'Bitte wähle eine Klasse aus.',
+              kind: AppToastKind.info,
+            );
+            throw const LoginStepErrorAlreadyShown();
+          }
+          await ref.read(authRepositoryProvider).updateProfile(
+                firstName: _draft.firstName,
+                lastName: _draft.lastName,
+                className: className,
+              );
+          await ref.read(profileGateProvider).refresh();
+          if (!context.mounted) return;
           goNext();
+        } on AuthRepositoryException {
+          rethrow;
         } finally {
           if (context.mounted) setState(() => _busy = false);
         }

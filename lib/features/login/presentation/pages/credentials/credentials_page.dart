@@ -6,6 +6,7 @@ import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../providers/login_step_scaffold.dart';
+import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 import 'widgets/account_auth_mode.dart';
@@ -15,7 +16,7 @@ import 'widgets/credential_form_fields.dart';
 class CredentialsPage extends ConsumerStatefulWidget {
   const CredentialsPage({
     super.key,
-    this.initialMode = AccountAuthMode.signIn,
+    this.initialMode = AccountAuthMode.signUp,
   });
 
   final AccountAuthMode initialMode;
@@ -27,6 +28,9 @@ class CredentialsPage extends ConsumerStatefulWidget {
 class _CredentialsPageState extends ConsumerState<CredentialsPage> {
   final _draft = LoginFlowDraft.instance;
   final _formKey = GlobalKey<FormState>();
+  final _emailFieldKey = GlobalKey<FormFieldState<String>>();
+  final _passwordFieldKey = GlobalKey<FormFieldState<String>>();
+  final _passwordConfirmFieldKey = GlobalKey<FormFieldState<String>>();
 
   late final TextEditingController _emailController;
   late final TextEditingController _passwordController;
@@ -106,6 +110,35 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
     }
   }
 
+  bool _validateAndScrollToFirstError() {
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (isValid) return true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final keys = <GlobalKey<FormFieldState<String>>>[
+        _emailFieldKey,
+        _passwordFieldKey,
+        if (_mode == AccountAuthMode.signUp) _passwordConfirmFieldKey,
+      ];
+
+      for (final key in keys) {
+        if (!(key.currentState?.hasError ?? false)) continue;
+        final targetContext = key.currentContext;
+        if (targetContext == null) return;
+        Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          alignment: 0.2,
+        );
+        return;
+      }
+    });
+
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSignIn = _mode == AccountAuthMode.signIn;
@@ -113,6 +146,9 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
     return LoginStepScaffold(
       step: LoginFlowStep.credentials,
       titleOverride: isSignIn ? 'Anmelden' : 'Registrieren',
+      subtitleOverride: isSignIn
+          ? 'Willkommen zurück!'
+          : 'Lege jetzt los und erstelle dein Konto',
       submitLabel: isSignIn ? 'Anmelden' : 'Registrieren',
       submitBusy: _busy,
       nextPath: LoginPaths.role,
@@ -120,13 +156,17 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
         selectedMode: _mode,
         onChanged: (mode) => setState(() => _mode = mode),
       ),
-      canProceed: () => _formKey.currentState?.validate() ?? false,
+      canProceed: _validateAndScrollToFirstError,
       onAsyncProceed: (goNext) async {
         if (_mode == AccountAuthMode.signIn) {
           final success = await _runSignIn();
           if (!context.mounted) return;
           if (!success) throw const LoginStepErrorAlreadyShown();
-          context.go('/calendar');
+          await ref.read(profileGateProvider).refresh();
+          if (!context.mounted) return;
+          final target =
+              ref.read(profileGateProvider).requiredPath ?? '/calendar';
+          context.go(target);
           return;
         }
 
@@ -134,6 +174,8 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
         if (!context.mounted) return;
         if (signUpResult == null) throw const LoginStepErrorAlreadyShown();
         if (signUpResult.outcome == SignUpOutcome.registeredAndSignedIn) {
+          await ref.read(profileGateProvider).refresh();
+          if (!context.mounted) return;
           goNext();
           return;
         }
@@ -149,6 +191,9 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
               passwordController: _passwordController,
               passwordConfirmController: _passwordConfirmController,
               requirePasswordConfirmation: _mode == AccountAuthMode.signUp,
+              emailFieldKey: _emailFieldKey,
+              passwordFieldKey: _passwordFieldKey,
+              passwordConfirmFieldKey: _passwordConfirmFieldKey,
             ),
           ],
         ),

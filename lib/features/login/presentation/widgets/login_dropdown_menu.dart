@@ -19,13 +19,13 @@ void loginDropdownSelectionHaptic() {
   HapticFeedback.selectionClick();
 }
 
-/// Unsichtbarer [prefixIcon]-Listener: bei „Menü offen“ (Tap auf Feld oder Pfeil).
+/// Unsichtbarer Listener: bei „Menü offen“ (Tap auf Feld oder Pfeil).
 /// Nutzt [HapticFeedback.lightImpact], damit es sich nicht wie ein zweites
 /// [selectionClick] bei der anschließenden Auswahl anfühlt.
 InputDecoration loginDropdownDecorationWithOpenHaptic(InputDecoration decoration) {
   return decoration.copyWith(
-    prefixIcon: const _LoginDropdownMenuOpenHapticHost(),
-    prefixIconConstraints: const BoxConstraints(
+    suffixIcon: const _LoginDropdownMenuOpenHapticHost(),
+    suffixIconConstraints: const BoxConstraints(
       minWidth: 0,
       maxWidth: 0,
       minHeight: 0,

@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/auth/auth_redirect_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Nutzerorientierte Fehlermeldung aus der Auth-/Profil-Schicht.
@@ -103,6 +104,7 @@ class AuthRepository {
       final response = await _client.auth.signUp(
         email: normalizedEmail,
         password: password,
+        emailRedirectTo: authEmailRedirectTo(),
         data: {
           'first_name': firstName.trim(),
           'last_name': lastName.trim(),
@@ -149,6 +151,7 @@ class AuthRepository {
       await _client.auth.resend(
         type: OtpType.signup,
         email: normalizedEmail,
+        emailRedirectTo: authEmailRedirectTo(),
       );
     } on AuthException catch (e) {
       throw AuthRepositoryException(_mapAuthException(e));
@@ -182,6 +185,48 @@ class AuthRepository {
     if (user.emailConfirmedAt != null) return true;
     final raw = user.toJson()['email_confirmed_at'];
     return raw != null && raw.toString().trim().isNotEmpty;
+  }
+
+  /// Prüft, ob die E-Mail nach der Registrierung bestätigt wurde: zuerst
+  /// Session-Refresh (falls bereits eine Session existiert), sonst Anmeldung.
+  ///
+  /// Gibt `false` zurück, solange [AuthException] wegen fehlender Bestätigung
+  /// (`email_not_confirmed`) erwartbar ist; wirft bei anderen Auth-Fehlern.
+  Future<bool> tryAdvanceAfterEmailConfirmation({
+    required String email,
+    required String password,
+  }) async {
+    final session = _client.auth.currentSession;
+    if (session != null) {
+      try {
+        final response = await _client.auth.refreshSession();
+        final user = response.user ?? _client.auth.currentUser;
+        if (_isEmailConfirmed(user)) return true;
+      } on AuthException {
+        // Weiter mit Passwort-Anmeldung unten.
+      }
+    }
+
+    try {
+      await _client.auth.signInWithPassword(
+        email: email.trim(),
+        password: password,
+      );
+      return true;
+    } on AuthException catch (e) {
+      final code = e.code?.toLowerCase();
+      final msg = e.message.toLowerCase();
+      if (code == 'email_not_confirmed' ||
+          msg.contains('email not confirmed') ||
+          msg.contains('email_not_confirmed')) {
+        return false;
+      }
+      throw AuthRepositoryException(_mapAuthException(e));
+    } catch (_) {
+      throw AuthRepositoryException(
+        'Anmeldung fehlgeschlagen. Bitte versuche es erneut.',
+      );
+    }
   }
 
   /// Aktualisiert nur übergebene Felder in [public.profiles] für den aktuellen User.

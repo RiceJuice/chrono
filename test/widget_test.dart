@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:chronoapp/core/router/app_router.dart';
+import 'package:chronoapp/features/login/presentation/providers/profile_gate_notifier.dart';
 import 'package:chronoapp/main.dart';
 
 void main() {
@@ -22,6 +23,7 @@ void main() {
       MyApp(
         startupNotifier: AppStartupNotifier(),
         authSessionNotifier: AuthSessionNotifier(),
+        profileGateNotifier: ProfileGateNotifier(),
       ),
     );
     await tester.pump();
