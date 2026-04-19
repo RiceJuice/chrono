@@ -20,3 +20,5 @@ final searchFiltersProvider =
     fr.NotifierProvider<SearchFiltersNotifier, CalendarFiltersState>(
       SearchFiltersNotifier.new,
     );
+
+
