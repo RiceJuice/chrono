@@ -11,8 +11,9 @@ class LoginDropdownField extends StatelessWidget {
     required this.onChanged,
     required this.hintText,
     this.label = 'Auswählen',
-    this.leadingIcon = const Icon(Icons.arrow_drop_down, color: Colors.white70),
+    this.leadingIcon,
     this.validator,
+    this.formFieldKey,
   });
 
   final String? selectedValue;
@@ -20,8 +21,9 @@ class LoginDropdownField extends StatelessWidget {
   final ValueChanged<String?> onChanged;
   final String hintText;
   final String label;
-  final Widget leadingIcon;
+  final Widget? leadingIcon;
   final String? Function(String?)? validator;
+  final GlobalKey<FormFieldState<dynamic>>? formFieldKey;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +33,7 @@ class LoginDropdownField extends StatelessWidget {
     const fieldContentPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 15);
 
     return FormField<String>(
+      key: formFieldKey,
       initialValue: selectedValue,
       validator: validator,
       builder: (FormFieldState<String> field) {
@@ -44,7 +47,9 @@ class LoginDropdownField extends StatelessWidget {
               menuStyle: loginDropdownMenuSurfaceStyle(context),
               decorationBuilder: (BuildContext context, MenuController _) {
                 assert(debugCheckHasMaterial(context));
-                final Widget? mutedLeadingIcon = switch (leadingIcon) {
+                final Widget rawLeading =
+                    leadingIcon ?? Icon(Icons.arrow_drop_down, color: mutedColor);
+                final Widget mutedLeadingIcon = switch (rawLeading) {
                   Icon icon => Icon(
                     icon.icon,
                     color: mutedColor,
@@ -59,7 +64,7 @@ class LoginDropdownField extends StatelessWidget {
                     shadows: icon.shadows,
                     blendMode: icon.blendMode,
                   ),
-                  _ => leadingIcon,
+                  _ => rawLeading,
                 };
                 return loginDropdownDecorationWithOpenHaptic(
                   loginInputDecoration(context, label).copyWith(

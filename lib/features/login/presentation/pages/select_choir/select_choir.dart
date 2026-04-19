@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
+import '../../copy/login_flow_role_ui.dart';
 import '../../providers/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../state/login_flow_draft.dart';
@@ -27,7 +28,13 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
   bool _syncedChoirFromCarousel = false;
 
   static const List<String> _voices = ['Tenor', 'Sopran', 'Alt', 'Bass'];
-  static const List<String> _choirs = ['Giehl', 'DKM', 'Rädlinger', 'Szuczies', 'Schola'];
+  static const List<String> _choirs = [
+    'DKM',
+    'Giehl',
+    'Rädlinger',
+    'Schola',
+    'Szuczies',
+  ];
 
   String get _choirLabelForCurrentPage =>
       _choirs[_choirPage % _choirs.length];
@@ -54,8 +61,11 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
 
   @override
   Widget build(BuildContext context) {
+    final roleUi = LoginFlowRoleUi.fromStoredRoleLabel(_draft.role);
     return LoginStepScaffold(
       step: LoginFlowStep.choir,
+      titleOverride: roleUi.scaffoldTitle(LoginFlowStep.choir),
+      headerPadding: const EdgeInsets.symmetric(horizontal: 20),
       centerChildInScrollViewport: true,
       submitBusy: _busy,
       canProceed: () {

@@ -18,6 +18,7 @@ class LoginChoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
@@ -32,20 +33,19 @@ class LoginChoiceCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.s),
           color: isSelected
-              ? activeColor.withValues(alpha: AppOpacity.selectedFill)
-              : Colors.white.withValues(alpha: AppOpacity.subtle),
-          border: Border.all(
-            color: isSelected
-                ? activeColor.withValues(alpha: AppOpacity.selectedStroke)
-                : Colors.white.withValues(alpha: AppOpacity.low),
-          ),
+              ? activeColor
+              : scheme.surfaceContainerHighest,
         ),
         child: Align(
           alignment: Alignment.topLeft,
           child: Text(
             title,
             style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              color: Colors.white,
+              color: isSelected
+                  ? (activeColor.computeLuminance() > 0.55
+                      ? scheme.onSurface
+                      : Colors.white)
+                  : scheme.onSurface,
               fontSize: 34,
             ),
           ),

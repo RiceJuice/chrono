@@ -14,6 +14,10 @@ class LoginStepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color inactive = Theme.of(context)
+        .colorScheme
+        .onSurface
+        .withValues(alpha: 0.20);
     return Row(
       children: List.generate(totalSteps * 2 - 1, (index) {
         if (index.isOdd) {
@@ -28,9 +32,7 @@ class LoginStepIndicator extends StatelessWidget {
           height: 4,
           width: width,
           decoration: BoxDecoration(
-            color: isActive
-                ? _stepColor(step)
-                : Colors.white.withValues(alpha: 0.20),
+            color: isActive ? _stepColor(step) : inactive,
             borderRadius: BorderRadius.circular(100),
           ),
         );

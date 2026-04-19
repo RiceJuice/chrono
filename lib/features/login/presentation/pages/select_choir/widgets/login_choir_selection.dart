@@ -23,7 +23,13 @@ class LoginChoirSelection extends StatefulWidget {
 
 class _LoginChoirSelectionState extends State<LoginChoirSelection> {
   static const int _initialPageOffset = 10000;
-  static const _choirs = ['Giehl', 'DKM', 'Rädlinger', 'Szuczies', 'Schola'];
+  static const _choirs = [
+    'DKM',
+    'Giehl',
+    'Rädlinger',
+    'Schola',
+    'Szuczies',
+  ];
 
   late final PageController _controller = PageController(
     viewportFraction: 0.74,
@@ -53,6 +59,7 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -111,7 +118,7 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
                       decoration: BoxDecoration(
                         color: selected
                             ? const Color(0xFFCBBBA0)
-                            : Colors.white.withValues(alpha: 0.4),
+                            : scheme.onSurface.withValues(alpha: 0.28),
                         borderRadius: BorderRadius.circular(100),
                       ),
                     ),

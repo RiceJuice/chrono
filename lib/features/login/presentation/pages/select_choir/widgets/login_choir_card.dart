@@ -13,6 +13,14 @@ class LoginChoirCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool light = Theme.of(context).brightness == Brightness.light;
+    final Color borderColor = light
+        ? scheme.surfaceContainerHighest
+        : (isActive
+            ? Colors.white
+            : Colors.white.withValues(alpha: 0.6));
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,
@@ -21,9 +29,7 @@ class LoginChoirCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           width: isActive ? 4 : 1,
-          color: isActive
-              ? Colors.white
-              : Colors.white.withValues(alpha: 0.6),
+          color: borderColor,
         ),
         color: const Color(0xFFCBBBA0),
       ),

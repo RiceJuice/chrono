@@ -17,6 +17,7 @@ extension LoginFlowStepX on LoginFlowStep {
     LoginFlowStep.choir => const Color(0xFF0B4AA5),
   };
 
+  /// Standard-Schrittüberschrift (rollenabhängige Varianten setzt das Login-UI).
   String get title => switch (this) {
     LoginFlowStep.credentials => 'Zugangsdaten',
     LoginFlowStep.role => 'Wer bist du?',

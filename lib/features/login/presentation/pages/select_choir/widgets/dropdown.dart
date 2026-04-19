@@ -24,7 +24,10 @@ class Dropdown extends StatelessWidget {
       children: [
         const SizedBox(height: 22),
 
-        const Text('Stimme', style: TextStyle(color: Colors.white70)),
+        Text(
+          'Stimme',
+          style: TextStyle(color: scheme.onSurfaceVariant),
+        ),
         const SizedBox(height: 8),
         LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {

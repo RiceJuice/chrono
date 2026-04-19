@@ -1,3 +1,5 @@
+import '../../domain/models/login_flow_role_ids.dart';
+
 class LoginFlowDraft {
   LoginFlowDraft._();
 
@@ -6,7 +8,7 @@ class LoginFlowDraft {
   String email = '';
   String password = '';
   String passwordConfirm = '';
-  String role = 'Elternteil';
+  String role = LoginFlowRoleIds.guardian;
   String firstName = '';
   String lastName = '';
   String? schoolClass;
@@ -17,7 +19,7 @@ class LoginFlowDraft {
     email = '';
     password = '';
     passwordConfirm = '';
-    role = 'Elternteil';
+    role = LoginFlowRoleIds.guardian;
     firstName = '';
     lastName = '';
     schoolClass = null;

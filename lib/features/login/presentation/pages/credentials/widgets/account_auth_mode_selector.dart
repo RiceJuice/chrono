@@ -16,16 +16,17 @@ class AccountAuthModeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSignIn = selectedMode == AccountAuthMode.signIn;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Text.rich(
       TextSpan(
         text: isSignIn ? 'Noch keinen Account? ' : 'Bereits registriert? ',
-        style: const TextStyle(color: Colors.white70, fontSize: 14),
+        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
         children: [
           TextSpan(
             text: isSignIn ? 'Hier registrieren' : 'Jetzt anmelden',
-            style: const TextStyle(
-              color: Color(0xFFCBBBA0),
+            style: TextStyle(
+              color: scheme.primary,
               fontWeight: FontWeight.bold,
               decoration: TextDecoration.underline,
             ),

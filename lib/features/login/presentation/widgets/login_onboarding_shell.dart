@@ -63,8 +63,14 @@ class LoginOnboardingShell extends StatelessWidget {
     final back = _backPath(location);
     final step = _stepNumber(location);
 
+    // Auf der Credentials-Seite soll der Body NICHT mit der Tastatur
+    // schrumpfen: Der Footer bleibt an seiner Bildschirmposition und wird von
+    // der Tastatur überdeckt; nur der Primärbutton wird per Positioned über
+    // die Tastatur gehoben. Andere Schritte behalten das Standardverhalten.
+    final bool resizeBody = location != LoginPaths.credentials;
+
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: resizeBody,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(

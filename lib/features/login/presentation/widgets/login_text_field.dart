@@ -22,7 +22,7 @@ class LoginTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final IconData? prefixIcon;
   final EdgeInsetsGeometry? contentPadding;
-  final GlobalKey<FormFieldState<String>>? formFieldKey;
+  final GlobalKey<FormFieldState<dynamic>>? formFieldKey;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +32,7 @@ class LoginTextField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: loginInputDecoration(
         context,
         hintText,

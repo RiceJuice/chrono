@@ -9,6 +9,7 @@ class LoginTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color fg = Theme.of(context).colorScheme.onSurface;
     return Row(
       children: [
         if (onBack != null)
@@ -16,7 +17,7 @@ class LoginTopBar extends StatelessWidget {
             onPressed: onBack,
             style: IconButton.styleFrom(
               backgroundColor: Colors.transparent,
-              foregroundColor: Colors.white,
+              foregroundColor: fg,
             ),
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
           ),

@@ -9,6 +9,7 @@ import '../../providers/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
+import '../../utils/login_form_validation.dart';
 import 'widgets/account_auth_mode.dart';
 import 'widgets/account_auth_mode_selector.dart';
 import 'widgets/credential_form_fields.dart';
@@ -19,6 +20,9 @@ class CredentialsPage extends ConsumerStatefulWidget {
     this.initialMode = AccountAuthMode.signUp,
   });
 
+  /// Gemeinsame Maximalbreite für Formularfelder und Primärbutton (Tablet/Desktop).
+  static const double maxFormWidth = 400;
+
   final AccountAuthMode initialMode;
 
   @override
@@ -28,9 +32,9 @@ class CredentialsPage extends ConsumerStatefulWidget {
 class _CredentialsPageState extends ConsumerState<CredentialsPage> {
   final _draft = LoginFlowDraft.instance;
   final _formKey = GlobalKey<FormState>();
-  final _emailFieldKey = GlobalKey<FormFieldState<String>>();
-  final _passwordFieldKey = GlobalKey<FormFieldState<String>>();
-  final _passwordConfirmFieldKey = GlobalKey<FormFieldState<String>>();
+  final _emailFieldKey = GlobalKey<FormFieldState<dynamic>>();
+  final _passwordFieldKey = GlobalKey<FormFieldState<dynamic>>();
+  final _passwordConfirmFieldKey = GlobalKey<FormFieldState<dynamic>>();
 
   late final TextEditingController _emailController;
   late final TextEditingController _passwordController;
@@ -110,38 +114,24 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
     }
   }
 
-  bool _validateAndScrollToFirstError() {
-    final isValid = _formKey.currentState?.validate() ?? false;
-    if (isValid) return true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final keys = <GlobalKey<FormFieldState<String>>>[
-        _emailFieldKey,
-        _passwordFieldKey,
-        if (_mode == AccountAuthMode.signUp) _passwordConfirmFieldKey,
-      ];
-
-      for (final key in keys) {
-        if (!(key.currentState?.hasError ?? false)) continue;
-        final targetContext = key.currentContext;
-        if (targetContext == null) return;
-        Scrollable.ensureVisible(
-          targetContext,
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutCubic,
-          alignment: 0.2,
-        );
-        return;
-      }
-    });
-
-    return false;
-  }
+  bool _validateAndScrollToFirstError() => loginValidateFormAndScrollToFirstError(
+        context,
+        formKey: _formKey,
+        orderedFieldKeys: [
+          _emailFieldKey,
+          _passwordFieldKey,
+          if (_mode == AccountAuthMode.signUp) _passwordConfirmFieldKey,
+        ],
+      );
 
   @override
   Widget build(BuildContext context) {
     final isSignIn = _mode == AccountAuthMode.signIn;
+    final double screenH = MediaQuery.sizeOf(context).height;
+    final double footerLead =
+        (screenH * 0.055).clamp(20.0, 52.0);
+    final double footerTail =
+        (screenH * 0.022).clamp(10.0, 22.0);
 
     return LoginStepScaffold(
       step: LoginFlowStep.credentials,
@@ -152,6 +142,18 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
       submitLabel: isSignIn ? 'Anmelden' : 'Registrieren',
       submitBusy: _busy,
       nextPath: LoginPaths.role,
+      // Kein Viewport-Centering: LoginScrollSurface (SingleChildScrollView +
+      // Scrollbar) darf den Inhalt natürlich wachsen lassen, wodurch Scrolling
+      // und Scrollbar-Thumb korrekt funktionieren.
+      centerChildInScrollViewport: false,
+      contentMaxWidth: CredentialsPage.maxFormWidth,
+      primaryButtonMaxWidth: CredentialsPage.maxFormWidth,
+      footerLeadHeight: footerLead,
+      footerTailHeight: footerTail,
+      // Footer sitzt außerhalb des Scrollbereichs direkt über dem PrimaryButton:
+      // Er scrollt nicht mit dem Formular mit. Beim Einblenden der Tastatur
+      // wandert der Button (mit Footer als fixer Block direkt darüber) nach oben.
+      footerInScrollArea: false,
       footer: AccountAuthModeSelector(
         selectedMode: _mode,
         onChanged: (mode) => setState(() => _mode = mode),

@@ -6,10 +6,12 @@ import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../providers/klassen_provider.dart';
+import '../../copy/login_flow_role_ui.dart';
 import '../../providers/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
+import '../../utils/login_form_validation.dart';
 import 'widgets/forms.dart';
 
 class PersonalDataPage extends ConsumerStatefulWidget {
@@ -22,6 +24,9 @@ class PersonalDataPage extends ConsumerStatefulWidget {
 class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
   final _draft = LoginFlowDraft.instance;
   final _formKey = GlobalKey<FormState>();
+  final _firstNameFieldKey = GlobalKey<FormFieldState<dynamic>>();
+  final _lastNameFieldKey = GlobalKey<FormFieldState<dynamic>>();
+  final _classFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   String? _selectedClass;
@@ -51,12 +56,22 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
   Widget build(BuildContext context) {
     final classOptionsAsync = ref.watch(availableClassesProvider);
     final classOptions = classOptionsAsync.asData?.value ?? const <String>[];
+    final roleUi = LoginFlowRoleUi.fromStoredRoleLabel(_draft.role);
 
     return LoginStepScaffold(
       step: LoginFlowStep.personalData,
+      titleOverride: roleUi.scaffoldTitle(LoginFlowStep.personalData),
       nextPath: LoginPaths.choir,
       submitBusy: _busy,
-      canProceed: () => _formKey.currentState?.validate() ?? false,
+      canProceed: () => loginValidateFormAndScrollToFirstError(
+            context,
+            formKey: _formKey,
+            orderedFieldKeys: [
+              _firstNameFieldKey,
+              _lastNameFieldKey,
+              _classFieldKey,
+            ],
+          ),
       onAsyncProceed: (goNext) async {
         setState(() => _busy = true);
         try {
@@ -100,6 +115,9 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
         child: Form(
           key: _formKey,
           child: LoginPersonalDataFields(
+            firstNameFieldKey: _firstNameFieldKey,
+            lastNameFieldKey: _lastNameFieldKey,
+            classFieldKey: _classFieldKey,
             firstNameController: _firstNameController,
             lastNameController: _lastNameController,
             selectedClass: _selectedClass,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../domain/models/login_flow_role_ids.dart';
 import 'login_choice_card.dart';
 
 class LoginRoleSelection extends StatelessWidget {
@@ -18,16 +19,16 @@ class LoginRoleSelection extends StatelessWidget {
       children: [
         LoginChoiceCard(
           title: 'Schüler',
-          isSelected: selectedRole == 'Schüler',
+          isSelected: selectedRole == LoginFlowRoleIds.student,
           activeColor: const Color(0xFFCBBBA0),
-          onTap: () => onSelect('Schüler'),
+          onTap: () => onSelect(LoginFlowRoleIds.student),
         ),
         const SizedBox(height: 18),
         LoginChoiceCard(
           title: 'Elternteil',
-          isSelected: selectedRole == 'Elternteil',
+          isSelected: selectedRole == LoginFlowRoleIds.guardian,
           activeColor: const Color(0xFF0B5A38),
-          onTap: () => onSelect('Elternteil'),
+          onTap: () => onSelect(LoginFlowRoleIds.guardian),
         ),
       ],
     );

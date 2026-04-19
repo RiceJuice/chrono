@@ -46,7 +46,9 @@ InputDecoration loginInputDecoration(
     filled: true,
     fillColor: colorScheme.surfaceContainer,
     contentPadding: contentPadding ?? AppInsets.inputContent,
-    prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, color: Colors.white70),
+    prefixIcon: prefixIcon == null
+        ? null
+        : Icon(prefixIcon, color: colorScheme.onSurfaceVariant),
     border: enabledBorder,
     enabledBorder: enabledBorder,
     focusedBorder: focusedBorder,

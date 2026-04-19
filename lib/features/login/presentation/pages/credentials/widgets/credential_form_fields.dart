@@ -18,22 +18,27 @@ class CredentialFormFields extends StatelessWidget {
   final TextEditingController passwordController;
   final TextEditingController passwordConfirmController;
   final bool requirePasswordConfirmation;
-  final GlobalKey<FormFieldState<String>> emailFieldKey;
-  final GlobalKey<FormFieldState<String>> passwordFieldKey;
-  final GlobalKey<FormFieldState<String>> passwordConfirmFieldKey;
+  final GlobalKey<FormFieldState<dynamic>> emailFieldKey;
+  final GlobalKey<FormFieldState<dynamic>> passwordFieldKey;
+  final GlobalKey<FormFieldState<dynamic>> passwordConfirmFieldKey;
 
   @override
   Widget build(BuildContext context) {
+    final Color labelColor = Theme.of(context).colorScheme.onSurface;
     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    final double h = MediaQuery.sizeOf(context).height;
+    final double topGap = (h * 0.028).clamp(6.0, 24.0);
+    final double blockGap = (h * 0.02).clamp(12.0, 20.0);
+    final double confirmGap = (h * 0.014).clamp(8.0, 14.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 80),
-        const Text(
+        SizedBox(height: topGap),
+        Text(
           'E-Mail',
           style: TextStyle(
-            color: Colors.white,
+            color: labelColor,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -56,11 +61,11 @@ class CredentialFormFields extends StatelessWidget {
             return null;
           },
         ),
-        const SizedBox(height: 16),
-        const Text(
+        SizedBox(height: blockGap),
+        Text(
           'Passwort',
           style: TextStyle(
-            color: Colors.white,
+            color: labelColor,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -84,11 +89,11 @@ class CredentialFormFields extends StatelessWidget {
           },
         ),
         if (requirePasswordConfirmation) ...[
-          const SizedBox(height: 10),
-          const Text(
+          SizedBox(height: confirmGap),
+          Text(
             'Passwort wiederholen',
             style: TextStyle(
-              color: Colors.white,
+              color: labelColor,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -96,7 +101,7 @@ class CredentialFormFields extends StatelessWidget {
           LoginTextField(
             formFieldKey: passwordConfirmFieldKey,
             controller: passwordConfirmController,
-            hintText: 'Passwort bestätigen	',
+            hintText: 'Passwort bestätigen',
             obscureText: true,
             prefixIcon: Icons.lock_reset_rounded,
             contentPadding:

@@ -16,6 +16,7 @@ class StartScreenPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         return LoginScrollSurface(
@@ -34,7 +35,7 @@ class StartScreenPage extends StatelessWidget {
                         Text(
                           'Chrono',
                           style: GoogleFonts.libreBaskerville(
-                            color: Colors.white,
+                            color: scheme.onSurface,
                             fontSize: 44,
                             fontWeight: FontWeight.w700,
                           ),
@@ -44,7 +45,7 @@ class StartScreenPage extends StatelessWidget {
                           'Chorplanung und Termine an einem Ort.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.libreBaskerville(
-                            color: Colors.white70,
+                            color: scheme.onSurfaceVariant,
                             fontSize: 16,
                             height: 1.35,
                           ),

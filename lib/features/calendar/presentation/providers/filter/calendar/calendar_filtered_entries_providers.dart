@@ -34,7 +34,7 @@ final filteredCalendarEntriesByQueryProvider =
             .where((entry) => calendarEntryMatchesFilters(
                   entry: entry,
                   filters: filters,
-                  hideUnknownWhenFilterActive: true,
+                  hideUnknownWhenFilterActive: false,
                 ))
             .toList(growable: false);
       });

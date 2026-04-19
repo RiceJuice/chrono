@@ -34,6 +34,8 @@ class LoginPrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final baseStyle = Theme.of(context).elevatedButtonTheme.style!;
+    final Color progressColor =
+        color.computeLuminance() < 0.5 ? Colors.white : Colors.black87;
     return SizedBox(
       height: 60,
       width: double.infinity,
@@ -53,12 +55,12 @@ class LoginPrimaryButton extends StatelessWidget {
           }),
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 24,
                 width: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                  valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                 ),
               )
             : Text(label),

@@ -6,6 +6,9 @@ import '../../../widgets/login_text_field.dart';
 class LoginPersonalDataFields extends StatelessWidget {
   const LoginPersonalDataFields({
     super.key,
+    required this.firstNameFieldKey,
+    required this.lastNameFieldKey,
+    required this.classFieldKey,
     required this.firstNameController,
     required this.lastNameController,
     required this.selectedClass,
@@ -13,6 +16,9 @@ class LoginPersonalDataFields extends StatelessWidget {
     required this.onClassChanged,
   });
 
+  final GlobalKey<FormFieldState<dynamic>> firstNameFieldKey;
+  final GlobalKey<FormFieldState<dynamic>> lastNameFieldKey;
+  final GlobalKey<FormFieldState<dynamic>> classFieldKey;
   final TextEditingController firstNameController;
   final TextEditingController lastNameController;
   final String? selectedClass;
@@ -22,20 +28,22 @@ class LoginPersonalDataFields extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const fieldContentPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 15);
+    final Color labelColor = Theme.of(context).colorScheme.onSurface;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Vorname',
           style: TextStyle(
-            color: Colors.white,
+            color: labelColor,
             fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
         LoginTextField(
+          formFieldKey: firstNameFieldKey,
           controller: firstNameController,
           hintText: 'Max',
           prefixIcon: Icons.person_outline_rounded,
@@ -48,15 +56,16 @@ class LoginPersonalDataFields extends StatelessWidget {
           },
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'Nachname',
           style: TextStyle(
-            color: Colors.white,
+            color: labelColor,
             fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
         LoginTextField(
+          formFieldKey: lastNameFieldKey,
           controller: lastNameController,
           hintText: 'Mustermann',
           prefixIcon: Icons.badge_outlined,
@@ -69,20 +78,21 @@ class LoginPersonalDataFields extends StatelessWidget {
           },
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'Klasse',
           style: TextStyle(
-            color: Colors.white,
+            color: labelColor,
             fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
         LoginDropdownField(
+          formFieldKey: classFieldKey,
           selectedValue: selectedClass,
           options: classOptions,
           label: 'Klasse',
           hintText: 'z. B. 10a',
-          leadingIcon: const Icon(Icons.school_outlined, color: Colors.white70),
+          leadingIcon: const Icon(Icons.school_outlined),
           validator: (value) {
             if (classOptions.isEmpty) {
               return 'Keine Klassen verfuegbar. Bitte spaeter erneut versuchen.';
