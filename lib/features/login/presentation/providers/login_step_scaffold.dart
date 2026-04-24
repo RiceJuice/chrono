@@ -8,6 +8,7 @@ import '../../domain/models/login_flow_step.dart';
 import '../routes/login_routes.dart';
 import '../widgets/buttons.dart';
 import '../widgets/login_scroll_surface.dart';
+import '../widgets/login_step_layout.dart';
 
 /// [LoginStepScaffold.canProceed] hat `false` geliefert; kein zusätzlicher Toast.
 final class LoginStepProceedBlocked implements Exception {
@@ -33,6 +34,7 @@ class LoginStepScaffold extends StatelessWidget {
     this.subtitleOverride,
     this.submitLabel,
     this.footer,
+
     /// Wenn true: [child] wird im Scroll-Viewport zentriert, aber um die gemessene
     /// Header-Höhe nach oben versetzt (optisch näher an der Bildschirmmitte).
     /// [SingleChildScrollView] bleibt unverändert.
@@ -41,13 +43,16 @@ class LoginStepScaffold extends StatelessWidget {
     this.primaryButtonMaxWidth,
     this.footerLeadHeight,
     this.footerTailHeight,
-    /// Wenn false: [footer] wird NICHT im Scrollbereich platziert, sondern
-    /// als festes Element im äußeren Layout direkt über dem Primärbutton.
-    /// Dadurch scrollt der Footer nicht mit dem Seiteninhalt mit; nur der
-    /// Primärbutton (+ Footer als fixer Block) wandert mit der Tastatur.
+
+    /// Legacy-Schalter, falls [bottomBehavior] nicht gesetzt ist.
     this.footerInScrollArea = true,
+
+    /// Explizites Bottom-Verhalten für Footer/Button.
+    this.bottomBehavior,
+
     /// Titel in der Theme-Standard-Schrift (ohne Libre Baskerville).
     this.plainTitleFont = false,
+
     /// Zusätzliches Padding um Titel/Untertitel (z. B. wenn der Seiten-Body ohne
     /// horizontales Inset volle Breite nutzt, der Header aber wie andere Steps
     /// eingerückt sein soll).
@@ -82,6 +87,7 @@ class LoginStepScaffold extends StatelessWidget {
   /// Steuert, ob [footer] im Scrollbereich (true, Standard) oder als festes
   /// Element zwischen Scrollbereich und Primärbutton (false) platziert wird.
   final bool footerInScrollArea;
+  final LoginBottomBehavior? bottomBehavior;
 
   /// Wenn true: Seitentitel nutzt [ThemeData.textTheme] (Sans), nicht Libre Baskerville.
   final bool plainTitleFont;
@@ -138,10 +144,7 @@ class LoginStepScaffold extends StatelessWidget {
             fontWeight: FontWeight.w700,
           );
     return [
-      Text(
-        titleOverride ?? step.title,
-        style: titleStyle,
-      ),
+      Text(titleOverride ?? step.title, style: titleStyle),
       if (subtitleOverride != null)
         Text(
           subtitleOverride!,
@@ -166,7 +169,28 @@ class LoginStepScaffold extends StatelessWidget {
   /// Höhe des Primärbuttons (siehe [LoginPrimaryButton.height] = 60).
   static const double _primaryButtonHeight = 60;
 
-  Widget _buildPrimaryButton(BuildContext context, {required double horizontalPadding}) {
+  EdgeInsets _scrollPaddingForBottomBehavior(BuildContext context) {
+    final LoginBottomBehavior resolvedBottomBehavior =
+        bottomBehavior ??
+        (footerInScrollArea
+            ? LoginBottomBehavior.footerInScroll
+            : LoginBottomBehavior.footerFixed);
+    if (resolvedBottomBehavior != LoginBottomBehavior.footerFixed) {
+      return EdgeInsets.zero;
+    }
+
+    // Bei fixem Footer liegt der Button als Overlay im unteren Bereich.
+    // Extra Bottom-Padding hält den letzten Formbereich trotz Tastatur erreichbar.
+    final double tail = footerTailHeight ?? 32;
+    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double reserved = _primaryButtonHeight + tail + keyboardInset + 16;
+    return EdgeInsets.only(bottom: reserved);
+  }
+
+  Widget _buildPrimaryButton(
+    BuildContext context, {
+    required double horizontalPadding,
+  }) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: Align(
@@ -205,11 +229,7 @@ class LoginStepScaffold extends StatelessWidget {
                   final message = e is AuthRepositoryException
                       ? e.message
                       : 'Der Schritt konnte nicht abgeschlossen werden. Bitte erneut versuchen.';
-                  showAppToast(
-                    context,
-                    message,
-                    kind: AppToastKind.error,
-                  );
+                  showAppToast(context, message, kind: AppToastKind.error);
                   rethrow;
                 }
               } else {
@@ -225,11 +245,20 @@ class LoginStepScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String location = GoRouterState.of(context).matchedLocation;
-    final double buttonHorizontalPadding = location == LoginPaths.choir ? 20 : 0;
+    final double buttonHorizontalPadding = location == LoginPaths.choir
+        ? 20
+        : 0;
+    final LoginBottomBehavior resolvedBottomBehavior =
+        bottomBehavior ??
+        (footerInScrollArea
+            ? LoginBottomBehavior.footerInScroll
+            : LoginBottomBehavior.footerFixed);
 
     // Footer-Block nur dann im Scrollbereich rendern, wenn gewünscht.
     final List<Widget> scrollFooterBlock =
-        footerInScrollArea ? _footerBlock() : const [];
+        resolvedBottomBehavior == LoginBottomBehavior.footerInScroll
+        ? _footerBlock()
+        : const [];
 
     Widget scrollArea = centerChildInScrollViewport
         ? LayoutBuilder(
@@ -243,6 +272,7 @@ class LoginStepScaffold extends StatelessWidget {
             },
           )
         : LoginScrollSurface(
+            scrollPadding: _scrollPaddingForBottomBehavior(context),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -253,57 +283,20 @@ class LoginStepScaffold extends StatelessWidget {
             ),
           );
 
-    // Fixer Footer außerhalb des Scrollbereichs + Button, der mit der Tastatur
-    // nach oben wandert (Footer bleibt an seiner Bildschirmposition und wird
-    // ggf. von der Tastatur überdeckt). Voraussetzung: Scaffold mit
-    // resizeToAvoidBottomInset: false (siehe LoginOnboardingShell).
-    if (!footerInScrollArea && footer != null && showPrimaryButton) {
-      final double tail = footerTailHeight ?? 32;
-      // Reservierter Platz am Ende des Columns, damit Formular/Footer den
-      // absolut positionierten Button nicht überlappen.
-      final double buttonReserve = _primaryButtonHeight + tail;
-      final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: scrollArea),
-              Align(alignment: Alignment.center, child: footer!),
-              SizedBox(height: buttonReserve),
-            ],
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: bottomInset,
-            child: _buildPrimaryButton(
-              context,
-              horizontalPadding: buttonHorizontalPadding,
-            ),
-          ),
-        ],
-      );
-    }
-
-    // Standardlayout: Scroll + Button in einer Column (Button folgt der
-    // Tastatur automatisch, weil der Scaffold den Body verkleinert).
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: scrollArea),
-        if (!footerInScrollArea && footer != null) ...[
-          Align(alignment: Alignment.center, child: footer!),
-          SizedBox(height: footerTailHeight ?? 32),
-        ],
-        if (showPrimaryButton)
-          _buildPrimaryButton(
-            context,
-            horizontalPadding: buttonHorizontalPadding,
-          ),
-      ],
+    return LoginStepLayout(
+      scrollArea: scrollArea,
+      bottomBehavior: resolvedBottomBehavior,
+      footer: footer,
+      footerSpacing: LoginFooterSpacing(
+        lead: footerLeadHeight ?? 160,
+        tail: footerTailHeight ?? 32,
+      ),
+      primaryButtonHeight: _primaryButtonHeight,
+      showPrimaryButton: showPrimaryButton,
+      primaryButton: _buildPrimaryButton(
+        context,
+        horizontalPadding: buttonHorizontalPadding,
+      ),
     );
   }
 }
@@ -328,7 +321,8 @@ class _LoginCenteredViewportBody extends StatefulWidget {
       _LoginCenteredViewportBodyState();
 }
 
-class _LoginCenteredViewportBodyState extends State<_LoginCenteredViewportBody> {
+class _LoginCenteredViewportBodyState
+    extends State<_LoginCenteredViewportBody> {
   final GlobalKey _headerKey = GlobalKey();
   double _headerHeight = 0;
 
@@ -377,8 +371,7 @@ class _LoginCenteredViewportBodyState extends State<_LoginCenteredViewportBody> 
                   if (_headerHeight > 0 && hExp > 0) {
                     // Mitte im Expanded um headerHeight nach oben: y = -2 * header / hExp;
                     // leichtes + nach unten (Alignment näher an 0).
-                    yAlign =
-                        (-2 * _headerHeight / hExp + 0.1).clamp(-1.0, 0.0);
+                    yAlign = (-2 * _headerHeight / hExp + 0.1).clamp(-1.0, 0.0);
                   }
                   return Align(
                     alignment: Alignment(0, yAlign),

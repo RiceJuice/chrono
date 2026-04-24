@@ -5,7 +5,7 @@ import '../pages/credentials/credentials_page.dart';
 import '../pages/credentials/widgets/account_auth_mode.dart';
 import '../pages/email_confirmation/email_confirmation_page.dart';
 import '../pages/select_choir/select_choir.dart';
-import '../pages/select_personal_data/personalData.dart';
+import '../pages/select_personal_data/personal_data.dart';
 import '../pages/start_screen/start_screen_page.dart';
 import '../pages/select_role/select_role.dart';
 import '../widgets/login_onboarding_shell.dart';
