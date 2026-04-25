@@ -175,6 +175,20 @@ String _normalize(String? raw) {
   if (raw == null) return '';
   var trimmed = raw.trim();
   if (trimmed.isEmpty) return '';
+  // Wrapper aus Postgres/Serialisierung entfernen, z. B. "{NTG}" oder "[NTG]".
+  while ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    trimmed = trimmed.substring(1, trimmed.length - 1).trim();
+    if (trimmed.isEmpty) return '';
+  }
+  // Falls ein Einzelelement als CSV o. ä. serialisiert wurde, erstes Token nutzen.
+  if (trimmed.contains(',')) {
+    trimmed = trimmed
+        .split(',')
+        .map((part) => part.trim())
+        .firstWhere((part) => part.isNotEmpty, orElse: () => '');
+    if (trimmed.isEmpty) return '';
+  }
   // Support für Werte wie "CalendarEntryType.lesson" oder "public.type.lesson".
   if (trimmed.contains('.')) {
     trimmed = trimmed.split('.').last;

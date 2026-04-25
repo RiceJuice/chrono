@@ -12,6 +12,7 @@ class LoginFlowDraft {
   String firstName = '';
   String lastName = '';
   String? schoolClass;
+  String? schoolTrack;
   int choirPage = 1;
   String voice = '';
 
@@ -23,6 +24,7 @@ class LoginFlowDraft {
     firstName = '';
     lastName = '';
     schoolClass = null;
+    schoolTrack = null;
     choirPage = 1;
     voice = '';
   }

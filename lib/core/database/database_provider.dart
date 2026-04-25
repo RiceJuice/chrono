@@ -15,8 +15,8 @@ final dbProvider = Provider<PowerSyncDatabase>((ref) {
 
 Future<PowerSyncDatabase> initializeDatabase() async {
   final dir = await getApplicationDocumentsDirectory();
-  // v8: calendar_series aligned to DATE/TIME schema (series_start/series_end).
-  final path = p.join(dir.path, 'chrono_powersync_v8.db');
+  // v9: profiles includes schooltrack.
+  final path = p.join(dir.path, 'chrono_powersync_v9.db');
   final db = PowerSyncDatabase(schema: powersyncSchema, path: path);
   await db.initialize();
   return db;

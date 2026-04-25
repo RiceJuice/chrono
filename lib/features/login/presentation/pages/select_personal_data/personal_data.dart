@@ -28,9 +28,11 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
   final _firstNameFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _lastNameFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _classFieldKey = GlobalKey<FormFieldState<dynamic>>();
+  final _schoolTrackFieldKey = GlobalKey<FormFieldState<dynamic>>();
   late final DraftTextController _firstNameController;
   late final DraftTextController _lastNameController;
   String? _selectedClass;
+  String? _selectedSchoolTrack;
   bool _busy = false;
 
   @override
@@ -45,6 +47,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
       onChanged: (value) => _draft.lastName = value,
     );
     _selectedClass = _draft.schoolClass;
+    _selectedSchoolTrack = _draft.schoolTrack;
   }
 
   @override
@@ -72,6 +75,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
           _firstNameFieldKey,
           _lastNameFieldKey,
           _classFieldKey,
+          _schoolTrackFieldKey,
         ],
       ),
       onAsyncProceed: (goNext) async {
@@ -98,12 +102,23 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
             );
             throw const LoginStepErrorAlreadyShown();
           }
+          final schoolTrack = _draft.schoolTrack;
+          if (schoolTrack == null || schoolTrack.trim().isEmpty) {
+            if (!context.mounted) return;
+            showAppToast(
+              context,
+              'Bitte waehle einen Schulzweig aus.',
+              kind: AppToastKind.info,
+            );
+            throw const LoginStepErrorAlreadyShown();
+          }
           await ref
               .read(authRepositoryProvider)
               .updateProfile(
                 firstName: _draft.firstName,
                 lastName: _draft.lastName,
                 className: className,
+                schoolTrack: schoolTrack,
               );
           await ref.read(profileGateProvider).refresh();
           if (!context.mounted) return;
@@ -122,13 +137,19 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
             firstNameFieldKey: _firstNameFieldKey,
             lastNameFieldKey: _lastNameFieldKey,
             classFieldKey: _classFieldKey,
+            schoolTrackFieldKey: _schoolTrackFieldKey,
             firstNameController: _firstNameController,
             lastNameController: _lastNameController,
             selectedClass: _selectedClass,
+            selectedSchoolTrack: _selectedSchoolTrack,
             classOptions: classOptions,
             onClassChanged: (value) => setState(() {
               _selectedClass = value;
               _draft.schoolClass = value;
+            }),
+            onSchoolTrackChanged: (value) => setState(() {
+              _selectedSchoolTrack = value;
+              _draft.schoolTrack = value;
             }),
           ),
         ),

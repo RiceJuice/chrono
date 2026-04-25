@@ -10,10 +10,12 @@ class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
     final defaultChoirs = normalizedCalendarFilterList([profile?.choir]);
     final defaultVoices = const <String>[];
     final defaultClassNames = normalizedCalendarFilterList([profile?.className]);
+    final defaultSchoolTracks = normalizedCalendarFilterList([profile?.schoolTrack]);
     initializeDefaults(
       choirs: defaultChoirs,
       voices: defaultVoices,
       classNames: defaultClassNames,
+      schoolTracks: defaultSchoolTracks,
     );
   }
 }

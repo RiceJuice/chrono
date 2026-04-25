@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chronoapp/core/database/backend_enums.dart';
 
 import '../../providers/calendar_providers.dart';
 
@@ -121,6 +122,8 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                             filtersNotifier.removeVoice(value),
                         onRemoveClass: (value) =>
                             filtersNotifier.removeClassName(value),
+                        onRemoveSchoolTrack: (value) =>
+                            filtersNotifier.removeSchoolTrack(value),
                       ),
                     ],
                   ),
@@ -140,12 +143,14 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     required this.onRemoveChoir,
     required this.onRemoveVoice,
     required this.onRemoveClass,
+    required this.onRemoveSchoolTrack,
   });
 
   final CalendarFiltersState filters;
   final ValueChanged<String> onRemoveChoir;
   final ValueChanged<String> onRemoveVoice;
   final ValueChanged<String> onRemoveClass;
+  final ValueChanged<String> onRemoveSchoolTrack;
 
   @override
   Widget build(BuildContext context) {
@@ -188,6 +193,19 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
         ),
       );
     }
+    for (final schoolTrack in filters.schoolTrackDeviations) {
+      chips.add(
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: InputChip(
+            label: Text(
+              'Schulzweig: ${_formatSchoolTrackFilterChipValue(schoolTrack)}',
+            ),
+            onDeleted: () => onRemoveSchoolTrack(schoolTrack),
+          ),
+        ),
+      );
+    }
 
     if (chips.isEmpty) {
       return const SizedBox.shrink();
@@ -214,4 +232,12 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
 String _formatFilterChipValue(String value) {
   if (value.isEmpty) return value;
   return value[0].toUpperCase() + value.substring(1);
+}
+
+String _formatSchoolTrackFilterChipValue(String value) {
+  final schoolTrack = BackendSchoolTrackCodec.fromBackend(value);
+  if (schoolTrack != BackendSchoolTrack.unknown) {
+    return schoolTrack.displayLabel;
+  }
+  return _formatFilterChipValue(value);
 }

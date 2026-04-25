@@ -26,6 +26,7 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
     );
     final choirOptions = ref.watch(calendarChoirFilterOptionsProvider);
     final voiceOptions = ref.watch(calendarVoiceFilterOptionsProvider);
+    final schoolTrackOptions = ref.watch(calendarSchoolTrackFilterOptionsProvider);
     final classOptionsAsync = ref.watch(calendarClassFilterOptionsProvider);
     final classOptions = classOptionsAsync.asData?.value ?? const <String>[];
     final title = isCalendarSettings ? 'Kalender-Einstellungen' : 'Suchfilter';
@@ -121,6 +122,34 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
                     ref.read(calendarFiltersProvider.notifier).clearClassNames();
                   } else {
                     ref.read(searchFiltersProvider.notifier).clearClassNames();
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              _FilterSection(
+                title: 'Schulzweig',
+                selectedValues: filters.schoolTracks,
+                defaultValues: filters.defaultSchoolTracks,
+                isExplicitSelection: filters.isSchoolTrackExplicit,
+                isSearchFilterMode: !isCalendarSettings,
+                options: schoolTrackOptions,
+                labelFor: _schoolTrackLabel,
+                selectedColor: colorScheme.primary,
+                chipBackgroundColor: colorScheme.surfaceContainerHighest,
+                onToggle: (value) {
+                  if (isCalendarSettings) {
+                    ref
+                        .read(calendarFiltersProvider.notifier)
+                        .toggleSchoolTrack(value);
+                  } else {
+                    ref.read(searchFiltersProvider.notifier).toggleSchoolTrack(value);
+                  }
+                },
+                onClear: () {
+                  if (isCalendarSettings) {
+                    ref.read(calendarFiltersProvider.notifier).clearSchoolTracks();
+                  } else {
+                    ref.read(searchFiltersProvider.notifier).clearSchoolTracks();
                   }
                 },
               ),
@@ -329,6 +358,14 @@ String _voiceLabel(String value) {
 }
 
 String _classLabel(String value) => value.toUpperCase();
+
+String _schoolTrackLabel(String value) {
+  final schoolTrack = BackendSchoolTrackCodec.fromBackend(value);
+  if (schoolTrack == BackendSchoolTrack.unknown) {
+    return _capitalize(value);
+  }
+  return schoolTrack.displayLabel;
+}
 
 String _capitalize(String value) {
   if (value.isEmpty) return value;

@@ -292,6 +292,8 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
       ...filters.voices,
       '::',
       ...filters.classNames,
+      '::',
+      ...filters.schoolTracks,
     ].join('|');
   }
 }

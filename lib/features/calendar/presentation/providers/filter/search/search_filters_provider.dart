@@ -8,10 +8,12 @@ class SearchFiltersNotifier extends CalendarFiltersNotifierBase {
     final defaultChoirs = calendarFilters.choirs;
     final defaultVoices = calendarFilters.voices;
     final defaultClassNames = calendarFilters.classNames;
+    final defaultSchoolTracks = calendarFilters.schoolTracks;
     initializeDefaults(
       choirs: defaultChoirs,
       voices: defaultVoices,
       classNames: defaultClassNames,
+      schoolTracks: defaultSchoolTracks,
     );
   }
 

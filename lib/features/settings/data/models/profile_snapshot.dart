@@ -3,6 +3,7 @@ class ProfileSnapshot {
     required this.firstName,
     required this.lastName,
     required this.className,
+    required this.schoolTrack,
     required this.voice,
     required this.role,
     required this.choir,
@@ -12,6 +13,7 @@ class ProfileSnapshot {
   final String? firstName;
   final String? lastName;
   final String? className;
+  final String? schoolTrack;
   final String? voice;
   final String? role;
   final String? choir;

@@ -54,10 +54,8 @@ class BackendConnector extends PowerSyncBackendConnector {
     final transaction = await database.getNextCrudTransaction();
     if (transaction == null) return;
 
-    CrudEntry? lastOp;
     try {
       for (final op in transaction.crud) {
-        lastOp = op;
         final table = supabase.from(op.table);
 
         switch (op.op) {
@@ -87,10 +85,6 @@ class BackendConnector extends PowerSyncBackendConnector {
       final code = e.code;
       if (code != null &&
           kPowerSyncFatalPostgrestCodes.any((re) => re.hasMatch(code))) {
-        debugPrint(
-          '[PowerSync→Supabase] Fataler Upload-Fehler, Transaktion verworfen: '
-          '$lastOp → $e',
-        );
         await transaction.complete();
       } else {
         rethrow;

@@ -13,7 +13,7 @@ class SettingsProfileRepository {
     return _db
         .watch(
           '''
-          SELECT first_name, last_name, class_name, voice, role, choir, diet
+          SELECT first_name, last_name, class_name, schooltrack, voice, role, choir, diet
           FROM $kProfilesTable
           WHERE id = ?
           LIMIT 1
@@ -31,6 +31,7 @@ class SettingsProfileRepository {
       firstName: _asString(row['first_name']),
       lastName: _asString(row['last_name']),
       className: _asString(row['class_name']),
+      schoolTrack: _asString(row['schooltrack']),
       voice: _asString(row['voice']),
       role: _asString(row['role']),
       choir: _asString(row['choir']),

@@ -32,7 +32,8 @@ final List<LoginFlowStepSpec> loginFlowSpecs = <LoginFlowStepSpec>[
     isSatisfiedBy: (data) =>
         _isNonEmpty(data.firstName) &&
         _isNonEmpty(data.lastName) &&
-        _isNonEmpty(data.className),
+        _isNonEmpty(data.className) &&
+        _isNonEmpty(data.schoolTrack),
   ),
   LoginFlowStepSpec(
     path: LoginPaths.choir,

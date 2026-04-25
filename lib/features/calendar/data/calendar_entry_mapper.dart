@@ -79,14 +79,6 @@ class CalendarEntryMapper {
   }) {
     final rawType = _asString(_rowValue(row, 'type'));
     final backendType = CalendarEventTypeCodec.fromBackend(rawType);
-    if (rawType != null) {
-      debugPrint(
-        '[CalendarEntryMapper] type raw="$rawType" mapped="$backendType"',
-      );
-    }
-    if (backendType == CalendarEventType.unknown && rawType != null) {
-      debugPrint('[CalendarEntryMapper] Unbekannter type-Wert: "$rawType" -> fallback event');
-    }
     final eventName = _asString(_rowValue(row, 'event_name')) ?? '';
     final description = _asString(_rowValue(row, 'description'));
     final choirRaw = _asString(_rowValue(row, 'choir'));
@@ -98,18 +90,6 @@ class CalendarEntryMapper {
     final schoolTrack = BackendSchoolTrackCodec.fromBackend(schoolTrackRaw);
     final domainType = _toDomainType(backendType);
     final imagePaths = _decodeStringList(_rowValue(row, 'image_paths'));
-
-    if (choir == BackendChoir.unknown && choirRaw != null) {
-      debugPrint('[CalendarEntryMapper] Unbekannter choir-Wert: "$choirRaw"');
-    }
-    if (voices.isEmpty && _hasMeaningfulVoicesPayload(voicesRaw)) {
-      debugPrint('[CalendarEntryMapper] Unbekannter voices-Wert: "$voicesRaw"');
-    }
-    if (schoolTrack == BackendSchoolTrack.unknown && schoolTrackRaw != null) {
-      debugPrint(
-        '[CalendarEntryMapper] Unbekannter schooltrack-Wert: "$schoolTrackRaw"',
-      );
-    }
 
     final rowId = _rowValue(row, 'id').toString();
     final parsedRecurrenceId = _parseDateTimeOrNull(_rowValue(row, 'recurrence_id'));
@@ -264,11 +244,6 @@ class CalendarEntryMapper {
       }
     }
     return out;
-  }
-
-  static bool _hasMeaningfulVoicesPayload(String? voicesRaw) {
-    if (voicesRaw == null) return false;
-    return _extractVoiceTokens(voicesRaw).isNotEmpty;
   }
 
   static List<String> _extractVoiceTokens(String? voicesRaw) {

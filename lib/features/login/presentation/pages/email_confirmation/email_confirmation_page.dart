@@ -86,12 +86,10 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage>
       final target =
           ref.read(profileGateProvider).requiredPath ?? LoginPaths.role;
       context.go(target);
-    } on AuthRepositoryException catch (e) {
+    } on AuthRepositoryException {
       if (!mounted) return;
-      debugPrint('E-Mail-Bestätigung (Hintergrund): ${e.message}');
     } catch (_) {
       if (!mounted) return;
-      debugPrint('E-Mail-Bestätigung (Hintergrund): unbekannter Fehler');
     } finally {
       _advancing = false;
     }

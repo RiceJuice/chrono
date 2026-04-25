@@ -26,8 +26,8 @@ Future<void> attachSupabaseAppleAuthDeepLinks() async {
     if (!uriLooksLikeSupabaseAuthCallback(uri)) return;
     try {
       await Supabase.instance.client.auth.getSessionFromUrl(uri);
-    } catch (e, st) {
-      debugPrint('Supabase auth deep link failed: $e\n$st');
+    } catch (_, _) {
+      // Intentionally ignored: callback processing should be best-effort.
     }
   }
 

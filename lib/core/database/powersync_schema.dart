@@ -72,6 +72,7 @@ const powersyncSchema = Schema([
       Column.text('first_name'),
       Column.text('last_name'),
       Column.text('class_name'),
+      Column.text('schooltrack'),
       Column.text('voice'),
       Column.text('role'),
       Column.text('choir'),
