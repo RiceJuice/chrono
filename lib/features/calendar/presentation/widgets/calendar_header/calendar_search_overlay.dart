@@ -107,7 +107,7 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                               IconButton(
                                 onPressed: widget.onFilterPressed,
                                 tooltip: 'Filter',
-                                icon: const Icon(Icons.tune),
+                                icon: const Icon(Icons.tune_rounded),
                               ),
                             ],
                           ),
@@ -149,9 +149,13 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!filters.hasVisibleDeviationChips) {
+      return const SizedBox.shrink();
+    }
+
     final chips = <Widget>[];
 
-    for (final choir in filters.choirs) {
+    for (final choir in filters.choirDeviations) {
       chips.add(
         Padding(
           padding: const EdgeInsets.only(right: 8),
@@ -162,7 +166,7 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
         ),
       );
     }
-    for (final voice in filters.voices) {
+    for (final voice in filters.voiceDeviations) {
       chips.add(
         Padding(
           padding: const EdgeInsets.only(right: 8),
@@ -173,7 +177,7 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
         ),
       );
     }
-    for (final className in filters.classNames) {
+    for (final className in filters.classNameDeviations) {
       chips.add(
         Padding(
           padding: const EdgeInsets.only(right: 8),

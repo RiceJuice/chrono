@@ -4,7 +4,7 @@ import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:open_mail/open_mail.dart';
 
 import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
@@ -98,26 +98,18 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage>
   }
 
   Future<void> _openMailApp() async {
-    final uri = Uri.parse('mailto:');
     try {
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched && mounted) {
-        await _showMessage(
-          'Die E-Mail-App konnte nicht geöffnet werden.',
-          kind: AppToastKind.error,
-        );
-      }
+      final result = await OpenMail.openMailApp();
+      if (result.didOpen) return;
     } catch (_) {
-      if (mounted) {
-        await _showMessage(
-          'Die E-Mail-App konnte nicht geöffnet werden.',
-          kind: AppToastKind.error,
-        );
-      }
+      // Fehler wird über Toast behandelt.
     }
+
+    if (!mounted) return;
+    await _showMessage(
+      'Die E-Mail-App konnte nicht geöffnet werden.',
+      kind: AppToastKind.error,
+    );
   }
 
   Future<void> _resendEmail() async {
@@ -175,6 +167,7 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage>
         email: email,
         metrics: metrics,
         styles: styles,
+        onEmailTap: () => unawaited(_openMailApp()),
       ),
     );
   }

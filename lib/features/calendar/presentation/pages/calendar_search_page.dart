@@ -54,6 +54,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final filters = ref.watch(searchFiltersProvider);
     final entriesAsync = ref.watch(
       filteredCalendarEntriesByQueryProvider(widget.query),
     );
@@ -115,7 +116,9 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                     return false;
                   },
                   child: ScrollablePositionedList.builder(
-                    key: ValueKey('search-list-${widget.query}'),
+                    key: ValueKey(
+                      'search-list-${widget.query}-${_filtersSignature(filters)}',
+                    ),
                     itemPositionsListener: _itemPositionsListener,
                     padding: const EdgeInsets.only(top: _stickyHeaderHeight),
                     itemCount: rows.length,
@@ -280,6 +283,16 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     return aLocal.year == bLocal.year &&
         aLocal.month == bLocal.month &&
         aLocal.day == bLocal.day;
+  }
+
+  String _filtersSignature(CalendarFiltersState filters) {
+    return [
+      ...filters.choirs,
+      '::',
+      ...filters.voices,
+      '::',
+      ...filters.classNames,
+    ].join('|');
   }
 }
 

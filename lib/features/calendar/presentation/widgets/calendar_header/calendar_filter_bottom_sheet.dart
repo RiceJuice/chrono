@@ -48,6 +48,9 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
               _FilterSection(
                 title: 'Chor',
                 selectedValues: filters.choirs,
+                defaultValues: filters.defaultChoirs,
+                isExplicitSelection: filters.isChoirExplicit,
+                isSearchFilterMode: !isCalendarSettings,
                 options: choirOptions,
                 labelFor: _choirLabel,
                 selectedColor: colorScheme.primary,
@@ -71,6 +74,9 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
               _FilterSection(
                 title: 'Stimme',
                 selectedValues: filters.voices,
+                defaultValues: filters.defaultVoices,
+                isExplicitSelection: filters.isVoiceExplicit,
+                isSearchFilterMode: !isCalendarSettings,
                 options: voiceOptions,
                 labelFor: _voiceLabel,
                 selectedColor: colorScheme.primary,
@@ -94,6 +100,9 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
               _FilterSection(
                 title: 'Klasse',
                 selectedValues: filters.classNames,
+                defaultValues: filters.defaultClassNames,
+                isExplicitSelection: filters.isClassNameExplicit,
+                isSearchFilterMode: !isCalendarSettings,
                 options: classOptions,
                 labelFor: _classLabel,
                 selectedColor: colorScheme.primary,
@@ -217,6 +226,9 @@ class _FilterSection extends StatelessWidget {
   const _FilterSection({
     required this.title,
     required this.selectedValues,
+    required this.defaultValues,
+    required this.isExplicitSelection,
+    required this.isSearchFilterMode,
     required this.options,
     required this.labelFor,
     required this.selectedColor,
@@ -227,6 +239,9 @@ class _FilterSection extends StatelessWidget {
 
   final String title;
   final List<String> selectedValues;
+  final List<String> defaultValues;
+  final bool isExplicitSelection;
+  final bool isSearchFilterMode;
   final List<String> options;
   final String Function(String value) labelFor;
   final Color selectedColor;
@@ -236,6 +251,21 @@ class _FilterSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final initialSelectedColor = Color.lerp(
+      chipBackgroundColor,
+      selectedColor,
+      0.45,
+    )!;
+    final defaultSet = defaultValues.toSet();
+    final selectedSet = selectedValues.toSet();
+    final isImplicitDefaultState =
+        isSearchFilterMode &&
+        !isExplicitSelection &&
+        selectedSet.length == defaultSet.length &&
+        selectedSet.containsAll(defaultSet);
+    final showAllAsSelected =
+        selectedValues.isEmpty && (!isSearchFilterMode || isExplicitSelection);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -247,10 +277,14 @@ class _FilterSection extends StatelessWidget {
           children: [
             ChoiceChip(
               label: const Text('Alle'),
-              selected: selectedValues.isEmpty,
+              selected: showAllAsSelected,
               showCheckmark: false,
-              selectedColor: selectedColor,
-              backgroundColor: chipBackgroundColor,
+              color: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return selectedColor;
+                }
+                return chipBackgroundColor;
+              }),
               side: BorderSide.none,
               onSelected: (_) => onClear(),
             ),
@@ -259,8 +293,15 @@ class _FilterSection extends StatelessWidget {
                 label: Text(labelFor(option)),
                 selected: selectedValues.contains(option),
                 showCheckmark: false,
-                selectedColor: selectedColor,
-                backgroundColor: chipBackgroundColor,
+                color: WidgetStateProperty.resolveWith((states) {
+                  if (!states.contains(WidgetState.selected)) {
+                    return chipBackgroundColor;
+                  }
+                  if (isImplicitDefaultState) {
+                    return initialSelectedColor;
+                  }
+                  return selectedColor;
+                }),
                 side: BorderSide.none,
                 onSelected: (_) => onToggle(option),
               ),

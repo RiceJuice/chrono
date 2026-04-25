@@ -29,13 +29,32 @@ final filteredCalendarEntriesByQueryProvider =
           ? ref.watch(calendarAllEntriesProvider)
           : ref.watch(calendarEntriesByQueryProvider(normalizedQuery));
       final filters = ref.watch(searchFiltersProvider);
+      final hideUnknownWhenFilterActive =
+          normalizedQuery.isEmpty && filters.hasUserOverrides;
+      final effectiveFilters = normalizedQuery.isEmpty
+          ? filters
+          : _mergeWithDefaultFilters(filters);
       return source.whenData((entries) {
         return entries
             .where((entry) => calendarEntryMatchesFilters(
                   entry: entry,
-                  filters: filters,
-                  hideUnknownWhenFilterActive: false,
+                  filters: effectiveFilters,
+                  hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
                 ))
             .toList(growable: false);
       });
     });
+
+CalendarFiltersState _mergeWithDefaultFilters(CalendarFiltersState filters) {
+  return filters.copyWith(
+    choirs: _mergeUnique(filters.choirs, filters.defaultChoirs),
+    voices: _mergeUnique(filters.voices, filters.defaultVoices),
+    classNames: _mergeUnique(filters.classNames, filters.defaultClassNames),
+  );
+}
+
+List<String> _mergeUnique(List<String> active, List<String> defaults) {
+  if (defaults.isEmpty) return active;
+  final merged = <String>{...active, ...defaults}.toList()..sort();
+  return merged;
+}

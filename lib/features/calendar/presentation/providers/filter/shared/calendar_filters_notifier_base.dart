@@ -22,6 +22,9 @@ abstract class CalendarFiltersNotifierBase extends fr.Notifier<CalendarFiltersSt
         defaultClassNames: classNames,
         hasInitializedDefaults: true,
         hasUserOverrides: false,
+        isChoirExplicit: false,
+        isVoiceExplicit: false,
+        isClassNameExplicit: false,
       );
       return;
     }
@@ -41,6 +44,7 @@ abstract class CalendarFiltersNotifierBase extends fr.Notifier<CalendarFiltersSt
     state = state.copyWith(
       choirs: toggleCalendarFilterValue(state.choirs, value),
       hasUserOverrides: true,
+      isChoirExplicit: true,
     );
   }
 
@@ -48,6 +52,7 @@ abstract class CalendarFiltersNotifierBase extends fr.Notifier<CalendarFiltersSt
     state = state.copyWith(
       voices: toggleCalendarFilterValue(state.voices, value),
       hasUserOverrides: true,
+      isVoiceExplicit: true,
     );
   }
 
@@ -55,25 +60,39 @@ abstract class CalendarFiltersNotifierBase extends fr.Notifier<CalendarFiltersSt
     state = state.copyWith(
       classNames: toggleCalendarFilterValue(state.classNames, value),
       hasUserOverrides: true,
+      isClassNameExplicit: true,
     );
   }
 
   void clearChoirs() {
-    state = state.copyWith(choirs: const <String>[], hasUserOverrides: true);
+    state = state.copyWith(
+      choirs: const <String>[],
+      hasUserOverrides: true,
+      isChoirExplicit: true,
+    );
   }
 
   void clearVoices() {
-    state = state.copyWith(voices: const <String>[], hasUserOverrides: true);
+    state = state.copyWith(
+      voices: const <String>[],
+      hasUserOverrides: true,
+      isVoiceExplicit: true,
+    );
   }
 
   void clearClassNames() {
-    state = state.copyWith(classNames: const <String>[], hasUserOverrides: true);
+    state = state.copyWith(
+      classNames: const <String>[],
+      hasUserOverrides: true,
+      isClassNameExplicit: true,
+    );
   }
 
   void removeChoir(String value) {
     state = state.copyWith(
       choirs: removeCalendarFilterValue(state.choirs, value),
       hasUserOverrides: true,
+      isChoirExplicit: true,
     );
   }
 
@@ -81,6 +100,7 @@ abstract class CalendarFiltersNotifierBase extends fr.Notifier<CalendarFiltersSt
     state = state.copyWith(
       voices: removeCalendarFilterValue(state.voices, value),
       hasUserOverrides: true,
+      isVoiceExplicit: true,
     );
   }
 
@@ -88,6 +108,7 @@ abstract class CalendarFiltersNotifierBase extends fr.Notifier<CalendarFiltersSt
     state = state.copyWith(
       classNames: removeCalendarFilterValue(state.classNames, value),
       hasUserOverrides: true,
+      isClassNameExplicit: true,
     );
   }
 
@@ -97,6 +118,9 @@ abstract class CalendarFiltersNotifierBase extends fr.Notifier<CalendarFiltersSt
       voices: state.defaultVoices,
       classNames: state.defaultClassNames,
       hasUserOverrides: false,
+      isChoirExplicit: false,
+      isVoiceExplicit: false,
+      isClassNameExplicit: false,
     );
   }
 }

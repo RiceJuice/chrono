@@ -8,11 +8,13 @@ class EmailConfirmationBody extends StatelessWidget {
     required this.email,
     required this.metrics,
     required this.styles,
+    required this.onEmailTap,
   });
 
   final String email;
   final EmailConfirmationLayoutMetrics metrics;
   final EmailConfirmationTextStyles styles;
+  final VoidCallback onEmailTap;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +41,14 @@ class EmailConfirmationBody extends StatelessWidget {
                 style: styles.body,
                 children: [
                   const TextSpan(text: 'Wir haben eine Bestätigungs-E-Mail an '),
-                  TextSpan(text: email, style: styles.emailHighlight),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: GestureDetector(
+                      onTap: onEmailTap,
+                      child: Text(email, style: styles.emailHighlight),
+                    ),
+                  ),
                   const TextSpan(
                     text:
                         ' geschickt. Tippe in der Nachricht auf den Link. '
