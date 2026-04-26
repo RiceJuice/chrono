@@ -55,6 +55,7 @@ const powersyncSchema = Schema([
       Column.text('type'),
       Column.text('choir'),
       Column.text('voices'),
+      Column.text('schooltrack'),
       Column.text('class'),
       Column.text('series_start'),
       Column.text('series_end'),

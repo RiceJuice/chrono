@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../providers/calendar_providers.dart';
 import '../../theme/calendar_presentation_theme.dart';
+import 'calendar_day_marker_pill.dart';
 
 class CustomTableCalendar extends ConsumerWidget {
   const CustomTableCalendar({
@@ -53,6 +54,10 @@ class CustomTableCalendar extends ConsumerWidget {
     final todayAccentColor = CalendarPresentationTheme.todayAccentColor(context);
     final selectedDay = ref.watch(selectedDayProvider);
     final focusedDay = ref.watch(focusedDayProvider);
+    final dayMarkersByDate = ref.watch(filteredCalendarAllEntriesProvider).maybeWhen(
+      data: buildCalendarDayMarkers,
+      orElse: () => const <DateTime, CalendarDayMarkerData>{},
+    );
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
       final currentFocusedDay = ref.read(focusedDayProvider);
       if (!isSameDay(currentFocusedDay, next)) {
@@ -67,6 +72,11 @@ class CustomTableCalendar extends ConsumerWidget {
       lastDay: DateTime(2030, 12, 31), //TODO: make this dynamic
       calendarFormat: calendarFormat,
       focusedDay: focusedDay,
+      eventLoader: (day) {
+        final marker = dayMarkersByDate[normalizeCalendarDay(day)];
+        if (marker == null) return const [];
+        return <CalendarDayMarkerData>[marker];
+      },
       rowHeight: 40,
       daysOfWeekHeight: 20,
       availableGestures: AvailableGestures.horizontalSwipe,
@@ -103,6 +113,14 @@ class CustomTableCalendar extends ConsumerWidget {
         rightChevronVisible: false,
       ),
       calendarBuilders: CalendarBuilders(
+        markerBuilder: (context, day, events) {
+          if (events.isEmpty) return null;
+          final marker = events.first;
+          if (marker is! CalendarDayMarkerData || marker.totalMinutes <= 0) {
+            return null;
+          }
+          return CalendarDayMarkerPill(marker: marker);
+        },
         selectedBuilder: (context, day, focusedDay) {
           final isToday = isSameDay(day, DateTime.now());
           if (!isToday) return null;

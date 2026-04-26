@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
-import '../../../../domain/filter/calendar_filters_logic.dart';
+import '../../../../domain/filter/calendar_filter_selection.dart';
 import '../../../../domain/filter/calendar_filters_state.dart';
 
-abstract class CalendarFiltersNotifierBase extends fr.Notifier<CalendarFiltersState> {
+abstract class CalendarFiltersNotifierBase
+    extends fr.Notifier<CalendarFiltersState> {
   @override
   CalendarFiltersState build() => const CalendarFiltersState();
 

@@ -1,20 +1,43 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
 import '../../../../domain/filter/calendar_filters_logic.dart';
+import '../../../../domain/filter/calendar_search_effective_filters.dart';
 import '../../../../domain/models/calendar_entry.dart';
 import '../../calendar_providers.dart';
 
-final filteredCalendarEntriesForDayProvider = fr
-    .Provider.family<fr.AsyncValue<List<CalendarEntry>>, DateTime>((ref, day) {
+final filteredCalendarEntriesForDayProvider =
+    fr.Provider.family<fr.AsyncValue<List<CalendarEntry>>, DateTime>((
+      ref,
+      day,
+    ) {
       final source = ref.watch(calendarEntriesForDayProvider(day));
       final filters = ref.watch(calendarFiltersProvider);
       return source.whenData((entries) {
         return entries
-            .where((entry) => calendarEntryMatchesFilters(
-                  entry: entry,
-                  filters: filters,
-                  hideUnknownWhenFilterActive: false,
-                ))
+            .where(
+              (entry) => calendarEntryMatchesFilters(
+                entry: entry,
+                filters: filters,
+                hideUnknownWhenFilterActive: false,
+              ),
+            )
+            .toList(growable: false);
+      });
+    });
+
+final filteredCalendarAllEntriesProvider =
+    fr.Provider<fr.AsyncValue<List<CalendarEntry>>>((ref) {
+      final source = ref.watch(calendarAllEntriesProvider);
+      final filters = ref.watch(calendarFiltersProvider);
+      return source.whenData((entries) {
+        return entries
+            .where(
+              (entry) => calendarEntryMatchesFilters(
+                entry: entry,
+                filters: filters,
+                hideUnknownWhenFilterActive: false,
+              ),
+            )
             .toList(growable: false);
       });
     });
@@ -31,30 +54,19 @@ final filteredCalendarEntriesByQueryProvider =
       final filters = ref.watch(searchFiltersProvider);
       final hideUnknownWhenFilterActive =
           normalizedQuery.isEmpty && filters.hasUserOverrides;
-      final effectiveFilters = normalizedQuery.isEmpty
-          ? filters
-          : _mergeWithDefaultFilters(filters);
+      final effectiveFilters = effectiveCalendarFiltersForSearch(
+        filters: filters,
+        hasQuery: normalizedQuery.isNotEmpty,
+      );
       return source.whenData((entries) {
         return entries
-            .where((entry) => calendarEntryMatchesFilters(
-                  entry: entry,
-                  filters: effectiveFilters,
-                  hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
-                ))
+            .where(
+              (entry) => calendarEntryMatchesFilters(
+                entry: entry,
+                filters: effectiveFilters,
+                hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+              ),
+            )
             .toList(growable: false);
       });
     });
-
-CalendarFiltersState _mergeWithDefaultFilters(CalendarFiltersState filters) {
-  return filters.copyWith(
-    choirs: _mergeUnique(filters.choirs, filters.defaultChoirs),
-    voices: _mergeUnique(filters.voices, filters.defaultVoices),
-    classNames: _mergeUnique(filters.classNames, filters.defaultClassNames),
-  );
-}
-
-List<String> _mergeUnique(List<String> active, List<String> defaults) {
-  if (defaults.isEmpty) return active;
-  final merged = <String>{...active, ...defaults}.toList()..sort();
-  return merged;
-}

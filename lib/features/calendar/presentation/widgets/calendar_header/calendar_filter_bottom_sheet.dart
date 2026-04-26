@@ -9,10 +9,7 @@ import '../../providers/calendar_providers.dart';
 enum CalendarFilterBottomSheetMode { calendarSettings, searchFilter }
 
 class CalendarFilterBottomSheet extends ConsumerWidget {
-  const CalendarFilterBottomSheet({
-    required this.mode,
-    super.key,
-  });
+  const CalendarFilterBottomSheet({required this.mode, super.key});
 
   final CalendarFilterBottomSheetMode mode;
 
@@ -20,19 +17,23 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final bottomSheetTheme = Theme.of(context).bottomSheetTheme;
-    final isCalendarSettings = mode == CalendarFilterBottomSheetMode.calendarSettings;
+    final isCalendarSettings =
+        mode == CalendarFilterBottomSheetMode.calendarSettings;
     final filters = ref.watch(
       isCalendarSettings ? calendarFiltersProvider : searchFiltersProvider,
     );
     final choirOptions = ref.watch(calendarChoirFilterOptionsProvider);
     final voiceOptions = ref.watch(calendarVoiceFilterOptionsProvider);
-    final schoolTrackOptions = ref.watch(calendarSchoolTrackFilterOptionsProvider);
+    final schoolTrackOptions = ref.watch(
+      calendarSchoolTrackFilterOptionsProvider,
+    );
     final classOptionsAsync = ref.watch(calendarClassFilterOptionsProvider);
     final classOptions = classOptionsAsync.asData?.value ?? const <String>[];
     final title = isCalendarSettings ? 'Kalender-Einstellungen' : 'Suchfilter';
 
     return ColoredBox(
-      color: bottomSheetTheme.modalBackgroundColor ?? colorScheme.surfaceContainer,
+      color:
+          bottomSheetTheme.modalBackgroundColor ?? colorScheme.surfaceContainer,
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -41,132 +42,153 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              _FilterSection(
-                title: 'Chor',
-                selectedValues: filters.choirs,
-                defaultValues: filters.defaultChoirs,
-                isExplicitSelection: filters.isChoirExplicit,
-                isSearchFilterMode: !isCalendarSettings,
-                options: choirOptions,
-                labelFor: _choirLabel,
-                selectedColor: colorScheme.primary,
-                chipBackgroundColor: colorScheme.surfaceContainerHighest,
-                onToggle: (value) {
-                  if (isCalendarSettings) {
-                    ref.read(calendarFiltersProvider.notifier).toggleChoir(value);
-                  } else {
-                    ref.read(searchFiltersProvider.notifier).toggleChoir(value);
-                  }
-                },
-                onClear: () {
-                  if (isCalendarSettings) {
-                    ref.read(calendarFiltersProvider.notifier).clearChoirs();
-                  } else {
-                    ref.read(searchFiltersProvider.notifier).clearChoirs();
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              _FilterSection(
-                title: 'Stimme',
-                selectedValues: filters.voices,
-                defaultValues: filters.defaultVoices,
-                isExplicitSelection: filters.isVoiceExplicit,
-                isSearchFilterMode: !isCalendarSettings,
-                options: voiceOptions,
-                labelFor: _voiceLabel,
-                selectedColor: colorScheme.primary,
-                chipBackgroundColor: colorScheme.surfaceContainerHighest,
-                onToggle: (value) {
-                  if (isCalendarSettings) {
-                    ref.read(calendarFiltersProvider.notifier).toggleVoice(value);
-                  } else {
-                    ref.read(searchFiltersProvider.notifier).toggleVoice(value);
-                  }
-                },
-                onClear: () {
-                  if (isCalendarSettings) {
-                    ref.read(calendarFiltersProvider.notifier).clearVoices();
-                  } else {
-                    ref.read(searchFiltersProvider.notifier).clearVoices();
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              _FilterSection(
-                title: 'Klasse',
-                selectedValues: filters.classNames,
-                defaultValues: filters.defaultClassNames,
-                isExplicitSelection: filters.isClassNameExplicit,
-                isSearchFilterMode: !isCalendarSettings,
-                options: classOptions,
-                labelFor: _classLabel,
-                selectedColor: colorScheme.primary,
-                chipBackgroundColor: colorScheme.surfaceContainerHighest,
-                onToggle: (value) {
-                  if (isCalendarSettings) {
-                    ref
-                        .read(calendarFiltersProvider.notifier)
-                        .toggleClassName(value);
-                  } else {
-                    ref.read(searchFiltersProvider.notifier).toggleClassName(value);
-                  }
-                },
-                onClear: () {
-                  if (isCalendarSettings) {
-                    ref.read(calendarFiltersProvider.notifier).clearClassNames();
-                  } else {
-                    ref.read(searchFiltersProvider.notifier).clearClassNames();
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              _FilterSection(
-                title: 'Schulzweig',
-                selectedValues: filters.schoolTracks,
-                defaultValues: filters.defaultSchoolTracks,
-                isExplicitSelection: filters.isSchoolTrackExplicit,
-                isSearchFilterMode: !isCalendarSettings,
-                options: schoolTrackOptions,
-                labelFor: _schoolTrackLabel,
-                selectedColor: colorScheme.primary,
-                chipBackgroundColor: colorScheme.surfaceContainerHighest,
-                onToggle: (value) {
-                  if (isCalendarSettings) {
-                    ref
-                        .read(calendarFiltersProvider.notifier)
-                        .toggleSchoolTrack(value);
-                  } else {
-                    ref.read(searchFiltersProvider.notifier).toggleSchoolTrack(value);
-                  }
-                },
-                onClear: () {
-                  if (isCalendarSettings) {
-                    ref.read(calendarFiltersProvider.notifier).clearSchoolTracks();
-                  } else {
-                    ref.read(searchFiltersProvider.notifier).clearSchoolTracks();
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              _FilterActionButtons(
-                onReset: () {
-                  if (isCalendarSettings) {
-                    ref.read(calendarFiltersProvider.notifier).resetToDefaults();
-                  } else {
-                    ref.read(searchFiltersProvider.notifier).resetToDefaults();
-                  }
-                },
-                onDone: () {
-                  HapticFeedback.mediumImpact();
-                  Navigator.of(context).maybePop();
-                },
-              ),
+                Text(title, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                _FilterSection(
+                  title: 'Chor',
+                  selectedValues: filters.choirs,
+                  defaultValues: filters.defaultChoirs,
+                  isExplicitSelection: filters.isChoirExplicit,
+                  isSearchFilterMode: !isCalendarSettings,
+                  options: choirOptions,
+                  labelFor: _choirLabel,
+                  selectedColor: colorScheme.primary,
+                  chipBackgroundColor: colorScheme.surfaceContainerHighest,
+                  onToggle: (value) {
+                    if (isCalendarSettings) {
+                      ref
+                          .read(calendarFiltersProvider.notifier)
+                          .toggleChoir(value);
+                    } else {
+                      ref
+                          .read(searchFiltersProvider.notifier)
+                          .toggleChoir(value);
+                    }
+                  },
+                  onClear: () {
+                    if (isCalendarSettings) {
+                      ref.read(calendarFiltersProvider.notifier).clearChoirs();
+                    } else {
+                      ref.read(searchFiltersProvider.notifier).clearChoirs();
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                _FilterSection(
+                  title: 'Stimme',
+                  selectedValues: filters.voices,
+                  defaultValues: filters.defaultVoices,
+                  isExplicitSelection: filters.isVoiceExplicit,
+                  isSearchFilterMode: !isCalendarSettings,
+                  options: voiceOptions,
+                  labelFor: _voiceLabel,
+                  selectedColor: colorScheme.primary,
+                  chipBackgroundColor: colorScheme.surfaceContainerHighest,
+                  onToggle: (value) {
+                    if (isCalendarSettings) {
+                      ref
+                          .read(calendarFiltersProvider.notifier)
+                          .toggleVoice(value);
+                    } else {
+                      ref
+                          .read(searchFiltersProvider.notifier)
+                          .toggleVoice(value);
+                    }
+                  },
+                  onClear: () {
+                    if (isCalendarSettings) {
+                      ref.read(calendarFiltersProvider.notifier).clearVoices();
+                    } else {
+                      ref.read(searchFiltersProvider.notifier).clearVoices();
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                _FilterSection(
+                  title: 'Klasse',
+                  selectedValues: filters.classNames,
+                  defaultValues: filters.defaultClassNames,
+                  isExplicitSelection: filters.isClassNameExplicit,
+                  isSearchFilterMode: !isCalendarSettings,
+                  options: classOptions,
+                  labelFor: _classLabel,
+                  selectedColor: colorScheme.primary,
+                  chipBackgroundColor: colorScheme.surfaceContainerHighest,
+                  onToggle: (value) {
+                    if (isCalendarSettings) {
+                      ref
+                          .read(calendarFiltersProvider.notifier)
+                          .toggleClassName(value);
+                    } else {
+                      ref
+                          .read(searchFiltersProvider.notifier)
+                          .toggleClassName(value);
+                    }
+                  },
+                  onClear: () {
+                    if (isCalendarSettings) {
+                      ref
+                          .read(calendarFiltersProvider.notifier)
+                          .clearClassNames();
+                    } else {
+                      ref
+                          .read(searchFiltersProvider.notifier)
+                          .clearClassNames();
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                _FilterSection(
+                  title: 'Schulzweig',
+                  selectedValues: filters.schoolTracks,
+                  defaultValues: filters.defaultSchoolTracks,
+                  isExplicitSelection: filters.isSchoolTrackExplicit,
+                  isSearchFilterMode: !isCalendarSettings,
+                  options: schoolTrackOptions,
+                  labelFor: _schoolTrackLabel,
+                  selectedColor: colorScheme.primary,
+                  chipBackgroundColor: colorScheme.surfaceContainerHighest,
+                  onToggle: (value) {
+                    if (isCalendarSettings) {
+                      ref
+                          .read(calendarFiltersProvider.notifier)
+                          .toggleSchoolTrack(value);
+                    } else {
+                      ref
+                          .read(searchFiltersProvider.notifier)
+                          .toggleSchoolTrack(value);
+                    }
+                  },
+                  onClear: () {
+                    if (isCalendarSettings) {
+                      ref
+                          .read(calendarFiltersProvider.notifier)
+                          .clearSchoolTracks();
+                    } else {
+                      ref
+                          .read(searchFiltersProvider.notifier)
+                          .clearSchoolTracks();
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                _FilterActionButtons(
+                  onReset: () {
+                    if (isCalendarSettings) {
+                      ref
+                          .read(calendarFiltersProvider.notifier)
+                          .resetToDefaults();
+                    } else {
+                      ref
+                          .read(searchFiltersProvider.notifier)
+                          .resetToDefaults();
+                    }
+                  },
+                  onDone: () {
+                    HapticFeedback.mediumImpact();
+                    Navigator.of(context).maybePop();
+                  },
+                ),
               ],
             ),
           ),
@@ -177,10 +199,7 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
 }
 
 class _FilterActionButtons extends StatelessWidget {
-  const _FilterActionButtons({
-    required this.onReset,
-    required this.onDone,
-  });
+  const _FilterActionButtons({required this.onReset, required this.onDone});
 
   final VoidCallback onReset;
   final VoidCallback onDone;
@@ -241,10 +260,7 @@ class _FilterActionButtons extends StatelessWidget {
         const SizedBox(height: 12),
         SizedBox(
           height: 50,
-          child: ElevatedButton(
-            onPressed: onDone,
-            child: const Text('Fertig'),
-          ),
+          child: ElevatedButton(onPressed: onDone, child: const Text('Fertig')),
         ),
       ],
     );
@@ -293,7 +309,7 @@ class _FilterSection extends StatelessWidget {
         selectedSet.length == defaultSet.length &&
         selectedSet.containsAll(defaultSet);
     final showAllAsSelected =
-        selectedValues.isEmpty && (!isSearchFilterMode || isExplicitSelection);
+        selectedValues.isEmpty && (!isSearchFilterMode || !isExplicitSelection);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

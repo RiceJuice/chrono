@@ -78,7 +78,26 @@ final calendarEntriesByQueryProvider =
       return repository.watchEntriesByQuery(query);
     });
 
-final calendarAllEntriesProvider = fr.StreamProvider<List<CalendarEntry>>((ref) {
+final calendarAllEntriesProvider = fr.StreamProvider<List<CalendarEntry>>((
+  ref,
+) {
   final repository = ref.watch(calendarRepositoryProvider);
   return repository.watchAllEntries();
 });
+
+class CalendarSearchInputFocus extends fr.Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void update(bool isFocused) {
+    if (state == isFocused) return;
+    state = isFocused;
+  }
+
+  void dismiss() => update(false);
+}
+
+final calendarSearchInputFocusedProvider =
+    fr.NotifierProvider<CalendarSearchInputFocus, bool>(
+      CalendarSearchInputFocus.new,
+    );

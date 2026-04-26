@@ -36,9 +36,11 @@ class CalendarEntryMapper {
     final backendType = CalendarEventTypeCodec.fromBackend(rawType);
     final choirRaw = _asString(_rowValue(row, 'choir'));
     final voicesRaw = _asString(_rowValue(row, 'voices'));
+    final schoolTrackRaw = _asString(_rowValue(row, 'schooltrack'));
     final choir = BackendChoirCodec.fromBackend(choirRaw);
     final voices = _parseVoices(voicesRaw);
     final voice = voices.isEmpty ? BackendVoice.unknown : voices.first;
+    final schoolTrack = BackendSchoolTrackCodec.fromBackend(schoolTrackRaw);
 
     return CalendarEntry(
       id: rowId,
@@ -56,7 +58,7 @@ class CalendarEntryMapper {
       choir: choir,
       voice: voice,
       voices: voices,
-      schoolTrack: BackendSchoolTrack.unknown,
+      schoolTrack: schoolTrack,
       className: _asString(_rowValue(row, 'class')),
       imagePaths: null,
       tags: null,

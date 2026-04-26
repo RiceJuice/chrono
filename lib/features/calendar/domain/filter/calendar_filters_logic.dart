@@ -26,7 +26,9 @@ bool calendarEntryMatchesFilters({
         .whereType<String>()
         .toSet();
     final fallback = normalizeCalendarFilterText(entry.voice.toBackend());
-    if (values.isEmpty && entry.voice != BackendVoice.unknown && fallback != null) {
+    if (values.isEmpty &&
+        entry.voice != BackendVoice.unknown &&
+        fallback != null) {
       values.add(fallback);
     }
     final hasVoiceMatch = values.any(filters.voices.contains);
@@ -47,28 +49,19 @@ bool calendarEntryMatchesFilters({
     }
   }
 
-  return true;
-}
-
-List<String> toggleCalendarFilterValue(List<String> values, String value) {
-  final normalized = normalizeCalendarFilterText(value);
-  if (normalized == null) return values;
-
-  final set = values.toSet();
-  if (set.contains(normalized)) {
-    set.remove(normalized);
-  } else {
-    set.add(normalized);
+  if (filters.schoolTracks.isNotEmpty) {
+    final value = normalizeCalendarFilterText(entry.schoolTrack.toBackend());
+    if (!_matchesCategory(
+      selectedValues: filters.schoolTracks,
+      entryValue: value,
+      isUnknown: entry.schoolTrack == BackendSchoolTrack.unknown,
+      hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+    )) {
+      return false;
+    }
   }
-  final items = set.toList()..sort();
-  return items;
-}
 
-List<String> removeCalendarFilterValue(List<String> values, String value) {
-  final normalized = normalizeCalendarFilterText(value);
-  if (normalized == null) return values;
-  final items = values.where((item) => item != normalized).toList()..sort();
-  return items;
+  return true;
 }
 
 bool _matchesCategory({

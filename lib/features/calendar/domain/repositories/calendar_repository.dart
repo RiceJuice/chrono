@@ -82,7 +82,7 @@ class CalendarRepository {
           SELECT
               'series' AS source,
               id, event_name, NULL AS description, location, NULL AS note, start_time, end_time, type,
-              choir, voices, NULL AS schooltrack, class, NULL AS image_paths, id AS series_id,
+              choir, voices, schooltrack, class, NULL AS image_paths, id AS series_id,
               NULL AS recurrence_id, rrule, series_start, series_end
           FROM $kCalendarSeriesTable
           WHERE date(series_start) <= date(?)

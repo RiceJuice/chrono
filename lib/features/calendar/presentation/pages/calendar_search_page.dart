@@ -33,7 +33,9 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   @override
   void initState() {
     super.initState();
-    _itemPositionsListener.itemPositions.addListener(_updateStickyDayFromPositions);
+    _itemPositionsListener.itemPositions.addListener(
+      _updateStickyDayFromPositions,
+    );
   }
 
   @override
@@ -48,7 +50,9 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
 
   @override
   void dispose() {
-    _itemPositionsListener.itemPositions.removeListener(_updateStickyDayFromPositions);
+    _itemPositionsListener.itemPositions.removeListener(
+      _updateStickyDayFromPositions,
+    );
     super.dispose();
   }
 
@@ -62,30 +66,36 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     return entriesAsync.when(
       data: (entries) {
         if (entries.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.search,
-                  size: 60,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-                Text(
-                  'Keine Treffer gefunden',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text(
-                  'Überprüfe deine Eingabe oder versuche es mit anderen Suchbegriffen.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          return Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) => _dismissSearchKeyboard(),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.search,
+                    size: 60,
                     color: Theme.of(
                       context,
                     ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                  Text(
+                    'Keine Treffer gefunden',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(
+                    'Überprüfe deine Eingabe oder versuche es mit anderen Suchbegriffen.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -98,58 +108,73 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
           sectionIndex: sectionsResult.initialSectionIndex,
         );
 
-        return Stack(
-          children: [
-            LayoutBuilder(
-              builder: (context, constraints) {
-                _listViewportHeight = constraints.maxHeight;
-                return NotificationListener<ScrollNotification>(
-                  onNotification: (notification) {
-                    if (_hasUserInteractedWithList) return false;
-                    if (notification is ScrollUpdateNotification &&
-                        notification.dragDetails != null) {
-                      _hasUserInteractedWithList = true;
-                    } else if (notification is UserScrollNotification &&
-                        notification.direction != ScrollDirection.idle) {
-                      _hasUserInteractedWithList = true;
-                    }
-                    return false;
-                  },
-                  child: ScrollablePositionedList.builder(
-                    key: ValueKey(
-                      'search-list-${widget.query}-${_filtersSignature(filters)}',
-                    ),
-                    itemPositionsListener: _itemPositionsListener,
-                    padding: const EdgeInsets.only(top: _stickyHeaderHeight),
-                    itemCount: rows.length,
-                    initialScrollIndex: targetRowIndex,
-                    itemBuilder: (context, index) {
-                      final row = rows[index];
-                      if (row.headerDay != null) {
-                        return _buildDayHeader(context: context, day: row.headerDay!);
+        return Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) => _dismissSearchKeyboard(),
+          child: Stack(
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  _listViewportHeight = constraints.maxHeight;
+                  return NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification is ScrollStartNotification ||
+                          notification is ScrollUpdateNotification ||
+                          notification is UserScrollNotification) {
+                        _dismissSearchKeyboard();
                       }
-                      return CalendarEntryCard(
-                        entry: row.entry!,
-                        applyPastStyling: true,
-                      );
+                      if (_hasUserInteractedWithList) return false;
+                      if (notification is ScrollUpdateNotification &&
+                          notification.dragDetails != null) {
+                        _hasUserInteractedWithList = true;
+                      } else if (notification is UserScrollNotification &&
+                          notification.direction != ScrollDirection.idle) {
+                        _hasUserInteractedWithList = true;
+                      }
+                      return false;
                     },
-                  ),
-                );
-              },
-            ),
-            if (_stickyDay != null)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: IgnorePointer(
-                  child: Transform.translate(
-                    offset: Offset(0, _stickyHeaderPushOffset),
-                    child: _buildDayHeader(context: context, day: _stickyDay!),
+                    child: ScrollablePositionedList.builder(
+                      key: ValueKey(
+                        'search-list-${widget.query}-${_filtersSignature(filters)}',
+                      ),
+                      itemPositionsListener: _itemPositionsListener,
+                      padding: const EdgeInsets.only(top: _stickyHeaderHeight),
+                      itemCount: rows.length,
+                      initialScrollIndex: targetRowIndex,
+                      itemBuilder: (context, index) {
+                        final row = rows[index];
+                        if (row.headerDay != null) {
+                          return _buildDayHeader(
+                            context: context,
+                            day: row.headerDay!,
+                          );
+                        }
+                        return CalendarEntryCard(
+                          entry: row.entry!,
+                          applyPastStyling: true,
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+              if (_stickyDay != null)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Transform.translate(
+                      offset: Offset(0, _stickyHeaderPushOffset),
+                      child: _buildDayHeader(
+                        context: context,
+                        day: _stickyDay!,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         );
       },
       loading: () {
@@ -167,6 +192,13 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     return local.year == now.year &&
         local.month == now.month &&
         local.day == now.day;
+  }
+
+  void _dismissSearchKeyboard() {
+    final inputFocus = ref.read(calendarSearchInputFocusedProvider);
+    if (!inputFocus) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    ref.read(calendarSearchInputFocusedProvider.notifier).dismiss();
   }
 
   bool _isPastDay(DateTime day) {
@@ -187,8 +219,8 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     final style = isToday
         ? CalendarPresentationTheme.todayHeaderTextStyle(context, baseStyle)
         : isPastDay
-            ? CalendarPresentationTheme.pastHeaderTextStyle(context, baseStyle)
-            : baseStyle;
+        ? CalendarPresentationTheme.pastHeaderTextStyle(context, baseStyle)
+        : baseStyle;
 
     return Container(
       height: _stickyHeaderHeight,
@@ -205,9 +237,16 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   List<_SearchListRow> _buildRows(List<SearchDaySection> sections) {
     final rows = <_SearchListRow>[];
     for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-      rows.add(_SearchListRow.header(sectionIndex: sectionIndex, day: sections[sectionIndex].day));
+      rows.add(
+        _SearchListRow.header(
+          sectionIndex: sectionIndex,
+          day: sections[sectionIndex].day,
+        ),
+      );
       for (final entry in sections[sectionIndex].entries) {
-        rows.add(_SearchListRow.entry(sectionIndex: sectionIndex, entry: entry));
+        rows.add(
+          _SearchListRow.entry(sectionIndex: sectionIndex, entry: entry),
+        );
       }
     }
     return rows;
@@ -252,24 +291,32 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     if (nextStickyDay == null) return;
     var pushOffset = 0.0;
     if (_listViewportHeight > 0) {
-      final nextHeaderPosition = visible
-          .where((p) => p.index > topIndex && _rowsForSticky[p.index].headerDay != null)
-          .toList()
-        ..sort((a, b) => a.index.compareTo(b.index));
+      final nextHeaderPosition =
+          visible
+              .where(
+                (p) =>
+                    p.index > topIndex &&
+                    _rowsForSticky[p.index].headerDay != null,
+              )
+              .toList()
+            ..sort((a, b) => a.index.compareTo(b.index));
       if (nextHeaderPosition.isNotEmpty) {
-        final leadingPx = nextHeaderPosition.first.itemLeadingEdge * _listViewportHeight;
+        final leadingPx =
+            nextHeaderPosition.first.itemLeadingEdge * _listViewportHeight;
         if (leadingPx < _stickyHeaderHeight) {
           pushOffset = leadingPx - _stickyHeaderHeight;
         }
       }
     }
 
-    final stickyDayChanged = _stickyDay == null || !_isSameDay(_stickyDay!, nextStickyDay);
+    final stickyDayChanged =
+        _stickyDay == null || !_isSameDay(_stickyDay!, nextStickyDay);
     if (stickyDayChanged && _hasUserInteractedWithList) {
       HapticFeedback.mediumImpact();
     }
 
-    if (stickyDayChanged || (_stickyHeaderPushOffset - pushOffset).abs() > 0.1) {
+    if (stickyDayChanged ||
+        (_stickyHeaderPushOffset - pushOffset).abs() > 0.1) {
       setState(() {
         _stickyDay = nextStickyDay;
         _stickyHeaderPushOffset = pushOffset;
