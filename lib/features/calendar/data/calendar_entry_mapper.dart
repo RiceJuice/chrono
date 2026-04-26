@@ -311,7 +311,7 @@ class CalendarEntryMapper {
       CalendarEntryType.lesson => const Color(0xFF3B82F6),
       CalendarEntryType.meal => const Color(0xFFF59E0B),
       CalendarEntryType.event => const Color(0xFF8B5CF6),
-      CalendarEntryType.choir => const Color(0xFF10B981),
+      CalendarEntryType.choir => const Color(0xFF354974),
     };
   }
 

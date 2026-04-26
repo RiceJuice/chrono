@@ -5,7 +5,7 @@ import '../../providers/calendar_providers.dart';
 import '../../theme/calendar_presentation_theme.dart';
 import 'calendar_day_marker_pill.dart';
 
-const _selectedDayBoxSize = 36.0;
+const _selectedDayBoxSize = 36.5;
 const _dayMarkerBottomOffset = 1.0;
 const _dayMarkerWidth = 24.0;
 const _dayMarkerHeight = 6.0;

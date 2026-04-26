@@ -193,12 +193,11 @@ class CalendarDayMarkerPill extends StatelessWidget {
   final double height;
 
   Color _cardBackgroundForType(BuildContext context, CalendarEntryType type) {
-    final scheme = Theme.of(context).colorScheme;
     return switch (type) {
-      CalendarEntryType.lesson => scheme.surfaceContainerHigh,
-      CalendarEntryType.meal => scheme.surface,
-      CalendarEntryType.event => scheme.secondary,
-      CalendarEntryType.choir => scheme.primary,
+      CalendarEntryType.lesson => const Color(0xFF29509E),
+      CalendarEntryType.meal => const Color(0xFF29509E),
+      CalendarEntryType.event => const Color(0xFF29509E),
+      CalendarEntryType.choir => const Color(0xFFCBBBA0),
     };
   }
 
