@@ -5,6 +5,11 @@ import '../../providers/calendar_providers.dart';
 import '../../theme/calendar_presentation_theme.dart';
 import 'calendar_day_marker_pill.dart';
 
+const _selectedDayBoxSize = 36.0;
+const _dayMarkerBottomOffset = 1.0;
+const _dayMarkerWidth = 24.0;
+const _dayMarkerHeight = 6.0;
+
 class CustomTableCalendar extends ConsumerWidget {
   const CustomTableCalendar({
     super.key,
@@ -114,24 +119,71 @@ class CustomTableCalendar extends ConsumerWidget {
       ),
       calendarBuilders: CalendarBuilders(
         markerBuilder: (context, day, events) {
+          if (isSameDay(day, selectedDay)) return const SizedBox.shrink();
           if (events.isEmpty) return null;
           final marker = events.first;
           if (marker is! CalendarDayMarkerData || marker.totalMinutes <= 0) {
             return null;
           }
-          return CalendarDayMarkerPill(marker: marker);
+          return Positioned(
+            bottom: _dayMarkerBottomOffset,
+            child: CalendarDayMarkerPill(
+              marker: marker,
+              width: _dayMarkerWidth,
+              height: _dayMarkerHeight,
+            ),
+          );
         },
         selectedBuilder: (context, day, focusedDay) {
           final isToday = isSameDay(day, DateTime.now());
-          if (!isToday) return null;
+          final marker = dayMarkersByDate[normalizeCalendarDay(day)];
 
+          return Center(
+            child: Transform.translate(
+              offset: const Offset(0, -2),
+              child: SizedBox.square(
+                dimension: _selectedDayBoxSize,
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: Transform.translate(
+                        offset: const Offset(0, 4),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${day.day}',
+                      style: TextStyle(
+                        color: isToday ? todayAccentColor : scheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: _dayMarkerBottomOffset,
+                      child: CalendarDayMarkerPill(
+                      marker: marker,
+                        width: _dayMarkerWidth,
+                        height: _dayMarkerHeight,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+        todayBuilder: (context, day, focusedDay) {
+          if (isSameDay(day, selectedDay)) return null;
           return Container(
             margin: const EdgeInsets.all(2),
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: scheme.primary,
-              shape: BoxShape.circle,
-            ),
             child: Text(
               '${day.day}',
               style: TextStyle(
