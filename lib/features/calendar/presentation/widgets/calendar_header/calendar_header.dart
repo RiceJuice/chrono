@@ -101,7 +101,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
               actions: [
                 IconButton(
                   onPressed: widget.onFilterPressed,
-                  icon: const Icon(Icons.filter_list),
+                  icon: const Icon(Icons.calendar_month_rounded),
                 ),
                 IconButton(
                   onPressed: widget.onSearchPressed,

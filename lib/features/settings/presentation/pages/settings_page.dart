@@ -258,29 +258,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       context: context,
       showDragHandle: true,
       builder: (context) {
-        return SafeArea(
-          child: ListView(
-            children: [
-              ListTile(
-                title: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              ...options.map(
-                (option) => ListTile(
-                  title: Text(option),
-                  trailing: option == initialValue
-                      ? const Icon(Icons.check)
-                      : null,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.of(context).pop(option);
-                  },
-                ),
-              ),
-            ],
-          ),
+        return _ChoiceBottomSheet(
+          title: title,
+          options: options,
+          initialValue: initialValue,
         );
       },
     );
@@ -391,6 +372,69 @@ class _EditableInfoTile extends StatelessWidget {
       subtitle: Text(text.isEmpty ? 'Nicht gesetzt' : text),
       trailing: const Icon(Icons.edit_outlined),
       onTap: enabled ? onTap : null,
+    );
+  }
+}
+
+class _ChoiceBottomSheet extends StatefulWidget {
+  const _ChoiceBottomSheet({
+    required this.title,
+    required this.options,
+    required this.initialValue,
+  });
+
+  final String title;
+  final List<String> options;
+  final String? initialValue;
+
+  @override
+  State<_ChoiceBottomSheet> createState() => _ChoiceBottomSheetState();
+}
+
+class _ChoiceBottomSheetState extends State<_ChoiceBottomSheet> {
+  final _selectedItemKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _selectedItemKey.currentContext;
+      if (context == null) return;
+      Scrollable.ensureVisible(
+        context,
+        duration: Duration.zero,
+        alignment: 0.5,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        children: [
+          ListTile(
+            title: Text(
+              widget.title,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          ...widget.options.map(
+            (option) => ListTile(
+              key: option == widget.initialValue ? _selectedItemKey : null,
+              title: Text(option),
+              trailing: option == widget.initialValue
+                  ? const Icon(Icons.check)
+                  : null,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.of(context).pop(option);
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

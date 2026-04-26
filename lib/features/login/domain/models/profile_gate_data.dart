@@ -7,6 +7,7 @@ class ProfileGateData {
     required this.firstName,
     required this.lastName,
     required this.className,
+    required this.schoolTrack,
     required this.role,
     required this.voice,
     required this.choir,
@@ -19,6 +20,7 @@ class ProfileGateData {
         firstName = null,
         lastName = null,
         className = null,
+        schoolTrack = null,
         role = null,
         voice = null,
         choir = null,
@@ -29,6 +31,7 @@ class ProfileGateData {
   final String? firstName;
   final String? lastName;
   final String? className;
+  final String? schoolTrack;
   final String? role;
   final String? voice;
   final String? choir;

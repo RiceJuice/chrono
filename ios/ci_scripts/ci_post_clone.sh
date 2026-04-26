@@ -32,16 +32,12 @@ flutter pub get
 echo "--- Running Unit Tests ---"
 flutter test
 
-# 8. iOS / CocoaPods Fixes
+# 8. iOS / CocoaPods
 echo "--- Preparing iOS build ---"
 cd ios
 
-# Radikaler Cleanup um die XCFileList Fehler zu vermeiden
-rm -rf Pods
-rm -rf DevPods
-rm -f Podfile.lock
-
-# Pods sauber neu installieren
+# Nur pod install: Nutzt vorhandenes Pods/ + Podfile.lock wenn Xcode Cloud sie cached.
+# Kein rm -rf Pods — vermeidet unnötige Neu-Downloads (z. B. sqlite.org) pro Build.
 pod install
 
 cd ..

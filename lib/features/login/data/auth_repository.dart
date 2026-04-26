@@ -234,6 +234,7 @@ class AuthRepository {
     String? firstName,
     String? lastName,
     String? className,
+    String? schoolTrack,
     String? voice,
     String? diet,
     String? role,
@@ -248,6 +249,7 @@ class AuthRepository {
     if (firstName != null) updates['first_name'] = firstName.trim();
     if (lastName != null) updates['last_name'] = lastName.trim();
     if (className != null) updates['class_name'] = className;
+    if (schoolTrack != null) updates['schooltrack'] = schoolTrack;
     if (voice != null) updates['voice'] = voice;
     if (diet != null) updates['diet'] = diet;
     if (role != null) updates['role'] = role;

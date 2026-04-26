@@ -108,18 +108,9 @@ class _BottomModalImagesState extends State<BottomModalImages> {
                     fadeInDuration: Duration.zero,
                     fadeOutDuration: Duration.zero,
                     placeholder: (context, _) => Container(color: imagePanelBg),
-                    errorWidget: (context, _, error) => Container(
+                    errorWidget: (context, _, _) => Container(
                       color: imagePanelBg,
-                      child: Builder(
-                        builder: (context) {
-                          if (kDebugMode) {
-                            debugPrint(
-                              '[BottomModalImages] Failed to load image index=$index url=${imageUrls[index]} error=$error',
-                            );
-                          }
-                          return const Icon(Icons.broken_image, size: 50);
-                        },
-                      ),
+                      child: const Icon(Icons.broken_image, size: 50),
                     ),
                   ),
                 ),

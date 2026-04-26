@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Scrollbar mit dauerhaft sichtbarem Griff + [SingleChildScrollView] für den Login-Flow.
-class LoginScrollSurface extends StatelessWidget {
+class LoginScrollSurface extends StatefulWidget {
   const LoginScrollSurface({
     super.key,
     required this.child,
@@ -32,14 +32,33 @@ class LoginScrollSurface extends StatelessWidget {
   }
 
   @override
+  State<LoginScrollSurface> createState() => _LoginScrollSurfaceState();
+}
+
+class _LoginScrollSurfaceState extends State<LoginScrollSurface> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Kein zusätzliches viewInsets.bottom: [Scaffold] mit resizeToAvoidBottomInset
     // (Standard true) verkleinert den Body bereits — doppeltes Padding erzeugt Sprünge
     // beim Scrollen mit offener Tastatur.
-    final EdgeInsets padding = scrollPadding;
+    final EdgeInsets padding = widget.scrollPadding;
 
-    Widget body = child;
-    final double? minH = contentMinHeight;
+    Widget body = widget.child;
+    final double? minH = widget.contentMinHeight;
     if (minH != null) {
       body = ConstrainedBox(
         constraints: BoxConstraints(minHeight: minH),
@@ -48,11 +67,15 @@ class LoginScrollSurface extends StatelessWidget {
     }
 
     return Theme(
-      data: Theme.of(context).copyWith(
-        scrollbarTheme: _scrollbarTheme(context),
-      ),
+      data: Theme.of(
+        context,
+      ).copyWith(scrollbarTheme: LoginScrollSurface._scrollbarTheme(context)),
       child: Scrollbar(
+        controller: _scrollController,
+        thumbVisibility: true,
+        interactive: true,
         child: SingleChildScrollView(
+          controller: _scrollController,
           // onDrag schließt die Tastatur bei jeder Scroll-Geste und wirkt wie „Rausspringen“.
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
           padding: padding,

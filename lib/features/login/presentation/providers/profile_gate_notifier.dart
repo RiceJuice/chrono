@@ -74,7 +74,7 @@ class ProfileGateNotifier extends ChangeNotifier {
         row = await _client
             .from('profiles')
             .select(
-              'first_name, last_name, class_name, voice, role, choir, '
+              'first_name, last_name, class_name, schooltrack, voice, role, choir, '
               'onboarding_completed_at',
             )
             .eq('id', user.id)
@@ -92,6 +92,7 @@ class ProfileGateNotifier extends ChangeNotifier {
           firstName: _asString(row?['first_name']),
           lastName: _asString(row?['last_name']),
           className: _asString(row?['class_name']),
+          schoolTrack: _asString(row?['schooltrack']),
           role: _asString(row?['role']),
           voice: _asString(row?['voice']),
           choir: _asString(row?['choir']),

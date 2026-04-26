@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:chronoapp/core/database/backend_enums.dart';
 
 import '../../../widgets/login_dropdown_field.dart';
 import '../../../widgets/login_text_field.dart';
@@ -9,21 +10,27 @@ class LoginPersonalDataFields extends StatelessWidget {
     required this.firstNameFieldKey,
     required this.lastNameFieldKey,
     required this.classFieldKey,
+    required this.schoolTrackFieldKey,
     required this.firstNameController,
     required this.lastNameController,
     required this.selectedClass,
+    required this.selectedSchoolTrack,
     required this.classOptions,
     required this.onClassChanged,
+    required this.onSchoolTrackChanged,
   });
 
   final GlobalKey<FormFieldState<dynamic>> firstNameFieldKey;
   final GlobalKey<FormFieldState<dynamic>> lastNameFieldKey;
   final GlobalKey<FormFieldState<dynamic>> classFieldKey;
+  final GlobalKey<FormFieldState<dynamic>> schoolTrackFieldKey;
   final TextEditingController firstNameController;
   final TextEditingController lastNameController;
   final String? selectedClass;
+  final String? selectedSchoolTrack;
   final List<String> classOptions;
   final ValueChanged<String?> onClassChanged;
+  final ValueChanged<String?> onSchoolTrackChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +110,33 @@ class LoginPersonalDataFields extends StatelessWidget {
             return null;
           },
           onChanged: onClassChanged,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Schulzweig',
+          style: TextStyle(
+            color: labelColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        LoginDropdownField(
+          formFieldKey: schoolTrackFieldKey,
+          selectedValue: selectedSchoolTrack,
+          options: BackendSchoolTrack.values
+              .where((value) => value != BackendSchoolTrack.unknown)
+              .map((value) => value.displayLabel)
+              .toList(growable: false),
+          label: 'Schulzweig',
+          hintText: 'NTG oder Musisch',
+          leadingIcon: const Icon(Icons.account_tree_outlined),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Bitte einen Schulzweig auswaehlen.';
+            }
+            return null;
+          },
+          onChanged: onSchoolTrackChanged,
         ),
       ],
     );

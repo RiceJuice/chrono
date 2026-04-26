@@ -21,6 +21,14 @@ final calendarVoiceFilterOptionsProvider = fr.Provider<List<String>>((ref) {
       .toList(growable: false);
 });
 
+final calendarSchoolTrackFilterOptionsProvider = fr.Provider<List<String>>((ref) {
+  return BackendSchoolTrack.values
+      .where((value) => value != BackendSchoolTrack.unknown)
+      .map((value) => normalizeCalendarFilterText(value.toBackend()))
+      .whereType<String>()
+      .toList(growable: false);
+});
+
 final calendarClassFilterOptionsProvider =
     fr.Provider<fr.AsyncValue<List<String>>>((ref) {
       final entriesAsync = ref.watch(calendarAllEntriesProvider);

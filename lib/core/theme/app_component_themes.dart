@@ -99,6 +99,14 @@ class AppComponentThemes {
 
   static InputDecorationTheme inputDecorationTheme(ColorScheme scheme) {
     final isDark = scheme.brightness == Brightness.dark;
+    const inputBorderWidth = 1.0;
+    final inputBorderSide = BorderSide(
+      color: scheme.onSurface.withValues(
+        alpha: isDark ? AppOpacity.muted : AppOpacity.low,
+      ),
+      width: inputBorderWidth,
+    );
+
     return InputDecorationTheme(
       hintStyle: TextStyle(
         color: scheme.onSurface.withValues(alpha: AppOpacity.secondaryContent),
@@ -113,18 +121,11 @@ class AppComponentThemes {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.s),
-        borderSide: BorderSide(
-          color: scheme.onSurface.withValues(
-            alpha: isDark ? AppOpacity.low : AppOpacity.subtle,
-          ),
-        ),
+        borderSide: inputBorderSide,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.s),
-        borderSide: BorderSide(
-          color: isDark ? Colors.white30 : scheme.primary,
-          width: 1.5,
-        ),
+        borderSide: inputBorderSide,
       ),
     );
   }

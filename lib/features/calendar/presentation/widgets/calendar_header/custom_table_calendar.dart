@@ -3,6 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../providers/calendar_providers.dart';
 import '../../theme/calendar_presentation_theme.dart';
+import 'calendar_day_marker_pill.dart';
+
+const _selectedDayBoxSize = 36.5;
+const _dayMarkerBottomOffset = 1.0;
+const _dayMarkerWidth = 24.0;
+const _dayMarkerHeight = 6.0;
 
 class CustomTableCalendar extends ConsumerWidget {
   const CustomTableCalendar({
@@ -53,6 +59,10 @@ class CustomTableCalendar extends ConsumerWidget {
     final todayAccentColor = CalendarPresentationTheme.todayAccentColor(context);
     final selectedDay = ref.watch(selectedDayProvider);
     final focusedDay = ref.watch(focusedDayProvider);
+    final dayMarkersByDate = ref.watch(filteredCalendarAllEntriesProvider).maybeWhen(
+      data: buildCalendarDayMarkers,
+      orElse: () => const <DateTime, CalendarDayMarkerData>{},
+    );
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
       final currentFocusedDay = ref.read(focusedDayProvider);
       if (!isSameDay(currentFocusedDay, next)) {
@@ -67,6 +77,11 @@ class CustomTableCalendar extends ConsumerWidget {
       lastDay: DateTime(2030, 12, 31), //TODO: make this dynamic
       calendarFormat: calendarFormat,
       focusedDay: focusedDay,
+      eventLoader: (day) {
+        final marker = dayMarkersByDate[normalizeCalendarDay(day)];
+        if (marker == null) return const [];
+        return <CalendarDayMarkerData>[marker];
+      },
       rowHeight: 40,
       daysOfWeekHeight: 20,
       availableGestures: AvailableGestures.horizontalSwipe,
@@ -103,17 +118,72 @@ class CustomTableCalendar extends ConsumerWidget {
         rightChevronVisible: false,
       ),
       calendarBuilders: CalendarBuilders(
+        markerBuilder: (context, day, events) {
+          if (isSameDay(day, selectedDay)) return const SizedBox.shrink();
+          if (events.isEmpty) return null;
+          final marker = events.first;
+          if (marker is! CalendarDayMarkerData || marker.totalMinutes <= 0) {
+            return null;
+          }
+          return Positioned(
+            bottom: _dayMarkerBottomOffset,
+            child: CalendarDayMarkerPill(
+              marker: marker,
+              width: _dayMarkerWidth,
+              height: _dayMarkerHeight,
+            ),
+          );
+        },
         selectedBuilder: (context, day, focusedDay) {
           final isToday = isSameDay(day, DateTime.now());
-          if (!isToday) return null;
+          final marker = dayMarkersByDate[normalizeCalendarDay(day)];
 
+          return Center(
+            child: Transform.translate(
+              offset: const Offset(0, -2),
+              child: SizedBox.square(
+                dimension: _selectedDayBoxSize,
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: Transform.translate(
+                        offset: const Offset(0, 4),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${day.day}',
+                      style: TextStyle(
+                        color: isToday ? todayAccentColor : scheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: _dayMarkerBottomOffset,
+                      child: CalendarDayMarkerPill(
+                      marker: marker,
+                        width: _dayMarkerWidth,
+                        height: _dayMarkerHeight,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+        todayBuilder: (context, day, focusedDay) {
+          if (isSameDay(day, selectedDay)) return null;
           return Container(
             margin: const EdgeInsets.all(2),
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: scheme.primary,
-              shape: BoxShape.circle,
-            ),
             child: Text(
               '${day.day}',
               style: TextStyle(

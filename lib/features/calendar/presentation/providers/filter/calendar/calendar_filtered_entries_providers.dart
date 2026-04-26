@@ -1,20 +1,43 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
 import '../../../../domain/filter/calendar_filters_logic.dart';
+import '../../../../domain/filter/calendar_search_effective_filters.dart';
 import '../../../../domain/models/calendar_entry.dart';
 import '../../calendar_providers.dart';
 
-final filteredCalendarEntriesForDayProvider = fr
-    .Provider.family<fr.AsyncValue<List<CalendarEntry>>, DateTime>((ref, day) {
+final filteredCalendarEntriesForDayProvider =
+    fr.Provider.family<fr.AsyncValue<List<CalendarEntry>>, DateTime>((
+      ref,
+      day,
+    ) {
       final source = ref.watch(calendarEntriesForDayProvider(day));
       final filters = ref.watch(calendarFiltersProvider);
       return source.whenData((entries) {
         return entries
-            .where((entry) => calendarEntryMatchesFilters(
-                  entry: entry,
-                  filters: filters,
-                  hideUnknownWhenFilterActive: false,
-                ))
+            .where(
+              (entry) => calendarEntryMatchesFilters(
+                entry: entry,
+                filters: filters,
+                hideUnknownWhenFilterActive: false,
+              ),
+            )
+            .toList(growable: false);
+      });
+    });
+
+final filteredCalendarAllEntriesProvider =
+    fr.Provider<fr.AsyncValue<List<CalendarEntry>>>((ref) {
+      final source = ref.watch(calendarAllEntriesProvider);
+      final filters = ref.watch(calendarFiltersProvider);
+      return source.whenData((entries) {
+        return entries
+            .where(
+              (entry) => calendarEntryMatchesFilters(
+                entry: entry,
+                filters: filters,
+                hideUnknownWhenFilterActive: false,
+              ),
+            )
             .toList(growable: false);
       });
     });
@@ -29,13 +52,21 @@ final filteredCalendarEntriesByQueryProvider =
           ? ref.watch(calendarAllEntriesProvider)
           : ref.watch(calendarEntriesByQueryProvider(normalizedQuery));
       final filters = ref.watch(searchFiltersProvider);
+      final hideUnknownWhenFilterActive =
+          normalizedQuery.isEmpty && filters.hasUserOverrides;
+      final effectiveFilters = effectiveCalendarFiltersForSearch(
+        filters: filters,
+        hasQuery: normalizedQuery.isNotEmpty,
+      );
       return source.whenData((entries) {
         return entries
-            .where((entry) => calendarEntryMatchesFilters(
-                  entry: entry,
-                  filters: filters,
-                  hideUnknownWhenFilterActive: false,
-                ))
+            .where(
+              (entry) => calendarEntryMatchesFilters(
+                entry: entry,
+                filters: effectiveFilters,
+                hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+              ),
+            )
             .toList(growable: false);
       });
     });

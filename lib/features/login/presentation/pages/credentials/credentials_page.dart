@@ -9,16 +9,15 @@ import '../../providers/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
+import '../../utils/draft_text_controller.dart';
 import '../../utils/login_form_validation.dart';
+import '../../widgets/login_step_layout.dart';
 import 'widgets/account_auth_mode.dart';
 import 'widgets/account_auth_mode_selector.dart';
 import 'widgets/credential_form_fields.dart';
 
 class CredentialsPage extends ConsumerStatefulWidget {
-  const CredentialsPage({
-    super.key,
-    this.initialMode = AccountAuthMode.signUp,
-  });
+  const CredentialsPage({super.key, this.initialMode = AccountAuthMode.signUp});
 
   /// Gemeinsame Maximalbreite für Formularfelder und Primärbutton (Tablet/Desktop).
   static const double maxFormWidth = 400;
@@ -36,9 +35,9 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
   final _passwordFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _passwordConfirmFieldKey = GlobalKey<FormFieldState<dynamic>>();
 
-  late final TextEditingController _emailController;
-  late final TextEditingController _passwordController;
-  late final TextEditingController _passwordConfirmController;
+  late final DraftTextController _emailController;
+  late final DraftTextController _passwordController;
+  late final DraftTextController _passwordConfirmController;
 
   late AccountAuthMode _mode;
   bool _busy = false;
@@ -47,16 +46,17 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
   void initState() {
     super.initState();
     _mode = widget.initialMode;
-    _emailController = TextEditingController(text: _draft.email);
-    _passwordController = TextEditingController(text: _draft.password);
-    _passwordConfirmController =
-        TextEditingController(text: _draft.passwordConfirm);
-
-    _emailController.addListener(() => _draft.email = _emailController.text);
-    _passwordController
-        .addListener(() => _draft.password = _passwordController.text);
-    _passwordConfirmController.addListener(
-      () => _draft.passwordConfirm = _passwordConfirmController.text,
+    _emailController = DraftTextController(
+      initialValue: _draft.email,
+      onChanged: (value) => _draft.email = value,
+    );
+    _passwordController = DraftTextController(
+      initialValue: _draft.password,
+      onChanged: (value) => _draft.password = value,
+    );
+    _passwordConfirmController = DraftTextController(
+      initialValue: _draft.passwordConfirm,
+      onChanged: (value) => _draft.passwordConfirm = value,
     );
   }
 
@@ -107,14 +107,17 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
       await _showError(e.message);
       return null;
     } catch (_) {
-      await _showError('Registrierung fehlgeschlagen. Bitte versuche es erneut.');
+      await _showError(
+        'Registrierung fehlgeschlagen. Bitte versuche es erneut.',
+      );
       return null;
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  bool _validateAndScrollToFirstError() => loginValidateFormAndScrollToFirstError(
+  bool _validateAndScrollToFirstError() =>
+      loginValidateFormAndScrollToFirstError(
         context,
         formKey: _formKey,
         orderedFieldKeys: [
@@ -128,10 +131,8 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
   Widget build(BuildContext context) {
     final isSignIn = _mode == AccountAuthMode.signIn;
     final double screenH = MediaQuery.sizeOf(context).height;
-    final double footerLead =
-        (screenH * 0.055).clamp(20.0, 52.0);
-    final double footerTail =
-        (screenH * 0.022).clamp(10.0, 22.0);
+    final double footerLead = (screenH * 0.055).clamp(20.0, 52.0);
+    final double footerTail = (screenH * 0.022).clamp(10.0, 22.0);
 
     return LoginStepScaffold(
       step: LoginFlowStep.credentials,
@@ -152,8 +153,8 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
       footerTailHeight: footerTail,
       // Footer sitzt außerhalb des Scrollbereichs direkt über dem PrimaryButton:
       // Er scrollt nicht mit dem Formular mit. Beim Einblenden der Tastatur
-      // wandert der Button (mit Footer als fixer Block direkt darüber) nach oben.
-      footerInScrollArea: false,
+      // bleibt der Footer fixiert, nur der Button wandert nach oben.
+      bottomBehavior: LoginBottomBehavior.footerFixed,
       footer: AccountAuthModeSelector(
         selectedMode: _mode,
         onChanged: (mode) => setState(() => _mode = mode),

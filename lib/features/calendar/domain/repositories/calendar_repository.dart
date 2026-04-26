@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
 import 'package:rrule/rrule.dart';
 import 'package:sqlite3/common.dart';
@@ -83,7 +82,7 @@ class CalendarRepository {
           SELECT
               'series' AS source,
               id, event_name, NULL AS description, location, NULL AS note, start_time, end_time, type,
-              choir, voices, NULL AS schooltrack, class, NULL AS image_paths, id AS series_id,
+              choir, voices, schooltrack, class, NULL AS image_paths, id AS series_id,
               NULL AS recurrence_id, rrule, series_start, series_end
           FROM $kCalendarSeriesTable
           WHERE date(series_start) <= date(?)
@@ -133,14 +132,7 @@ class CalendarRepository {
         } else {
           events.add(CalendarEntryMapper.fromEventRow(row));
         }
-      } catch (e) {
-        if (kDebugMode) {
-          final id = _safeRowValue(row, 'id');
-          final startTime = _safeRowValue(row, 'start_time');
-          debugPrint(
-            '[Calendar] Mapper-Fehler id=$id start_time=$startTime: $e',
-          );
-        }
+      } catch (_) {
       }
     }
 
@@ -227,10 +219,7 @@ class CalendarRepository {
             ),
           );
         }
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint('[Calendar] Fehler bei RRULE-Expansion fuer series_id=$seriesId: $e');
-        }
+      } catch (_) {
       }
     }
 
@@ -287,10 +276,7 @@ class CalendarRepository {
     if (normalized == null) return null;
     try {
       return RecurrenceRule.fromString(normalized);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[Calendar] Ungueltige RRULE "$normalized": $e');
-      }
+    } catch (_) {
       return null;
     }
   }
