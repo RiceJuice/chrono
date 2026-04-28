@@ -17,7 +17,9 @@ Map<DateTime, CalendarDayMarkerData> buildCalendarDayMarkers(
   final idsByDay = <DateTime, Set<String>>{};
 
   for (final entry in entries) {
-    if (entry.type == CalendarEntryType.lesson) continue;
+    if (entry.type == CalendarEntryType.lesson || entry.type == CalendarEntryType.meal) {
+      continue;
+    }
     final start = entry.startTime.toLocal();
     final end = entry.endTime.toLocal();
     if (!end.isAfter(start)) continue;

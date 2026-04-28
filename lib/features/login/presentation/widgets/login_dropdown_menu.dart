@@ -22,7 +22,9 @@ void loginDropdownSelectionHaptic() {
 /// Unsichtbarer Listener: bei „Menü offen“ (Tap auf Feld oder Pfeil).
 /// Nutzt [HapticFeedback.lightImpact], damit es sich nicht wie ein zweites
 /// [selectionClick] bei der anschließenden Auswahl anfühlt.
-InputDecoration loginDropdownDecorationWithOpenHaptic(InputDecoration decoration) {
+InputDecoration loginDropdownDecorationWithOpenHaptic(
+  InputDecoration decoration,
+) {
   return decoration.copyWith(
     suffixIcon: const _LoginDropdownMenuOpenHapticHost(),
     suffixIconConstraints: const BoxConstraints(
@@ -42,7 +44,8 @@ class _LoginDropdownMenuOpenHapticHost extends StatefulWidget {
       _LoginDropdownMenuOpenHapticHostState();
 }
 
-class _LoginDropdownMenuOpenHapticHostState extends State<_LoginDropdownMenuOpenHapticHost> {
+class _LoginDropdownMenuOpenHapticHostState
+    extends State<_LoginDropdownMenuOpenHapticHost> {
   bool? _wasOpen;
 
   @override
@@ -94,10 +97,14 @@ MenuStyle loginDropdownMenuSurfaceStyle(BuildContext context) {
   final ColorScheme scheme = Theme.of(context).colorScheme;
   return MenuStyle(
     alignment: AlignmentDirectional.topStart,
-    backgroundColor: WidgetStatePropertyAll<Color>(scheme.surfaceContainerHighest),
+    backgroundColor: WidgetStatePropertyAll<Color>(
+      scheme.surfaceContainerHighest,
+    ),
     surfaceTintColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
     shadowColor: WidgetStatePropertyAll<Color>(
-      scheme.shadow.withValues(alpha: scheme.brightness == Brightness.dark ? 0.45 : 0.18),
+      scheme.shadow.withValues(
+        alpha: scheme.brightness == Brightness.dark ? 0.45 : 0.18,
+      ),
     ),
     elevation: const WidgetStatePropertyAll<double>(8),
     shape: WidgetStatePropertyAll<OutlinedBorder>(

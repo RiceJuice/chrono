@@ -19,11 +19,10 @@ class MealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final temporalState = CalendarEntryTemporalState.fromEntry(entry);
     final style = CalendarCardStyleResolver.resolve(
       context: context,
-      baseBackgroundColor: scheme.surface,
+      baseBackgroundColor: const Color(0xFF124E30),
       temporalState: temporalState,
       applyPastStyling: applyPastStyling,
     );
@@ -39,53 +38,56 @@ class MealCard extends StatelessWidget {
       },
       contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
       leading: TimeColumn(entry: entry, textColor: style.timeTextColor),
-      title: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.s),
-          color: style.cardBackgroundColor,
-        ),
-        // IntrinsicHeight sorgt dafür, dass die Row so hoch ist wie ihr höchstes Kind
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment
-                .stretch, // WICHTIG: Streckt Kinder auf die volle Höhe
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 20, 0, 20),
-                  child: TextContent(
-                    entry: entry,
-                    primaryTextColor: style.primaryTextColor,
-                    secondaryTextColor: style.secondaryTextColor,
+      title: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.s),
+            color: style.cardBackgroundColor,
+          ),
+          // IntrinsicHeight sorgt dafür, dass die Row so hoch ist wie ihr höchstes Kind
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment
+                  .stretch, // WICHTIG: Streckt Kinder auf die volle Höhe
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 24, 0, 24),
+                    child: TextContent(
+                      entry: entry,
+                      primaryTextColor: style.primaryTextColor,
+                      secondaryTextColor: style.secondaryTextColor,
+                    ),
                   ),
                 ),
-              ),
-              if (entry.imageUrls != null && entry.imageUrls!.isNotEmpty)
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(AppRadius.s),
-                        bottomRight: Radius.circular(AppRadius.s),
-                      ),
-                      child: Image.network(
-                        entry.imageUrls![0],
-                        width: 120,
-                        height: 100,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    if (style.imageOverlayOpacity > 0)
-                      Positioned.fill(
-                        child: ColoredBox(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surface.withValues(alpha: style.imageOverlayOpacity),
+                if (entry.imageUrls != null && entry.imageUrls!.isNotEmpty)
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(AppRadius.s),
+                          bottomRight: Radius.circular(AppRadius.s),
+                        ),
+                        child: Image.network(
+                          entry.imageUrls![0],
+                          width: 140,
+                          height: 120,
+                          fit: BoxFit.cover,
                         ),
                       ),
-                  ],
-                ),
-            ],
+                      if (style.imageOverlayOpacity > 0)
+                        Positioned.fill(
+                          child: ColoredBox(
+                            color: Theme.of(context).colorScheme.surface.withValues(
+                              alpha: style.imageOverlayOpacity,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),

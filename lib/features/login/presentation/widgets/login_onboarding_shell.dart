@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/models/login_flow_step.dart';
 import '../routes/login_routes.dart';
+import 'login_split_screen.dart';
 import 'top_bar/login_top_bar.dart';
 import 'top_bar/step_indicator.dart';
 
@@ -62,47 +63,58 @@ class LoginOnboardingShell extends StatelessWidget {
     final isChoirPage = location == LoginPaths.choir;
     final back = _backPath(location);
     final step = _stepNumber(location);
+    final isDesktop =
+        MediaQuery.sizeOf(context).width >= LoginSplitScreen.defaultBreakpoint;
 
     // Auf der Credentials-Seite soll der Body NICHT mit der Tastatur
     // schrumpfen: Der Footer bleibt an seiner Bildschirmposition und wird von
     // der Tastatur überdeckt; nur der Primärbutton wird per Positioned über
     // die Tastatur gehoben. Andere Schritte behalten das Standardverhalten.
     final bool resizeBody = location != LoginPaths.credentials;
+    final Widget flowContent = SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+            child: LoginTopBar(
+              onBack: back != null ? () => context.go(back) : null,
+              middle: isDesktop && !isStart && step != null
+                  ? LoginStepIndicator(currentStep: step)
+                  : null,
+            ),
+          ),
+          if (isDesktop && !isStart && step != null)
+            const SizedBox(height: 50)
+          else if (!isStart && step != null) ...[
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: LoginStepIndicator(currentStep: step),
+            ),
+            const SizedBox(height: 30),
+          ],
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                isChoirPage ? 0 : 20,
+                0,
+                isChoirPage ? 0 : 20,
+                18,
+              ),
+              child: child,
+            ),
+          ),
+        ],
+      ),
+    );
 
     return Scaffold(
       resizeToAvoidBottomInset: resizeBody,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-              child: LoginTopBar(
-                onBack: back != null ? () => context.go(back) : null,
-              ),
-            ),
-            if (!isStart && step != null) ...[
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: LoginStepIndicator(currentStep: step),
-              ),
-              const SizedBox(height: 30),
-            ],
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  isChoirPage ? 0 : 20,
-                  0,
-                  isChoirPage ? 0 : 20,
-                  18,
-                ),
-                child: child,
-              ),
-            ),
-          ],
-        ),
+      body: LoginSplitScreen(
+        contentMaxWidth: isChoirPage ? 620 : 560,
+        child: flowContent,
       ),
     );
   }

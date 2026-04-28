@@ -14,11 +14,11 @@ class LoginStepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color inactive = Theme.of(context)
-        .colorScheme
-        .onSurface
-        .withValues(alpha: 0.20);
+    final Color inactive = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.20);
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: List.generate(totalSteps * 2 - 1, (index) {
         if (index.isOdd) {
           return const SizedBox(width: 20);

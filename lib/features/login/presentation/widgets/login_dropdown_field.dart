@@ -30,7 +30,10 @@ class LoginDropdownField extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color mutedColor = scheme.onSurfaceVariant.withValues(alpha: 0.7);
     final bool isEnabled = options.isNotEmpty;
-    const fieldContentPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 15);
+    const fieldContentPadding = EdgeInsets.symmetric(
+      horizontal: 12,
+      vertical: 15,
+    );
 
     return FormField<String>(
       key: formFieldKey,
@@ -48,7 +51,8 @@ class LoginDropdownField extends StatelessWidget {
               decorationBuilder: (BuildContext context, MenuController _) {
                 assert(debugCheckHasMaterial(context));
                 final Widget rawLeading =
-                    leadingIcon ?? Icon(Icons.arrow_drop_down, color: mutedColor);
+                    leadingIcon ??
+                    Icon(Icons.arrow_drop_down, color: mutedColor);
                 final Widget mutedLeadingIcon = switch (rawLeading) {
                   Icon icon => Icon(
                     icon.icon,

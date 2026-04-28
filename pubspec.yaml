@@ -50,6 +50,7 @@ dependencies:
   rrule: ^0.2.18
   scrollable_positioned_list: ^0.3.8
   open_mail: ^1.2.1
+  blur: ^4.0.2
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +60,29 @@ dev_dependencies:
   # Auch die Dev-Tools müssen mitziehen:
   riverpod_generator: ^4.0.3
   build_runner: ^2.13.1
+  flutter_native_splash: ^2.4.6
+  flutter_launcher_icons: ^0.14.4
+  image: ^4.5.4
+
+flutter_native_splash:
+  color: "#CBBBA0"
+  color_dark: "#111827"
+  android_12:
+    color: "#CBBBA0"
+    color_dark: "#111827"
+  android: true
+  ios: true
+  web: false
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#111827"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  min_sdk_android: 21
+
 flutter:
 
   uses-material-design: true
@@ -66,4 +90,6 @@ flutter:
 
   assets:
     - assets/domspatzen.svg
+    - assets/icon/app_icon_foreground.png
+    - assets/Carusell/
 
