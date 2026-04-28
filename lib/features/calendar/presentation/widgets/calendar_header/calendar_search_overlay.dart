@@ -207,6 +207,7 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+
     final chips = <Widget>[];
 
     chips.add(
