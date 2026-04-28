@@ -68,6 +68,8 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
       titleOverride: roleUi.scaffoldTitle(LoginFlowStep.personalData),
       nextPath: LoginPaths.choir,
       submitBusy: _busy,
+      contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
+      primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       canProceed: () => loginValidateFormAndScrollToFirstError(
         context,
         formKey: _formKey,

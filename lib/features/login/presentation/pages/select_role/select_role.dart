@@ -35,6 +35,8 @@ class _SelectRolePageState extends ConsumerState<SelectRolePage> {
       step: LoginFlowStep.role,
       nextPath: LoginPaths.personalData,
       submitBusy: _busy,
+      contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
+      primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       canProceed: () {
         if (_selectedRole.trim().isEmpty) {
           showAppToast(
@@ -49,9 +51,9 @@ class _SelectRolePageState extends ConsumerState<SelectRolePage> {
       onAsyncProceed: (goNext) async {
         setState(() => _busy = true);
         try {
-          await ref.read(authRepositoryProvider).updateProfile(
-                role: _selectedRole,
-              );
+          await ref
+              .read(authRepositoryProvider)
+              .updateProfile(role: _selectedRole);
           await ref.read(profileGateProvider).refresh();
           if (!context.mounted) return;
           goNext();

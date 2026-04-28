@@ -59,6 +59,9 @@ class LoginStepScaffold extends StatelessWidget {
     this.headerPadding,
   });
 
+  static const double defaultContentMaxWidth = 400;
+  static const double desktopBreakpoint = 800;
+
   final LoginFlowStep step;
   final Widget child;
   final String? nextPath;
@@ -95,31 +98,66 @@ class LoginStepScaffold extends StatelessWidget {
   /// Optional: horizontales/vertikales Padding nur für den Kopfbereich (Titel).
   final EdgeInsetsGeometry? headerPadding;
 
-  List<Widget> _wrappedHeader(BuildContext context) {
-    final List<Widget> items = _header(context);
+  Widget _buildHeader(BuildContext context) {
     final EdgeInsetsGeometry? p = headerPadding;
-    if (p == null) return items;
-    return [
-      Padding(
-        padding: p,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: items,
-        ),
+    Widget header = SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _header(context),
       ),
-    ];
+    );
+    if (p != null) {
+      header = Padding(padding: p, child: header);
+    }
+    return header;
   }
 
-  Widget _wrapContentWidth(Widget child) {
+  Widget _wrapContentWidth(Widget content) {
+    final Widget fullWidthContent = SizedBox(
+      width: double.infinity,
+      child: content,
+    );
     final double? w = contentMaxWidth;
-    if (w == null) return child;
+    if (w == null) return fullWidthContent;
     return Align(
       alignment: Alignment.center,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: w),
-        child: child,
+        child: fullWidthContent,
       ),
     );
+  }
+
+  Widget _buildContentBlock(BuildContext context) {
+    return _wrapContentWidth(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(context),
+          SizedBox(width: double.infinity, child: child),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _wrappedHeader(
+    BuildContext context, {
+    required bool alignWithContent,
+  }) {
+    Widget header = _buildHeader(context);
+    if (alignWithContent) {
+      final double headerMaxWidth =
+          contentMaxWidth ?? primaryButtonMaxWidth ?? defaultContentMaxWidth;
+      header = Align(
+        alignment: Alignment.center,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: headerMaxWidth),
+          child: header,
+        ),
+      );
+    }
+    return [header];
   }
 
   List<Widget> _header(BuildContext context) {
@@ -144,14 +182,25 @@ class LoginStepScaffold extends StatelessWidget {
             fontWeight: FontWeight.w700,
           );
     return [
-      Text(titleOverride ?? step.title, style: titleStyle),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          titleOverride ?? step.title,
+          textAlign: TextAlign.left,
+          style: titleStyle,
+        ),
+      ),
       if (subtitleOverride != null)
-        Text(
-          subtitleOverride!,
-          style: TextStyle(
-            color: scheme.onSurfaceVariant,
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            subtitleOverride!,
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+            ),
           ),
         ),
     ];
@@ -244,59 +293,65 @@ class LoginStepScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String location = GoRouterState.of(context).matchedLocation;
-    final double buttonHorizontalPadding = location == LoginPaths.choir
-        ? 20
-        : 0;
-    final LoginBottomBehavior resolvedBottomBehavior =
-        bottomBehavior ??
-        (footerInScrollArea
-            ? LoginBottomBehavior.footerInScroll
-            : LoginBottomBehavior.footerFixed);
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isDesktop = constraints.maxWidth > desktopBreakpoint;
+        final String location = GoRouterState.of(context).matchedLocation;
+        final double buttonHorizontalPadding = location == LoginPaths.choir
+            ? 20
+            : 0;
+        final LoginBottomBehavior resolvedBottomBehavior =
+            bottomBehavior ??
+            (footerInScrollArea
+                ? LoginBottomBehavior.footerInScroll
+                : LoginBottomBehavior.footerFixed);
 
-    // Footer-Block nur dann im Scrollbereich rendern, wenn gewünscht.
-    final List<Widget> scrollFooterBlock =
-        resolvedBottomBehavior == LoginBottomBehavior.footerInScroll
-        ? _footerBlock()
-        : const [];
+        // Footer-Block nur dann im Scrollbereich rendern, wenn gewünscht.
+        final List<Widget> scrollFooterBlock =
+            resolvedBottomBehavior == LoginBottomBehavior.footerInScroll
+            ? _footerBlock()
+            : const [];
 
-    Widget scrollArea = centerChildInScrollViewport
-        ? LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints viewport) {
-              return _LoginCenteredViewportBody(
-                viewportHeight: viewport.maxHeight,
-                header: _wrappedHeader(context),
-                form: _wrapContentWidth(child),
-                footer: scrollFooterBlock,
+        Widget scrollArea = centerChildInScrollViewport
+            ? LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints viewport) {
+                  return _LoginCenteredViewportBody(
+                    viewportHeight: viewport.maxHeight,
+                    header: _wrappedHeader(
+                      context,
+                      alignWithContent: isDesktop,
+                    ),
+                    form: _wrapContentWidth(child),
+                    footer: scrollFooterBlock,
+                  );
+                },
+              )
+            : LoginScrollSurface(
+                scrollPadding: _scrollPaddingForBottomBehavior(context),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [_buildContentBlock(context), ...scrollFooterBlock],
+                ),
               );
-            },
-          )
-        : LoginScrollSurface(
-            scrollPadding: _scrollPaddingForBottomBehavior(context),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ..._wrappedHeader(context),
-                _wrapContentWidth(child),
-                ...scrollFooterBlock,
-              ],
-            ),
-          );
 
-    return LoginStepLayout(
-      scrollArea: scrollArea,
-      bottomBehavior: resolvedBottomBehavior,
-      footer: footer,
-      footerSpacing: LoginFooterSpacing(
-        lead: footerLeadHeight ?? 160,
-        tail: footerTailHeight ?? 32,
-      ),
-      primaryButtonHeight: _primaryButtonHeight,
-      showPrimaryButton: showPrimaryButton,
-      primaryButton: _buildPrimaryButton(
-        context,
-        horizontalPadding: buttonHorizontalPadding,
-      ),
+        final Widget layout = LoginStepLayout(
+          scrollArea: scrollArea,
+          bottomBehavior: resolvedBottomBehavior,
+          footer: footer,
+          footerSpacing: LoginFooterSpacing(
+            lead: footerLeadHeight ?? 160,
+            tail: footerTailHeight ?? 32,
+          ),
+          primaryButtonHeight: _primaryButtonHeight,
+          showPrimaryButton: showPrimaryButton,
+          primaryButton: _buildPrimaryButton(
+            context,
+            horizontalPadding: buttonHorizontalPadding,
+          ),
+        );
+
+        return layout;
+      },
     );
   }
 }
@@ -351,37 +406,28 @@ class _LoginCenteredViewportBodyState
 
   @override
   Widget build(BuildContext context) {
+    final double topSpacer = _headerHeight <= 0
+        ? 0
+        : ((widget.viewportHeight - _headerHeight) * 0.12).clamp(0.0, 72.0);
+
     return LoginScrollSurface(
-      child: SizedBox(
-        height: widget.viewportHeight,
-        width: double.infinity,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Column(
-              key: _headerKey,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: widget.header,
-            ),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints constraints) {
-                  final double hExp = constraints.maxHeight;
-                  double yAlign = 0;
-                  if (_headerHeight > 0 && hExp > 0) {
-                    // Mitte im Expanded um headerHeight nach oben: y = -2 * header / hExp;
-                    // leichtes + nach unten (Alignment näher an 0).
-                    yAlign = (-2 * _headerHeight / hExp + 0.1).clamp(-1.0, 0.0);
-                  }
-                  return Align(
-                    alignment: Alignment(0, yAlign),
-                    child: widget.form,
-                  );
-                },
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: widget.viewportHeight),
+        child: SizedBox(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                key: _headerKey,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: widget.header,
               ),
-            ),
-            ...widget.footer,
-          ],
+              SizedBox(height: topSpacer),
+              Align(alignment: Alignment.topCenter, child: widget.form),
+              ...widget.footer,
+            ],
+          ),
         ),
       ),
     );

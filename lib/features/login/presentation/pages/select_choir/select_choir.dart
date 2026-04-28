@@ -36,8 +36,7 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
     'Szuczies',
   ];
 
-  String get _choirLabelForCurrentPage =>
-      _choirs[_choirPage % _choirs.length];
+  String get _choirLabelForCurrentPage => _choirs[_choirPage % _choirs.length];
 
   @override
   void initState() {
@@ -55,7 +54,9 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
     // (SyncProviderElement / setValueFromState).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(selectedChoirProvider.notifier).selectChoir(_choirLabelForCurrentPage);
+      ref
+          .read(selectedChoirProvider.notifier)
+          .selectChoir(_choirLabelForCurrentPage);
     });
   }
 
@@ -66,8 +67,9 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
       step: LoginFlowStep.choir,
       titleOverride: roleUi.scaffoldTitle(LoginFlowStep.choir),
       headerPadding: const EdgeInsets.symmetric(horizontal: 20),
-      centerChildInScrollViewport: true,
       submitBusy: _busy,
+      contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
+      primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       canProceed: () {
         final bool isVoiceSelected = _voices.contains(_selectedVoice);
 
@@ -89,12 +91,11 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
           // Immer den sichtbaren Chor mitschicken — sonst bleibt `choir` in der DB
           // leer, das Gate verlangt weiter /login/choir und /calendar wird sofort
           // wieder umgeleitet.
-          final selectedChoir = ref.read(selectedChoirProvider) ??
-              _choirLabelForCurrentPage;
-          final saved = await ref.read(authRepositoryProvider).updateProfile(
-                voice: _selectedVoice,
-                choir: selectedChoir,
-              );
+          final selectedChoir =
+              ref.read(selectedChoirProvider) ?? _choirLabelForCurrentPage;
+          final saved = await ref
+              .read(authRepositoryProvider)
+              .updateProfile(voice: _selectedVoice, choir: selectedChoir);
           if (!saved) {
             throw AuthRepositoryException(
               'Profil konnte nicht gespeichert werden. Bitte erneut versuchen.',
@@ -114,6 +115,7 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const SizedBox(height: 18),
           LoginChoirSelection(
             selectedPage: _choirPage,
             selectedVoice: _selectedVoice,
@@ -129,12 +131,19 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
               _draft.voice = voice;
             }),
           ),
-          Dropdown(
-            selectedVoice: _selectedVoice,
-            onVoiceChanged: (voice) => setState(() {
-              _selectedVoice = voice;
-              _draft.voice = voice;
-            }),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: LoginStepScaffold.defaultContentMaxWidth,
+              ),
+              child: Dropdown(
+                selectedVoice: _selectedVoice,
+                onVoiceChanged: (voice) => setState(() {
+                  _selectedVoice = voice;
+                  _draft.voice = voice;
+                }),
+              ),
+            ),
           ),
           const SizedBox(height: 30),
         ],

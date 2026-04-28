@@ -20,7 +20,7 @@ class CredentialsPage extends ConsumerStatefulWidget {
   const CredentialsPage({super.key, this.initialMode = AccountAuthMode.signUp});
 
   /// Gemeinsame Maximalbreite für Formularfelder und Primärbutton (Tablet/Desktop).
-  static const double maxFormWidth = 400;
+  static const double maxFormWidth = LoginStepScaffold.defaultContentMaxWidth;
 
   final AccountAuthMode initialMode;
 
@@ -188,6 +188,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
       child: Form(
         key: _formKey,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             CredentialFormFields(
               emailController: _emailController,

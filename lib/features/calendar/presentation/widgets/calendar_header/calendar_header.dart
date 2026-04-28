@@ -22,7 +22,7 @@ class CalendarHeader extends ConsumerStatefulWidget {
 }
 
 class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
-  CalendarFormat _calendarFormat = CalendarFormat.week;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
   double _dragDelta = 0;
   bool _isHandlePressed = false;
 
