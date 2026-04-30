@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'calendar_handle.dart';
 import 'custom_table_calendar.dart';
@@ -87,6 +88,9 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainer,
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(15),
+          ),
         ),
         child: Column(
           children: [
@@ -95,6 +99,10 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
                 monthName,
                 style: Theme.of(context).textTheme.headlineLarge,
               ),
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              shadowColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
               backgroundColor: Theme.of(
                 context,
               ).colorScheme.surfaceContainer,

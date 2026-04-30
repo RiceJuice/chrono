@@ -118,13 +118,18 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         _debouncedSearchQuery.isNotEmpty ||
         searchFilters.hasUserOverrides;
     final mediaPadding = MediaQuery.paddingOf(context);
-    // Overlay: SafeArea + 8 + Toolbar + optionale Chip-Zeile + 8
-    const chipRowExtent = 48.0;
+    // Muss zur kompakten Hoehe in CalendarSearchOverlay passen.
+    const searchOverlayTopPadding = 8.0;
+    const searchInputRowHeight = 42.0;
+    const searchInputToChipsGap = 8.0;
+    const chipRowExtent = 38.0;
+    const searchOverlayBottomPadding = 4.0;
     final searchBarBottomInset = mediaPadding.top +
-        8 +
-        kToolbarHeight +
+        searchOverlayTopPadding +
+        searchInputRowHeight +
+        searchInputToChipsGap +
         (_isSearchOpen && hasVisibleSearchFilterChips ? chipRowExtent : 0) +
-        8;
+        searchOverlayBottomPadding;
 
     return Scaffold(
       bottomNavigationBar: MainNavigationBar(),
@@ -139,7 +144,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     onSearchPressed: _openSearch,
                     onFilterPressed: _openCalendarFilters,
                   ),
-                  const Divider(),
                   const Expanded(child: EventList()),
                 ] else ...[
                   Expanded(
