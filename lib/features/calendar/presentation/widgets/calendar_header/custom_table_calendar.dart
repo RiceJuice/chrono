@@ -22,7 +22,8 @@ class CustomTableCalendar extends ConsumerStatefulWidget {
   final ValueChanged<CalendarFormat> onFormatChanged;
 
   @override
-  ConsumerState<CustomTableCalendar> createState() => _CustomTableCalendarState();
+  ConsumerState<CustomTableCalendar> createState() =>
+      _CustomTableCalendarState();
 }
 
 class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
@@ -106,6 +107,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       lastDay: DateTime(2030, 12, 31), //TODO: make this dynamic
       calendarFormat: widget.calendarFormat,
       focusedDay: focusedDay,
+      pageJumpingEnabled: true,
       eventLoader: (day) {
         final marker = dayMarkersByDate[normalizeCalendarDay(day)];
         if (marker == null) return const [];
@@ -162,7 +164,8 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           );
         },
         selectedBuilder: (context, day, focusedDay) {
-          if (!_isSameMonth(day, focusedDay)) {
+          if (widget.calendarFormat == CalendarFormat.month &&
+              !_isSameMonth(day, focusedDay)) {
             return Container(
               margin: const EdgeInsets.all(2),
               alignment: Alignment.center,
@@ -252,9 +255,9 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
             (pendingProgrammaticFocusedDay != null &&
                 isSameDay(pendingProgrammaticFocusedDay, newFocusedDay))) {
           _pendingProgrammaticFocusedDay = null;
-          ref.read(focusedDayProvider.notifier).update(
-            pendingProgrammaticFocusedDay,
-          );
+          ref
+              .read(focusedDayProvider.notifier)
+              .update(pendingProgrammaticFocusedDay);
           return;
         }
         _pendingProgrammaticFocusedDay = null;

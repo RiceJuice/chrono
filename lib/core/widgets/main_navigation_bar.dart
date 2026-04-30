@@ -28,16 +28,16 @@ class MainNavigationBar extends ConsumerWidget {
       children: [
         Divider(
           height: 1,
-          thickness: 0.9,
+          thickness: 0.05,
           color: Theme.of(
             context,
-          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.34),
+          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.08),
         ),
         NavigationBar(
           selectedIndex: currentIndex,
           labelTextStyle: MaterialStateProperty.resolveWith((states) {
             return TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               leadingDistribution: TextLeadingDistribution.even,
               letterSpacing: 0.1,

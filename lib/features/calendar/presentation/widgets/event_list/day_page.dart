@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import '../../../domain/models/calendar_entry.dart';
@@ -17,10 +20,23 @@ class DayPage extends ConsumerStatefulWidget {
 class _DayPageState extends ConsumerState<DayPage> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _nowAnchorKey = GlobalKey();
+  Timer? _showScrollbarTimer;
+  Timer? _hideScrollbarTimer;
   bool _didInitialScroll = false;
+  bool _didScheduleInitialScrollbarReveal = false;
+  bool _isScrollbarThumbVisible = false;
+
+  static const Duration _initialScrollbarRevealDelay = Duration(
+    milliseconds: 560,
+  );
+  static const Duration _initialScrollbarVisibleDuration = Duration(
+    milliseconds: 900,
+  );
 
   @override
   void dispose() {
+    _showScrollbarTimer?.cancel();
+    _hideScrollbarTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -53,13 +69,42 @@ class _DayPageState extends ConsumerState<DayPage> {
     });
   }
 
+  void _scheduleInitialScrollbarReveal() {
+    if (_didScheduleInitialScrollbarReveal) return;
+    _didScheduleInitialScrollbarReveal = true;
+
+    _showScrollbarTimer?.cancel();
+    _hideScrollbarTimer?.cancel();
+    _showScrollbarTimer = Timer(_initialScrollbarRevealDelay, () {
+      if (!mounted) return;
+      setState(() {
+        _isScrollbarThumbVisible = true;
+      });
+      _hideScrollbarTimer = Timer(_initialScrollbarVisibleDuration, () {
+        if (!mounted) return;
+        setState(() {
+          _isScrollbarThumbVisible = false;
+        });
+      });
+    });
+  }
+
   void _jumpToNowAnchor() {
     final anchorContext = _nowAnchorKey.currentContext;
     if (anchorContext == null) return;
-    Scrollable.ensureVisible(
-      anchorContext,
-      alignment: 0.28,
-      duration: Duration.zero,
+    final anchorRenderObject = anchorContext.findRenderObject();
+    if (anchorRenderObject == null || !_scrollController.hasClients) return;
+
+    final viewport = RenderAbstractViewport.maybeOf(anchorRenderObject);
+    if (viewport == null) return;
+
+    final position = _scrollController.position;
+    final targetOffset = viewport.getOffsetToReveal(
+      anchorRenderObject,
+      0.28,
+    ).offset;
+    _scrollController.jumpTo(
+      targetOffset.clamp(position.minScrollExtent, position.maxScrollExtent),
     );
   }
 
@@ -69,9 +114,17 @@ class _DayPageState extends ConsumerState<DayPage> {
   }) {
     final platform = Theme.of(context).platform;
     if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
-      return CupertinoScrollbar(
+      final color = CupertinoDynamicColor.resolve(
+        CupertinoColors.systemGrey3,
+        context,
+      ).withValues(alpha: 0.38);
+      return RawScrollbar(
         controller: _scrollController,
-        thumbVisibility: true,
+        thumbVisibility: _isScrollbarThumbVisible,
+        thumbColor: color,
+        radius: const Radius.circular(8),
+        thickness: 2.5,
+        minThumbLength: 28,
         child: child,
       );
     }
@@ -82,7 +135,7 @@ class _DayPageState extends ConsumerState<DayPage> {
       ),
       child: Scrollbar(
         controller: _scrollController,
-        thumbVisibility: true,
+        thumbVisibility: _isScrollbarThumbVisible,
         child: child,
       ),
     );
@@ -99,13 +152,17 @@ class _DayPageState extends ConsumerState<DayPage> {
       data: (entries) {
         if (entries.isEmpty) {
           _didInitialScroll = false;
+          _didScheduleInitialScrollbarReveal = false;
           return const Center(child: Text('Keine Einträge für diesen Tag.'));
         }
         final isToday = AppDateTime.isTodayLocal(widget.date);
-        final nowAnchorEntryIndex = isToday ? _entryIndexForNowAnchor(entries) : -1;
+        final nowAnchorEntryIndex = isToday
+            ? _entryIndexForNowAnchor(entries)
+            : -1;
         final hasNowAnchor = isToday;
         final nowAnchorBuilderIndex = hasNowAnchor ? nowAnchorEntryIndex : -1;
         _scheduleInitialScrollToNowAnchor();
+        _scheduleInitialScrollbarReveal();
         final hasLessonEndingAt1015 = entries.any(_isLessonEndingAt1015);
         int lessonCounter = 0;
         int? thirdLessonIndex;
@@ -128,8 +185,9 @@ class _DayPageState extends ConsumerState<DayPage> {
               if (hasNowAnchor && index == nowAnchorBuilderIndex) {
                 return SizedBox(key: _nowAnchorKey, height: 1);
               }
-              final entryIndex =
-                  hasNowAnchor && index > nowAnchorBuilderIndex ? index - 1 : index;
+              final entryIndex = hasNowAnchor && index > nowAnchorBuilderIndex
+                  ? index - 1
+                  : index;
               final entry = entries[entryIndex];
               final hasFollowingEntry = entryIndex < entries.length - 1;
               final needsFallbackGapAfterThirdLesson =

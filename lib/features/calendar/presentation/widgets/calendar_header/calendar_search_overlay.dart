@@ -42,6 +42,12 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
     setState(() {});
   }
 
+  void _handleQueryChanged(String value) {
+    widget.onQueryChanged(value);
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   void didUpdateWidget(covariant CalendarSearchOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -67,11 +73,19 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final inputTheme = theme.inputDecorationTheme;
-    final searchContentColor =
-        inputTheme.focusedBorder?.borderSide.color ??
-        inputTheme.hintStyle?.color ??
-        theme.colorScheme.onSurfaceVariant;
+    final searchTextColor = scheme.onSurface.withOpacity(0.96);
+    final searchHintAndIconColor = scheme.onSurface.withOpacity(0.7);
+    final searchBackgroundColor = scheme.brightness == Brightness.dark
+        ? Color.alphaBlend(
+            Colors.white.withValues(alpha: 0.12),
+            scheme.surfaceContainer,
+          )
+        : Color.alphaBlend(
+            Colors.black.withValues(alpha: 0.10),
+            scheme.surfaceContainer,
+          );
     const searchIconAndTextSize = 16.0;
 
     final filters = ref.watch(searchFiltersProvider);
@@ -89,16 +103,22 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
           child: Material(
             elevation: 0,
             color: Theme.of(context).colorScheme.surfaceContainer,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(
+                bottom: Radius.circular(15),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
             child: SafeArea(
               bottom: false,
               child: SizedBox(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 8),
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
-                        height: kToolbarHeight,
+                        height: 42,
                         child: Center(
                           child: Row(
                             children: [
@@ -125,6 +145,14 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                                       ),
                                 style: const ButtonStyle(
                                   animationDuration: Duration.zero,
+                                  padding: WidgetStatePropertyAll(
+                                    EdgeInsets.zero,
+                                  ),
+                                  minimumSize: WidgetStatePropertyAll(
+                                    Size(38, 38),
+                                  ),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                               ),
                               Expanded(
@@ -132,22 +160,96 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                                   controller: _searchController,
                                   focusNode: _searchFocusNode,
                                   textInputAction: TextInputAction.search,
-                                  onChanged: widget.onQueryChanged,
-                                  style: const TextStyle(
+                                  onChanged: _handleQueryChanged,
+                                  style: TextStyle(
                                     fontSize: searchIconAndTextSize,
+                                    color: searchTextColor,
                                   ),
                                   decoration: InputDecoration(
+                                    isDense: true,
+                                    filled: true,
+                                    fillColor: searchBackgroundColor,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 6,
+                                    ),
                                     prefixIcon: Icon(
                                       Icons.search,
                                       size: 18,
-                                      color: searchContentColor,
+                                      color: searchHintAndIconColor,
                                     ),
+                                    prefixIconConstraints:
+                                        const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
                                     hintText: 'Finde den richtigen Termin',
-                                    hintStyle: inputTheme.hintStyle?.copyWith(
-                                      fontSize: searchIconAndTextSize,
-                                      color: searchContentColor,
+                                    hintStyle:
+                                        (inputTheme.hintStyle ?? const TextStyle())
+                                            .copyWith(
+                                              fontSize: searchIconAndTextSize,
+                                              color: searchHintAndIconColor,
+                                            ),
+                                    suffixIcon: _searchController.text.isEmpty
+                                        ? null
+                                        : Padding(
+                                            padding: const EdgeInsets.only(
+                                              right: 6,
+                                            ),
+                                            child: IconButton(
+                                              onPressed: () {
+                                                _searchController.clear();
+                                                _handleQueryChanged('');
+                                              },
+                                              icon: Icon(
+                                                Icons.close_rounded,
+                                                size: 14,
+                                                color: theme.colorScheme
+                                                    .surfaceContainerHighest,
+                                              ),
+                                              style: ButtonStyle(
+                                                backgroundColor:
+                                                    WidgetStatePropertyAll(
+                                                      searchHintAndIconColor,
+                                                    ),
+                                                padding:
+                                                    const WidgetStatePropertyAll(
+                                                      EdgeInsets.zero,
+                                                    ),
+                                                minimumSize:
+                                                    const WidgetStatePropertyAll(
+                                                      Size(18, 18),
+                                                    ),
+                                                maximumSize:
+                                                    const WidgetStatePropertyAll(
+                                                      Size(18, 18),
+                                                    ),
+                                                shape:
+                                                    const WidgetStatePropertyAll(
+                                                      CircleBorder(),
+                                                    ),
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                              ),
+                                            ),
+                                          ),
+                                    suffixIconConstraints:
+                                        const BoxConstraints(
+                                          minWidth: 26,
+                                          minHeight: 22,
+                                        ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
                                     ),
-                                    border: InputBorder.none,
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -155,11 +257,22 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                                 onPressed: widget.onFilterPressed,
                                 tooltip: 'Filter',
                                 icon: const Icon(Icons.filter_list_rounded),
+                                style: const ButtonStyle(
+                                  padding: WidgetStatePropertyAll(
+                                    EdgeInsets.zero,
+                                  ),
+                                  minimumSize: WidgetStatePropertyAll(
+                                    Size(36, 36),
+                                  ),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
                               ),
                             ],
                           ),
                         ),
                       ),
+                      const SizedBox(height: 8),
                       _SearchOverlayActiveFiltersBar(
                         filters: filters,
                         onClearFilters: filtersNotifier.resetToDefaults,
@@ -212,15 +325,16 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
 
     chips.add(
       Padding(
-        padding: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.only(right: 6),
         child: SizedBox.square(
-          dimension: 36,
+          dimension: 30,
           child: InputChip(
             tooltip: 'Alle Filter löschen',
-            label: const Icon(Icons.close_rounded, size: 18),
+            label: const Icon(Icons.close_rounded, size: 16),
             shape: const CircleBorder(),
             labelPadding: EdgeInsets.zero,
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(4),
+            visualDensity: VisualDensity.compact,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             onPressed: () => _handleChipInteraction(onClearFilters),
           ),
@@ -231,9 +345,13 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     for (final choir in filters.choirDeviations) {
       chips.add(
         Padding(
-          padding: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.only(right: 6),
           child: InputChip(
             label: Text('Chor: ${_formatFilterChipValue(choir)}'),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
             onDeleted: () => _handleChipInteraction(() => onRemoveChoir(choir)),
           ),
         ),
@@ -242,9 +360,13 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     for (final voice in filters.voiceDeviations) {
       chips.add(
         Padding(
-          padding: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.only(right: 6),
           child: InputChip(
             label: Text('Stimme: ${_formatFilterChipValue(voice)}'),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
             onDeleted: () => _handleChipInteraction(() => onRemoveVoice(voice)),
           ),
         ),
@@ -253,9 +375,13 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     for (final className in filters.classNameDeviations) {
       chips.add(
         Padding(
-          padding: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.only(right: 6),
           child: InputChip(
             label: Text('Klasse: ${_formatFilterChipValue(className)}'),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
             onDeleted: () =>
                 _handleChipInteraction(() => onRemoveClass(className)),
           ),
@@ -265,11 +391,15 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     for (final schoolTrack in filters.schoolTrackDeviations) {
       chips.add(
         Padding(
-          padding: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.only(right: 6),
           child: InputChip(
             label: Text(
               'Schulzweig: ${_formatSchoolTrackFilterChipValue(schoolTrack)}',
             ),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
             onDeleted: () =>
                 _handleChipInteraction(() => onRemoveSchoolTrack(schoolTrack)),
           ),
@@ -282,7 +412,7 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 12, 0),
+      padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
       child: Align(
         alignment: Alignment.centerLeft,
         child: SingleChildScrollView(
