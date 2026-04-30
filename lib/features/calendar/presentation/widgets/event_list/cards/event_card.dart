@@ -1,5 +1,6 @@
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
+import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +26,11 @@ class EventCard extends StatefulWidget {
 }
 
 class _EventCardState extends State<EventCard> {
+  static const _compactTextHeightBehavior = TextHeightBehavior(
+    applyHeightToFirstAscent: false,
+    applyHeightToLastDescent: false,
+  );
+
   static final CalendarImageUrlResolver _imageUrlResolver =
       CalendarImageUrlResolver(supabase: Supabase.instance.client);
   late Future<String?> _firstImageUrlFuture;
@@ -112,18 +118,35 @@ class _EventCardState extends State<EventCard> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (entry.choir != BackendChoir.unknown) ...[
+                        Text(
+                          entry.choir.displayLabel,
+                          textHeightBehavior: _compactTextHeightBehavior,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: style.secondaryTextColor.withValues(alpha: 0.75),
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                      ],
                       Text(
                         entry.eventName,
+                        textHeightBehavior: _compactTextHeightBehavior,
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: style.primaryTextColor,
+                          height: 1,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       if ((entry.description ?? '').trim().isNotEmpty) ...[
                         const SizedBox(height: AppDimensions.eventCardDescriptionSpacing),
                         Text(
                           entry.description!,
+                          textHeightBehavior: _compactTextHeightBehavior,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: style.secondaryTextColor,
+                            height: 1,
                           ),
                         ),
                       ],

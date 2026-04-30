@@ -164,13 +164,13 @@ class AppComponentThemes {
       backgroundColor: scheme.surfaceContainer,
       indicatorColor: Colors.transparent,
       elevation: 0,
-      height: 50,
+      height: 44,
       overlayColor: WidgetStateProperty.all(Colors.transparent),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
           return TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
             color: scheme.primary,
           );
         }

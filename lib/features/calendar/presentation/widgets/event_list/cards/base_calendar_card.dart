@@ -14,6 +14,9 @@ class BaseCalendarCard extends StatelessWidget {
   final Color? backgroundColor;
   final EdgeInsetsGeometry contentPadding;
   final Widget? leadingIndicator; // Für den farbigen Strich bei Events
+  final bool showChoirAboveTitle;
+  final double? titleFontSize;
+  final FontWeight? titleFontWeight;
 
   const BaseCalendarCard({
     super.key,
@@ -25,6 +28,9 @@ class BaseCalendarCard extends StatelessWidget {
       vertical: 6,
     ),
     this.leadingIndicator,
+    this.showChoirAboveTitle = false,
+    this.titleFontSize,
+    this.titleFontWeight,
   });
 
   @override
@@ -68,6 +74,9 @@ class BaseCalendarCard extends StatelessWidget {
                   entry: entry,
                   primaryTextColor: style.primaryTextColor,
                   secondaryTextColor: style.secondaryTextColor,
+                  showChoirAboveTitle: showChoirAboveTitle,
+                  titleFontSize: titleFontSize,
+                  titleFontWeight: titleFontWeight,
                 ),
               ),
             ],

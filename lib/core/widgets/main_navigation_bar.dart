@@ -26,9 +26,23 @@ class MainNavigationBar extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Divider(),
+        Divider(
+          height: 1,
+          thickness: 0.9,
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.34),
+        ),
         NavigationBar(
           selectedIndex: currentIndex,
+          labelTextStyle: MaterialStateProperty.resolveWith((states) {
+            return TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              leadingDistribution: TextLeadingDistribution.even,
+              letterSpacing: 0.1,
+            );
+          }),
           onDestinationSelected: (int index) {
             final target = index == 0 ? _calendarPath : _settingsPath;
             if (target == _calendarPath && location == _calendarPath) {
@@ -48,8 +62,8 @@ class MainNavigationBar extends ConsumerWidget {
                 offset: const Offset(0, _iconLabelSpacingOffset),
                 child: SvgPicture.asset(
                   'assets/domspatzen.svg',
-                  height: 24,
-                  width: 24,
+                  height: 22,
+                  width: 22,
                   colorFilter: currentIndex != 0
                       ? ColorFilter.mode(
                           Theme.of(context).colorScheme.onSurfaceVariant,
@@ -68,6 +82,7 @@ class MainNavigationBar extends ConsumerWidget {
                   color: currentIndex == 1
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 22,
                 ),
               ),
               label: 'Dein Chrono',

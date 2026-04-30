@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
 import '../../../../core/database/database_provider.dart';
+import '../../../../core/time/app_date_time.dart';
 import '../../domain/models/calendar_entry.dart';
 import '../../domain/repositories/calendar_repository.dart';
 
@@ -17,13 +18,11 @@ part 'calendar_providers.g.dart';
 class SelectedDay extends _$SelectedDay {
   @override
   DateTime build() {
-    final now = DateTime.now().toLocal();
-    return DateTime(now.year, now.month, now.day);
+    return AppDateTime.todayLocal();
   }
 
   void update(DateTime newDate) {
-    final localDay = newDate.toLocal();
-    final next = DateTime(localDay.year, localDay.month, localDay.day);
+    final next = AppDateTime.localDay(newDate);
     if (state.year == next.year &&
         state.month == next.month &&
         state.day == next.day) {
@@ -38,13 +37,11 @@ class SelectedDay extends _$SelectedDay {
 class FocusedDay extends _$FocusedDay {
   @override
   DateTime build() {
-    final now = DateTime.now().toLocal();
-    return DateTime(now.year, now.month, now.day);
+    return AppDateTime.todayLocal();
   }
 
   void update(DateTime newDay) {
-    final localDay = newDay.toLocal();
-    state = DateTime(localDay.year, localDay.month, localDay.day);
+    state = AppDateTime.localDay(newDay);
   }
 }
 

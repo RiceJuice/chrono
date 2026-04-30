@@ -17,9 +17,9 @@ class LoginSplitScreen extends StatelessWidget {
     this.contentFlex = 5,
     this.visualFlex = 6,
     this.contentMaxWidth = 560,
-    this.gap = 28,
-    this.padding = const EdgeInsets.all(24),
-    this.visualBorderRadius = const BorderRadius.all(Radius.circular(32)),
+    this.gap = 0,
+    this.padding = EdgeInsets.zero,
+    this.visualBorderRadius = BorderRadius.zero,
   });
 
   static const double defaultBreakpoint = 900;
@@ -117,23 +117,10 @@ class LoginSplitPlaceholderVisual extends StatelessWidget {
             ),
           ),
           Center(
-            child: FractionallySizedBox(
-              widthFactor: 0.72,
-              heightFactor: 0.62,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: scheme.surface.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(36),
-                  border: Border.all(
-                    color: scheme.onPrimaryContainer.withValues(alpha: 0.16),
-                  ),
-                ),
-                child: Icon(
-                  Icons.image_outlined,
-                  size: 92,
-                  color: scheme.onPrimaryContainer.withValues(alpha: 0.36),
-                ),
-              ),
+            child: Icon(
+              Icons.image_outlined,
+              size: 164,
+              color: scheme.onPrimaryContainer.withValues(alpha: 0.30),
             ),
           ),
         ],

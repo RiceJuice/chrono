@@ -1,10 +1,9 @@
+import 'package:chronoapp/core/time/app_date_time.dart';
+
 import '../../../domain/models/calendar_entry.dart';
 
 class SearchDaySection {
-  const SearchDaySection({
-    required this.day,
-    required this.entries,
-  });
+  const SearchDaySection({required this.day, required this.entries});
 
   final DateTime day;
   final List<CalendarEntry> entries;
@@ -23,8 +22,7 @@ class SearchResultsSections {
 }
 
 DateTime _dayKey(DateTime date) {
-  final local = date.toLocal();
-  return DateTime(local.year, local.month, local.day);
+  return AppDateTime.localDay(date);
 }
 
 SearchResultsSections buildSearchResultsSections({
@@ -39,8 +37,7 @@ SearchResultsSections buildSearchResultsSections({
     );
   }
 
-  final nowLocal = now ?? DateTime.now();
-  final today = _dayKey(nowLocal);
+  final today = AppDateTime.todayLocal(now: now);
   final sortedEntries = List<CalendarEntry>.from(entries)
     ..sort((a, b) => a.startTime.compareTo(b.startTime));
 

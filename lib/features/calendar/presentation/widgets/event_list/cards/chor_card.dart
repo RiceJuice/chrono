@@ -19,8 +19,11 @@ class ChorCard extends StatelessWidget {
     return BaseCalendarCard(
       entry: entry,
       applyPastStyling: applyPastStyling,
-      backgroundColor: scheme.secondary,
-      contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 14),
+      showChoirAboveTitle: true,
+      titleFontSize: 17,
+      titleFontWeight: FontWeight.w500,
+      backgroundColor: scheme.primary,
+      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       leadingIndicator: Padding(
         padding: const EdgeInsets.only(right: AppSpacing.m),
         child: Container(

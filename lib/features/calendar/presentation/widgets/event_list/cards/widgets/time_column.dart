@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:flutter/material.dart';
 
@@ -9,19 +10,22 @@ class TimeColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String formatTime(DateTime time) =>
-        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-
-    final textStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-      color: textColor,
-    );
+    final textStyle = Theme.of(
+      context,
+    ).textTheme.bodyMedium?.copyWith(color: textColor);
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(formatTime(entry.startTime), style: textStyle),
-        Text(formatTime(entry.endTime), style: textStyle),
+        Text(
+          AppDateTime.formatLocalHourMinute(entry.startTime),
+          style: textStyle,
+        ),
+        Text(
+          AppDateTime.formatLocalHourMinute(entry.endTime),
+          style: textStyle,
+        ),
       ],
     );
   }

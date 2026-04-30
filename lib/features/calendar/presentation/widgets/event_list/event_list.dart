@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chronoapp/core/time/app_date_time.dart';
 import '../../providers/calendar_providers.dart';
 import 'day_page.dart';
 import 'event_list_navigation_logic.dart';
@@ -21,6 +22,7 @@ class _EventListState extends ConsumerState<EventList>
   late final EventListNavigationLogic _navigationLogic;
   late final AnimationController _transitionController;
   _TransitionData? _activeTransition;
+  int? _pendingProgrammaticPage;
 
   static const double _scrollVelocityBlend = 0.22;
   double _horizontalVelocityEma = 0;
@@ -52,8 +54,8 @@ class _EventListState extends ConsumerState<EventList>
           final dt = dtMicros / Duration.microsecondsPerSecond;
           if (dt > 1e-6) {
             final sample = notification.scrollDelta! / dt;
-            _horizontalVelocityEma = _horizontalVelocityEma *
-                    (1 - _scrollVelocityBlend) +
+            _horizontalVelocityEma =
+                _horizontalVelocityEma * (1 - _scrollVelocityBlend) +
                 sample * _scrollVelocityBlend;
           }
         }
@@ -72,10 +74,10 @@ class _EventListState extends ConsumerState<EventList>
 
     if (notification is ScrollEndNotification) {
       final sign = _horizontalVelocityEma >= 0 ? 1.0 : -1.0;
-      _latchedNormVelocity =
-          (sign * _peakAbsNormVelocity).clamp(-14.0, 14.0);
-      _latchedVelocityValidUntil =
-          DateTime.now().add(const Duration(milliseconds: 240));
+      _latchedNormVelocity = (sign * _peakAbsNormVelocity).clamp(-14.0, 14.0);
+      _latchedVelocityValidUntil = DateTime.now().add(
+        const Duration(milliseconds: 240),
+      );
       _horizontalVelocityEma = 0;
       _lastVelocitySampleWallMicros = null;
       _peakAbsNormVelocity = 0;
@@ -96,10 +98,7 @@ class _EventListState extends ConsumerState<EventList>
     return v;
   }
 
-  void _startOverlayTransition({
-    required int fromIndex,
-    required int toIndex,
-  }) {
+  void _startOverlayTransition({required int fromIndex, required int toIndex}) {
     final transition = _TransitionData(
       fromDate: _navigationLogic.dateFromIndex(fromIndex),
       toDate: _navigationLogic.dateFromIndex(toIndex),
@@ -123,10 +122,7 @@ class _EventListState extends ConsumerState<EventList>
       0,
       1,
       simulationVelocity,
-      tolerance: const Tolerance(
-        velocity: 1 / 1000,
-        distance: 1 / 1000,
-      ),
+      tolerance: const Tolerance(velocity: 1 / 1000, distance: 1 / 1000),
     );
 
     _transitionController.animateWith(simulation).whenComplete(() {
@@ -142,8 +138,7 @@ class _EventListState extends ConsumerState<EventList>
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now();
-    final normalizedToday = DateTime(today.year, today.month, today.day);
+    final normalizedToday = AppDateTime.todayLocal();
     _startDate = DateTime(
       normalizedToday.year,
       normalizedToday.month,
@@ -155,7 +150,9 @@ class _EventListState extends ConsumerState<EventList>
       duration: const Duration(milliseconds: 120),
     );
 
-    final initialDay = _navigationLogic.normalize(ref.read(selectedDayProvider));
+    final initialDay = _navigationLogic.normalize(
+      ref.read(selectedDayProvider),
+    );
     final initialIndex = _navigationLogic.indexFromDate(initialDay);
     _currentIndex = initialIndex;
     _pageController = PageController(initialPage: initialIndex);
@@ -184,6 +181,7 @@ class _EventListState extends ConsumerState<EventList>
       }
 
       // Logik bleibt sofortig/sprungbasiert, Animation läuft entkoppelt als Overlay.
+      _pendingProgrammaticPage = targetIndex;
       _pageController.jumpToPage(targetIndex);
       _currentIndex = targetIndex;
     });
@@ -199,6 +197,12 @@ class _EventListState extends ConsumerState<EventList>
             ),
             onPageChanged: (index) {
               _currentIndex = index;
+              if (_pendingProgrammaticPage != null &&
+                  _pendingProgrammaticPage == index) {
+                _pendingProgrammaticPage = null;
+                return;
+              }
+              _pendingProgrammaticPage = null;
               final newDate = _navigationLogic.dateFromIndex(index);
               if (_navigationLogic.normalize(ref.read(selectedDayProvider)) !=
                   newDate) {
@@ -207,7 +211,10 @@ class _EventListState extends ConsumerState<EventList>
             },
             itemBuilder: (context, index) {
               final dateForPage = _navigationLogic.dateFromIndex(index);
-              return DayPage(date: dateForPage);
+              return DayPage(
+                key: ValueKey<DateTime>(dateForPage),
+                date: dateForPage,
+              );
             },
           ),
         ),
@@ -236,10 +243,10 @@ class _SnappyPageViewPhysics extends ScrollPhysics {
 
   @override
   SpringDescription get spring => SpringDescription.withDampingRatio(
-        mass: 0.30,
-        stiffness: 270.0,
-        ratio: 1.07,
-      );
+    mass: 0.30,
+    stiffness: 270.0,
+    ratio: 1.07,
+  );
 }
 
 class _TransitionData {

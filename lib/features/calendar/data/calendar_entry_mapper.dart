@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sqlite3/common.dart' as sqlite;
 
 import '../../../core/database/backend_enums.dart';
+import '../../../core/time/app_date_time.dart';
 import '../domain/models/calendar_entry.dart';
 
 class CalendarEntryMapper {
@@ -94,7 +95,9 @@ class CalendarEntryMapper {
     final imagePaths = _decodeStringList(_rowValue(row, 'image_paths'));
 
     final rowId = _rowValue(row, 'id').toString();
-    final parsedRecurrenceId = _parseDateTimeOrNull(_rowValue(row, 'recurrence_id'));
+    final parsedRecurrenceId = _parseDateTimeOrNull(
+      _rowValue(row, 'recurrence_id'),
+    );
     final parsedSeriesId = forceSeriesIdFromId
         ? rowId
         : _asString(_rowValue(row, 'series_id'));
@@ -143,15 +146,13 @@ class CalendarEntryMapper {
     if (s == null || s.isEmpty) {
       throw FormatException('start/end_time fehlt oder leer');
     }
-    final normalized = s.contains('T') ? s : s.replaceFirst(' ', 'T');
-    return DateTime.parse(normalized);
+    return AppDateTime.parseDatabaseDateTime(s);
   }
 
   static DateTime? _parseDateTimeOrNull(Object? value) {
     final s = _asString(value);
     if (s == null || s.isEmpty) return null;
-    final normalized = s.contains('T') ? s : s.replaceFirst(' ', 'T');
-    return DateTime.parse(normalized);
+    return AppDateTime.parseDatabaseDateTime(s);
   }
 
   static DateTime _parseDate(Object? value) {
@@ -162,9 +163,8 @@ class CalendarEntryMapper {
     return DateTime.parse(s);
   }
 
-  static ({int hour, int minute, int second, int millisecond, int microsecond}) _parseTime(
-    Object? value,
-  ) {
+  static ({int hour, int minute, int second, int millisecond, int microsecond})
+  _parseTime(Object? value) {
     final s = _asString(value);
     if (s == null || s.isEmpty) {
       throw FormatException('start/end_time (TIME) fehlt oder leer');
@@ -201,15 +201,13 @@ class CalendarEntryMapper {
     DateTime date,
     ({int hour, int minute, int second, int millisecond, int microsecond}) time,
   ) {
-    return DateTime.utc(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-      time.second,
-      time.millisecond,
-      time.microsecond,
+    return AppDateTime.localWallTimeAsUtcInstant(
+      date,
+      hour: time.hour,
+      minute: time.minute,
+      second: time.second,
+      millisecond: time.millisecond,
+      microsecond: time.microsecond,
     );
   }
 
@@ -229,7 +227,7 @@ class CalendarEntryMapper {
         raw.contains('T') || (raw.contains(' ') && raw.contains('-'));
     if (looksLikeDateTime) {
       final parsed = _parseDateTime(raw);
-      return parsed.isUtc ? parsed : parsed.toUtc();
+      return AppDateTime.asUtcInstant(parsed);
     }
 
     final time = _parseTime(raw);
@@ -318,7 +316,10 @@ class CalendarEntryMapper {
   static List<String>? _decodeStringList(Object? raw) {
     if (raw == null) return null;
     if (raw is List) {
-      final out = raw.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+      final out = raw
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList();
       return out.isEmpty ? null : out;
     }
 
@@ -330,7 +331,10 @@ class CalendarEntryMapper {
       try {
         final decoded = jsonDecode(text);
         if (decoded is List) {
-          final out = decoded.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+          final out = decoded
+              .map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList();
           return out.isEmpty ? null : out;
         }
       } catch (_) {
