@@ -1,3 +1,5 @@
+import 'package:chronoapp/core/time/app_date_time.dart';
+
 import '../../../../domain/models/calendar_entry.dart';
 
 class CalendarEntryTemporalState {
@@ -13,14 +15,9 @@ class CalendarEntryTemporalState {
     CalendarEntry entry, {
     DateTime? now,
   }) {
-    final current = now ?? DateTime.now();
-    final localNowDay = DateTime(current.year, current.month, current.day);
-    final localStart = entry.startTime.toLocal();
-    final localEntryDay = DateTime(localStart.year, localStart.month, localStart.day);
-
     return CalendarEntryTemporalState(
-      isPast: entry.endTime.isBefore(current),
-      isToday: localEntryDay == localNowDay,
+      isPast: AppDateTime.isPastInstant(entry.endTime, now: now),
+      isToday: AppDateTime.isTodayLocal(entry.startTime, now: now),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:flutter/material.dart';
 import '../../../domain/models/calendar_entry.dart';
 
@@ -8,7 +9,8 @@ const _minimumTimelineDurationMinutes = 10 * 60;
 const _minimumSegmentWidth = 10.0;
 const _pillContentInset = 1.5;
 
-DateTime normalizeCalendarDay(DateTime day) => DateTime(day.year, day.month, day.day);
+DateTime normalizeCalendarDay(DateTime day) =>
+    DateTime(day.year, day.month, day.day);
 
 Map<DateTime, CalendarDayMarkerData> buildCalendarDayMarkers(
   List<CalendarEntry> entries,
@@ -17,11 +19,12 @@ Map<DateTime, CalendarDayMarkerData> buildCalendarDayMarkers(
   final idsByDay = <DateTime, Set<String>>{};
 
   for (final entry in entries) {
-    if (entry.type == CalendarEntryType.lesson || entry.type == CalendarEntryType.meal) {
+    if (entry.type == CalendarEntryType.lesson ||
+        entry.type == CalendarEntryType.meal) {
       continue;
     }
-    final start = entry.startTime.toLocal();
-    final end = entry.endTime.toLocal();
+    final start = AppDateTime.toLocal(entry.startTime);
+    final end = AppDateTime.toLocal(entry.endTime);
     if (!end.isAfter(start)) continue;
 
     var dayStart = normalizeCalendarDay(start);
@@ -32,17 +35,23 @@ Map<DateTime, CalendarDayMarkerData> buildCalendarDayMarkers(
       final effectiveEnd = end.isBefore(nextDayStart) ? end : nextDayStart;
       final startMinute = effectiveStart.difference(dayStart).inMinutes;
       final endMinute = effectiveEnd.difference(dayStart).inMinutes;
-      final clippedStartMinute = startMinute.clamp(0, Duration.minutesPerDay).toInt();
-      final clippedEndMinute = endMinute.clamp(0, Duration.minutesPerDay).toInt();
+      final clippedStartMinute = startMinute
+          .clamp(0, Duration.minutesPerDay)
+          .toInt();
+      final clippedEndMinute = endMinute
+          .clamp(0, Duration.minutesPerDay)
+          .toInt();
 
       if (clippedEndMinute > clippedStartMinute) {
-        rawSegmentsByDay.putIfAbsent(dayStart, () => <_RawTimelineSegment>[]).add(
-          _RawTimelineSegment(
-            type: entry.type,
-            startMinute: clippedStartMinute,
-            endMinute: clippedEndMinute,
-          ),
-        );
+        rawSegmentsByDay
+            .putIfAbsent(dayStart, () => <_RawTimelineSegment>[])
+            .add(
+              _RawTimelineSegment(
+                type: entry.type,
+                startMinute: clippedStartMinute,
+                endMinute: clippedEndMinute,
+              ),
+            );
         idsByDay.putIfAbsent(dayStart, () => <String>{}).add(entry.id);
       }
       dayStart = nextDayStart;
@@ -232,35 +241,41 @@ class CalendarDayMarkerPill extends StatelessWidget {
             return ClipRRect(
               borderRadius: BorderRadius.circular(999),
               child: Stack(
-                children: marker.segments.map((segment) {
-                  final left = maxWidth *
-                      (segment.startMinute / marker.timelineDurationMinutes);
-                  final segmentWidth = maxWidth *
-                      (segment.durationMinutes / marker.timelineDurationMinutes);
-                  final availableWidth = math.max(0.0, maxWidth - left);
-                  if (availableWidth <= 0) return const SizedBox.shrink();
-                  final width = math.min(
-                    math.max(segmentWidth, _minimumSegmentWidth),
-                    availableWidth,
-                  );
+                children: marker.segments
+                    .map((segment) {
+                      final left =
+                          maxWidth *
+                          (segment.startMinute /
+                              marker.timelineDurationMinutes);
+                      final segmentWidth =
+                          maxWidth *
+                          (segment.durationMinutes /
+                              marker.timelineDurationMinutes);
+                      final availableWidth = math.max(0.0, maxWidth - left);
+                      if (availableWidth <= 0) return const SizedBox.shrink();
+                      final width = math.min(
+                        math.max(segmentWidth, _minimumSegmentWidth),
+                        availableWidth,
+                      );
 
-                  return Positioned(
-                    left: left,
-                    top: 0,
-                    bottom: 0,
-                    width: width,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: _cardBackgroundForType(
-                          context,
-                          segment.type,
+                      return Positioned(
+                        left: left,
+                        top: 0,
+                        bottom: 0,
+                        width: width,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: _cardBackgroundForType(
+                              context,
+                              segment.type,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const SizedBox.expand(),
                         ),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const SizedBox.expand(),
-                    ),
-                  );
-                }).toList(growable: false),
+                      );
+                    })
+                    .toList(growable: false),
               ),
             );
           },

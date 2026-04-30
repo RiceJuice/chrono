@@ -150,7 +150,7 @@ bool Win32Window::Create(const std::wstring& title,
 }
 
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+  return ShowWindow(window_handle_, SW_SHOWMAXIMIZED);
 }
 
 // static
@@ -206,6 +206,12 @@ Win32Window::MessageHandler(HWND hwnd,
       }
       return 0;
     }
+    case WM_KEYDOWN:
+      if (wparam == VK_F11) {
+        ShowWindow(hwnd, IsZoomed(hwnd) ? SW_RESTORE : SW_MAXIMIZE);
+        return 0;
+      }
+      break;
 
     case WM_ACTIVATE:
       if (child_content_ != nullptr) {

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
+import '../../../../core/time/app_date_time.dart';
 import '../../domain/models/calendar_entry.dart';
 import '../providers/calendar_providers.dart';
 import '../theme/calendar_presentation_theme.dart';
@@ -187,11 +188,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   }
 
   bool _isToday(DateTime day) {
-    final local = day.toLocal();
-    final now = DateTime.now();
-    return local.year == now.year &&
-        local.month == now.month &&
-        local.day == now.day;
+    return AppDateTime.isTodayLocal(day);
   }
 
   void _dismissSearchKeyboard() {
@@ -202,11 +199,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   }
 
   bool _isPastDay(DateTime day) {
-    final local = day.toLocal();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final dayOnly = DateTime(local.year, local.month, local.day);
-    return dayOnly.isBefore(today);
+    return AppDateTime.isBeforeTodayLocal(day);
   }
 
   Widget _buildDayHeader({
@@ -325,11 +318,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
-    final aLocal = a.toLocal();
-    final bLocal = b.toLocal();
-    return aLocal.year == bLocal.year &&
-        aLocal.month == bLocal.month &&
-        aLocal.day == bLocal.day;
+    return AppDateTime.isSameLocalDay(a, b);
   }
 
   String _filtersSignature(CalendarFiltersState filters) {

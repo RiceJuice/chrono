@@ -3,6 +3,7 @@ import 'package:rrule/rrule.dart';
 import 'package:sqlite3/common.dart';
 
 import '../../../../core/database/powersync_schema.dart';
+import '../../../../core/time/app_date_time.dart';
 import '../../data/calendar_entry_mapper.dart';
 import '../models/calendar_entry.dart';
 
@@ -12,22 +13,8 @@ class CalendarRepository {
   final PowerSyncDatabase _db;
   static const Duration _searchHorizon = Duration(days: 365);
 
-  /// Start/Ende des **lokalen** Kalendertags als UTC-Instants.
-  ///
-  /// Filterung per SQLite `julianday()`, nicht per String-Vergleich: sonst schlagen
-  /// z. B. `2026-04-10 16:00:00+00` (Leerzeichen) vs `2026-04-10T00:00:00.000Z`
-  /// lexikographisch fehl (Leerzeichen < „T“) und Zeilen verschwinden.
-  static (DateTime startUtc, DateTime endExclusiveUtc) _dayBoundsUtcForLocalDay(
-    DateTime date,
-  ) {
-    final local = date.toLocal();
-    final startLocal = DateTime(local.year, local.month, local.day);
-    final endLocal = startLocal.add(const Duration(days: 1));
-    return (startLocal.toUtc(), endLocal.toUtc());
-  }
-
   Stream<List<CalendarEntry>> watchEntriesForDay(DateTime date) {
-    final (startUtc, endUtc) = _dayBoundsUtcForLocalDay(date);
+    final (startUtc, endUtc) = AppDateTime.utcBoundsForLocalDay(date);
     return _watchMergedWindow(startUtc: startUtc, endExclusiveUtc: endUtc);
   }
 
@@ -91,12 +78,14 @@ class CalendarRepository {
           parameters: [lo, hi, hiDate, loDate],
           triggerOnTables: const {kCalendarEventsTable, kCalendarSeriesTable},
         )
-        .map((rows) => _mapMergedRows(
-              rows,
-              startUtc: startUtc,
-              endExclusiveUtc: endExclusiveUtc,
-              query: query,
-            ));
+        .map(
+          (rows) => _mapMergedRows(
+            rows,
+            startUtc: startUtc,
+            endExclusiveUtc: endExclusiveUtc,
+            query: query,
+          ),
+        );
   }
 
   List<CalendarEntry> _mapMergedRows(
@@ -132,8 +121,7 @@ class CalendarRepository {
         } else {
           events.add(CalendarEntryMapper.fromEventRow(row));
         }
-      } catch (_) {
-      }
+      } catch (_) {}
     }
 
     final expandedSeries = _expandSeriesOccurrences(
@@ -167,15 +155,19 @@ class CalendarRepository {
       if (rule == null) continue;
 
       try {
-        final duration = seriesTemplate.endTime.difference(seriesTemplate.startTime);
+        final duration = seriesTemplate.endTime.difference(
+          seriesTemplate.startTime,
+        );
         final templateStartUtc = seriesTemplate.startTime.toUtc();
         final seriesEndExclusiveUtc = seriesEndExclusiveBySeriesId[seriesId];
         final effectiveBefore = seriesEndExclusiveUtc == null
             ? endExclusiveUtc
             : (seriesEndExclusiveUtc.isBefore(endExclusiveUtc)
-                ? seriesEndExclusiveUtc
-                : endExclusiveUtc);
-        final requestedAfter = startUtc.subtract(const Duration(milliseconds: 1));
+                  ? seriesEndExclusiveUtc
+                  : endExclusiveUtc);
+        final requestedAfter = startUtc.subtract(
+          const Duration(milliseconds: 1),
+        );
         final safeAfter = requestedAfter.isBefore(templateStartUtc)
             ? templateStartUtc
             : requestedAfter;
@@ -219,8 +211,7 @@ class CalendarRepository {
             ),
           );
         }
-      } catch (_) {
-      }
+      } catch (_) {}
     }
 
     return out;
@@ -239,7 +230,10 @@ class CalendarRepository {
     }
 
     final remainingSeries = expandedSeries.where((seriesEntry) {
-      final key = _seriesOverrideKey(seriesEntry.seriesId, seriesEntry.recurrenceId);
+      final key = _seriesOverrideKey(
+        seriesEntry.seriesId,
+        seriesEntry.recurrenceId,
+      );
       return key == null || !overrides.contains(key);
     });
 
@@ -266,9 +260,8 @@ class CalendarRepository {
     final s = value?.toString();
     if (s == null || s.trim().isEmpty) return null;
     final parsed = DateTime.parse(s.trim());
-    return DateTime.utc(parsed.year, parsed.month, parsed.day).add(
-      const Duration(days: 1),
-    );
+    final endLocal = AppDateTime.localDay(parsed).add(const Duration(days: 1));
+    return endLocal.toUtc();
   }
 
   RecurrenceRule? _parseRecurrenceRule(String? rawRule) {
