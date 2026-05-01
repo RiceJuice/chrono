@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:chronoapp/core/widgets/main_navigation_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/pages/calendar_search_page.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_view_options.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_filter_bottom_sheet.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +15,7 @@ import 'package:chronoapp/features/settings/presentation/providers/settings_prof
 
 import '../widgets/calendar_header/calendar_header.dart';
 import '../widgets/calendar_header/calendar_search_overlay.dart';
+import '../widgets/calendar_header/calendar_view_mode_overlay.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -24,12 +28,27 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   static const Duration _searchDebounce = Duration(milliseconds: 300);
 
   bool _isSearchOpen = false;
+  bool _isViewModeOverlayOpen = false;
   Timer? _debounceTimer;
   String _debouncedSearchQuery = '';
 
   void _openSearch() {
     setState(() {
       _isSearchOpen = true;
+      _isViewModeOverlayOpen = false;
+    });
+  }
+
+  void _openViewModeOverlay() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _isViewModeOverlayOpen = true;
+    });
+  }
+
+  void _closeViewModeOverlay() {
+    setState(() {
+      _isViewModeOverlayOpen = false;
     });
   }
 
@@ -85,6 +104,22 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     });
   }
 
+  void _onCalendarViewModeChanged(CalendarViewMode nextMode) {
+    final selectedDay = ref.read(selectedDayProvider);
+    final focusedDay = ref.read(focusedDayProvider);
+
+    if (nextMode == CalendarViewMode.week) {
+      ref.read(focusedDayProvider.notifier).update(selectedDay);
+    } else {
+      ref.read(selectedDayProvider.notifier).update(focusedDay);
+    }
+
+    ref.read(calendarViewModeProvider.notifier).update(nextMode);
+    setState(() {
+      _isViewModeOverlayOpen = false;
+    });
+  }
+
   @override
   void dispose() {
     _debounceTimer?.cancel();
@@ -106,9 +141,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     ref.listen<CalendarFiltersState>(calendarFiltersProvider, (_, next) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        ref
-            .read(searchFiltersProvider.notifier)
-            .initializeFromCalendar(next);
+        ref.read(searchFiltersProvider.notifier).initializeFromCalendar(next);
       });
     });
     final searchFilters = ref.watch(searchFiltersProvider);
@@ -117,6 +150,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         _isSearchOpen ||
         _debouncedSearchQuery.isNotEmpty ||
         searchFilters.hasUserOverrides;
+    final viewMode = ref.watch(calendarViewModeProvider);
     final mediaPadding = MediaQuery.paddingOf(context);
     // Muss zur kompakten Hoehe in CalendarSearchOverlay passen.
     const searchOverlayTopPadding = 8.0;
@@ -124,7 +158,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     const searchInputToChipsGap = 8.0;
     const chipRowExtent = 38.0;
     const searchOverlayBottomPadding = 4.0;
-    final searchBarBottomInset = mediaPadding.top +
+    final searchBarBottomInset =
+        mediaPadding.top +
         searchOverlayTopPadding +
         searchInputRowHeight +
         searchInputToChipsGap +
@@ -132,29 +167,76 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         searchOverlayBottomPadding;
 
     return Scaffold(
-      bottomNavigationBar: MainNavigationBar(),
+      bottomNavigationBar: Stack(
+        children: [
+          MainNavigationBar(),
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: !_isViewModeOverlayOpen,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 140),
+                curve: Curves.easeOutCubic,
+                opacity: _isViewModeOverlayOpen ? 1 : 0,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _closeViewModeOverlay,
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.18),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                if (!showSearchResults) ...[
-                  CalendarHeader(
-                    onSearchPressed: _openSearch,
-                    onFilterPressed: _openCalendarFilters,
-                  ),
-                  const Expanded(child: EventList()),
-                ] else ...[
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: searchBarBottomInset),
-                      child: CalendarSearchPage(query: _debouncedSearchQuery),
-                    ),
-                  ),
-                ],
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isTabletCalendar =
+                    constraints.maxWidth >= kCalendarTabletBreakpoint;
+                final isWeekView = viewMode == CalendarViewMode.week;
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    if (!showSearchResults) ...[
+                      CalendarHeader(
+                        weekTimetableMode: isWeekView,
+                        viewMode: viewMode,
+                        viewOptions: calendarViewOptions,
+                        onViewModeChanged: _onCalendarViewModeChanged,
+                        onViewMenuPressed: _openViewModeOverlay,
+                        showCenteredViewControl: isTabletCalendar,
+                        onSearchPressed: _openSearch,
+                        onFilterPressed: _openCalendarFilters,
+                      ),
+                      Expanded(
+                        child: isWeekView
+                            ? const WeekScheduleView()
+                            : const EventList(),
+                      ),
+                    ] else ...[
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: searchBarBottomInset),
+                          child: CalendarSearchPage(
+                            query: _debouncedSearchQuery,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
+          ),
+          CalendarViewModeOverlay(
+            isOpen: _isViewModeOverlayOpen,
+            options: calendarViewOptions,
+            selectedMode: viewMode,
+            onClose: _closeViewModeOverlay,
+            onSelected: _onCalendarViewModeChanged,
           ),
           CalendarSearchOverlay(
             isOpen: _isSearchOpen,

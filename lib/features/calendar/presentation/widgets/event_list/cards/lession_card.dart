@@ -5,10 +5,14 @@ import '../../../../domain/models/calendar_entry.dart';
 class LessionCard extends StatelessWidget {
   final CalendarEntry entry;
   final bool applyPastStyling;
+  final bool showTimeColumn;
+  final bool weekGridCompact;
   const LessionCard({
     super.key,
     required this.entry,
     this.applyPastStyling = false,
+    this.showTimeColumn = true,
+    this.weekGridCompact = false,
   });
 
   @override
@@ -18,8 +22,13 @@ class LessionCard extends StatelessWidget {
     return BaseCalendarCard(
       entry: entry,
       applyPastStyling: applyPastStyling,
+      showTimeColumn: showTimeColumn,
+      weekGridCompact: weekGridCompact,
       backgroundColor: scheme.surfaceContainerHigh,
-      contentPadding: EdgeInsetsGeometry.symmetric(vertical: 8, horizontal: 14),
+      contentPadding: EdgeInsetsGeometry.symmetric(
+        vertical: weekGridCompact ? 4 : 8,
+        horizontal: weekGridCompact ? 8 : 14,
+      ),
       leadingIndicator: Padding(
         padding: const EdgeInsets.only(right: 12.0),
         child: Container(

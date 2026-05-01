@@ -15,10 +15,14 @@ import 'calendar_entry_temporal_state.dart';
 class EventCard extends StatefulWidget {
   final CalendarEntry entry;
   final bool applyPastStyling;
+  final bool showTimeColumn;
+  final bool weekGridCompact;
   const EventCard({
     super.key,
     required this.entry,
     this.applyPastStyling = false,
+    this.showTimeColumn = true,
+    this.weekGridCompact = false,
   });
 
   @override
@@ -88,7 +92,69 @@ class _EventCardState extends State<EventCard> {
         (entry.imageUrls?.isNotEmpty ?? false) ||
         (entry.imagePaths?.isNotEmpty ?? false);
 
+    if (widget.weekGridCompact) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.s),
+          onTap: () {
+            HapticFeedback.heavyImpact();
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              builder: (context) => BaseBottomModal(entry: widget.entry),
+            );
+          },
+          child: Ink(
+            height: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.s),
+              color: style.cardBackgroundColor,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (entry.choir != BackendChoir.unknown) ...[
+                    Text(
+                      entry.choir.displayLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textHeightBehavior: _compactTextHeightBehavior,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: style.secondaryTextColor.withValues(alpha: 0.75),
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
+                  Text(
+                    entry.eventName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textHeightBehavior: _compactTextHeightBehavior,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: style.primaryTextColor,
+                      height: 1,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return ListTile(
+      dense: widget.weekGridCompact,
+      visualDensity: widget.weekGridCompact ? VisualDensity.compact : null,
       onTap: () {
         HapticFeedback.heavyImpact();
         showModalBottomSheet(
@@ -98,8 +164,13 @@ class _EventCardState extends State<EventCard> {
           builder: (context) => BaseBottomModal(entry: widget.entry),
         );
       },
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      leading: TimeColumn(entry: entry, textColor: style.timeTextColor),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: widget.weekGridCompact ? AppSpacing.s : AppSpacing.l,
+        vertical: widget.weekGridCompact ? 2 : 0,
+      ),
+      leading: widget.showTimeColumn
+          ? TimeColumn(entry: entry, textColor: style.timeTextColor)
+          : null,
       title: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.s),
@@ -113,7 +184,9 @@ class _EventCardState extends State<EventCard> {
             children: [
               Expanded(
                 child: Padding(
-                  padding: AppInsets.eventCardContent,
+                  padding: widget.weekGridCompact
+                      ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+                      : AppInsets.eventCardContent,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +196,9 @@ class _EventCardState extends State<EventCard> {
                           entry.choir.displayLabel,
                           textHeightBehavior: _compactTextHeightBehavior,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: style.secondaryTextColor.withValues(alpha: 0.75),
+                            color: style.secondaryTextColor.withValues(
+                              alpha: 0.75,
+                            ),
                             height: 1,
                           ),
                         ),
@@ -135,12 +210,15 @@ class _EventCardState extends State<EventCard> {
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: style.primaryTextColor,
                           height: 1,
-                          fontSize: 17,
+                          fontSize: widget.weekGridCompact ? 14 : 17,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      if ((entry.description ?? '').trim().isNotEmpty) ...[
-                        const SizedBox(height: AppDimensions.eventCardDescriptionSpacing),
+                      if (!widget.weekGridCompact &&
+                          (entry.description ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(
+                          height: AppDimensions.eventCardDescriptionSpacing,
+                        ),
                         Text(
                           entry.description!,
                           textHeightBehavior: _compactTextHeightBehavior,
@@ -154,7 +232,7 @@ class _EventCardState extends State<EventCard> {
                   ),
                 ),
               ),
-              if (hasImageCandidate)
+              if (hasImageCandidate && !widget.weekGridCompact)
                 SizedBox(
                   width: AppDimensions.eventCardImageWidth,
                   height: AppDimensions.eventCardImageHeight,
@@ -171,7 +249,8 @@ class _EventCardState extends State<EventCard> {
                             final url = snapshot.data;
 
                             if (url == null &&
-                                snapshot.connectionState == ConnectionState.done) {
+                                snapshot.connectionState ==
+                                    ConnectionState.done) {
                               return Container(
                                 color: scheme.surfaceContainerHighest,
                                 alignment: Alignment.center,

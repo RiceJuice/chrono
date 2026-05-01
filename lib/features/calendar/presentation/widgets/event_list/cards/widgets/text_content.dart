@@ -16,6 +16,7 @@ class TextContent extends StatelessWidget {
     this.showChoirAboveTitle = false,
     this.titleFontSize,
     this.titleFontWeight,
+    this.compact = false,
   });
 
   final CalendarEntry entry;
@@ -24,6 +25,7 @@ class TextContent extends StatelessWidget {
   final bool showChoirAboveTitle;
   final double? titleFontSize;
   final FontWeight? titleFontWeight;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +37,8 @@ class TextContent extends StatelessWidget {
         if (showChoirAboveTitle && entry.choir != BackendChoir.unknown) ...[
           Text(
             entry.choir.displayLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             textHeightBehavior: _compactTextHeightBehavior,
             style: theme.textTheme.bodySmall?.copyWith(
               color: secondaryTextColor?.withValues(alpha: 0.75),
@@ -46,6 +50,8 @@ class TextContent extends StatelessWidget {
         ],
         Text(
           entry.eventName,
+          maxLines: compact ? 2 : null,
+          overflow: compact ? TextOverflow.ellipsis : null,
           textHeightBehavior: _compactTextHeightBehavior,
           style: theme.textTheme.bodyLarge?.copyWith(
             color: primaryTextColor,
@@ -54,8 +60,8 @@ class TextContent extends StatelessWidget {
             fontSize: titleFontSize ?? 16,
           ),
         ),
-        const SizedBox(height: 2),
-        if ((entry.description ?? '').trim().isNotEmpty) ...[
+        if (!compact) const SizedBox(height: 2),
+        if (!compact && (entry.description ?? '').trim().isNotEmpty) ...[
           Text(
             entry.description!,
             textHeightBehavior: _compactTextHeightBehavior,
