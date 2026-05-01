@@ -31,7 +31,7 @@ class MainNavigationBar extends ConsumerWidget {
           thickness: 0.05,
           color: Theme.of(
             context,
-          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.08),
+          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.18),
         ),
         NavigationBar(
           selectedIndex: currentIndex,

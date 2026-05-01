@@ -11,10 +11,14 @@ import 'calendar_entry_temporal_state.dart';
 class MealCard extends StatelessWidget {
   final CalendarEntry entry;
   final bool applyPastStyling;
+  final bool showTimeColumn;
+  final bool weekGridCompact;
   const MealCard({
     super.key,
     required this.entry,
     this.applyPastStyling = false,
+    this.showTimeColumn = true,
+    this.weekGridCompact = false,
   });
 
   @override
@@ -26,7 +30,45 @@ class MealCard extends StatelessWidget {
       temporalState: temporalState,
       applyPastStyling: applyPastStyling,
     );
+
+    if (weekGridCompact) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.s),
+          onTap: () {
+            HapticFeedback.heavyImpact();
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              builder: (context) => BaseBottomModal(entry: entry),
+            );
+          },
+          child: Ink(
+            height: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.s),
+              color: style.cardBackgroundColor,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextContent(
+                entry: entry,
+                primaryTextColor: style.primaryTextColor,
+                secondaryTextColor: style.secondaryTextColor,
+                compact: true,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return ListTile(
+      dense: weekGridCompact,
+      visualDensity: weekGridCompact ? VisualDensity.compact : null,
       onTap: () {
         HapticFeedback.heavyImpact();
         showModalBottomSheet(
@@ -36,10 +78,15 @@ class MealCard extends StatelessWidget {
           builder: (context) => BaseBottomModal(entry: entry),
         );
       },
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      leading: TimeColumn(entry: entry, textColor: style.timeTextColor),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: weekGridCompact ? AppSpacing.s : AppSpacing.l,
+        vertical: weekGridCompact ? 2 : 0,
+      ),
+      leading: showTimeColumn
+          ? TimeColumn(entry: entry, textColor: style.timeTextColor)
+          : null,
       title: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15),
+        padding: EdgeInsets.symmetric(vertical: weekGridCompact ? 4 : 15),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.s),
@@ -53,7 +100,12 @@ class MealCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 24, 0, 24),
+                    padding: EdgeInsets.fromLTRB(
+                      weekGridCompact ? 8 : 14,
+                      weekGridCompact ? 6 : 24,
+                      0,
+                      weekGridCompact ? 6 : 24,
+                    ),
                     child: TextContent(
                       entry: entry,
                       primaryTextColor: style.primaryTextColor,
@@ -61,7 +113,9 @@ class MealCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (entry.imageUrls != null && entry.imageUrls!.isNotEmpty)
+                if (!weekGridCompact &&
+                    entry.imageUrls != null &&
+                    entry.imageUrls!.isNotEmpty)
                   Stack(
                     children: [
                       ClipRRect(
@@ -79,9 +133,8 @@ class MealCard extends StatelessWidget {
                       if (style.imageOverlayOpacity > 0)
                         Positioned.fill(
                           child: ColoredBox(
-                            color: Theme.of(context).colorScheme.surface.withValues(
-                              alpha: style.imageOverlayOpacity,
-                            ),
+                            color: Theme.of(context).colorScheme.surface
+                                .withValues(alpha: style.imageOverlayOpacity),
                           ),
                         ),
                     ],

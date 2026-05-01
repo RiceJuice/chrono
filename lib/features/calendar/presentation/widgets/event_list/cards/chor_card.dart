@@ -7,10 +7,14 @@ import '../../../../domain/models/calendar_entry.dart';
 class ChorCard extends StatelessWidget {
   final CalendarEntry entry;
   final bool applyPastStyling;
+  final bool showTimeColumn;
+  final bool weekGridCompact;
   const ChorCard({
     super.key,
     required this.entry,
     this.applyPastStyling = false,
+    this.showTimeColumn = true,
+    this.weekGridCompact = false,
   });
 
   @override
@@ -19,11 +23,16 @@ class ChorCard extends StatelessWidget {
     return BaseCalendarCard(
       entry: entry,
       applyPastStyling: applyPastStyling,
+      showTimeColumn: showTimeColumn,
+      weekGridCompact: weekGridCompact,
       showChoirAboveTitle: true,
-      titleFontSize: 17,
+      titleFontSize: weekGridCompact ? 14 : 17,
       titleFontWeight: FontWeight.w500,
       backgroundColor: scheme.primary,
-      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+      contentPadding: EdgeInsets.symmetric(
+        vertical: weekGridCompact ? 6 : 12,
+        horizontal: weekGridCompact ? 8 : 14,
+      ),
       leadingIndicator: Padding(
         padding: const EdgeInsets.only(right: AppSpacing.m),
         child: Container(

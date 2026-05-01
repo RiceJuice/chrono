@@ -17,6 +17,8 @@ class BaseCalendarCard extends StatelessWidget {
   final bool showChoirAboveTitle;
   final double? titleFontSize;
   final FontWeight? titleFontWeight;
+  final bool showTimeColumn;
+  final bool weekGridCompact;
 
   const BaseCalendarCard({
     super.key,
@@ -31,6 +33,8 @@ class BaseCalendarCard extends StatelessWidget {
     this.showChoirAboveTitle = false,
     this.titleFontSize,
     this.titleFontWeight,
+    this.showTimeColumn = true,
+    this.weekGridCompact = false,
   });
 
   @override
@@ -44,7 +48,57 @@ class BaseCalendarCard extends StatelessWidget {
       applyPastStyling: applyPastStyling,
     );
 
+    if (weekGridCompact) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.s),
+          onTap: () {
+            HapticFeedback.heavyImpact();
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              builder: (context) {
+                return BaseBottomModal(entry: entry);
+              },
+            );
+          },
+          child: Ink(
+            height: double.infinity,
+            padding: contentPadding,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.s),
+              color: style.cardBackgroundColor,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ?leadingIndicator,
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextContent(
+                      entry: entry,
+                      primaryTextColor: style.primaryTextColor,
+                      secondaryTextColor: style.secondaryTextColor,
+                      showChoirAboveTitle: showChoirAboveTitle,
+                      titleFontSize: titleFontSize,
+                      titleFontWeight: titleFontWeight,
+                      compact: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return ListTile(
+      dense: weekGridCompact,
+      visualDensity: weekGridCompact ? VisualDensity.compact : null,
       onTap: () {
         HapticFeedback.heavyImpact();
         showModalBottomSheet(
@@ -56,8 +110,13 @@ class BaseCalendarCard extends StatelessWidget {
           },
         );
       },
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      leading: TimeColumn(entry: entry, textColor: style.timeTextColor),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: weekGridCompact ? AppSpacing.s : AppSpacing.l,
+        vertical: weekGridCompact ? 2 : 0,
+      ),
+      leading: showTimeColumn
+          ? TimeColumn(entry: entry, textColor: style.timeTextColor)
+          : null,
       title: Container(
         padding: contentPadding,
         decoration: BoxDecoration(
@@ -68,7 +127,7 @@ class BaseCalendarCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (leadingIndicator != null) leadingIndicator!,
+              ?leadingIndicator,
               Expanded(
                 child: TextContent(
                   entry: entry,

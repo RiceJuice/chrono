@@ -114,17 +114,9 @@ class _DayPageState extends ConsumerState<DayPage> {
   }) {
     final platform = Theme.of(context).platform;
     if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
-      final color = CupertinoDynamicColor.resolve(
-        CupertinoColors.systemGrey3,
-        context,
-      ).withValues(alpha: 0.38);
-      return RawScrollbar(
+      return CupertinoScrollbar(
         controller: _scrollController,
         thumbVisibility: _isScrollbarThumbVisible,
-        thumbColor: color,
-        radius: const Radius.circular(8),
-        thickness: 2.5,
-        minThumbLength: 28,
         child: child,
       );
     }

@@ -16,10 +16,14 @@ class CustomTableCalendar extends ConsumerStatefulWidget {
     super.key,
     required this.calendarFormat,
     required this.onFormatChanged,
+    this.weekTimetableMode = false,
+    this.leftGutterWidth = 0,
   });
 
   final CalendarFormat calendarFormat;
   final ValueChanged<CalendarFormat> onFormatChanged;
+  final bool weekTimetableMode;
+  final double leftGutterWidth;
 
   @override
   ConsumerState<CustomTableCalendar> createState() =>
@@ -93,6 +97,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           orElse: () => const <DateTime, CalendarDayMarkerData>{},
         );
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
+      if (widget.weekTimetableMode) return;
       final currentFocusedDay = ref.read(focusedDayProvider);
       if (!isSameDay(currentFocusedDay, next)) {
         _pendingProgrammaticFocusedDay = AppDateTime.localDay(next);
@@ -100,7 +105,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       }
     });
 
-    return TableCalendar(
+    final table = TableCalendar(
       locale: 'de_DE',
       startingDayOfWeek: StartingDayOfWeek.monday,
       firstDay: DateTime(2020, 1, 1), //TODO: make this dynamic
@@ -148,7 +153,9 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       ),
       calendarBuilders: CalendarBuilders(
         markerBuilder: (context, day, events) {
-          if (isSameDay(day, selectedDay)) return const SizedBox.shrink();
+          if (!widget.weekTimetableMode && isSameDay(day, selectedDay)) {
+            return const SizedBox.shrink();
+          }
           if (events.isEmpty) return null;
           final marker = events.first;
           if (marker is! CalendarDayMarkerData || marker.totalMinutes <= 0) {
@@ -223,7 +230,9 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           );
         },
         todayBuilder: (context, day, focusedDay) {
-          if (isSameDay(day, selectedDay)) return null;
+          if (!widget.weekTimetableMode && isSameDay(day, selectedDay)) {
+            return null;
+          }
           return Container(
             margin: const EdgeInsets.all(2),
             alignment: Alignment.center,
@@ -237,15 +246,24 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           );
         },
       ),
-      selectedDayPredicate: (day) => isSameDay(selectedDay, day),
+      selectedDayPredicate: widget.weekTimetableMode
+          ? (_) => false
+          : (day) => isSameDay(selectedDay, day),
       onFormatChanged: widget.onFormatChanged,
       onDaySelected: (newSelectedDay, newFocusedDay) {
+        if (widget.weekTimetableMode) return;
         final currentSelectedDay = ref.read(selectedDayProvider);
         if (isSameDay(currentSelectedDay, newSelectedDay)) return;
         ref.read(selectedDayProvider.notifier).update(newSelectedDay);
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },
       onPageChanged: (newFocusedDay) {
+        if (widget.weekTimetableMode) {
+          _pendingProgrammaticFocusedDay = null;
+          final monday = _startOfWeek(AppDateTime.localDay(newFocusedDay));
+          ref.read(focusedDayProvider.notifier).update(monday);
+          return;
+        }
         final pendingProgrammaticFocusedDay = _pendingProgrammaticFocusedDay;
         final isProgrammaticMonthJump =
             pendingProgrammaticFocusedDay != null &&
@@ -270,5 +288,13 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
         ref.read(focusedDayProvider.notifier).update(nextSelectedDay);
       },
     );
+
+    if (widget.leftGutterWidth > 0) {
+      return Padding(
+        padding: EdgeInsets.only(left: widget.leftGutterWidth),
+        child: table,
+      );
+    }
+    return table;
   }
 }
