@@ -150,7 +150,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
                   height: 4,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(100),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                 ),
               ),

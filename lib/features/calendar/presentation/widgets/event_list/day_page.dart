@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import '../../../domain/models/calendar_entry.dart';
 import '../../providers/calendar_providers.dart';
@@ -39,12 +40,6 @@ class _DayPageState extends ConsumerState<DayPage> {
     _hideScrollbarTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  bool _isLessonEndingAt1015(CalendarEntry entry) {
-    if (entry.type != CalendarEntryType.lesson) return false;
-    final localEnd = AppDateTime.toLocal(entry.endTime);
-    return localEnd.hour == 10 && localEnd.minute == 15;
   }
 
   int _entryIndexForNowAnchor(List<CalendarEntry> entries) {
@@ -155,47 +150,34 @@ class _DayPageState extends ConsumerState<DayPage> {
         final nowAnchorBuilderIndex = hasNowAnchor ? nowAnchorEntryIndex : -1;
         _scheduleInitialScrollToNowAnchor();
         _scheduleInitialScrollbarReveal();
-        final hasLessonEndingAt1015 = entries.any(_isLessonEndingAt1015);
-        int lessonCounter = 0;
-        int? thirdLessonIndex;
-        for (var i = 0; i < entries.length; i++) {
-          if (entries[i].type != CalendarEntryType.lesson) continue;
-          lessonCounter++;
-          if (lessonCounter == 3) {
-            thirdLessonIndex = i;
-            break;
-          }
-        }
-
         return _buildPlatformScrollbar(
           context: context,
           child: ListView.builder(
             controller: _scrollController,
-            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.l),
             itemCount: entries.length + (hasNowAnchor ? 1 : 0),
             itemBuilder: (context, index) {
+              final lastIndex = entries.length + (hasNowAnchor ? 1 : 0) - 1;
+              final Widget row;
               if (hasNowAnchor && index == nowAnchorBuilderIndex) {
-                return SizedBox(key: _nowAnchorKey, height: 1);
-              }
-              final entryIndex = hasNowAnchor && index > nowAnchorBuilderIndex
-                  ? index - 1
-                  : index;
-              final entry = entries[entryIndex];
-              final hasFollowingEntry = entryIndex < entries.length - 1;
-              final needsFallbackGapAfterThirdLesson =
-                  !hasLessonEndingAt1015 && entryIndex == thirdLessonIndex;
-              final needsMidMorningBreakGap =
-                  hasFollowingEntry &&
-                  (_isLessonEndingAt1015(entry) ||
-                      needsFallbackGapAfterThirdLesson);
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: needsMidMorningBreakGap ? 12 : 0,
-                ),
-                child: CalendarEntryCard(
+                row = SizedBox(key: _nowAnchorKey, height: 1);
+              } else {
+                final entryIndex = hasNowAnchor && index > nowAnchorBuilderIndex
+                    ? index - 1
+                    : index;
+                final entry = entries[entryIndex];
+                row = CalendarEntryCard(
                   entry: entry,
                   applyPastStyling: shouldApplyPastStyling,
-                ),
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  row,
+                  if (index != lastIndex) const SizedBox(height: AppSpacing.m),
+                ],
               );
             },
           ),

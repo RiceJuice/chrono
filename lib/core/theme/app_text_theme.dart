@@ -4,10 +4,36 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTextThemes {
   AppTextThemes._();
 
-  static TextTheme build(ColorScheme scheme) {
-    final base = ThemeData(brightness: scheme.brightness).textTheme;
+  /// [ListTile] (Material 3) nutzt u. a. `defaults.subtitleTextStyle!.textBaseline!`.
+  /// Google Fonts / angepasste Styles setzen oft kein [TextStyle.textBaseline] — das löst dann einen Absturz aus.
+  static TextStyle? _withAlphabeticBaseline(TextStyle? style) {
+    if (style == null) return null;
+    if (style.textBaseline != null) return style;
+    return style.copyWith(textBaseline: TextBaseline.alphabetic);
+  }
 
-    return base.copyWith(
+  static TextTheme _ensureTextBaselines(TextTheme theme) {
+    return theme.copyWith(
+      bodyLarge: _withAlphabeticBaseline(theme.bodyLarge),
+      bodyMedium: _withAlphabeticBaseline(theme.bodyMedium),
+      bodySmall: _withAlphabeticBaseline(theme.bodySmall),
+      labelSmall: _withAlphabeticBaseline(theme.labelSmall),
+      titleLarge: _withAlphabeticBaseline(theme.titleLarge),
+      titleMedium: _withAlphabeticBaseline(theme.titleMedium),
+      titleSmall: _withAlphabeticBaseline(theme.titleSmall),
+      labelLarge: _withAlphabeticBaseline(theme.labelLarge),
+      displaySmall: _withAlphabeticBaseline(theme.displaySmall),
+      headlineLarge: _withAlphabeticBaseline(theme.headlineLarge),
+    );
+  }
+
+  static TextTheme build(ColorScheme scheme) {
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+    ).textTheme;
+
+    final themed = base.copyWith(
       titleLarge: GoogleFonts.libreBaskerville(
         textStyle: base.titleLarge?.copyWith(
           fontSize: 26,
@@ -43,5 +69,7 @@ class AppTextThemes {
         ),
       ),
     );
+
+    return _ensureTextBaselines(themed);
   }
 }

@@ -1,6 +1,5 @@
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/base_calendar_card.dart';
 import 'package:flutter/material.dart';
-import 'package:chronoapp/core/theme/theme_tokens.dart';
 
 import '../../../../domain/models/calendar_entry.dart';
 
@@ -33,14 +32,11 @@ class ChorCard extends StatelessWidget {
         vertical: weekGridCompact ? 6 : 12,
         horizontal: weekGridCompact ? 8 : 14,
       ),
-      leadingIndicator: Padding(
-        padding: const EdgeInsets.only(right: AppSpacing.m),
-        child: Container(
-          width: 6,
-          decoration: BoxDecoration(
-            color: entry.accentColor,
-            borderRadius: BorderRadius.circular(3),
-          ),
+      leadingIndicator: Container(
+        width: 6,
+        decoration: BoxDecoration(
+          color: entry.accentColor,
+          borderRadius: BorderRadius.circular(3),
         ),
       ),
     );

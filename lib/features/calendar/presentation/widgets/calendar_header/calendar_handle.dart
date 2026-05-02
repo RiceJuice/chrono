@@ -22,26 +22,31 @@ class CalendarHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: onTapDown,
-      onTapUp: onTapUp,
-      onTapCancel: onTapCancel,
-      onVerticalDragStart: onVerticalDragStart,
-      onVerticalDragUpdate: onVerticalDragUpdate,
-      onVerticalDragEnd: onVerticalDragEnd,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 8, 0, 10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
-          width: 36,
-          height: 5,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.onSurface.withValues(
-              alpha: isPressed ? 1 : 0.6,
+    return SizedBox(
+      width: double.infinity,
+      child: Center(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: onTapDown,
+          onTapUp: onTapUp,
+          onTapCancel: onTapCancel,
+          onVerticalDragStart: onVerticalDragStart,
+          onVerticalDragUpdate: onVerticalDragUpdate,
+          onVerticalDragEnd: onVerticalDragEnd,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              width: isPressed ? 42 : 36,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: isPressed ? 1 : 0.6),
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
-            borderRadius: BorderRadius.circular(999),
           ),
         ),
       ),

@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:flutter/material.dart';
 
@@ -15,9 +16,8 @@ class BottomModalHeader extends StatelessWidget {
           height: height,
           decoration: BoxDecoration(
             color: entry.accentColor,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(15),
-              topRight: Radius.circular(15),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadius.xl),
             ),
           ),
         ),

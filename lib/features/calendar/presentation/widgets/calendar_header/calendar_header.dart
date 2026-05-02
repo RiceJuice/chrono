@@ -10,6 +10,9 @@ import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_l
 import 'calendar_handle.dart';
 import 'custom_table_calendar.dart';
 
+const _headerMorphDuration = Duration(milliseconds: 420);
+const _headerMorphCurve = Cubic(0.2, 0.8, 0.2, 1);
+
 class CalendarHeader extends ConsumerStatefulWidget {
   const CalendarHeader({
     required this.onSearchPressed,
@@ -107,136 +110,221 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
       onVerticalDragStart: _onVerticalDragStart,
       onVerticalDragUpdate: _onVerticalDragUpdate,
       onVerticalDragEnd: _onVerticalDragEnd,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainer,
-          borderRadius: const BorderRadius.vertical(
-            bottom: Radius.circular(15),
-          ),
-        ),
-        child: Column(
-          children: [
-            AppBar(
-              title: Text(
-                monthName,
-                style: Theme.of(context).textTheme.headlineLarge,
-              ),
-              flexibleSpace: widget.showCenteredViewControl
-                  ? SafeArea(
-                      bottom: false,
-                      child: Center(
-                        child: _CalendarViewSegmentedControl(
-                          value: widget.viewMode,
-                          options: widget.viewOptions,
-                          onChanged: (value) {
-                            if (value == widget.viewMode) return;
-                            HapticFeedback.selectionClick();
-                            widget.onViewModeChanged?.call(value);
-                          },
-                        ),
-                      ),
-                    )
-                  : null,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              shadowColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-              actions: [
-                if (!widget.showCenteredViewControl &&
-                    widget.onViewMenuPressed != null)
-                  _CalendarViewMenuButton(
-                    option: selectedViewOption,
-                    onPressed: widget.onViewMenuPressed!,
-                  ),
-                IconButton(
-                  onPressed: widget.onFilterPressed,
-                  icon: const Icon(Icons.calendar_month_rounded),
-                ),
-                IconButton(
-                  onPressed: widget.onSearchPressed,
-                  icon: const Icon(Icons.search),
-                ),
-              ],
+      child: AnimatedSize(
+        duration: _headerMorphDuration,
+        curve: _headerMorphCurve,
+        alignment: Alignment.topCenter,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainer,
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(15),
             ),
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                CustomTableCalendar(
-                  calendarFormat: calendarFormat,
-                  weekTimetableMode: widget.weekTimetableMode,
-                  leftGutterWidth: widget.weekTimetableMode
-                      ? kCalendarTimelineGutterWidth
-                      : 0,
-                  onFormatChanged: (format) {
-                    if (widget.weekTimetableMode) return;
-                    if (_calendarFormat == format) return;
-                    setState(() {
-                      _calendarFormat = format;
-                    });
-                    HapticFeedback.mediumImpact();
-                  },
-                ),
-                if (widget.weekTimetableMode)
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    width: kCalendarTimelineGutterWidth,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8, right: 2),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(
-                            height: 20,
-                            width: double.infinity,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                'KW',
-                                style: TextStyle(color: Color(0xFF4F4F4F)),
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: 40,
-                            width: double.infinity,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                '$weekNumber',
-                                style: DefaultTextStyle.of(context).style,
-                              ),
-                            ),
-                          ),
-                        ],
+          ),
+          child: Column(
+            children: [
+              AppBar(
+                toolbarHeight: widget.weekTimetableMode ? 50 : kToolbarHeight,
+                title: AnimatedSwitcher(
+                  duration: _headerMorphDuration,
+                  switchInCurve: _headerMorphCurve,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final curvedAnimation = CurvedAnimation(
+                      parent: animation,
+                      curve: _headerMorphCurve,
+                      reverseCurve: Curves.easeInCubic,
+                    );
+                    return FadeTransition(
+                      opacity: curvedAnimation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.12),
+                          end: Offset.zero,
+                        ).animate(curvedAnimation),
+                        child: child,
                       ),
+                    );
+                  },
+                  child: AnimatedScale(
+                    duration: _headerMorphDuration,
+                    curve: _headerMorphCurve,
+                    scale: widget.weekTimetableMode ? 0.98 : 1,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      monthName,
+                      key: ValueKey<String>(monthName),
+                      style: Theme.of(context).textTheme.headlineLarge,
                     ),
                   ),
-              ],
-            ),
-            if (!widget.weekTimetableMode)
-              CalendarHandle(
-                isPressed: _isHandlePressed,
-                onTapDown: (_) {
-                  setState(() {
-                    _isHandlePressed = true;
-                  });
+                ),
+                flexibleSpace: widget.showCenteredViewControl
+                    ? SafeArea(
+                        bottom: false,
+                        child: Center(
+                          child: _CalendarViewSegmentedControl(
+                            value: widget.viewMode,
+                            options: widget.viewOptions,
+                            onChanged: (value) {
+                              if (value == widget.viewMode) return;
+                              HapticFeedback.selectionClick();
+                              widget.onViewModeChanged?.call(value);
+                            },
+                          ),
+                        ),
+                      )
+                    : null,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                shadowColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                actions: [
+                  if (!widget.showCenteredViewControl &&
+                      widget.onViewMenuPressed != null)
+                    _CalendarViewMenuButton(
+                      option: selectedViewOption,
+                      onPressed: widget.onViewMenuPressed!,
+                    ),
+                  IconButton(
+                    onPressed: widget.onFilterPressed,
+                    icon: const Icon(Icons.calendar_month_rounded),
+                  ),
+                  IconButton(
+                    onPressed: widget.onSearchPressed,
+                    icon: const Icon(Icons.search),
+                  ),
+                ],
+              ),
+              AnimatedSize(
+                duration: _headerMorphDuration,
+                curve: _headerMorphCurve,
+                alignment: Alignment.topCenter,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CustomTableCalendar(
+                      calendarFormat: calendarFormat,
+                      weekTimetableMode: widget.weekTimetableMode,
+                      leftGutterWidth: widget.weekTimetableMode
+                          ? kCalendarTimelineGutterWidth
+                          : 0,
+                      onFormatChanged: (format) {
+                        if (widget.weekTimetableMode) return;
+                        if (_calendarFormat == format) return;
+                        setState(() {
+                          _calendarFormat = format;
+                        });
+                        HapticFeedback.mediumImpact();
+                      },
+                    ),
+                    AnimatedPositioned(
+                      duration: _headerMorphDuration,
+                      curve: _headerMorphCurve,
+                      left: widget.weekTimetableMode
+                          ? 0
+                          : -kCalendarTimelineGutterWidth,
+                      top: 0,
+                      width: kCalendarTimelineGutterWidth,
+                      child: IgnorePointer(
+                        ignoring: !widget.weekTimetableMode,
+                        child: AnimatedOpacity(
+                          duration: _headerMorphDuration,
+                          curve: _headerMorphCurve,
+                          opacity: widget.weekTimetableMode ? 1 : 0,
+                          child: AnimatedScale(
+                            duration: _headerMorphDuration,
+                            curve: _headerMorphCurve,
+                            scale: widget.weekTimetableMode ? 1 : 0.94,
+                            alignment: Alignment.centerRight,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 8, right: 2),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(
+                                    height: 20,
+                                    width: double.infinity,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        'KW',
+                                        style: TextStyle(
+                                          color: Color(0xFF4F4F4F),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: 40,
+                                    width: double.infinity,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        '$weekNumber',
+                                        style: DefaultTextStyle.of(
+                                          context,
+                                        ).style,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              AnimatedSwitcher(
+                duration: _headerMorphDuration,
+                reverseDuration: _headerMorphDuration,
+                switchInCurve: _headerMorphCurve,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final curvedAnimation = CurvedAnimation(
+                    parent: animation,
+                    curve: _headerMorphCurve,
+                    reverseCurve: Curves.easeInCubic,
+                  );
+                  return FadeTransition(
+                    opacity: curvedAnimation,
+                    child: SizeTransition(
+                      sizeFactor: curvedAnimation,
+                      axisAlignment: -1,
+                      child: child,
+                    ),
+                  );
                 },
-                onTapUp: (_) {
-                  setState(() {
-                    _isHandlePressed = false;
-                  });
-                },
-                onTapCancel: () {
-                  setState(() {
-                    _isHandlePressed = false;
-                  });
-                },
-              )
-            else
-              SizedBox(height: 10),
-          ],
+                child: widget.weekTimetableMode
+                    ? const SizedBox(
+                        key: ValueKey<String>('week-header-spacer'),
+                        height: 10,
+                      )
+                    : CalendarHandle(
+                        key: const ValueKey<String>('day-header-handle'),
+                        isPressed: _isHandlePressed,
+                        onTapDown: (_) {
+                          setState(() {
+                            _isHandlePressed = true;
+                          });
+                        },
+                        onTapUp: (_) {
+                          setState(() {
+                            _isHandlePressed = false;
+                          });
+                        },
+                        onTapCancel: () {
+                          setState(() {
+                            _isHandlePressed = false;
+                          });
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
