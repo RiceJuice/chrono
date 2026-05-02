@@ -53,12 +53,13 @@ class MealCard extends StatelessWidget {
               color: style.cardBackgroundColor,
             ),
             child: Align(
-              alignment: Alignment.centerLeft,
+              alignment: Alignment.topLeft,
               child: TextContent(
                 entry: entry,
                 primaryTextColor: style.primaryTextColor,
                 secondaryTextColor: style.secondaryTextColor,
                 compact: true,
+                showInlineTimeRange: !showTimeColumn,
               ),
             ),
           ),
@@ -67,6 +68,8 @@ class MealCard extends StatelessWidget {
     }
 
     return ListTile(
+      titleAlignment: ListTileTitleAlignment.top,
+      minVerticalPadding: 0,
       dense: weekGridCompact,
       visualDensity: weekGridCompact ? VisualDensity.compact : null,
       onTap: () {
@@ -110,6 +113,7 @@ class MealCard extends StatelessWidget {
                       entry: entry,
                       primaryTextColor: style.primaryTextColor,
                       secondaryTextColor: style.secondaryTextColor,
+                      showInlineTimeRange: !showTimeColumn,
                     ),
                   ),
                 ),

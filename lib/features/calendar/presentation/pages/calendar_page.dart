@@ -26,6 +26,10 @@ class CalendarPage extends ConsumerStatefulWidget {
 
 class _CalendarPageState extends ConsumerState<CalendarPage> {
   static const Duration _searchDebounce = Duration(milliseconds: 300);
+  static const Duration _viewModeTransitionDuration = Duration(
+    milliseconds: 420,
+  );
+  static const Curve _viewModeTransitionCurve = Cubic(0.2, 0.8, 0.2, 1);
 
   bool _isSearchOpen = false;
   bool _isViewModeOverlayOpen = false;
@@ -120,6 +124,85 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     });
   }
 
+  Widget _buildCalendarBody({required CalendarViewMode viewMode}) {
+    final isWeekView = viewMode == CalendarViewMode.week;
+
+    return AnimatedSwitcher(
+      duration: _viewModeTransitionDuration,
+      reverseDuration: _viewModeTransitionDuration,
+      switchInCurve: _viewModeTransitionCurve,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          alignment: Alignment.topCenter,
+          children: <Widget>[...previousChildren, ?currentChild],
+        );
+      },
+      transitionBuilder: (child, animation) {
+        final key = child.key;
+        final targetMode = key is ValueKey<CalendarViewMode> ? key.value : null;
+        final isWeekTarget = targetMode == CalendarViewMode.week;
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: _viewModeTransitionCurve,
+          reverseCurve: Curves.easeInCubic,
+        );
+        final slideBegin = isWeekTarget
+            ? const Offset(0.11, 0.012)
+            : const Offset(-0.09, 0.012);
+        final slideOvershoot = isWeekTarget
+            ? const Offset(-0.012, 0)
+            : const Offset(0.012, 0);
+        final slideAnimation = TweenSequence<Offset>([
+          TweenSequenceItem(
+            tween: Tween<Offset>(
+              begin: slideBegin,
+              end: slideOvershoot,
+            ).chain(CurveTween(curve: Curves.easeOutCubic)),
+            weight: 78,
+          ),
+          TweenSequenceItem(
+            tween: Tween<Offset>(
+              begin: slideOvershoot,
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeOut)),
+            weight: 22,
+          ),
+        ]).animate(curvedAnimation);
+        final scaleAnimation = TweenSequence<double>([
+          TweenSequenceItem(
+            tween: Tween<double>(
+              begin: isWeekTarget ? 0.965 : 1.018,
+              end: isWeekTarget ? 1.004 : 0.996,
+            ).chain(CurveTween(curve: Curves.easeOutCubic)),
+            weight: 74,
+          ),
+          TweenSequenceItem(
+            tween: Tween<double>(
+              begin: isWeekTarget ? 1.004 : 0.996,
+              end: 1,
+            ).chain(CurveTween(curve: Curves.easeOut)),
+            weight: 26,
+          ),
+        ]).animate(curvedAnimation);
+
+        return FadeTransition(
+          opacity: Tween<double>(begin: 0, end: 1)
+              .chain(CurveTween(curve: const Interval(0.08, 1)))
+              .animate(animation),
+          child: SlideTransition(
+            position: slideAnimation,
+            child: ScaleTransition(scale: scaleAnimation, child: child),
+          ),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey<CalendarViewMode>(viewMode),
+        child: isWeekView ? const WeekScheduleView() : const EventList(),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _debounceTimer?.cancel();
@@ -211,11 +294,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                         onSearchPressed: _openSearch,
                         onFilterPressed: _openCalendarFilters,
                       ),
-                      Expanded(
-                        child: isWeekView
-                            ? const WeekScheduleView()
-                            : const EventList(),
-                      ),
+                      Expanded(child: _buildCalendarBody(viewMode: viewMode)),
                     ] else ...[
                       Expanded(
                         child: Padding(

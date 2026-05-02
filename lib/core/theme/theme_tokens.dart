@@ -39,9 +39,19 @@ class AppInsets {
     horizontal: 14,
     vertical: AppSpacing.s,
   );
-  static const EdgeInsets eventCardContent = EdgeInsets.symmetric(
-    horizontal: 14,
-    vertical: AppSpacing.s,
+  static const EdgeInsets eventCardContent = EdgeInsets.only(
+    left: 14,
+    right: 14,
+    top: AppSpacing.s,
+    bottom: AppSpacing.s,
+  );
+
+  /// Wie [eventCardContent], für die kompakte Wochen-Raster-Karte.
+  static const EdgeInsets eventCardContentCompact = EdgeInsets.only(
+    left: AppSpacing.s,
+    right: AppSpacing.s,
+    top: 4,
+    bottom: 4,
   );
 }
 

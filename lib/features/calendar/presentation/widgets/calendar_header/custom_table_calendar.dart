@@ -10,6 +10,8 @@ const _selectedDayBoxSize = 36.5;
 const _dayMarkerBottomOffset = 1.0;
 const _dayMarkerWidth = 24.0;
 const _dayMarkerHeight = 6.0;
+const _calendarMorphDuration = Duration(milliseconds: 420);
+const _calendarMorphCurve = Cubic(0.2, 0.8, 0.2, 1);
 
 class CustomTableCalendar extends ConsumerStatefulWidget {
   const CustomTableCalendar({
@@ -289,12 +291,11 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       },
     );
 
-    if (widget.leftGutterWidth > 0) {
-      return Padding(
-        padding: EdgeInsets.only(left: widget.leftGutterWidth),
-        child: table,
-      );
-    }
-    return table;
+    return AnimatedPadding(
+      duration: _calendarMorphDuration,
+      curve: _calendarMorphCurve,
+      padding: EdgeInsets.only(left: widget.leftGutterWidth),
+      child: table,
+    );
   }
 }

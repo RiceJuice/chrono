@@ -32,6 +32,12 @@ class WeekDayColumns extends StatelessWidget {
     final hourDividerColor = theme.brightness == Brightness.dark
         ? const Color(0xFF1C1C1E)
         : scheme.outline.withValues(alpha: 0.14);
+    final weekendBackgroundColor = Color.alphaBlend(
+      Colors.black.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.30 : 0.04,
+      ),
+      scheme.surface,
+    );
 
     return Row(
       children: [
@@ -44,14 +50,14 @@ class WeekDayColumns extends StatelessWidget {
                 Row(
                   children: List.generate(7, (columnIndex) {
                     final day = weekDays[columnIndex];
-                    final isToday = AppDateTime.isTodayLocal(day);
+                    final isWeekend =
+                        day.weekday == DateTime.saturday ||
+                        day.weekday == DateTime.sunday;
 
                     return Expanded(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: isToday
-                              ? scheme.primary.withValues(alpha: 0.06)
-                              : null,
+                          color: isWeekend ? weekendBackgroundColor : null,
                           border: Border(
                             left: BorderSide(color: verticalDividerColor),
                             right: columnIndex == 6
@@ -143,7 +149,7 @@ class _WeekEntryCardFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const horizontalGap = 6.0;
-    const verticalGap = 1.0;
+    const verticalGap = 3.0;
     final laneWidth =
         (columnWidth - horizontalGap * (placement.laneCount + 1)) /
         placement.laneCount;
