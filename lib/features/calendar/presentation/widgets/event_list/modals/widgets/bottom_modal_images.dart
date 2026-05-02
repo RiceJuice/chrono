@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/data/calendar_image_url_resolver.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -72,10 +73,15 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemBuilder: (context, index) {
               return Padding(
                 padding: const EdgeInsets.only(right: 6.0),
-                child: AspectRatio(
-                  aspectRatio: 1.5,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(color: imagePanelBg),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(AppRadius.s),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 1.5,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: imagePanelBg),
+                    ),
                   ),
                 ),
               );
@@ -99,18 +105,24 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemBuilder: (context, index) {
               return Padding(
                 padding: const EdgeInsets.only(right: 6.0),
-                child: AspectRatio(
-                  aspectRatio: 1.5,
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrls[index],
-                    cacheKey: _cacheKeyForImage(index, imageUrls[index]),
-                    fit: BoxFit.cover,
-                    fadeInDuration: Duration.zero,
-                    fadeOutDuration: Duration.zero,
-                    placeholder: (context, _) => Container(color: imagePanelBg),
-                    errorWidget: (context, _, _) => Container(
-                      color: imagePanelBg,
-                      child: const Icon(Icons.broken_image, size: 50),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(AppRadius.s),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 1.5,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrls[index],
+                      cacheKey: _cacheKeyForImage(index, imageUrls[index]),
+                      fit: BoxFit.cover,
+                      fadeInDuration: Duration.zero,
+                      fadeOutDuration: Duration.zero,
+                      placeholder: (context, _) =>
+                          Container(color: imagePanelBg),
+                      errorWidget: (context, _, _) => Container(
+                        color: imagePanelBg,
+                        child: const Icon(Icons.broken_image, size: 50),
+                      ),
                     ),
                   ),
                 ),
@@ -119,27 +131,32 @@ class _BottomModalImagesState extends State<BottomModalImages> {
           );
         }
 
-        return Stack(
-          children: [
-            SizedBox(
-              height: 200,
-              child: ColoredBox(color: imagePanelBg, child: content),
-            ),
-            Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(100),
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.xl),
+          ),
+          child: Stack(
+            children: [
+              SizedBox(
+                height: 200,
+                child: ColoredBox(color: imagePanelBg, child: content),
+              ),
+              Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );

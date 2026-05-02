@@ -1,3 +1,4 @@
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
@@ -108,43 +109,67 @@ class _EventCardState extends State<EventCard> {
           },
           child: Ink(
             height: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: AppInsets.eventCardContentCompact,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.s),
               color: style.cardBackgroundColor,
             ),
             child: Align(
-              alignment: Alignment.centerLeft,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (entry.choir != BackendChoir.unknown) ...[
-                    Text(
-                      entry.choir.displayLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textHeightBehavior: _compactTextHeightBehavior,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: style.secondaryTextColor.withValues(alpha: 0.75),
-                        height: 1,
+              alignment: Alignment.topLeft,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final hasChoir = entry.choir != BackendChoir.unknown;
+                  final showTime = shouldShowCalendarEntryTimeRangeRow(
+                    constraints: constraints,
+                    wantTimeRange: !widget.showTimeColumn,
+                    compact: true,
+                    hasChoirLine: hasChoir,
+                    hasDescription: false,
+                  );
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (entry.choir != BackendChoir.unknown) ...[
+                        Text(
+                          entry.choir.displayLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textHeightBehavior: _compactTextHeightBehavior,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: style.secondaryTextColor.withValues(
+                              alpha: 0.75,
+                            ),
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                      ],
+                      Text(
+                        entry.eventName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textHeightBehavior: _compactTextHeightBehavior,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: style.primaryTextColor,
+                          height: 1,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                  ],
-                  Text(
-                    entry.eventName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textHeightBehavior: _compactTextHeightBehavior,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: style.primaryTextColor,
-                      height: 1,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+                      if (showTime) ...[
+                        const SizedBox(height: 3),
+                        CalendarEntryTimeRangeRow(
+                          entry: entry,
+                          mutedColor: style.secondaryTextColor.withValues(
+                            alpha: 0.58,
+                          ),
+                          compact: true,
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -153,6 +178,8 @@ class _EventCardState extends State<EventCard> {
     }
 
     return ListTile(
+      titleAlignment: ListTileTitleAlignment.top,
+      minVerticalPadding: 0,
       dense: widget.weekGridCompact,
       visualDensity: widget.weekGridCompact ? VisualDensity.compact : null,
       onTap: () {
@@ -164,9 +191,10 @@ class _EventCardState extends State<EventCard> {
           builder: (context) => BaseBottomModal(entry: widget.entry),
         );
       },
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: widget.weekGridCompact ? AppSpacing.s : AppSpacing.l,
-        vertical: widget.weekGridCompact ? 2 : 0,
+      contentPadding: EdgeInsets.only(
+        left: widget.weekGridCompact ? AppSpacing.s : AppSpacing.l,
+        right: widget.weekGridCompact ? AppSpacing.s : AppSpacing.l,
+        bottom: widget.weekGridCompact ? 2 : 0,
       ),
       leading: widget.showTimeColumn
           ? TimeColumn(entry: entry, textColor: style.timeTextColor)
@@ -185,10 +213,10 @@ class _EventCardState extends State<EventCard> {
               Expanded(
                 child: Padding(
                   padding: widget.weekGridCompact
-                      ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+                      ? AppInsets.eventCardContentCompact
                       : AppInsets.eventCardContent,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (entry.choir != BackendChoir.unknown) ...[
@@ -228,6 +256,20 @@ class _EventCardState extends State<EventCard> {
                           ),
                         ),
                       ],
+                      if (!widget.showTimeColumn) ...[
+                        SizedBox(
+                          height: (entry.description ?? '').trim().isNotEmpty
+                              ? 6
+                              : 4,
+                        ),
+                        CalendarEntryTimeRangeRow(
+                          entry: entry,
+                          mutedColor: style.secondaryTextColor.withValues(
+                            alpha: 0.58,
+                          ),
+                          compact: false,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -235,8 +277,8 @@ class _EventCardState extends State<EventCard> {
               if (hasImageCandidate && !widget.weekGridCompact)
                 SizedBox(
                   width: AppDimensions.eventCardImageWidth,
-                  height: AppDimensions.eventCardImageHeight,
                   child: Stack(
+                    fit: StackFit.expand,
                     children: [
                       ClipRRect(
                         borderRadius: const BorderRadiusGeometry.only(

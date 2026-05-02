@@ -15,7 +15,7 @@ class TimeColumn extends StatelessWidget {
     ).textTheme.bodyMedium?.copyWith(color: textColor);
 
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
