@@ -13,12 +13,16 @@ class MealCard extends StatelessWidget {
   final bool applyPastStyling;
   final bool showTimeColumn;
   final bool weekGridCompact;
+  final bool? showInlineTimeRange;
+  final double? listTileHorizontalPadding;
   const MealCard({
     super.key,
     required this.entry,
     this.applyPastStyling = false,
     this.showTimeColumn = true,
     this.weekGridCompact = false,
+    this.showInlineTimeRange,
+    this.listTileHorizontalPadding,
   });
 
   @override
@@ -38,12 +42,7 @@ class MealCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.s),
           onTap: () {
             HapticFeedback.heavyImpact();
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              useSafeArea: true,
-              builder: (context) => BaseBottomModal(entry: entry),
-            );
+            BaseBottomModal.show(context, entry: entry);
           },
           child: Ink(
             height: double.infinity,
@@ -59,7 +58,8 @@ class MealCard extends StatelessWidget {
                 primaryTextColor: style.primaryTextColor,
                 secondaryTextColor: style.secondaryTextColor,
                 compact: true,
-                showInlineTimeRange: !showTimeColumn,
+                showInlineTimeRange:
+                    showInlineTimeRange ?? !showTimeColumn,
               ),
             ),
           ),
@@ -74,15 +74,11 @@ class MealCard extends StatelessWidget {
       visualDensity: weekGridCompact ? VisualDensity.compact : null,
       onTap: () {
         HapticFeedback.heavyImpact();
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          builder: (context) => BaseBottomModal(entry: entry),
-        );
+        BaseBottomModal.show(context, entry: entry);
       },
       contentPadding: EdgeInsets.symmetric(
-        horizontal: weekGridCompact ? AppSpacing.s : AppSpacing.l,
+        horizontal: listTileHorizontalPadding ??
+            (weekGridCompact ? AppSpacing.s : AppSpacing.l),
         vertical: weekGridCompact ? 2 : 0,
       ),
       leading: showTimeColumn
@@ -113,7 +109,8 @@ class MealCard extends StatelessWidget {
                       entry: entry,
                       primaryTextColor: style.primaryTextColor,
                       secondaryTextColor: style.secondaryTextColor,
-                      showInlineTimeRange: !showTimeColumn,
+                      showInlineTimeRange:
+                          showInlineTimeRange ?? !showTimeColumn,
                     ),
                   ),
                 ),

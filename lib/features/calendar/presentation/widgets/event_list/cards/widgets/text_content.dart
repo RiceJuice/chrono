@@ -3,6 +3,11 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:flutter/material.dart';
 
+const _cardTextHeightTight = TextHeightBehavior(
+  applyHeightToFirstAscent: false,
+  applyHeightToLastDescent: false,
+);
+
 /// Ob die Uhrzeit-Zeile bei begrenzter Kartenhöhe Platz hat (vermeidet Overflow).
 bool shouldShowCalendarEntryTimeRangeRow({
   required BoxConstraints constraints,
@@ -22,7 +27,8 @@ bool shouldShowCalendarEntryTimeRangeRow({
     minH += 18;
   } else {
     minH += 26;
-    if (hasDescription) minH += 36;
+    // Nicht-kompakt: immer Beschreibungs-Zeile (auch leer), siehe [TextContent].
+    minH += 36;
     minH += 22;
   }
   return constraints.maxHeight >= minH;
@@ -73,12 +79,50 @@ class CalendarEntryTimeRangeRow extends StatelessWidget {
   }
 }
 
-class TextContent extends StatelessWidget {
-  static const _compactTextHeightBehavior = TextHeightBehavior(
-    applyHeightToFirstAscent: false,
-    applyHeightToLastDescent: false,
-  );
+/// Ort mit Icon (Ersatz für die Beschreibungszeile bei Schulstunden ohne Text).
+class CalendarEntryLocationRow extends StatelessWidget {
+  const CalendarEntryLocationRow({
+    super.key,
+    required this.location,
+    required this.subtitleColor,
+  });
 
+  final String location;
+  final Color subtitleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final iconColor = subtitleColor.withValues(alpha: 0.6);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(Icons.place_outlined, size: 15, color: iconColor),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            location,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textHeightBehavior: _cardTextHeightTight,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: subtitleColor,
+              fontWeight: FontWeight.w300,
+              height: 1.15,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class TextContent extends StatelessWidget {
   const TextContent({
     super.key,
     required this.entry,
@@ -109,8 +153,16 @@ class TextContent extends StatelessWidget {
         .withValues(alpha: 0.58);
     final hasDescription =
         !compact && (entry.description ?? '').trim().isNotEmpty;
+    final trimmedLocation = (entry.location ?? '').trim();
+    final showLessonLocation = !compact &&
+        entry.type == CalendarEntryType.lesson &&
+        !hasDescription &&
+        trimmedLocation.isNotEmpty;
+    final subtitleColor =
+        secondaryTextColor ?? theme.colorScheme.onSurface;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -119,7 +171,7 @@ class TextContent extends StatelessWidget {
             entry.choir.displayLabel,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            textHeightBehavior: _compactTextHeightBehavior,
+            textHeightBehavior: _cardTextHeightTight,
             style: theme.textTheme.bodySmall?.copyWith(
               color: secondaryTextColor?.withValues(alpha: 0.75),
               fontWeight: FontWeight.w400,
@@ -132,7 +184,7 @@ class TextContent extends StatelessWidget {
           entry.eventName,
           maxLines: compact ? 2 : null,
           overflow: compact ? TextOverflow.ellipsis : null,
-          textHeightBehavior: _compactTextHeightBehavior,
+          textHeightBehavior: _cardTextHeightTight,
           style: theme.textTheme.bodyLarge?.copyWith(
             color: primaryTextColor,
             height: 1,
@@ -141,20 +193,37 @@ class TextContent extends StatelessWidget {
           ),
         ),
         if (!compact) const SizedBox(height: 2),
-        if (hasDescription) ...[
-          Text(
-            entry.description!,
-            textHeightBehavior: _compactTextHeightBehavior,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: secondaryTextColor,
-              fontWeight: FontWeight.w300,
-              height: 1,
-              fontSize: 14,
+        if (!compact) ...[
+          if (hasDescription)
+            Text(
+              entry.description!,
+              textHeightBehavior: _cardTextHeightTight,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: secondaryTextColor,
+                fontWeight: FontWeight.w300,
+                height: 1,
+                fontSize: 14,
+              ),
+            )
+          else if (showLessonLocation)
+            CalendarEntryLocationRow(
+              location: trimmedLocation,
+              subtitleColor: subtitleColor,
+            )
+          else
+            Text(
+              '\u200b',
+              textHeightBehavior: _cardTextHeightTight,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: subtitleColor.withValues(alpha: 0),
+                fontWeight: FontWeight.w300,
+                height: 1,
+                fontSize: 14,
+              ),
             ),
-          ),
         ],
         if (showInlineTimeRange) ...[
-          SizedBox(height: compact ? 3 : (hasDescription ? 6 : 4)),
+          SizedBox(height: compact ? 3 : 6),
           CalendarEntryTimeRangeRow(
             entry: entry,
             mutedColor: mutedTimeColor,

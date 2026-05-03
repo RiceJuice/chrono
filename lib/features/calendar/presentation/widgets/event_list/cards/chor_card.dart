@@ -8,12 +8,21 @@ class ChorCard extends StatelessWidget {
   final bool applyPastStyling;
   final bool showTimeColumn;
   final bool weekGridCompact;
+  final bool? showInlineTimeRange;
+  final double? listTileHorizontalPadding;
+  final EdgeInsetsGeometry? contentPadding;
+  final double? titleFontSize;
+
   const ChorCard({
     super.key,
     required this.entry,
     this.applyPastStyling = false,
     this.showTimeColumn = true,
     this.weekGridCompact = false,
+    this.showInlineTimeRange,
+    this.listTileHorizontalPadding,
+    this.contentPadding,
+    this.titleFontSize,
   });
 
   @override
@@ -24,14 +33,18 @@ class ChorCard extends StatelessWidget {
       applyPastStyling: applyPastStyling,
       showTimeColumn: showTimeColumn,
       weekGridCompact: weekGridCompact,
+      showInlineTimeRange: showInlineTimeRange,
+      listTileHorizontalPadding: listTileHorizontalPadding,
       showChoirAboveTitle: true,
-      titleFontSize: weekGridCompact ? 14 : 17,
+      titleFontSize: weekGridCompact
+          ? 14
+          : (titleFontSize ?? 17),
       titleFontWeight: FontWeight.w500,
       backgroundColor: scheme.primary,
-      contentPadding: EdgeInsets.symmetric(
-        vertical: weekGridCompact ? 6 : 12,
-        horizontal: weekGridCompact ? 8 : 14,
-      ),
+      contentPadding: weekGridCompact
+          ? const EdgeInsets.symmetric(vertical: 6, horizontal: 8)
+          : (contentPadding ??
+              const EdgeInsets.symmetric(vertical: 12, horizontal: 14)),
       leadingIndicator: Container(
         width: 6,
         decoration: BoxDecoration(

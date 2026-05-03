@@ -22,10 +22,9 @@ class BaseCalendarCard extends StatelessWidget {
   final bool weekGridCompact;
 
   /// Horizontaler Außenabstand der Zeile im Listen-Modus ([ListTile.contentPadding]).
-  /// Standard: [AppSpacing.l].
   final double? listTileHorizontalPadding;
 
-  /// Wenn `null`: wie bisher `!showTimeColumn`. Z. B. [LessionCard] setzt `false`.
+  /// Wenn `null`: wie bisher `!showTimeColumn`.
   final bool? showInlineTimeRange;
 
   const BaseCalendarCard({
@@ -34,8 +33,8 @@ class BaseCalendarCard extends StatelessWidget {
     this.applyPastStyling = false,
     this.backgroundColor,
     this.contentPadding = const EdgeInsets.symmetric(
-      horizontal: AppSpacing.m,
-      vertical: 6,
+      horizontal: AppSpacing.s,
+      vertical: AppSpacing.s,
     ),
     this.leadingIndicator,
     this.showChoirAboveTitle = false,
@@ -67,14 +66,7 @@ class BaseCalendarCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.s),
           onTap: () {
             HapticFeedback.heavyImpact();
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              useSafeArea: true,
-              builder: (context) {
-                return BaseBottomModal(entry: entry);
-              },
-            );
+            BaseBottomModal.show(context, entry: entry);
           },
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.s),
@@ -84,21 +76,16 @@ class BaseCalendarCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadius.s),
                 color: style.cardBackgroundColor,
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (leadingIndicator != null) ...[
-                    leadingIndicator!,
-                    SizedBox(
-                      width: _stripeToTextGap(
-                        0,
-                        weekGridCompact: true,
-                      ),
-                    ),
-                  ],
-                  Expanded(
-                    child: Padding(
-                      padding: contentPadding,
+              child: Padding(
+                padding: contentPadding,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (leadingIndicator != null) ...[
+                      leadingIndicator!,
+                      const SizedBox(width: AppSpacing.s),
+                    ],
+                    Expanded(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           final showCompactInlineTime =
@@ -127,8 +114,8 @@ class BaseCalendarCard extends StatelessWidget {
                         },
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -136,60 +123,70 @@ class BaseCalendarCard extends StatelessWidget {
       );
     }
 
-    return ListTile(
-      titleAlignment: ListTileTitleAlignment.top,
-      minVerticalPadding: 0,
-      dense: weekGridCompact,
-      visualDensity: weekGridCompact ? VisualDensity.compact : null,
-      onTap: () {
-        HapticFeedback.heavyImpact();
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          builder: (context) {
-            return BaseBottomModal(entry: entry);
-          },
-        );
-      },
-      contentPadding: EdgeInsets.only(
-        left:
-            listTileHorizontalPadding ?? (weekGridCompact ? AppSpacing.s : AppSpacing.l),
-        right:
-            listTileHorizontalPadding ?? (weekGridCompact ? AppSpacing.s : AppSpacing.l),
-        bottom: weekGridCompact ? 2 : 0,
-      ),
-      leading: showTimeColumn
-          ? TimeColumn(entry: entry, textColor: style.timeTextColor)
-          : null,
-      title: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.s),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.s),
-            color: style.cardBackgroundColor,
-          ),
+    final rowHorizontalPadding =
+        listTileHorizontalPadding ?? AppSpacing.l;
+    final contentInsets = contentPadding.resolve(Directionality.of(context));
+
+    void onCardTap() {
+      HapticFeedback.heavyImpact();
+      BaseBottomModal.show(context, entry: entry);
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: rowHorizontalPadding),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onCardTap,
           child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (leadingIndicator != null) ...[
-                  leadingIndicator!,
-                  const SizedBox(width: 8),
-                ],
+                if (showTimeColumn)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: contentInsets.top,
+                      bottom: contentInsets.bottom,
+                      right: AppSpacing.s,
+                    ),
+                    child: TimeColumn(
+                      entry: entry,
+                      textColor: style.timeTextColor,
+                      alignToContentHeight: true,
+                    ),
+                  ),
                 Expanded(
-                  child: Padding(
-                    padding: contentPadding,
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: TextContent(
-                        entry: entry,
-                        primaryTextColor: style.primaryTextColor,
-                        secondaryTextColor: style.secondaryTextColor,
-                        showChoirAboveTitle: showChoirAboveTitle,
-                        titleFontSize: titleFontSize,
-                        titleFontWeight: titleFontWeight,
-                        showInlineTimeRange: inlineTime,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.s),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadius.s),
+                        color: style.cardBackgroundColor,
+                      ),
+                      child: Padding(
+                        padding: contentPadding,
+                        child: IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (leadingIndicator != null) ...[
+                                leadingIndicator!,
+                                const SizedBox(width: AppSpacing.s),
+                              ],
+                              Expanded(
+                                child: TextContent(
+                                  entry: entry,
+                                  primaryTextColor: style.primaryTextColor,
+                                  secondaryTextColor: style.secondaryTextColor,
+                                  showChoirAboveTitle: showChoirAboveTitle,
+                                  titleFontSize: titleFontSize,
+                                  titleFontWeight: titleFontWeight,
+                                  showInlineTimeRange: inlineTime,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -201,16 +198,4 @@ class BaseCalendarCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Horizontaler Abstand zwischen Farbstreifen und Text, abhängig von der
-/// verfügbaren Innenbreite der Karte (schmale Wochenspalten vs. volle Liste).
-double _stripeToTextGap(double rowInnerWidth, {required bool weekGridCompact}) {
-  if (weekGridCompact) {
-    return 6.0;
-  }
-  if (!rowInnerWidth.isFinite || rowInnerWidth <= 0) {
-    return 12.0;
-  }
-  return (rowInnerWidth * 0.03).clamp(8.0, 8.0);
 }

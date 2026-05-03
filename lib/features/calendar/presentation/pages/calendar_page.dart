@@ -7,6 +7,8 @@ import 'package:chronoapp/features/calendar/presentation/providers/calendar_view
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_filter_bottom_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,7 +29,7 @@ class CalendarPage extends ConsumerStatefulWidget {
 class _CalendarPageState extends ConsumerState<CalendarPage> {
   static const Duration _searchDebounce = Duration(milliseconds: 300);
   static const Duration _viewModeTransitionDuration = Duration(
-    milliseconds: 420,
+    milliseconds: 300,
   );
   static const Curve _viewModeTransitionCurve = Cubic(0.2, 0.8, 0.2, 1);
 
@@ -62,6 +64,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      sheetAnimationStyle: kCalendarBottomSheetMotion,
       builder: (_) => const CalendarFilterBottomSheet(
         mode: CalendarFilterBottomSheetMode.calendarSettings,
       ),
@@ -74,6 +77,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      sheetAnimationStyle: kCalendarBottomSheetMotion,
       builder: (_) => const CalendarFilterBottomSheet(
         mode: CalendarFilterBottomSheetMode.searchFilter,
       ),
@@ -113,7 +117,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     final focusedDay = ref.read(focusedDayProvider);
 
     if (nextMode == CalendarViewMode.week) {
-      ref.read(focusedDayProvider.notifier).update(selectedDay);
+      ref
+          .read(focusedDayProvider.notifier)
+          .update(weekMondayLocal(selectedDay));
     } else {
       ref.read(selectedDayProvider.notifier).update(focusedDay);
     }
@@ -147,12 +153,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           curve: _viewModeTransitionCurve,
           reverseCurve: Curves.easeInCubic,
         );
+        // Nur vertikal: Wochenraster wirkt wie „nach oben geschoben“, Tagesliste von oben.
         final slideBegin = isWeekTarget
-            ? const Offset(0.11, 0.012)
-            : const Offset(-0.09, 0.012);
+            ? const Offset(0, 0.078)
+            : const Offset(0, -0.078);
         final slideOvershoot = isWeekTarget
-            ? const Offset(-0.012, 0)
-            : const Offset(0.012, 0);
+            ? const Offset(0, -0.016)
+            : const Offset(0, 0.016);
         final slideAnimation = TweenSequence<Offset>([
           TweenSequenceItem(
             tween: Tween<Offset>(
@@ -188,7 +195,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
         return FadeTransition(
           opacity: Tween<double>(begin: 0, end: 1)
-              .chain(CurveTween(curve: const Interval(0.08, 1)))
+              .chain(CurveTween(curve: const Interval(0.0, 0.38)))
               .animate(animation),
           child: SlideTransition(
             position: slideAnimation,

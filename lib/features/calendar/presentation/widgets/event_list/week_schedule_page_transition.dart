@@ -17,34 +17,57 @@ class WeekSchedulePageTransition extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final outgoingEndX = isForward ? -1.0 : 1.0;
-    final incomingStartX = isForward ? 1.0 : -1.0;
+    final outgoingEndY = isForward ? -1.0 : 1.0;
+    final incomingStartY = isForward ? 1.0 : -1.0;
+
+    final slideCurve = Curves.easeOutCubic;
+    final outgoingSlide = Tween<Offset>(
+      begin: Offset.zero,
+      end: Offset(0, outgoingEndY),
+    ).animate(CurvedAnimation(parent: animation, curve: slideCurve));
+    final incomingSlide = Tween<Offset>(
+      begin: Offset(0, incomingStartY),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: animation, curve: slideCurve));
+
+    final outgoingFade = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(
+        parent: animation,
+        curve: const Interval(0.0, 0.18, curve: Curves.easeOutCubic),
+      ),
+    );
+    final incomingFade = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: animation,
+        curve: const Interval(0.08, 1.0, curve: Curves.easeInCubic),
+      ),
+    );
 
     return IgnorePointer(
       child: ColoredBox(
         color: Theme.of(context).scaffoldBackgroundColor,
         child: Stack(
           children: [
-            SlideTransition(
-              position: Tween<Offset>(
-                begin: Offset.zero,
-                end: Offset(outgoingEndX, 0),
-              ).animate(animation),
-              child: WeekScheduleGrid(
-                key: ValueKey<String>('from-$fromMonday'),
-                monday: fromMonday,
-                showTimelineColumn: false,
+            FadeTransition(
+              opacity: outgoingFade,
+              child: SlideTransition(
+                position: outgoingSlide,
+                child: WeekScheduleGrid(
+                  key: ValueKey<String>('from-$fromMonday'),
+                  monday: fromMonday,
+                  showTimelineColumn: false,
+                ),
               ),
             ),
-            SlideTransition(
-              position: Tween<Offset>(
-                begin: Offset(incomingStartX, 0),
-                end: Offset.zero,
-              ).animate(animation),
-              child: WeekScheduleGrid(
-                key: ValueKey<String>('to-$toMonday'),
-                monday: toMonday,
-                showTimelineColumn: false,
+            FadeTransition(
+              opacity: incomingFade,
+              child: SlideTransition(
+                position: incomingSlide,
+                child: WeekScheduleGrid(
+                  key: ValueKey<String>('to-$toMonday'),
+                  monday: toMonday,
+                  showTimelineColumn: false,
+                ),
               ),
             ),
           ],

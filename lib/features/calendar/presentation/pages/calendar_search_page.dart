@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
+import '../../../../core/theme/theme_tokens.dart';
 import '../../../../core/time/app_date_time.dart';
 import '../../domain/models/calendar_entry.dart';
 import '../providers/calendar_providers.dart';
@@ -139,20 +140,34 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                         'search-list-${widget.query}-${_filtersSignature(filters)}',
                       ),
                       itemPositionsListener: _itemPositionsListener,
-                      padding: const EdgeInsets.only(top: _stickyHeaderHeight),
+                      padding: const EdgeInsets.only(
+                        top: _stickyHeaderHeight + AppSpacing.l,
+                        bottom: AppSpacing.l,
+                      ),
                       itemCount: rows.length,
                       initialScrollIndex: targetRowIndex,
                       itemBuilder: (context, index) {
                         final row = rows[index];
+                        final lastIndex = rows.length - 1;
+                        final Widget child;
                         if (row.headerDay != null) {
-                          return _buildDayHeader(
+                          child = _buildDayHeader(
                             context: context,
                             day: row.headerDay!,
                           );
+                        } else {
+                          child = CalendarEntryCard(
+                            entry: row.entry!,
+                            applyPastStyling: true,
+                          );
                         }
-                        return CalendarEntryCard(
-                          entry: row.entry!,
-                          applyPastStyling: true,
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            child,
+                            if (index != lastIndex) const SizedBox(height: AppSpacing.m),
+                          ],
                         );
                       },
                     ),

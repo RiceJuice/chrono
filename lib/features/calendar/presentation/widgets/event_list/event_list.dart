@@ -7,6 +7,10 @@ import 'day_page.dart';
 import 'event_list_navigation_logic.dart';
 import 'event_list_page_transition.dart';
 
+/// Feste Gesamthöhe des farbigen Headers im Termin-Bottom-Sheet (ohne Skalierung).
+/// Die Vorschau nutzt dieselben [CalendarEntryCard]-Widgets wie [DayPage] / diese Liste.
+const double kBottomModalHeaderHeight = 200;
+
 class EventList extends ConsumerStatefulWidget {
   const EventList({super.key});
 

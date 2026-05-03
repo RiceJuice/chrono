@@ -115,6 +115,10 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       calendarFormat: widget.calendarFormat,
       focusedDay: focusedDay,
       pageJumpingEnabled: true,
+      // Wochen-Stundenplan: Riverpod setzt oft den Montag, während table_calendar
+      // nach dem Swipe den sichtbaren Tag behält — gleicher Seitenindex + Animation
+      // erzeugt sonst einen sichtbaren „Rücksprung“. Ohne Seiten-Animation nur jumpToPage.
+      pageAnimationEnabled: !widget.weekTimetableMode,
       eventLoader: (day) {
         final marker = dayMarkersByDate[normalizeCalendarDay(day)];
         if (marker == null) return const [];
@@ -262,8 +266,11 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       onPageChanged: (newFocusedDay) {
         if (widget.weekTimetableMode) {
           _pendingProgrammaticFocusedDay = null;
-          final monday = _startOfWeek(AppDateTime.localDay(newFocusedDay));
-          ref.read(focusedDayProvider.notifier).update(monday);
+          // Gleicher Kalendertag wie table_calendar intern — nicht auf Montag
+          // normalisieren, sonst didUpdateWidget + animateToPage(gleicher Index) = Bounce.
+          ref
+              .read(focusedDayProvider.notifier)
+              .update(AppDateTime.localDay(newFocusedDay));
           return;
         }
         final pendingProgrammaticFocusedDay = _pendingProgrammaticFocusedDay;

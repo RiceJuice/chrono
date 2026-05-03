@@ -18,12 +18,16 @@ class EventCard extends StatefulWidget {
   final bool applyPastStyling;
   final bool showTimeColumn;
   final bool weekGridCompact;
+  final bool? showInlineTimeRange;
+  final double? listTileHorizontalPadding;
   const EventCard({
     super.key,
     required this.entry,
     this.applyPastStyling = false,
     this.showTimeColumn = true,
     this.weekGridCompact = false,
+    this.showInlineTimeRange,
+    this.listTileHorizontalPadding,
   });
 
   @override
@@ -92,6 +96,8 @@ class _EventCardState extends State<EventCard> {
     final hasImageCandidate =
         (entry.imageUrls?.isNotEmpty ?? false) ||
         (entry.imagePaths?.isNotEmpty ?? false);
+    final wantTimeRange =
+        widget.showInlineTimeRange ?? !widget.showTimeColumn;
 
     if (widget.weekGridCompact) {
       return Material(
@@ -100,12 +106,7 @@ class _EventCardState extends State<EventCard> {
           borderRadius: BorderRadius.circular(AppRadius.s),
           onTap: () {
             HapticFeedback.heavyImpact();
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              useSafeArea: true,
-              builder: (context) => BaseBottomModal(entry: widget.entry),
-            );
+            BaseBottomModal.show(context, entry: widget.entry);
           },
           child: Ink(
             height: double.infinity,
@@ -121,7 +122,7 @@ class _EventCardState extends State<EventCard> {
                   final hasChoir = entry.choir != BackendChoir.unknown;
                   final showTime = shouldShowCalendarEntryTimeRangeRow(
                     constraints: constraints,
-                    wantTimeRange: !widget.showTimeColumn,
+                    wantTimeRange: wantTimeRange,
                     compact: true,
                     hasChoirLine: hasChoir,
                     hasDescription: false,
@@ -184,16 +185,13 @@ class _EventCardState extends State<EventCard> {
       visualDensity: widget.weekGridCompact ? VisualDensity.compact : null,
       onTap: () {
         HapticFeedback.heavyImpact();
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          builder: (context) => BaseBottomModal(entry: widget.entry),
-        );
+        BaseBottomModal.show(context, entry: widget.entry);
       },
       contentPadding: EdgeInsets.only(
-        left: widget.weekGridCompact ? AppSpacing.s : AppSpacing.l,
-        right: widget.weekGridCompact ? AppSpacing.s : AppSpacing.l,
+        left: widget.listTileHorizontalPadding ??
+            (widget.weekGridCompact ? AppSpacing.s : AppSpacing.l),
+        right: widget.listTileHorizontalPadding ??
+            (widget.weekGridCompact ? AppSpacing.s : AppSpacing.l),
         bottom: widget.weekGridCompact ? 2 : 0,
       ),
       leading: widget.showTimeColumn
@@ -256,7 +254,7 @@ class _EventCardState extends State<EventCard> {
                           ),
                         ),
                       ],
-                      if (!widget.showTimeColumn) ...[
+                      if (wantTimeRange) ...[
                         SizedBox(
                           height: (entry.description ?? '').trim().isNotEmpty
                               ? 6
