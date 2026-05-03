@@ -6,11 +6,34 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/lesson_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/meal_bottom_modal.dart';
 
+/// Etwas langsameres, weicheres Ein-/Ausblenden als Material-Default (~250 ms),
+/// näher an typischen iOS-Sheet-Präsentationen.
+const AnimationStyle kCalendarBottomSheetMotion = AnimationStyle(
+  duration: Duration(milliseconds: 300),
+  reverseDuration: Duration(milliseconds: 300),
+  curve: Cubic(0.25, 0.1, 0.25, 1.0),
+  reverseCurve: Cubic(0.33, 0.0, 0.67, 1.0),
+);
+
 class BaseBottomModal extends StatelessWidget {
   final CalendarEntry entry;
   final double? minHeight;
 
   const BaseBottomModal({super.key, required this.entry, this.minHeight});
+
+  static Future<T?> show<T>(
+    BuildContext context, {
+    required CalendarEntry entry,
+    double? minHeight,
+  }) {
+    return showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      sheetAnimationStyle: kCalendarBottomSheetMotion,
+      builder: (_) => BaseBottomModal(entry: entry, minHeight: minHeight),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

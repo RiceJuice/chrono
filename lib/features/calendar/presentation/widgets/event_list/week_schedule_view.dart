@@ -299,23 +299,32 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
 
   void _syncPageToFocusedWeek(DateTime? previous, DateTime next) {
     final targetPage = pageIndexForMonday(weekMondayLocal(next));
-    if (!_weekPageController.hasClients) return;
 
-    final currentPage =
-        _currentPage ??
-        _weekPageController.page?.round() ??
-        _weekPageController.initialPage;
-    if (currentPage == targetPage) return;
+    void applySync() {
+      if (!mounted) return;
+      if (!_weekPageController.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => applySync());
+        return;
+      }
 
-    _startOverlayTransition(fromPage: currentPage, toPage: targetPage);
-    _lastProgrammaticPage = targetPage;
-    if (_timelineScrollOffset != 0) {
-      setState(() {
-        _timelineScrollOffset = 0;
-      });
+      final currentPage =
+          _currentPage ??
+          _weekPageController.page?.round() ??
+          _weekPageController.initialPage;
+      if (currentPage == targetPage) return;
+
+      _startOverlayTransition(fromPage: currentPage, toPage: targetPage);
+      _lastProgrammaticPage = targetPage;
+      if (_timelineScrollOffset != 0) {
+        setState(() {
+          _timelineScrollOffset = 0;
+        });
+      }
+      _weekPageController.jumpToPage(targetPage);
+      _currentPage = targetPage;
     }
-    _weekPageController.jumpToPage(targetPage);
-    _currentPage = targetPage;
+
+    applySync();
   }
 
   void _handlePageChanged(int index) {
