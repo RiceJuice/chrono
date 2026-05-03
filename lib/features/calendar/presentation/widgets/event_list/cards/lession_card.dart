@@ -18,25 +18,26 @@ class LessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final backgroundColor = Color.alphaBlend(
+      entry.accentColor.withValues(alpha: 0.05),
+      scheme.surfaceContainerHigh,
+    );
 
     return BaseCalendarCard(
       entry: entry,
       applyPastStyling: applyPastStyling,
       showTimeColumn: showTimeColumn,
+      showInlineTimeRange: false,
       weekGridCompact: weekGridCompact,
-      backgroundColor: scheme.surfaceContainerHigh,
-      contentPadding: EdgeInsetsGeometry.symmetric(
-        vertical: weekGridCompact ? 4 : 8,
-        horizontal: weekGridCompact ? 8 : 14,
-      ),
-      leadingIndicator: Padding(
-        padding: const EdgeInsets.only(right: 12.0),
-        child: Container(
-          width: 6,
-          decoration: BoxDecoration(
-            color: entry.accentColor,
-            borderRadius: BorderRadius.circular(3),
-          ),
+      backgroundColor: backgroundColor,
+      contentPadding: weekGridCompact
+          ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+          : EdgeInsets.zero,
+      leadingIndicator: Container(
+        width: 6,
+        decoration: BoxDecoration(
+          color: entry.accentColor,
+          borderRadius: BorderRadius.circular(3),
         ),
       ),
     );
