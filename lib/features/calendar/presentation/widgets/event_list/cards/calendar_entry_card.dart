@@ -12,6 +12,10 @@ class CalendarEntryCard extends StatelessWidget {
     this.applyPastStyling = false,
     this.showTimeColumn = true,
     this.weekGridCompact = false,
+    this.showInlineTimeRange,
+    this.listTileHorizontalPadding,
+    this.cardContentPadding,
+    this.cardTitleFontSize,
     super.key,
   });
 
@@ -19,6 +23,18 @@ class CalendarEntryCard extends StatelessWidget {
   final bool applyPastStyling;
   final bool showTimeColumn;
   final bool weekGridCompact;
+
+  /// `null`: abgeleitet wie bisher (z. B. inline Zeit bei `showTimeColumn: false`).
+  final bool? showInlineTimeRange;
+
+  /// `null`: Standard horizontaler Außenabstand der Listenkarte ([AppSpacing.l] / kompakt [AppSpacing.s]).
+  final double? listTileHorizontalPadding;
+
+  /// Optional: Innenabstand der Kartenfläche (z. B. Sheet-Header-Vorschau).
+  final EdgeInsetsGeometry? cardContentPadding;
+
+  /// Optional: Titelgröße (z. B. Sheet-Header-Vorschau).
+  final double? cardTitleFontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +45,10 @@ class CalendarEntryCard extends StatelessWidget {
           applyPastStyling: applyPastStyling,
           showTimeColumn: showTimeColumn,
           weekGridCompact: weekGridCompact,
+          showInlineTimeRange: showInlineTimeRange,
+          listTileHorizontalPadding: listTileHorizontalPadding,
+          contentPadding: cardContentPadding,
+          titleFontSize: cardTitleFontSize,
         );
       case CalendarEntryType.choir:
         return ChorCard(
@@ -36,6 +56,10 @@ class CalendarEntryCard extends StatelessWidget {
           applyPastStyling: applyPastStyling,
           showTimeColumn: showTimeColumn,
           weekGridCompact: weekGridCompact,
+          showInlineTimeRange: showInlineTimeRange,
+          listTileHorizontalPadding: listTileHorizontalPadding,
+          contentPadding: cardContentPadding,
+          titleFontSize: cardTitleFontSize,
         );
       case CalendarEntryType.meal:
         return MealCard(
@@ -43,6 +67,8 @@ class CalendarEntryCard extends StatelessWidget {
           applyPastStyling: applyPastStyling,
           showTimeColumn: showTimeColumn,
           weekGridCompact: weekGridCompact,
+          showInlineTimeRange: showInlineTimeRange,
+          listTileHorizontalPadding: listTileHorizontalPadding,
         );
       case CalendarEntryType.event:
         return EventCard(
@@ -50,6 +76,8 @@ class CalendarEntryCard extends StatelessWidget {
           applyPastStyling: applyPastStyling,
           showTimeColumn: showTimeColumn,
           weekGridCompact: weekGridCompact,
+          showInlineTimeRange: showInlineTimeRange,
+          listTileHorizontalPadding: listTileHorizontalPadding,
         );
     }
   }
