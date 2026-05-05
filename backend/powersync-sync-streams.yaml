@@ -8,7 +8,23 @@ streams:
   
   appointments_calendar_series:
     auto_subscribe: true
-    query: SELECT * FROM calendar_series
+    query: |
+      SELECT
+        id,
+        event_name,
+        rrule,
+        start_time,
+        end_time,
+        location,
+        type,
+        choir,
+        voices,
+        schooltrack,
+        class,
+        NULL::text AS diet,
+        series_start,
+        series_end
+      FROM calendar_series
 
   profile_self:
     auto_subscribe: true

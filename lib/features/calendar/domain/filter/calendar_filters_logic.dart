@@ -61,6 +61,18 @@ bool calendarEntryMatchesFilters({
     }
   }
 
+  if (filters.diets.isNotEmpty && entry.type == CalendarEntryType.meal) {
+    final value = normalizeCalendarFilterText(entry.diet.toBackend());
+    if (!_matchesCategory(
+      selectedValues: filters.diets,
+      entryValue: value,
+      isUnknown: entry.diet == BackendDiet.unknown,
+      hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+    )) {
+      return false;
+    }
+  }
+
   return true;
 }
 

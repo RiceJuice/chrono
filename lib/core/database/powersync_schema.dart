@@ -33,15 +33,13 @@ const powersyncSchema = Schema([
       Column.text('voices'),
       Column.text('schooltrack'),
       Column.text('class'),
+      Column.text('diet'),
       Column.text('image_paths'),
       Column.text('series_id'),
       Column.text('recurrence_id'),
     ],
     indexes: [
-      Index(
-        'calendar_events_start_time',
-        [IndexedColumn('start_time')],
-      ),
+      Index('calendar_events_start_time', [IndexedColumn('start_time')]),
     ],
   ),
   Table(
@@ -57,14 +55,12 @@ const powersyncSchema = Schema([
       Column.text('voices'),
       Column.text('schooltrack'),
       Column.text('class'),
+      Column.text('diet'),
       Column.text('series_start'),
       Column.text('series_end'),
     ],
     indexes: [
-      Index(
-        'calendar_series_series_start',
-        [IndexedColumn('series_start')],
-      ),
+      Index('calendar_series_series_start', [IndexedColumn('series_start')]),
     ],
   ),
   Table(
@@ -83,26 +79,15 @@ const powersyncSchema = Schema([
       Column.text('onboarding_completed_at'),
     ],
     indexes: [
-      Index(
-        'profiles_class_name',
-        [IndexedColumn('class_name')],
-      ),
-      Index(
-        'profiles_updated_at',
-        [IndexedColumn('updated_at')],
-      ),
+      Index('profiles_class_name', [IndexedColumn('class_name')]),
+      Index('profiles_updated_at', [IndexedColumn('updated_at')]),
     ],
   ),
   Table(
     kKlassenTable,
-    [
-      Column.text('class_name'),
-    ],
+    [Column.text('class_name')],
     indexes: [
-      Index(
-        'klassen_class_name',
-        [IndexedColumn('class_name')],
-      ),
+      Index('klassen_class_name', [IndexedColumn('class_name')]),
     ],
   ),
 ]);

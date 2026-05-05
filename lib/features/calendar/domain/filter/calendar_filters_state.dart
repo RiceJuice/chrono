@@ -4,38 +4,45 @@ class CalendarFiltersState {
     this.voices = const <String>[],
     this.classNames = const <String>[],
     this.schoolTracks = const <String>[],
+    this.diets = const <String>[],
     this.defaultChoirs = const <String>[],
     this.defaultVoices = const <String>[],
     this.defaultClassNames = const <String>[],
     this.defaultSchoolTracks = const <String>[],
+    this.defaultDiets = const <String>[],
     this.hasInitializedDefaults = false,
     this.hasUserOverrides = false,
     this.isChoirExplicit = false,
     this.isVoiceExplicit = false,
     this.isClassNameExplicit = false,
     this.isSchoolTrackExplicit = false,
+    this.isDietExplicit = false,
   });
 
   final List<String> choirs;
   final List<String> voices;
   final List<String> classNames;
   final List<String> schoolTracks;
+  final List<String> diets;
   final List<String> defaultChoirs;
   final List<String> defaultVoices;
   final List<String> defaultClassNames;
   final List<String> defaultSchoolTracks;
+  final List<String> defaultDiets;
   final bool hasInitializedDefaults;
   final bool hasUserOverrides;
   final bool isChoirExplicit;
   final bool isVoiceExplicit;
   final bool isClassNameExplicit;
   final bool isSchoolTrackExplicit;
+  final bool isDietExplicit;
 
   bool get hasActiveFilters =>
       choirs.isNotEmpty ||
       voices.isNotEmpty ||
       classNames.isNotEmpty ||
-      schoolTracks.isNotEmpty;
+      schoolTracks.isNotEmpty ||
+      diets.isNotEmpty;
 
   List<String> get choirDeviations => _visibleFilterChipsForCategory(
         selected: choirs,
@@ -61,37 +68,49 @@ class CalendarFiltersState {
         isExplicit: isSchoolTrackExplicit,
       );
 
+  List<String> get dietDeviations => _visibleFilterChipsForCategory(
+        selected: diets,
+        defaults: defaultDiets,
+        isExplicit: isDietExplicit,
+      );
+
   bool get hasVisibleDeviationChips =>
       choirDeviations.isNotEmpty ||
       voiceDeviations.isNotEmpty ||
       classNameDeviations.isNotEmpty ||
-      schoolTrackDeviations.isNotEmpty;
+      schoolTrackDeviations.isNotEmpty ||
+      dietDeviations.isNotEmpty;
 
   CalendarFiltersState copyWith({
     List<String>? choirs,
     List<String>? voices,
     List<String>? classNames,
     List<String>? schoolTracks,
+    List<String>? diets,
     List<String>? defaultChoirs,
     List<String>? defaultVoices,
     List<String>? defaultClassNames,
     List<String>? defaultSchoolTracks,
+    List<String>? defaultDiets,
     bool? hasInitializedDefaults,
     bool? hasUserOverrides,
     bool? isChoirExplicit,
     bool? isVoiceExplicit,
     bool? isClassNameExplicit,
     bool? isSchoolTrackExplicit,
+    bool? isDietExplicit,
   }) {
     return CalendarFiltersState(
       choirs: choirs ?? this.choirs,
       voices: voices ?? this.voices,
       classNames: classNames ?? this.classNames,
       schoolTracks: schoolTracks ?? this.schoolTracks,
+      diets: diets ?? this.diets,
       defaultChoirs: defaultChoirs ?? this.defaultChoirs,
       defaultVoices: defaultVoices ?? this.defaultVoices,
       defaultClassNames: defaultClassNames ?? this.defaultClassNames,
       defaultSchoolTracks: defaultSchoolTracks ?? this.defaultSchoolTracks,
+      defaultDiets: defaultDiets ?? this.defaultDiets,
       hasInitializedDefaults:
           hasInitializedDefaults ?? this.hasInitializedDefaults,
       hasUserOverrides: hasUserOverrides ?? this.hasUserOverrides,
@@ -99,6 +118,7 @@ class CalendarFiltersState {
       isVoiceExplicit: isVoiceExplicit ?? this.isVoiceExplicit,
       isClassNameExplicit: isClassNameExplicit ?? this.isClassNameExplicit,
       isSchoolTrackExplicit: isSchoolTrackExplicit ?? this.isSchoolTrackExplicit,
+      isDietExplicit: isDietExplicit ?? this.isDietExplicit,
     );
   }
 }

@@ -1,4 +1,4 @@
-package com.example.chronoapp
+package com.domspatzen.chronoapp
 
 import io.flutter.embedding.android.FlutterActivity
 

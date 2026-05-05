@@ -18,6 +18,7 @@ class CalendarEntry {
   final BackendVoice voice;
   final List<BackendVoice> voices;
   final BackendSchoolTrack schoolTrack;
+  final BackendDiet diet;
   final String? className;
   final List<String>? imagePaths;
   final List<String>? tags;
@@ -41,6 +42,7 @@ class CalendarEntry {
     this.voice = BackendVoice.unknown,
     this.voices = const <BackendVoice>[],
     this.schoolTrack = BackendSchoolTrack.unknown,
+    this.diet = BackendDiet.unknown,
     this.className,
     this.imagePaths,
     this.tags,
@@ -72,6 +74,7 @@ class CalendarEntry {
       voice: voice,
       voices: voices,
       schoolTrack: schoolTrack,
+      diet: diet,
       className: className,
       imagePaths: imagePaths,
       tags: tags,

@@ -2,7 +2,7 @@ import 'calendar_filter_selection.dart';
 import 'calendar_filter_text.dart';
 import 'calendar_filters_state.dart';
 
-enum CalendarFilterCategory { choir, voice, className, schoolTrack }
+enum CalendarFilterCategory { choir, voice, className, schoolTrack, diet }
 
 class CalendarSearchFilterTransition {
   const CalendarSearchFilterTransition({
@@ -64,6 +64,14 @@ CalendarSearchFilterTransition toggleSearchFilterCategory({
     isExplicit: state.isSchoolTrackExplicit,
     value: value,
   );
+  final diets = _nextSelectionForCategory(
+    category: CalendarFilterCategory.diet,
+    toggledCategory: category,
+    current: state.diets,
+    defaults: state.defaultDiets,
+    isExplicit: state.isDietExplicit,
+    value: value,
+  );
 
   return CalendarSearchFilterTransition(
     state: state.copyWith(
@@ -71,11 +79,13 @@ CalendarSearchFilterTransition toggleSearchFilterCategory({
       voices: voices.values,
       classNames: classNames.values,
       schoolTracks: schoolTracks.values,
+      diets: diets.values,
       hasUserOverrides: true,
       isChoirExplicit: choirs.isExplicit,
       isVoiceExplicit: voices.isExplicit,
       isClassNameExplicit: classNames.isExplicit,
       isSchoolTrackExplicit: schoolTracks.isExplicit,
+      isDietExplicit: diets.isExplicit,
     ),
     restorePoint: restorePoint ?? state,
   );
@@ -131,6 +141,7 @@ bool _isCategoryExplicit(
     CalendarFilterCategory.voice => state.isVoiceExplicit,
     CalendarFilterCategory.className => state.isClassNameExplicit,
     CalendarFilterCategory.schoolTrack => state.isSchoolTrackExplicit,
+    CalendarFilterCategory.diet => state.isDietExplicit,
   };
 }
 
@@ -143,5 +154,6 @@ List<String> _selectedValuesForCategory(
     CalendarFilterCategory.voice => state.voices,
     CalendarFilterCategory.className => state.classNames,
     CalendarFilterCategory.schoolTrack => state.schoolTracks,
+    CalendarFilterCategory.diet => state.diets,
   };
 }

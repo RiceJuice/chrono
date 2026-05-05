@@ -38,10 +38,12 @@ class CalendarEntryMapper {
     final choirRaw = _asString(_rowValue(row, 'choir'));
     final voicesRaw = _asString(_rowValue(row, 'voices'));
     final schoolTrackRaw = _asString(_rowValue(row, 'schooltrack'));
+    final dietRaw = _asString(_rowValue(row, 'diet'));
     final choir = BackendChoirCodec.fromBackend(choirRaw);
     final voices = _parseVoices(voicesRaw);
     final voice = voices.isEmpty ? BackendVoice.unknown : voices.first;
     final schoolTrack = BackendSchoolTrackCodec.fromBackend(schoolTrackRaw);
+    final diet = BackendDietCodec.fromBackend(dietRaw);
 
     return CalendarEntry(
       id: rowId,
@@ -60,6 +62,7 @@ class CalendarEntryMapper {
       voice: voice,
       voices: voices,
       schoolTrack: schoolTrack,
+      diet: diet,
       className: _asString(_rowValue(row, 'class')),
       imagePaths: null,
       tags: null,
@@ -87,10 +90,12 @@ class CalendarEntryMapper {
     final choirRaw = _asString(_rowValue(row, 'choir'));
     final voicesRaw = _asString(_rowValue(row, 'voices'));
     final schoolTrackRaw = _asString(_rowValue(row, 'schooltrack'));
+    final dietRaw = _asString(_rowValue(row, 'diet'));
     final choir = BackendChoirCodec.fromBackend(choirRaw);
     final voices = _parseVoices(voicesRaw);
     final voice = voices.isEmpty ? BackendVoice.unknown : voices.first;
     final schoolTrack = BackendSchoolTrackCodec.fromBackend(schoolTrackRaw);
+    final diet = BackendDietCodec.fromBackend(dietRaw);
     final domainType = _toDomainType(backendType);
     final imagePaths = _decodeStringList(_rowValue(row, 'image_paths'));
 
@@ -117,6 +122,7 @@ class CalendarEntryMapper {
       voice: voice,
       voices: voices,
       schoolTrack: schoolTrack,
+      diet: diet,
       className: _asString(_rowValue(row, 'class')),
       imagePaths: imagePaths,
       tags: null,
@@ -146,13 +152,19 @@ class CalendarEntryMapper {
     if (s == null || s.isEmpty) {
       throw FormatException('start/end_time fehlt oder leer');
     }
-    return AppDateTime.parseDatabaseDateTime(s);
+    return AppDateTime.parseDatabaseDateTime(
+      s,
+      assumeUtcWhenTimezoneMissing: true,
+    );
   }
 
   static DateTime? _parseDateTimeOrNull(Object? value) {
     final s = _asString(value);
     if (s == null || s.isEmpty) return null;
-    return AppDateTime.parseDatabaseDateTime(s);
+    return AppDateTime.parseDatabaseDateTime(
+      s,
+      assumeUtcWhenTimezoneMissing: true,
+    );
   }
 
   static DateTime _parseDate(Object? value) {
@@ -161,54 +173,6 @@ class CalendarEntryMapper {
       throw FormatException('series_start fehlt oder leer');
     }
     return DateTime.parse(s);
-  }
-
-  static ({int hour, int minute, int second, int millisecond, int microsecond})
-  _parseTime(Object? value) {
-    final s = _asString(value);
-    if (s == null || s.isEmpty) {
-      throw FormatException('start/end_time (TIME) fehlt oder leer');
-    }
-    final parts = s.split(':');
-    if (parts.length < 2) {
-      throw FormatException('Ungueltiges TIME-Format: $s');
-    }
-    final hour = int.parse(parts[0]);
-    final minute = int.parse(parts[1]);
-    var second = 0;
-    var millisecond = 0;
-    var microsecond = 0;
-    if (parts.length >= 3) {
-      final secAndFraction = parts[2].split('.');
-      second = int.parse(secAndFraction[0]);
-      if (secAndFraction.length > 1) {
-        final fraction = secAndFraction[1].padRight(6, '0');
-        microsecond = int.parse(fraction.substring(0, 6));
-        millisecond = microsecond ~/ 1000;
-        microsecond = microsecond % 1000;
-      }
-    }
-    return (
-      hour: hour,
-      minute: minute,
-      second: second,
-      millisecond: millisecond,
-      microsecond: microsecond,
-    );
-  }
-
-  static DateTime _combineDateAndTimeUtc(
-    DateTime date,
-    ({int hour, int minute, int second, int millisecond, int microsecond}) time,
-  ) {
-    return AppDateTime.localWallTimeAsUtcInstant(
-      date,
-      hour: time.hour,
-      minute: time.minute,
-      second: time.second,
-      millisecond: time.millisecond,
-      microsecond: time.microsecond,
-    );
   }
 
   static DateTime _resolveSeriesDateTimeUtc({
@@ -226,12 +190,14 @@ class CalendarEntryMapper {
     final looksLikeDateTime =
         raw.contains('T') || (raw.contains(' ') && raw.contains('-'));
     if (looksLikeDateTime) {
-      final parsed = _parseDateTime(raw);
+      final parsed = AppDateTime.parseDatabaseDateTime(
+        raw,
+        assumeUtcWhenTimezoneMissing: true,
+      );
       return AppDateTime.asUtcInstant(parsed);
     }
 
-    final time = _parseTime(raw);
-    return _combineDateAndTimeUtc(seriesStart, time);
+    return AppDateTime.parseDatabaseTimeOnDate(seriesStart, raw);
   }
 
   static List<BackendVoice> _parseVoices(String? voicesRaw) {
