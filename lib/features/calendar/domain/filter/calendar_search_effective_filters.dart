@@ -28,5 +28,10 @@ CalendarFiltersState effectiveCalendarFiltersForSearch({
       defaults: filters.defaultSchoolTracks,
       isExplicit: filters.isSchoolTrackExplicit,
     ),
+    diets: effectiveSearchFilterValues(
+      selected: filters.diets,
+      defaults: filters.defaultDiets,
+      isExplicit: filters.isDietExplicit,
+    ),
   );
 }

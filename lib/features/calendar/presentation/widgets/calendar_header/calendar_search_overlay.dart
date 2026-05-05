@@ -284,6 +284,8 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                             filtersNotifier.removeClassName(value),
                         onRemoveSchoolTrack: (value) =>
                             filtersNotifier.removeSchoolTrack(value),
+                        onRemoveDiet: (value) =>
+                            filtersNotifier.removeDiet(value),
                       ),
                     ],
                   ),
@@ -305,6 +307,7 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     required this.onRemoveVoice,
     required this.onRemoveClass,
     required this.onRemoveSchoolTrack,
+    required this.onRemoveDiet,
   });
 
   final CalendarFiltersState filters;
@@ -313,6 +316,7 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
   final ValueChanged<String> onRemoveVoice;
   final ValueChanged<String> onRemoveClass;
   final ValueChanged<String> onRemoveSchoolTrack;
+  final ValueChanged<String> onRemoveDiet;
 
   @override
   Widget build(BuildContext context) {
@@ -406,6 +410,21 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
         ),
       );
     }
+    for (final diet in filters.dietDeviations) {
+      chips.add(
+        Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: InputChip(
+            label: Text('Ernährung: ${_formatDietFilterChipValue(diet)}'),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+            onDeleted: () => _handleChipInteraction(() => onRemoveDiet(diet)),
+          ),
+        ),
+      );
+    }
 
     if (chips.isEmpty) {
       return const SizedBox.shrink();
@@ -443,6 +462,14 @@ String _formatSchoolTrackFilterChipValue(String value) {
   final schoolTrack = BackendSchoolTrackCodec.fromBackend(value);
   if (schoolTrack != BackendSchoolTrack.unknown) {
     return schoolTrack.displayLabel;
+  }
+  return _formatFilterChipValue(value);
+}
+
+String _formatDietFilterChipValue(String value) {
+  final diet = BackendDietCodec.fromBackend(value);
+  if (diet != BackendDiet.unknown) {
+    return diet.displayLabel;
   }
   return _formatFilterChipValue(value);
 }

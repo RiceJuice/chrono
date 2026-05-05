@@ -13,6 +13,7 @@ abstract class CalendarFiltersNotifierBase
     required List<String> voices,
     required List<String> classNames,
     required List<String> schoolTracks,
+    required List<String> diets,
   }) {
     if (!state.hasInitializedDefaults || !state.hasUserOverrides) {
       state = state.copyWith(
@@ -20,16 +21,19 @@ abstract class CalendarFiltersNotifierBase
         voices: voices,
         classNames: classNames,
         schoolTracks: schoolTracks,
+        diets: diets,
         defaultChoirs: choirs,
         defaultVoices: voices,
         defaultClassNames: classNames,
         defaultSchoolTracks: schoolTracks,
+        defaultDiets: diets,
         hasInitializedDefaults: true,
         hasUserOverrides: false,
         isChoirExplicit: false,
         isVoiceExplicit: false,
         isClassNameExplicit: false,
         isSchoolTrackExplicit: false,
+        isDietExplicit: false,
       );
       return;
     }
@@ -39,10 +43,12 @@ abstract class CalendarFiltersNotifierBase
       voices: state.voices,
       classNames: state.classNames,
       schoolTracks: state.schoolTracks,
+      diets: state.diets,
       defaultChoirs: choirs,
       defaultVoices: voices,
       defaultClassNames: classNames,
       defaultSchoolTracks: schoolTracks,
+      defaultDiets: diets,
       hasInitializedDefaults: true,
     );
   }
@@ -79,6 +85,14 @@ abstract class CalendarFiltersNotifierBase
     );
   }
 
+  void toggleDiet(String value) {
+    state = state.copyWith(
+      diets: toggleCalendarFilterValue(state.diets, value),
+      hasUserOverrides: true,
+      isDietExplicit: true,
+    );
+  }
+
   void clearChoirs() {
     state = state.copyWith(
       choirs: const <String>[],
@@ -108,6 +122,14 @@ abstract class CalendarFiltersNotifierBase
       schoolTracks: const <String>[],
       hasUserOverrides: true,
       isSchoolTrackExplicit: true,
+    );
+  }
+
+  void clearDiets() {
+    state = state.copyWith(
+      diets: const <String>[],
+      hasUserOverrides: true,
+      isDietExplicit: true,
     );
   }
 
@@ -143,17 +165,27 @@ abstract class CalendarFiltersNotifierBase
     );
   }
 
+  void removeDiet(String value) {
+    state = state.copyWith(
+      diets: removeCalendarFilterValue(state.diets, value),
+      hasUserOverrides: true,
+      isDietExplicit: true,
+    );
+  }
+
   void resetToDefaults() {
     state = state.copyWith(
       choirs: state.defaultChoirs,
       voices: state.defaultVoices,
       classNames: state.defaultClassNames,
       schoolTracks: state.defaultSchoolTracks,
+      diets: state.defaultDiets,
       hasUserOverrides: false,
       isChoirExplicit: false,
       isVoiceExplicit: false,
       isClassNameExplicit: false,
       isSchoolTrackExplicit: false,
+      isDietExplicit: false,
     );
   }
 }

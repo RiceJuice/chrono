@@ -178,164 +178,190 @@ class _EventCardState extends State<EventCard> {
       );
     }
 
-    return ListTile(
-      titleAlignment: ListTileTitleAlignment.top,
-      minVerticalPadding: 0,
-      dense: widget.weekGridCompact,
-      visualDensity: widget.weekGridCompact ? VisualDensity.compact : null,
-      onTap: () {
-        HapticFeedback.heavyImpact();
-        BaseBottomModal.show(context, entry: widget.entry);
-      },
-      contentPadding: EdgeInsets.only(
-        left: widget.listTileHorizontalPadding ??
-            (widget.weekGridCompact ? AppSpacing.s : AppSpacing.l),
-        right: widget.listTileHorizontalPadding ??
-            (widget.weekGridCompact ? AppSpacing.s : AppSpacing.l),
-        bottom: widget.weekGridCompact ? 2 : 0,
-      ),
-      leading: widget.showTimeColumn
-          ? TimeColumn(entry: entry, textColor: style.timeTextColor)
-          : null,
-      title: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.s),
-          color: style.cardBackgroundColor,
-        ),
-        // IntrinsicHeight sorgt dafür, dass die Row so hoch ist wie ihr höchstes Kind
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment
-                .stretch, // WICHTIG: Streckt Kinder auf die volle Höhe
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: widget.weekGridCompact
-                      ? AppInsets.eventCardContentCompact
-                      : AppInsets.eventCardContent,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (entry.choir != BackendChoir.unknown) ...[
-                        Text(
-                          entry.choir.displayLabel,
-                          textHeightBehavior: _compactTextHeightBehavior,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: style.secondaryTextColor.withValues(
-                              alpha: 0.75,
-                            ),
-                            height: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                      ],
-                      Text(
-                        entry.eventName,
-                        textHeightBehavior: _compactTextHeightBehavior,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: style.primaryTextColor,
-                          height: 1,
-                          fontSize: widget.weekGridCompact ? 14 : 17,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (!widget.weekGridCompact &&
-                          (entry.description ?? '').trim().isNotEmpty) ...[
-                        const SizedBox(
-                          height: AppDimensions.eventCardDescriptionSpacing,
-                        ),
-                        Text(
-                          entry.description!,
-                          textHeightBehavior: _compactTextHeightBehavior,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: style.secondaryTextColor,
-                            height: 1,
-                          ),
-                        ),
-                      ],
-                      if (wantTimeRange) ...[
-                        SizedBox(
-                          height: (entry.description ?? '').trim().isNotEmpty
-                              ? 6
-                              : 4,
-                        ),
-                        CalendarEntryTimeRangeRow(
-                          entry: entry,
-                          mutedColor: style.secondaryTextColor.withValues(
-                            alpha: 0.58,
-                          ),
-                          compact: false,
-                        ),
-                      ],
-                    ],
+    final rowHorizontalPadding =
+        widget.listTileHorizontalPadding ?? AppSpacing.l;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: rowHorizontalPadding),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.heavyImpact();
+            BaseBottomModal.show(context, entry: widget.entry);
+          },
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.showTimeColumn)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: AppInsets.eventCardContent.top,
+                      bottom: AppInsets.eventCardContent.bottom,
+                      right: AppSpacing.s,
+                    ),
+                    child: TimeColumn(
+                      entry: entry,
+                      textColor: style.timeTextColor,
+                      alignToContentHeight: true,
+                    ),
                   ),
-                ),
-              ),
-              if (hasImageCandidate && !widget.weekGridCompact)
-                SizedBox(
-                  width: AppDimensions.eventCardImageWidth,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadiusGeometry.only(
-                          topRight: Radius.circular(AppRadius.s),
-                          bottomRight: Radius.circular(AppRadius.s),
-                        ),
-                        child: FutureBuilder<String?>(
-                          future: _firstImageUrlFuture,
-                          builder: (context, snapshot) {
-                            final url = snapshot.data;
-
-                            if (url == null &&
-                                snapshot.connectionState ==
-                                    ConnectionState.done) {
-                              return Container(
-                                color: scheme.surfaceContainerHighest,
-                                alignment: Alignment.center,
-                                child: const Icon(Icons.broken_image),
-                              );
-                            }
-
-                            if (url == null) {
-                              return Container(
-                                color: scheme.surfaceContainerHighest,
-                              );
-                            }
-
-                            return CachedNetworkImage(
-                              imageUrl: url,
-                              cacheKey: _thumbnailCacheKey(entry),
-                              fit: BoxFit.cover,
-                              fadeInDuration: Duration.zero,
-                              fadeOutDuration: Duration.zero,
-                              placeholder: (context, _) => Container(
-                                color: scheme.surfaceContainerHighest,
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.s),
+                      color: style.cardBackgroundColor,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: Padding(
+                              padding: AppInsets.eventCardContent,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (entry.choir != BackendChoir.unknown) ...[
+                                    Text(
+                                      entry.choir.displayLabel,
+                                      textHeightBehavior:
+                                          _compactTextHeightBehavior,
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: style.secondaryTextColor
+                                                .withValues(alpha: 0.75),
+                                            height: 1,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                  ],
+                                  Text(
+                                    entry.eventName,
+                                    textHeightBehavior:
+                                        _compactTextHeightBehavior,
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                          color: style.primaryTextColor,
+                                          height: 1,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                  ),
+                                  if ((entry.description ?? '')
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(
+                                      height:
+                                          AppDimensions.eventCardDescriptionSpacing,
+                                    ),
+                                    Text(
+                                      entry.description!,
+                                      textHeightBehavior:
+                                          _compactTextHeightBehavior,
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: style.secondaryTextColor,
+                                            height: 1,
+                                          ),
+                                    ),
+                                  ],
+                                  if (wantTimeRange) ...[
+                                    SizedBox(
+                                      height: (entry.description ?? '')
+                                              .trim()
+                                              .isNotEmpty
+                                          ? 6
+                                          : 4,
+                                    ),
+                                    CalendarEntryTimeRangeRow(
+                                      entry: entry,
+                                      mutedColor: style.secondaryTextColor
+                                          .withValues(alpha: 0.58),
+                                      compact: false,
+                                    ),
+                                  ],
+                                ],
                               ),
-                              errorWidget: (context, _, error) {
-                                return Container(
-                                  color: scheme.surfaceContainerHighest,
-                                  alignment: Alignment.center,
-                                  child: const Icon(Icons.broken_image),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                      if (style.imageOverlayOpacity > 0)
-                        Positioned.fill(
-                          child: ColoredBox(
-                            color: scheme.surface.withValues(
-                              alpha: style.imageOverlayOpacity,
                             ),
                           ),
-                        ),
-                    ],
+                          if (hasImageCandidate)
+                            SizedBox(
+                              width: AppDimensions.eventCardImageWidth,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius:
+                                        const BorderRadiusGeometry.only(
+                                          topRight: Radius.circular(AppRadius.s),
+                                          bottomRight: Radius.circular(
+                                            AppRadius.s,
+                                          ),
+                                        ),
+                                    child: FutureBuilder<String?>(
+                                      future: _firstImageUrlFuture,
+                                      builder: (context, snapshot) {
+                                        final url = snapshot.data;
+
+                                        if (url == null &&
+                                            snapshot.connectionState ==
+                                                ConnectionState.done) {
+                                          return Container(
+                                            color: scheme.surfaceContainerHighest,
+                                            alignment: Alignment.center,
+                                            child: const Icon(Icons.broken_image),
+                                          );
+                                        }
+
+                                        if (url == null) {
+                                          return Container(
+                                            color: scheme.surfaceContainerHighest,
+                                          );
+                                        }
+
+                                        return CachedNetworkImage(
+                                          imageUrl: url,
+                                          cacheKey: _thumbnailCacheKey(entry),
+                                          fit: BoxFit.cover,
+                                          fadeInDuration: Duration.zero,
+                                          fadeOutDuration: Duration.zero,
+                                          placeholder: (context, _) => Container(
+                                            color: scheme.surfaceContainerHighest,
+                                          ),
+                                          errorWidget: (context, _, error) {
+                                            return Container(
+                                              color: scheme.surfaceContainerHighest,
+                                              alignment: Alignment.center,
+                                              child: const Icon(
+                                                Icons.broken_image,
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  if (style.imageOverlayOpacity > 0)
+                                    Positioned.fill(
+                                      child: ColoredBox(
+                                        color: scheme.surface.withValues(
+                                          alpha: style.imageOverlayOpacity,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

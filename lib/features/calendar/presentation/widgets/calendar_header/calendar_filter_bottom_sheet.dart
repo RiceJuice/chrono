@@ -27,6 +27,7 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
     final schoolTrackOptions = ref.watch(
       calendarSchoolTrackFilterOptionsProvider,
     );
+    final dietOptions = ref.watch(calendarDietFilterOptionsProvider);
     final classOptionsAsync = ref.watch(calendarClassFilterOptionsProvider);
     final classOptions = classOptionsAsync.asData?.value ?? const <String>[];
     final title = isCalendarSettings ? 'Kalender-Einstellungen' : 'Suchfilter';
@@ -168,6 +169,32 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
                       ref
                           .read(searchFiltersProvider.notifier)
                           .clearSchoolTracks();
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                _FilterSection(
+                  title: 'Ernährung',
+                  selectedValues: filters.diets,
+                  defaultValues: filters.defaultDiets,
+                  isExplicitSelection: filters.isDietExplicit,
+                  isSearchFilterMode: !isCalendarSettings,
+                  options: dietOptions,
+                  labelFor: _dietLabel,
+                  selectedColor: colorScheme.primary,
+                  chipBackgroundColor: colorScheme.surfaceContainerHighest,
+                  onToggle: (value) {
+                    if (isCalendarSettings) {
+                      ref.read(calendarFiltersProvider.notifier).toggleDiet(value);
+                    } else {
+                      ref.read(searchFiltersProvider.notifier).toggleDiet(value);
+                    }
+                  },
+                  onClear: () {
+                    if (isCalendarSettings) {
+                      ref.read(calendarFiltersProvider.notifier).clearDiets();
+                    } else {
+                      ref.read(searchFiltersProvider.notifier).clearDiets();
                     }
                   },
                 ),
@@ -381,6 +408,14 @@ String _schoolTrackLabel(String value) {
     return _capitalize(value);
   }
   return schoolTrack.displayLabel;
+}
+
+String _dietLabel(String value) {
+  final diet = BackendDietCodec.fromBackend(value);
+  if (diet == BackendDiet.unknown) {
+    return _capitalize(value);
+  }
+  return diet.displayLabel;
 }
 
 String _capitalize(String value) {
