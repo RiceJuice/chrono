@@ -13,11 +13,13 @@ class SearchFiltersNotifier extends CalendarFiltersNotifierBase {
     final defaultVoices = calendarFilters.voices;
     final defaultClassNames = calendarFilters.classNames;
     final defaultSchoolTracks = calendarFilters.schoolTracks;
+    final defaultDiets = calendarFilters.diets;
     initializeDefaults(
       choirs: defaultChoirs,
       voices: defaultVoices,
       classNames: defaultClassNames,
       schoolTracks: defaultSchoolTracks,
+      diets: defaultDiets,
     );
   }
 
@@ -39,6 +41,11 @@ class SearchFiltersNotifier extends CalendarFiltersNotifierBase {
   @override
   void toggleSchoolTrack(String value) {
     _toggleSearchCategory(CalendarFilterCategory.schoolTrack, value);
+  }
+
+  @override
+  void toggleDiet(String value) {
+    _toggleSearchCategory(CalendarFilterCategory.diet, value);
   }
 
   @override
@@ -66,6 +73,12 @@ class SearchFiltersNotifier extends CalendarFiltersNotifierBase {
   }
 
   @override
+  void clearDiets() {
+    _restorePointBeforeExplicitToggle = null;
+    super.clearDiets();
+  }
+
+  @override
   void removeChoir(String value) {
     _restorePointBeforeExplicitToggle = null;
     super.removeChoir(value);
@@ -87,6 +100,12 @@ class SearchFiltersNotifier extends CalendarFiltersNotifierBase {
   void removeSchoolTrack(String value) {
     _restorePointBeforeExplicitToggle = null;
     super.removeSchoolTrack(value);
+  }
+
+  @override
+  void removeDiet(String value) {
+    _restorePointBeforeExplicitToggle = null;
+    super.removeDiet(value);
   }
 
   @override

@@ -2,6 +2,8 @@ import 'package:chronoapp/core/database/backend_connector.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/core/widgets/main_navigation_bar.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/filter/search/search_filters_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
@@ -31,6 +33,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     'Tenor',
     'Bass',
   ];
+  static final _schoolTrackOptions = BackendSchoolTrack.values
+      .where((item) => item != BackendSchoolTrack.unknown)
+      .map((item) => item.displayLabel)
+      .toList(growable: false);
   static final _dietOptions = <String>[
     BackendDiet.noRestriction.displayLabel,
     BackendDiet.vegetarian.displayLabel,
@@ -109,6 +115,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                   onSave: (value) => _updateProfile(
                     className: value,
+                  ),
+                ),
+              ),
+              _EditableInfoTile(
+                label: 'Schulzweig',
+                value: _schoolTrackDisplayLabel(profile?.schoolTrack),
+                icon: Icons.account_tree_outlined,
+                enabled: !_saving,
+                onTap: () => _editChoiceField(
+                  title: 'Schulzweig auswählen',
+                  initialValue: _schoolTrackDisplayLabel(profile?.schoolTrack),
+                  options: _schoolTrackOptions,
+                  onSave: (value) => _updateProfile(
+                    schoolTrack: value,
                   ),
                 ),
               ),
@@ -274,6 +294,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     String? firstName,
     String? lastName,
     String? className,
+    String? schoolTrack,
     String? voice,
     String? diet,
     String? role,
@@ -287,11 +308,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             firstName: firstName,
             lastName: lastName,
             className: className,
+            schoolTrack: schoolTrack,
             voice: voice,
             diet: diet,
             role: role,
             choir: choir,
           );
+      ref.read(calendarFiltersProvider.notifier).applyProfileFilterChanges(
+            choir: choir,
+            voice: voice,
+            className: className,
+            schoolTrack: schoolTrack,
+            diet: diet,
+          );
+      ref
+          .read(searchFiltersProvider.notifier)
+          .initializeFromCalendar(ref.read(calendarFiltersProvider));
     } on AuthRepositoryException catch (e) {
       if (!mounted) return;
       _showErrorSnackBar(e.message);
@@ -323,6 +355,16 @@ String? _dietDisplayLabel(String? raw) {
   if (raw == null || raw.trim().isEmpty) return null;
   final diet = BackendDietCodec.fromBackend(raw);
   if (diet != BackendDiet.unknown) return diet.displayLabel;
+  return raw.trim();
+}
+
+/// Zeigt [BackendSchoolTrack]-Labels; unbekannte Rohwerte werden durchgereicht.
+String? _schoolTrackDisplayLabel(String? raw) {
+  if (raw == null || raw.trim().isEmpty) return null;
+  final schoolTrack = BackendSchoolTrackCodec.fromBackend(raw);
+  if (schoolTrack != BackendSchoolTrack.unknown) {
+    return schoolTrack.displayLabel;
+  }
   return raw.trim();
 }
 
