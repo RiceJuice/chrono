@@ -1,5 +1,6 @@
 import 'package:chronoapp/core/database/backend_connector.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
+import 'package:chronoapp/core/theme/theme_mode_provider.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/core/widgets/main_navigation_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
@@ -7,6 +8,15 @@ import 'package:chronoapp/features/calendar/presentation/providers/filter/search
 import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/settings_profile_display.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_choice_action_sheet.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_footer.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_island.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_logout_button.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_profile_header_card.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_section_label.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_sliver_header.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,16 +33,8 @@ class SettingsPage extends ConsumerStatefulWidget {
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _saving = false;
 
-  static const _roleOptions = <String>[
-    'Schüler',
-    'Elternteil',
-  ];
-  static const _voiceOptions = <String>[
-    'Sopran',
-    'Alt',
-    'Tenor',
-    'Bass',
-  ];
+  static const _roleOptions = <String>['Schüler', 'Elternteil'];
+  static const _voiceOptions = <String>['Sopran', 'Alt', 'Tenor', 'Bass'];
   static final _schoolTrackOptions = BackendSchoolTrack.values
       .where((item) => item != BackendSchoolTrack.unknown)
       .map((item) => item.displayLabel)
@@ -46,172 +48,182 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(syncedProfileProvider);
     final classesAsync = ref.watch(availableClassesProvider);
+    final themeMode = ref.watch(appThemeModeProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Center(child: const Text('Einstellungen')),
-      ),
       bottomNavigationBar: const MainNavigationBar(),
-      body: ListView(
-        children: [
-          const SizedBox(height: 8),
-          ...profileAsync.when(
-            data: (profile) => [
-              const _SectionHeader('Persönlich', top: 4),
-              _EditableInfoTile(
-                label: 'Vorname',
-                value: profile?.firstName,
-                icon: Icons.person_outline,
-                enabled: !_saving,
-                onTap: () => _editTextField(
-                  title: 'Vorname bearbeiten',
-                  initialValue: profile?.firstName,
-                  fieldLabel: 'Vorname',
-                  onSave: (value) => _updateProfile(
-                    firstName: value,
+      body: CustomScrollView(
+        slivers: [
+          const SettingsSliverHeader(),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            sliver: SliverList.list(
+              children: [
+                profileAsync.when(
+                  data: (profile) =>
+                      SettingsProfileHeaderCard(profile: profile),
+                  loading: () => const _SettingsLoadingIsland(
+                    message: 'Profil wird geladen...',
+                  ),
+                  error: (error, _) => _SettingsErrorIsland(
+                    message: 'Profil konnte nicht geladen werden',
+                    detail: error.toString(),
                   ),
                 ),
-              ),
-              _EditableInfoTile(
-                label: 'Nachname',
-                value: profile?.lastName,
-                icon: Icons.badge_outlined,
-                enabled: !_saving,
-                onTap: () => _editTextField(
-                  title: 'Nachname bearbeiten',
-                  initialValue: profile?.lastName,
-                  fieldLabel: 'Nachname',
-                  onSave: (value) => _updateProfile(
-                    lastName: value,
-                  ),
+                ...profileAsync.maybeWhen(
+                  data: (profile) => [
+                    const SettingsSectionLabel(title: 'Persönlich', top: 22),
+                    SettingsIsland(
+                      children: [
+                        SettingsTile(
+                          title: 'Vorname',
+                          subtitle: settingsValueOrFallback(profile?.firstName),
+                          icon: Icons.person_outline_rounded,
+                          enabled: !_saving,
+                          onTap: () => _editTextField(
+                            title: 'Vorname bearbeiten',
+                            initialValue: profile?.firstName,
+                            fieldLabel: 'Vorname',
+                            onSave: (value) => _updateProfile(firstName: value),
+                          ),
+                        ),
+                        SettingsTile(
+                          title: 'Nachname',
+                          subtitle: settingsValueOrFallback(profile?.lastName),
+                          icon: Icons.badge_outlined,
+                          enabled: !_saving,
+                          onTap: () => _editTextField(
+                            title: 'Nachname bearbeiten',
+                            initialValue: profile?.lastName,
+                            fieldLabel: 'Nachname',
+                            onSave: (value) => _updateProfile(lastName: value),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SettingsSectionLabel(title: 'Schule'),
+                    SettingsIsland(
+                      children: [
+                        SettingsTile(
+                          title: 'Rolle',
+                          subtitle: settingsValueOrFallback(profile?.role),
+                          icon: Icons.groups_outlined,
+                          enabled: !_saving,
+                          onTap: () => _editChoiceField(
+                            title: 'Rolle auswählen',
+                            initialValue: profile?.role,
+                            options: _roleOptions,
+                            onSave: (value) => _updateProfile(role: value),
+                          ),
+                        ),
+                        SettingsTile(
+                          title: 'Klasse',
+                          subtitle: settingsValueOrFallback(profile?.className),
+                          icon: Icons.school_outlined,
+                          enabled: !_saving,
+                          onTap: () => _editChoiceField(
+                            title: 'Klasse auswählen',
+                            initialValue: profile?.className,
+                            options: classesAsync.maybeWhen(
+                              data: (classes) => classes,
+                              orElse: () => const [],
+                            ),
+                            onSave: (value) => _updateProfile(className: value),
+                          ),
+                        ),
+                        SettingsTile(
+                          title: 'Schulzweig',
+                          subtitle: settingsValueOrFallback(
+                            schoolTrackDisplayLabel(profile?.schoolTrack),
+                          ),
+                          icon: Icons.account_tree_outlined,
+                          enabled: !_saving,
+                          onTap: () => _editChoiceField(
+                            title: 'Schulzweig auswählen',
+                            initialValue: schoolTrackDisplayLabel(
+                              profile?.schoolTrack,
+                            ),
+                            options: _schoolTrackOptions,
+                            onSave: (value) =>
+                                _updateProfile(schoolTrack: value),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SettingsSectionLabel(title: 'Chor'),
+                    SettingsIsland(
+                      children: [
+                        SettingsTile(
+                          title: 'Chor',
+                          subtitle: settingsValueOrFallback(
+                            choirDisplayLabel(profile?.choir),
+                          ),
+                          icon: Icons.church_outlined,
+                          enabled: !_saving,
+                          onTap: () => _editChoiceField(
+                            title: 'Chor auswählen',
+                            initialValue: choirDisplayLabel(profile?.choir),
+                            options: BackendChoir.values
+                                .where((item) => item != BackendChoir.unknown)
+                                .map((item) => item.displayLabel)
+                                .toList(),
+                            onSave: (value) => _updateProfile(choir: value),
+                          ),
+                        ),
+                        SettingsTile(
+                          title: 'Stimme',
+                          subtitle: settingsValueOrFallback(profile?.voice),
+                          icon: Icons.record_voice_over_outlined,
+                          enabled: !_saving,
+                          onTap: () => _editChoiceField(
+                            title: 'Stimme auswählen',
+                            initialValue: profile?.voice,
+                            options: _voiceOptions,
+                            onSave: (value) => _updateProfile(voice: value),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SettingsSectionLabel(title: 'Sonstiges'),
+                    SettingsIsland(
+                      children: [
+                        SettingsTile(
+                          title: 'Ernährung',
+                          subtitle: settingsValueOrFallback(
+                            dietDisplayLabel(profile?.diet),
+                          ),
+                          icon: Icons.restaurant_outlined,
+                          enabled: !_saving,
+                          onTap: () => _editChoiceField(
+                            title: 'Ernährung auswählen',
+                            initialValue: dietDisplayLabel(profile?.diet),
+                            options: _dietOptions,
+                            onSave: (value) => _updateProfile(diet: value),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  orElse: () => const [],
                 ),
-              ),
-              const _SectionHeader('Schule'),
-              _EditableInfoTile(
-                label: 'Rolle',
-                value: profile?.role,
-                icon: Icons.groups_outlined,
-                enabled: !_saving,
-                onTap: () => _editChoiceField(
-                  title: 'Rolle auswählen',
-                  initialValue: profile?.role,
-                  options: _roleOptions,
-                  onSave: (value) => _updateProfile(
-                    role: value,
-                  ),
+                const SettingsSectionLabel(title: 'Darstellung'),
+                SettingsIsland(
+                  children: [
+                    SettingsTile(
+                      title: 'Design',
+                      icon: Icons.dark_mode_outlined,
+                      subtitle: _themeModeLabel(themeMode),
+                      onTap: () => _editThemeMode(themeMode),
+                    ),
+                  ],
                 ),
-              ),
-              _EditableInfoTile(
-                label: 'Klasse',
-                value: profile?.className,
-                icon: Icons.school_outlined,
-                enabled: !_saving,
-                onTap: () => _editChoiceField(
-                  title: 'Klasse auswählen',
-                  initialValue: profile?.className,
-                  options: classesAsync.maybeWhen(
-                    data: (classes) => classes,
-                    orElse: () => const [],
-                  ),
-                  onSave: (value) => _updateProfile(
-                    className: value,
-                  ),
+                const SizedBox(height: 30),
+                SettingsLogoutButton(
+                  onPressed: () => BackendConnector.logout(context),
                 ),
-              ),
-              _EditableInfoTile(
-                label: 'Schulzweig',
-                value: _schoolTrackDisplayLabel(profile?.schoolTrack),
-                icon: Icons.account_tree_outlined,
-                enabled: !_saving,
-                onTap: () => _editChoiceField(
-                  title: 'Schulzweig auswählen',
-                  initialValue: _schoolTrackDisplayLabel(profile?.schoolTrack),
-                  options: _schoolTrackOptions,
-                  onSave: (value) => _updateProfile(
-                    schoolTrack: value,
-                  ),
-                ),
-              ),
-              const _SectionHeader('Chor'),
-              _EditableInfoTile(
-                label: 'Chor',
-                value: _choirDisplayLabel(profile?.choir),
-                icon: Icons.church_outlined,
-                enabled: !_saving,
-                onTap: () => _editChoiceField(
-                  title: 'Chor auswählen',
-                  initialValue: _choirDisplayLabel(profile?.choir),
-                  options: BackendChoir.values
-                      .where((item) => item != BackendChoir.unknown)
-                      .map((item) => item.displayLabel)
-                      .toList(),
-                  onSave: (value) => _updateProfile(
-                    choir: value,
-                  ),
-                ),
-              ),
-              _EditableInfoTile(
-                label: 'Stimme',
-                value: profile?.voice,
-                icon: Icons.record_voice_over_outlined,
-                enabled: !_saving,
-                onTap: () => _editChoiceField(
-                  title: 'Stimme auswählen',
-                  initialValue: profile?.voice,
-                  options: _voiceOptions,
-                  onSave: (value) => _updateProfile(
-                    voice: value,
-                  ),
-                ),
-              ),
-              const _SectionHeader('Sonstiges'),
-              _EditableInfoTile(
-                label: 'Ernährung',
-                value: _dietDisplayLabel(profile?.diet),
-                icon: Icons.restaurant_outlined,
-                enabled: !_saving,
-                onTap: () => _editChoiceField(
-                  title: 'Ernährung auswählen',
-                  initialValue: _dietDisplayLabel(profile?.diet),
-                  options: _dietOptions,
-                  onSave: (value) => _updateProfile(
-                    diet: value,
-                  ),
-                ),
-              ),
-            ],
-            loading: () => const [
-              ListTile(
-                leading: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                title: Text('Profil wird geladen...'),
-              ),
-            ],
-            error: (error, _) => [
-              ListTile(
-                leading: const Icon(Icons.error_outline),
-                title: const Text('Profil konnte nicht geladen werden'),
-                subtitle: Text(error.toString()),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ListTile(
-            title: Text(
-              'Abmelden',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+                const SettingsFooter(),
+              ],
             ),
-            leading: Icon(
-              Icons.logout,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            onTap: () async {
-              HapticFeedback.mediumImpact();
-              await BackendConnector.logout(context);
-            },
           ),
         ],
       ),
@@ -278,7 +290,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       context: context,
       showDragHandle: true,
       builder: (context) {
-        return _ChoiceBottomSheet(
+        return SettingsChoiceActionSheet(
           title: title,
           options: options,
           initialValue: initialValue,
@@ -304,7 +316,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     setState(() => _saving = true);
 
     try {
-      await ref.read(authRepositoryProvider).updateProfile(
+      await ref
+          .read(authRepositoryProvider)
+          .updateProfile(
             firstName: firstName,
             lastName: lastName,
             className: className,
@@ -314,12 +328,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             role: role,
             choir: choir,
           );
-      ref.read(calendarFiltersProvider.notifier).applyProfileFilterChanges(
+      ref
+          .read(calendarFiltersProvider.notifier)
+          .applyProfileFilterChanges(
             choir: choir,
             voice: voice,
             className: className,
             schoolTrack: schoolTrack,
-            diet: diet,
           );
       ref
           .read(searchFiltersProvider.notifier)
@@ -340,143 +355,83 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   void _showErrorSnackBar(String message) {
     showAppToast(context, message, kind: AppToastKind.error);
   }
-}
 
-/// Zeigt [BackendChoir]-Labels; unbekannte Rohwerte werden durchgereicht.
-String? _choirDisplayLabel(String? raw) {
-  if (raw == null || raw.trim().isEmpty) return null;
-  final choir = BackendChoirCodec.fromBackend(raw);
-  if (choir != BackendChoir.unknown) return choir.displayLabel;
-  return raw.trim();
-}
-
-/// Zeigt [BackendDiet]-Labels; unbekannte Rohwerte werden durchgereicht.
-String? _dietDisplayLabel(String? raw) {
-  if (raw == null || raw.trim().isEmpty) return null;
-  final diet = BackendDietCodec.fromBackend(raw);
-  if (diet != BackendDiet.unknown) return diet.displayLabel;
-  return raw.trim();
-}
-
-/// Zeigt [BackendSchoolTrack]-Labels; unbekannte Rohwerte werden durchgereicht.
-String? _schoolTrackDisplayLabel(String? raw) {
-  if (raw == null || raw.trim().isEmpty) return null;
-  final schoolTrack = BackendSchoolTrackCodec.fromBackend(raw);
-  if (schoolTrack != BackendSchoolTrack.unknown) {
-    return schoolTrack.displayLabel;
-  }
-  return raw.trim();
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title, {this.top = 20});
-
-  final String title;
-  final double top;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, top, 16, 8),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
+  Future<void> _editThemeMode(ThemeMode currentMode) async {
+    await _editChoiceField(
+      title: 'Design auswählen',
+      initialValue: _themeModeLabel(currentMode),
+      options: _themeModeLabels,
+      onSave: (value) => _setThemeMode(_themeModeFromLabel(value)),
     );
   }
-}
 
-class _EditableInfoTile extends StatelessWidget {
-  const _EditableInfoTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.onTap,
-    this.enabled = true,
-  });
-
-  final String label;
-  final String? value;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = (value ?? '').trim();
-    return ListTile(
-      enabled: enabled,
-      leading: Icon(icon),
-      title: Text(label),
-      subtitle: Text(text.isEmpty ? 'Nicht gesetzt' : text),
-      trailing: const Icon(Icons.edit_outlined),
-      onTap: enabled ? onTap : null,
-    );
-  }
-}
-
-class _ChoiceBottomSheet extends StatefulWidget {
-  const _ChoiceBottomSheet({
-    required this.title,
-    required this.options,
-    required this.initialValue,
-  });
-
-  final String title;
-  final List<String> options;
-  final String? initialValue;
-
-  @override
-  State<_ChoiceBottomSheet> createState() => _ChoiceBottomSheetState();
-}
-
-class _ChoiceBottomSheetState extends State<_ChoiceBottomSheet> {
-  final _selectedItemKey = GlobalKey();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final context = _selectedItemKey.currentContext;
-      if (context == null) return;
-      Scrollable.ensureVisible(
-        context,
-        duration: Duration.zero,
-        alignment: 0.5,
+  Future<void> _setThemeMode(ThemeMode themeMode) async {
+    try {
+      await ref.read(appThemeModeProvider.notifier).setThemeMode(themeMode);
+    } catch (_) {
+      if (!mounted) return;
+      _showErrorSnackBar(
+        'Darstellung konnte nicht gespeichert werden. Bitte erneut versuchen.',
       );
-    });
+    }
   }
+}
+
+const _themeModeLabels = <String>['Systemstandard', 'Hell', 'Dunkel'];
+
+String _themeModeLabel(ThemeMode themeMode) {
+  return switch (themeMode) {
+    ThemeMode.system => 'Systemstandard',
+    ThemeMode.light => 'Hell',
+    ThemeMode.dark => 'Dunkel',
+  };
+}
+
+ThemeMode _themeModeFromLabel(String label) {
+  return switch (label) {
+    'Hell' => ThemeMode.light,
+    'Dunkel' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
+}
+
+class _SettingsLoadingIsland extends StatelessWidget {
+  const _SettingsLoadingIsland({required this.message});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        children: [
-          ListTile(
-            title: Text(
-              widget.title,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+    return SettingsIsland(
+      children: [
+        ListTile(
+          leading: const SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          ...widget.options.map(
-            (option) => ListTile(
-              key: option == widget.initialValue ? _selectedItemKey : null,
-              title: Text(option),
-              trailing: option == widget.initialValue
-                  ? const Icon(Icons.check)
-                  : null,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                Navigator.of(context).pop(option);
-              },
-            ),
-          ),
-        ],
-      ),
+          title: Text(message),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsErrorIsland extends StatelessWidget {
+  const _SettingsErrorIsland({required this.message, required this.detail});
+
+  final String message;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsIsland(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.error_outline_rounded),
+          title: Text(message),
+          subtitle: Text(detail, maxLines: 2, overflow: TextOverflow.ellipsis),
+        ),
+      ],
     );
   }
 }

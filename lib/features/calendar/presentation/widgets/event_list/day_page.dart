@@ -94,10 +94,9 @@ class _DayPageState extends ConsumerState<DayPage> {
     if (viewport == null) return;
 
     final position = _scrollController.position;
-    final targetOffset = viewport.getOffsetToReveal(
-      anchorRenderObject,
-      0.28,
-    ).offset;
+    final targetOffset = viewport
+        .getOffsetToReveal(anchorRenderObject, 0.28)
+        .offset;
     _scrollController.jumpTo(
       targetOffset.clamp(position.minScrollExtent, position.maxScrollExtent),
     );
@@ -117,9 +116,9 @@ class _DayPageState extends ConsumerState<DayPage> {
     }
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return ScrollbarTheme(
-      data: ScrollbarTheme.of(context).copyWith(
-        thumbColor: WidgetStatePropertyAll<Color>(color),
-      ),
+      data: ScrollbarTheme.of(
+        context,
+      ).copyWith(thumbColor: WidgetStatePropertyAll<Color>(color)),
       child: Scrollbar(
         controller: _scrollController,
         thumbVisibility: _isScrollbarThumbVisible,
@@ -167,6 +166,7 @@ class _DayPageState extends ConsumerState<DayPage> {
                     : index;
                 final entry = entries[entryIndex];
                 row = CalendarEntryCard(
+                  key: ValueKey<String>('calendar-entry-${entry.id}'),
                   entry: entry,
                   applyPastStyling: shouldApplyPastStyling,
                 );

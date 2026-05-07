@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -14,9 +16,14 @@ import '../widgets/event_list/cards/calendar_entry_card.dart';
 import '../widgets/search_results/search_results_sections.dart';
 
 class CalendarSearchPage extends ConsumerStatefulWidget {
-  const CalendarSearchPage({required this.query, super.key});
+  const CalendarSearchPage({
+    required this.query,
+    this.playInitialMorph = false,
+    super.key,
+  });
 
   final String query;
+  final bool playInitialMorph;
 
   @override
   ConsumerState<CalendarSearchPage> createState() => _CalendarSearchPageState();
@@ -24,6 +31,7 @@ class CalendarSearchPage extends ConsumerStatefulWidget {
 
 class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   static const double _stickyHeaderHeight = 40;
+  static const Duration _initialMorphWindow = Duration(milliseconds: 720);
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
   DateTime? _stickyDay;
@@ -31,10 +39,14 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   double _listViewportHeight = 0;
   List<_SearchListRow> _rowsForSticky = const <_SearchListRow>[];
   bool _hasUserInteractedWithList = false;
+  bool _playInitialMorph = false;
+  Timer? _initialMorphTimer;
 
   @override
   void initState() {
     super.initState();
+    _playInitialMorph = widget.playInitialMorph;
+    _scheduleInitialMorphEnd();
     _itemPositionsListener.itemPositions.addListener(
       _updateStickyDayFromPositions,
     );
@@ -48,10 +60,14 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
       _stickyHeaderPushOffset = 0;
       _hasUserInteractedWithList = false;
     }
+    if (!oldWidget.playInitialMorph && widget.playInitialMorph) {
+      _restartInitialMorph();
+    }
   }
 
   @override
   void dispose() {
+    _initialMorphTimer?.cancel();
     _itemPositionsListener.itemPositions.removeListener(
       _updateStickyDayFromPositions,
     );
@@ -157,16 +173,24 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                           );
                         } else {
                           child = CalendarEntryCard(
+                            key: ValueKey<String>(
+                              'calendar-entry-${row.entry!.id}',
+                            ),
                             entry: row.entry!,
                             applyPastStyling: true,
                           );
                         }
+                        final morphedChild = _wrapInitialMorph(
+                          child: child,
+                          index: index,
+                        );
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            child,
-                            if (index != lastIndex) const SizedBox(height: AppSpacing.m),
+                            morphedChild,
+                            if (index != lastIndex)
+                              const SizedBox(height: AppSpacing.m),
                           ],
                         );
                       },
@@ -199,6 +223,56 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
         return const _DebouncedLoadingIndicator();
       },
       error: (err, stack) => Center(child: Text('Fehler: $err')),
+    );
+  }
+
+  void _restartInitialMorph() {
+    _initialMorphTimer?.cancel();
+    setState(() {
+      _playInitialMorph = true;
+    });
+    _scheduleInitialMorphEnd();
+  }
+
+  void _scheduleInitialMorphEnd() {
+    if (!_playInitialMorph) return;
+    _initialMorphTimer = Timer(_initialMorphWindow, () {
+      if (!mounted) return;
+      setState(() {
+        _playInitialMorph = false;
+      });
+    });
+  }
+
+  Widget _wrapInitialMorph({required Widget child, required int index}) {
+    if (!_playInitialMorph) return child;
+
+    final cappedIndex = index.clamp(0, 8);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 620),
+      curve: Curves.linear,
+      builder: (context, value, child) {
+        final start = (0.038 * cappedIndex).clamp(0.0, 0.32);
+        final effectiveValue = ((value - start) / (1 - start)).clamp(0.0, 1.0);
+        final eased = Curves.easeOutCubic.transform(effectiveValue);
+        final settleValue = Curves.easeOut.transform(
+          ((effectiveValue - 0.78) / 0.22).clamp(0.0, 1.0),
+        );
+        final scale = 0.965 + (0.039 * eased) - (0.004 * settleValue);
+        return Opacity(
+          opacity: eased,
+          child: Transform.translate(
+            offset: Offset(0, (1 - eased) * 18),
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.topCenter,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: child,
     );
   }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:chronoapp/core/widgets/main_navigation_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/pages/calendar_search_page.dart';
@@ -28,6 +29,11 @@ class CalendarPage extends ConsumerStatefulWidget {
 
 class _CalendarPageState extends ConsumerState<CalendarPage> {
   static const Duration _searchDebounce = Duration(milliseconds: 300);
+  static const Duration _searchMorphDuration = Duration(milliseconds: 540);
+  static const Duration _searchMorphReverseDuration = Duration(
+    milliseconds: 360,
+  );
+  static const Curve _searchMorphCurve = Cubic(0.22, 1, 0.36, 1);
   static const Duration _viewModeTransitionDuration = Duration(
     milliseconds: 300,
   );
@@ -39,6 +45,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   String _debouncedSearchQuery = '';
 
   void _openSearch() {
+    HapticFeedback.selectionClick();
     setState(() {
       _isSearchOpen = true;
       _isViewModeOverlayOpen = false;
@@ -210,6 +217,164 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     );
   }
 
+  Widget _buildSearchMorphBody({
+    required bool showSearchResults,
+    required CalendarViewMode viewMode,
+    required double searchBarBottomInset,
+    required bool isTabletCalendar,
+  }) {
+    return AnimatedSwitcher(
+      duration: _searchMorphDuration,
+      reverseDuration: _searchMorphReverseDuration,
+      switchInCurve: _searchMorphCurve,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          alignment: Alignment.topCenter,
+          children: <Widget>[...previousChildren, ?currentChild],
+        );
+      },
+      transitionBuilder: _buildSearchMorphTransition,
+      child: showSearchResults
+          ? SizedBox.expand(
+              key: const ValueKey<_CalendarBodySurface>(
+                _CalendarBodySurface.search,
+              ),
+              child: Padding(
+                padding: EdgeInsets.only(top: searchBarBottomInset),
+                child: CalendarSearchPage(
+                  query: _debouncedSearchQuery,
+                  playInitialMorph: _isSearchOpen,
+                ),
+              ),
+            )
+          : SizedBox.expand(
+              key: const ValueKey<_CalendarBodySurface>(
+                _CalendarBodySurface.calendar,
+              ),
+              child: _buildCalendarContent(
+                viewMode: viewMode,
+                isTabletCalendar: isTabletCalendar,
+              ),
+            ),
+    );
+  }
+
+  Widget _buildCalendarContent({
+    required CalendarViewMode viewMode,
+    required bool isTabletCalendar,
+  }) {
+    final isWeekView = viewMode == CalendarViewMode.week;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        CalendarHeader(
+          weekTimetableMode: isWeekView,
+          viewMode: viewMode,
+          viewOptions: calendarViewOptions,
+          onViewModeChanged: _onCalendarViewModeChanged,
+          onViewMenuPressed: _openViewModeOverlay,
+          showCenteredViewControl: isTabletCalendar,
+          onSearchPressed: _openSearch,
+          onFilterPressed: _openCalendarFilters,
+        ),
+        Expanded(child: _buildCalendarBody(viewMode: viewMode)),
+      ],
+    );
+  }
+
+  Widget _buildSearchMorphTransition(
+    Widget child,
+    Animation<double> animation,
+  ) {
+    final key = child.key;
+    final surface = key is ValueKey<_CalendarBodySurface> ? key.value : null;
+    final isSearchSurface = surface == _CalendarBodySurface.search;
+    final curve = CurvedAnimation(
+      parent: animation,
+      curve: _searchMorphCurve,
+      reverseCurve: Curves.easeInCubic,
+    );
+    final fadeInterval = isSearchSurface
+        ? const Interval(0.08, 0.88, curve: Curves.easeOutCubic)
+        : const Interval(0.0, 0.58, curve: Curves.easeOutCubic);
+    final fadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).chain(CurveTween(curve: fadeInterval)).animate(animation);
+    final slideAnimation = TweenSequence<Offset>([
+      TweenSequenceItem(
+        tween: Tween<Offset>(
+          begin: isSearchSurface
+              ? const Offset(0, 0.072)
+              : const Offset(0, -0.026),
+          end: isSearchSurface
+              ? const Offset(0, -0.006)
+              : const Offset(0, 0.004),
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 78,
+      ),
+      TweenSequenceItem(
+        tween: Tween<Offset>(
+          begin: isSearchSurface
+              ? const Offset(0, -0.006)
+              : const Offset(0, 0.004),
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 22,
+      ),
+    ]).animate(curve);
+    final scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: isSearchSurface ? 0.956 : 0.992,
+          end: isSearchSurface ? 1.006 : 1.002,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 76,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: isSearchSurface ? 1.006 : 1.002,
+          end: 1,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 24,
+      ),
+    ]).animate(curve);
+    final radiusAnimation = Tween<double>(
+      begin: isSearchSurface ? 34 : 18,
+      end: 0,
+    ).animate(curve);
+    final blurAnimation = Tween<double>(
+      begin: isSearchSurface ? 5.5 : 2.2,
+      end: 0,
+    ).animate(curve);
+
+    return FadeTransition(
+      opacity: fadeAnimation,
+      child: SlideTransition(
+        position: slideAnimation,
+        child: ScaleTransition(
+          scale: scaleAnimation,
+          child: AnimatedBuilder(
+            animation: Listenable.merge([radiusAnimation, blurAnimation]),
+            child: child,
+            builder: (context, child) {
+              final blur = blurAnimation.value;
+              return ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(radiusAnimation.value),
+                  child: child,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _debounceTimer?.cancel();
@@ -286,33 +451,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               builder: (context, constraints) {
                 final isTabletCalendar =
                     constraints.maxWidth >= kCalendarTabletBreakpoint;
-                final isWeekView = viewMode == CalendarViewMode.week;
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    if (!showSearchResults) ...[
-                      CalendarHeader(
-                        weekTimetableMode: isWeekView,
-                        viewMode: viewMode,
-                        viewOptions: calendarViewOptions,
-                        onViewModeChanged: _onCalendarViewModeChanged,
-                        onViewMenuPressed: _openViewModeOverlay,
-                        showCenteredViewControl: isTabletCalendar,
-                        onSearchPressed: _openSearch,
-                        onFilterPressed: _openCalendarFilters,
-                      ),
-                      Expanded(child: _buildCalendarBody(viewMode: viewMode)),
-                    ] else ...[
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(top: searchBarBottomInset),
-                          child: CalendarSearchPage(
-                            query: _debouncedSearchQuery,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                return SizedBox.expand(
+                  child: _buildSearchMorphBody(
+                    showSearchResults: showSearchResults,
+                    viewMode: viewMode,
+                    searchBarBottomInset: searchBarBottomInset,
+                    isTabletCalendar: isTabletCalendar,
+                  ),
                 );
               },
             ),
@@ -335,3 +480,5 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     );
   }
 }
+
+enum _CalendarBodySurface { calendar, search }
