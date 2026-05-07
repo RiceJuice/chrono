@@ -71,7 +71,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemCount: 2,
             itemBuilder: (context, index) {
               return Padding(
-                padding: EdgeInsets.only(right: index == 1 ? 0 : 6),
+                padding: EdgeInsets.only(right: index == 1 ? 0 : 5),
                 child: AspectRatio(
                   aspectRatio: 1.5,
                   child: DecoratedBox(
@@ -99,7 +99,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemBuilder: (context, index) {
               return Padding(
                 padding: EdgeInsets.only(
-                  right: index == imageUrls.length - 1 ? 0 : 6,
+                  right: index == imageUrls.length - 1 ? 0 : 5,
                 ),
                 child: AspectRatio(
                   aspectRatio: 1.5,
