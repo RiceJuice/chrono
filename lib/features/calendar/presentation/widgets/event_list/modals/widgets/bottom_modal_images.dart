@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class BottomModalImages extends StatefulWidget {
   final CalendarEntry entry;
   final double height;
-  const BottomModalImages({super.key, required this.entry, this.height = 120});
+  const BottomModalImages({super.key, required this.entry, this.height = 200});
 
   @override
   State<BottomModalImages> createState() => _BottomModalImagesState();
@@ -71,7 +71,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemCount: 2,
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.only(right: 6.0),
+                padding: EdgeInsets.only(right: index == 1 ? 0 : 6),
                 child: AspectRatio(
                   aspectRatio: 1.5,
                   child: DecoratedBox(
@@ -98,7 +98,9 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemCount: imageUrls.length,
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.only(right: 6.0),
+                padding: EdgeInsets.only(
+                  right: index == imageUrls.length - 1 ? 0 : 6,
+                ),
                 child: AspectRatio(
                   aspectRatio: 1.5,
                   child: CachedNetworkImage(
@@ -121,9 +123,15 @@ class _BottomModalImagesState extends State<BottomModalImages> {
 
         return Stack(
           children: [
-            SizedBox(
-              height: 200,
-              child: ColoredBox(color: imagePanelBg, child: content),
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+              child: SizedBox(
+                height: widget.height,
+                child: ColoredBox(color: imagePanelBg, child: content),
+              ),
             ),
             Align(
               alignment: Alignment.topCenter,
