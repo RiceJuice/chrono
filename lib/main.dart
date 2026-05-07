@@ -75,7 +75,7 @@ void main() async {
   startupNotifier.setReady();
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({
     super.key,
     required this.startupNotifier,
@@ -88,10 +88,10 @@ class MyApp extends StatefulWidget {
   final ProfileGateNotifier profileGateNotifier;
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  ConsumerState<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends ConsumerState<MyApp> {
   late final AppRouter _appRouter = AppRouter(
     startupNotifier: widget.startupNotifier,
     authSessionNotifier: widget.authSessionNotifier,

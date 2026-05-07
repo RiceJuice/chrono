@@ -34,6 +34,9 @@ abstract class CalendarFiltersNotifierBase
         isClassNameExplicit: false,
         isSchoolTrackExplicit: false,
         isDietExplicit: false,
+        showChoirCalendar: true,
+        showMealCalendar: true,
+        showSchoolCalendar: true,
       );
       return;
     }
@@ -50,7 +53,27 @@ abstract class CalendarFiltersNotifierBase
       defaultSchoolTracks: schoolTracks,
       defaultDiets: diets,
       hasInitializedDefaults: true,
+      showChoirCalendar: state.showChoirCalendar,
+      showMealCalendar: state.showMealCalendar,
+      showSchoolCalendar: state.showSchoolCalendar,
     );
+  }
+
+  void setCalendarVisibility(CalendarVisibility calendar, bool isVisible) {
+    state = switch (calendar) {
+      CalendarVisibility.choir => state.copyWith(
+          showChoirCalendar: isVisible,
+          hasUserOverrides: true,
+        ),
+      CalendarVisibility.meal => state.copyWith(
+          showMealCalendar: isVisible,
+          hasUserOverrides: true,
+        ),
+      CalendarVisibility.school => state.copyWith(
+          showSchoolCalendar: isVisible,
+          hasUserOverrides: true,
+        ),
+    };
   }
 
   void toggleChoir(String value) {
@@ -186,6 +209,9 @@ abstract class CalendarFiltersNotifierBase
       isClassNameExplicit: false,
       isSchoolTrackExplicit: false,
       isDietExplicit: false,
+      showChoirCalendar: true,
+      showMealCalendar: true,
+      showSchoolCalendar: true,
     );
   }
 }

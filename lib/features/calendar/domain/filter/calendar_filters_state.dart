@@ -1,3 +1,5 @@
+enum CalendarVisibility { choir, meal, school }
+
 class CalendarFiltersState {
   const CalendarFiltersState({
     this.choirs = const <String>[],
@@ -17,6 +19,9 @@ class CalendarFiltersState {
     this.isClassNameExplicit = false,
     this.isSchoolTrackExplicit = false,
     this.isDietExplicit = false,
+    this.showChoirCalendar = true,
+    this.showMealCalendar = true,
+    this.showSchoolCalendar = true,
   });
 
   final List<String> choirs;
@@ -36,6 +41,9 @@ class CalendarFiltersState {
   final bool isClassNameExplicit;
   final bool isSchoolTrackExplicit;
   final bool isDietExplicit;
+  final bool showChoirCalendar;
+  final bool showMealCalendar;
+  final bool showSchoolCalendar;
 
   bool get hasActiveFilters =>
       choirs.isNotEmpty ||
@@ -81,6 +89,14 @@ class CalendarFiltersState {
       schoolTrackDeviations.isNotEmpty ||
       dietDeviations.isNotEmpty;
 
+  bool isCalendarVisible(CalendarVisibility calendar) {
+    return switch (calendar) {
+      CalendarVisibility.choir => showChoirCalendar,
+      CalendarVisibility.meal => showMealCalendar,
+      CalendarVisibility.school => showSchoolCalendar,
+    };
+  }
+
   CalendarFiltersState copyWith({
     List<String>? choirs,
     List<String>? voices,
@@ -99,6 +115,9 @@ class CalendarFiltersState {
     bool? isClassNameExplicit,
     bool? isSchoolTrackExplicit,
     bool? isDietExplicit,
+    bool? showChoirCalendar,
+    bool? showMealCalendar,
+    bool? showSchoolCalendar,
   }) {
     return CalendarFiltersState(
       choirs: choirs ?? this.choirs,
@@ -119,6 +138,9 @@ class CalendarFiltersState {
       isClassNameExplicit: isClassNameExplicit ?? this.isClassNameExplicit,
       isSchoolTrackExplicit: isSchoolTrackExplicit ?? this.isSchoolTrackExplicit,
       isDietExplicit: isDietExplicit ?? this.isDietExplicit,
+      showChoirCalendar: showChoirCalendar ?? this.showChoirCalendar,
+      showMealCalendar: showMealCalendar ?? this.showMealCalendar,
+      showSchoolCalendar: showSchoolCalendar ?? this.showSchoolCalendar,
     );
   }
 }

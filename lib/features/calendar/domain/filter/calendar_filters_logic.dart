@@ -8,6 +8,10 @@ bool calendarEntryMatchesFilters({
   required CalendarFiltersState filters,
   required bool hideUnknownWhenFilterActive,
 }) {
+  if (!_isEntryCalendarVisible(entry: entry, filters: filters)) {
+    return false;
+  }
+
   if (filters.choirs.isNotEmpty) {
     final value = normalizeCalendarFilterText(entry.choir.toBackend());
     if (!_matchesCategory(
@@ -74,6 +78,18 @@ bool calendarEntryMatchesFilters({
   }
 
   return true;
+}
+
+bool _isEntryCalendarVisible({
+  required CalendarEntry entry,
+  required CalendarFiltersState filters,
+}) {
+  return switch (entry.type) {
+    CalendarEntryType.choir => filters.showChoirCalendar,
+    CalendarEntryType.meal => filters.showMealCalendar,
+    CalendarEntryType.lesson => filters.showSchoolCalendar,
+    CalendarEntryType.event => false,
+  };
 }
 
 bool _matchesCategory({

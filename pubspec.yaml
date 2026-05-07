@@ -51,12 +51,13 @@ dependencies:
   scrollable_positioned_list: ^0.3.8
   open_mail: ^1.2.1
   blur: ^4.0.2
+  package_info_plus: ^10.1.0
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  shared_preferences: ^2.5.5
   # Auch die Dev-Tools müssen mitziehen:
   riverpod_generator: ^4.0.3
   build_runner: ^2.13.1

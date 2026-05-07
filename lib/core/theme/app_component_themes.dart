@@ -98,34 +98,44 @@ class AppComponentThemes {
   }
 
   static InputDecorationTheme inputDecorationTheme(ColorScheme scheme) {
-    final isDark = scheme.brightness == Brightness.dark;
-    const inputBorderWidth = 1.0;
-    final inputBorderSide = BorderSide(
-      color: scheme.onSurface.withValues(
-        alpha: isDark ? AppOpacity.muted : AppOpacity.low,
-      ),
-      width: inputBorderWidth,
+    final unfocusedBorderSide = BorderSide(
+      color: scheme.onSurface.withValues(alpha: AppOpacity.subtle),
+      width: 0.8,
+    );
+    final focusedBorderSide = BorderSide(
+      color: scheme.primary.withValues(alpha: 0.45),
+      width: 1.0,
     );
 
     return InputDecorationTheme(
       hintStyle: TextStyle(
         color: scheme.onSurface.withValues(alpha: AppOpacity.secondaryContent),
-        fontSize: 13,
+        fontSize: 14,
       ),
       filled: true,
       fillColor: scheme.surfaceContainerHighest,
       contentPadding: AppInsets.inputContent,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.m),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(12),
+        borderSide: unfocusedBorderSide,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.s),
-        borderSide: inputBorderSide,
+        borderRadius: BorderRadius.circular(12),
+        borderSide: unfocusedBorderSide,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.s),
-        borderSide: inputBorderSide,
+        borderRadius: BorderRadius.circular(12),
+        borderSide: focusedBorderSide,
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: scheme.error.withValues(alpha: 0.65),
+        ),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: scheme.error),
       ),
     );
   }
