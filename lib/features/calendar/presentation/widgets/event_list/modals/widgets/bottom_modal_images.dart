@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/data/calendar_image_url_resolver.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -71,11 +72,14 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemCount: 2,
             itemBuilder: (context, index) {
               return Padding(
-                padding: EdgeInsets.only(right: index == 1 ? 0 : 5),
-                child: AspectRatio(
-                  aspectRatio: 1.5,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(color: imagePanelBg),
+                padding: EdgeInsets.only(right: index == 1 ? 0 : 6),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.s + 1),
+                  child: AspectRatio(
+                    aspectRatio: 1.5,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: imagePanelBg),
+                    ),
                   ),
                 ),
               );
@@ -99,20 +103,24 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemBuilder: (context, index) {
               return Padding(
                 padding: EdgeInsets.only(
-                  right: index == imageUrls.length - 1 ? 0 : 5,
+                  right: index == imageUrls.length - 1 ? 0 : 6,
                 ),
-                child: AspectRatio(
-                  aspectRatio: 1.5,
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrls[index],
-                    cacheKey: _cacheKeyForImage(index, imageUrls[index]),
-                    fit: BoxFit.cover,
-                    fadeInDuration: Duration.zero,
-                    fadeOutDuration: Duration.zero,
-                    placeholder: (context, _) => Container(color: imagePanelBg),
-                    errorWidget: (context, _, _) => Container(
-                      color: imagePanelBg,
-                      child: const Icon(Icons.broken_image, size: 50),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.s + 1),
+                  child: AspectRatio(
+                    aspectRatio: 1.5,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrls[index],
+                      cacheKey: _cacheKeyForImage(index, imageUrls[index]),
+                      fit: BoxFit.cover,
+                      fadeInDuration: Duration.zero,
+                      fadeOutDuration: Duration.zero,
+                      placeholder: (context, _) =>
+                          Container(color: imagePanelBg),
+                      errorWidget: (context, _, _) => Container(
+                        color: imagePanelBg,
+                        child: const Icon(Icons.broken_image, size: 50),
+                      ),
                     ),
                   ),
                 ),
@@ -124,9 +132,9 @@ class _BottomModalImagesState extends State<BottomModalImages> {
         return Stack(
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(AppRadius.m + 1),
+                topRight: Radius.circular(AppRadius.m + 1),
               ),
               child: SizedBox(
                 height: widget.height,
