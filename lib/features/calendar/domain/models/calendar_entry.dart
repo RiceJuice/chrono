@@ -58,6 +58,7 @@ class CalendarEntry {
     String? seriesId,
     DateTime? recurrenceId,
     bool? isRecurringInstance,
+    Color? accentColor,
   }) {
     return CalendarEntry(
       id: id,
@@ -68,7 +69,7 @@ class CalendarEntry {
       startTime: startTime,
       endTime: endTime,
       imageUrls: imageUrls ?? this.imageUrls,
-      accentColor: accentColor,
+      accentColor: accentColor ?? this.accentColor,
       type: type,
       choir: choir,
       voice: voice,

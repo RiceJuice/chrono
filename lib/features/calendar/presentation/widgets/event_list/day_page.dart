@@ -153,7 +153,7 @@ class _DayPageState extends ConsumerState<DayPage> {
           context: context,
           child: ListView.builder(
             controller: _scrollController,
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.l),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.m),
             itemCount: entries.length + (hasNowAnchor ? 1 : 0),
             itemBuilder: (context, index) {
               final lastIndex = entries.length + (hasNowAnchor ? 1 : 0) - 1;
@@ -176,7 +176,7 @@ class _DayPageState extends ConsumerState<DayPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   row,
-                  if (index != lastIndex) const SizedBox(height: AppSpacing.m),
+                  if (index != lastIndex) const SizedBox(height: AppSpacing.s),
                 ],
               );
             },

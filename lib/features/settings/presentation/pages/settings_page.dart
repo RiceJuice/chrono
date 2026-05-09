@@ -8,6 +8,7 @@ import 'package:chronoapp/features/calendar/presentation/providers/filter/search
 import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
+import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/settings_profile_display.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_choice_action_sheet.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_footer.dart';
@@ -15,6 +16,7 @@ import 'package:chronoapp/features/settings/presentation/widgets/settings_island
 import 'package:chronoapp/features/settings/presentation/widgets/settings_logout_button.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_profile_header_card.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_section_label.dart';
+import 'package:chronoapp/features/settings/presentation/pages/settings_edit_personal_data_page.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_sliver_header.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_tile.dart';
 import 'package:flutter/material.dart';
@@ -33,6 +35,15 @@ class SettingsPage extends ConsumerStatefulWidget {
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _saving = false;
 
+  late final ScrollController _scrollController;
+
+  /// 0–1 aus Scroll-Offset (linear); Sichtbarkeit der AppBar-Überschrift: ease-in.
+  double _appBarTitleLinear = 0;
+
+  /// Scroll-Offset, ab dem der AppBar-Titel sichtbar wird / voll sichtbar ist.
+  static const _appBarTitleFadeStart = 28.0;
+  static const _appBarTitleFadeEnd = 88.0;
+
   static const _roleOptions = <String>['Schüler', 'Elternteil'];
   static const _voiceOptions = <String>['Sopran', 'Alt', 'Tenor', 'Bass'];
   static final _schoolTrackOptions = BackendSchoolTrack.values
@@ -45,20 +56,70 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final o = _scrollController.offset;
+    final span = _appBarTitleFadeEnd - _appBarTitleFadeStart;
+    final p = span <= 0
+        ? (o >= _appBarTitleFadeEnd ? 1.0 : 0.0)
+        : ((o - _appBarTitleFadeStart) / span).clamp(0.0, 1.0);
+    if (p == _appBarTitleLinear) return;
+    setState(() => _appBarTitleLinear = p);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(syncedProfileProvider);
     final classesAsync = ref.watch(availableClassesProvider);
     final themeMode = ref.watch(appThemeModeProvider);
 
+    final theme = Theme.of(context);
+    final bg = theme.scaffoldBackgroundColor;
+
     return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 44,
+        backgroundColor: bg,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shadowColor: Colors.transparent,
+        centerTitle: true,
+        title: Opacity(
+          opacity: Curves.easeIn.transform(_appBarTitleLinear.clamp(0.0, 1.0)),
+          child: Text(
+            SettingsSliverHeader.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontSize: 18,
+            ),
+          ),
+        ),
+      ),
       bottomNavigationBar: const MainNavigationBar(),
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
-          const SettingsSliverHeader(),
+          SettingsSliverHeader.largeTitleSliver(context),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             sliver: SliverList.list(
               children: [
+                const SizedBox(height: 18),
                 profileAsync.when(
                   data: (profile) =>
                       SettingsProfileHeaderCard(profile: profile),
@@ -76,28 +137,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     SettingsIsland(
                       children: [
                         SettingsTile(
-                          title: 'Vorname',
-                          subtitle: settingsValueOrFallback(profile?.firstName),
+                          title: 'Name',
+                          subtitle: settingsProfileName(profile),
                           icon: Icons.person_outline_rounded,
                           enabled: !_saving,
-                          onTap: () => _editTextField(
-                            title: 'Vorname bearbeiten',
-                            initialValue: profile?.firstName,
-                            fieldLabel: 'Vorname',
-                            onSave: (value) => _updateProfile(firstName: value),
-                          ),
-                        ),
-                        SettingsTile(
-                          title: 'Nachname',
-                          subtitle: settingsValueOrFallback(profile?.lastName),
-                          icon: Icons.badge_outlined,
-                          enabled: !_saving,
-                          onTap: () => _editTextField(
-                            title: 'Nachname bearbeiten',
-                            initialValue: profile?.lastName,
-                            fieldLabel: 'Nachname',
-                            onSave: (value) => _updateProfile(lastName: value),
-                          ),
+                          onTap: () => _openEditPersonalData(profile),
                         ),
                       ],
                     ),
@@ -230,47 +274,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  Future<void> _editTextField({
-    required String title,
-    required String? initialValue,
-    required String fieldLabel,
-    required Future<void> Function(String) onSave,
-  }) async {
-    var draftValue = (initialValue ?? '').trim();
+  void _openEditPersonalData(ProfileSnapshot? profile) {
     HapticFeedback.heavyImpact();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: TextFormField(
-            initialValue: draftValue,
-            autofocus: true,
-            decoration: InputDecoration(labelText: fieldLabel),
-            onChanged: (value) => draftValue = value.trim(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                HapticFeedback.selectionClick();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Abbrechen'),
-            ),
-            FilledButton(
-              onPressed: () {
-                HapticFeedback.selectionClick();
-                Navigator.of(context).pop(draftValue);
-              },
-              child: const Text('Speichern'),
-            ),
-          ],
-        );
-      },
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => SettingsEditPersonalDataPage(
+          initialFirstName: profile?.firstName,
+          initialLastName: profile?.lastName,
+        ),
+      ),
     );
-
-    if (value == null) return;
-    await onSave(value);
   }
 
   Future<void> _editChoiceField({

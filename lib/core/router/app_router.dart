@@ -10,6 +10,8 @@ import '../../features/login/presentation/routes/login_flow_specs.dart';
 import '../../features/login/presentation/routes/login_routes.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../loading_page.dart';
+import '../network/connectivity_notifier.dart';
+import '../network/no_connection_page.dart';
 
 /// Löst [GoRouter.refresh] bei Auth-Änderungen aus.
 class AuthSessionNotifier extends ChangeNotifier {
@@ -28,21 +30,27 @@ class AuthSessionNotifier extends ChangeNotifier {
   }
 }
 
+const String kNoConnectionPath = '/no-connection';
+
 class AppRouter {
   AppRouter({
     required AppStartupNotifier startupNotifier,
     required AuthSessionNotifier authSessionNotifier,
     required ProfileGateNotifier profileGateNotifier,
+    required ConnectivityNotifier connectivityNotifier,
   })  : _startup = startupNotifier,
         _gate = profileGateNotifier,
+        _connectivity = connectivityNotifier,
         _refresh = Listenable.merge([
           startupNotifier,
           authSessionNotifier,
           profileGateNotifier,
+          connectivityNotifier,
         ]);
 
   final AppStartupNotifier _startup;
   final ProfileGateNotifier _gate;
+  final ConnectivityNotifier _connectivity;
   final Listenable _refresh;
 
   late final router = GoRouter(
@@ -59,7 +67,24 @@ class AppRouter {
         return null;
       }
 
+      if (loggedIn && loc == kNoConnectionPath) {
+        return '/loading';
+      }
+
       if (!loggedIn) {
+        final offline = _connectivity.isOffline;
+
+        if (offline) {
+          if (loc == kNoConnectionPath) return null;
+          LoginRouteTransitionTracker.reset();
+          return kNoConnectionPath;
+        }
+
+        if (loc == kNoConnectionPath) {
+          LoginRouteTransitionTracker.reset();
+          return LoginPaths.login;
+        }
+
         if (isLoadingRoute) {
           LoginRouteTransitionTracker.reset();
           return LoginPaths.login;
@@ -116,6 +141,11 @@ class AppRouter {
     },
     routes: [
       GoRoute(path: '/loading', builder: (context, state) => const LoadingPage()),
+      GoRoute(
+        path: kNoConnectionPath,
+        builder: (context, state) =>
+            NoConnectionPage(connectivity: _connectivity),
+      ),
       GoRoute(
         path: '/calendar',
         pageBuilder: (context, state) => NoTransitionPage(

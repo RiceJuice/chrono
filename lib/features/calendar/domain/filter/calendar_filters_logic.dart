@@ -88,7 +88,7 @@ bool _isEntryCalendarVisible({
     CalendarEntryType.choir => filters.showChoirCalendar,
     CalendarEntryType.meal => filters.showMealCalendar,
     CalendarEntryType.lesson => filters.showSchoolCalendar,
-    CalendarEntryType.event => false,
+    CalendarEntryType.event => filters.showChoirCalendar,
   };
 }
 

@@ -205,8 +205,8 @@ class CalendarDayMarkerPill extends StatelessWidget {
 
   Color _cardBackgroundForType(BuildContext context, CalendarEntryType type) {
     return switch (type) {
-      CalendarEntryType.lesson => const Color(0xFF29509E),
-      CalendarEntryType.meal => const Color(0xFF29509E),
+      CalendarEntryType.lesson => const Color(0xFF124E30),
+      CalendarEntryType.meal => const Color(0xFF124E30),
       CalendarEntryType.event => const Color(0xFF29509E),
       CalendarEntryType.choir => const Color(0xFFCBBBA0),
     };

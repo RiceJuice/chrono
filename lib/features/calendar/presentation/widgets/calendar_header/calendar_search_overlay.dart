@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
 
 import '../../providers/calendar_providers.dart';
+import 'calendar_search_ui_metrics.dart';
 
 class CalendarSearchOverlay extends ConsumerStatefulWidget {
   const CalendarSearchOverlay({
@@ -97,28 +98,29 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
       child: Align(
         alignment: Alignment.topCenter,
         child: AnimatedSlide(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
+          duration: kCalendarSearchMorphDuration,
+          curve: Curves.easeInOutCubic,
           offset: widget.isOpen ? Offset.zero : const Offset(0, -1.2),
           child: Material(
             elevation: 0,
             color: Theme.of(context).colorScheme.surfaceContainer,
             shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(
-                bottom: Radius.circular(15),
-              ),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(15)),
             ),
             clipBehavior: Clip.antiAlias,
             child: SafeArea(
               bottom: false,
               child: SizedBox(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  padding: const EdgeInsets.only(
+                    top: CalendarSearchOverlayMetrics.topPadding,
+                    bottom: CalendarSearchOverlayMetrics.bottomPadding,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
-                        height: 42,
+                        height: CalendarSearchOverlayMetrics.inputRowHeight,
                         child: Center(
                           child: Row(
                             children: [
@@ -170,21 +172,21 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                                     filled: true,
                                     fillColor: searchBackgroundColor,
                                     contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 6,
+                                      vertical: 8,
                                     ),
                                     prefixIcon: Icon(
                                       Icons.search,
                                       size: 18,
                                       color: searchHintAndIconColor,
                                     ),
-                                    prefixIconConstraints:
-                                        const BoxConstraints(
-                                          minWidth: 32,
-                                          minHeight: 32,
-                                        ),
+                                    prefixIconConstraints: const BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 32,
+                                    ),
                                     hintText: 'Finde den richtigen Termin',
                                     hintStyle:
-                                        (inputTheme.hintStyle ?? const TextStyle())
+                                        (inputTheme.hintStyle ??
+                                                const TextStyle())
                                             .copyWith(
                                               fontSize: searchIconAndTextSize,
                                               color: searchHintAndIconColor,
@@ -203,7 +205,8 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                                               icon: Icon(
                                                 Icons.close_rounded,
                                                 size: 14,
-                                                color: theme.colorScheme
+                                                color: theme
+                                                    .colorScheme
                                                     .surfaceContainerHighest,
                                               ),
                                               style: ButtonStyle(
@@ -233,11 +236,10 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                                               ),
                                             ),
                                           ),
-                                    suffixIconConstraints:
-                                        const BoxConstraints(
-                                          minWidth: 26,
-                                          minHeight: 22,
-                                        ),
+                                    suffixIconConstraints: const BoxConstraints(
+                                      minWidth: 26,
+                                      minHeight: 22,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: BorderSide.none,
@@ -272,7 +274,9 @@ class _CalendarSearchOverlayState extends ConsumerState<CalendarSearchOverlay> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: CalendarSearchOverlayMetrics.inputToChipsGap,
+                      ),
                       _SearchOverlayActiveFiltersBar(
                         filters: filters,
                         onClearFilters: filtersNotifier.resetToDefaults,
@@ -323,7 +327,6 @@ class _SearchOverlayActiveFiltersBar extends StatelessWidget {
     if (!filters.hasVisibleDeviationChips) {
       return const SizedBox.shrink();
     }
-
 
     final chips = <Widget>[];
 

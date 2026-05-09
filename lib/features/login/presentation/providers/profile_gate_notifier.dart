@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/database/powersync_schema.dart';
 import '../../domain/models/profile_gate_data.dart';
 import '../routes/login_flow_specs.dart';
 
@@ -10,8 +12,11 @@ import '../routes/login_flow_specs.dart';
 /// Onboarding-Pfad. Triggert [GoRouter.refresh] via [ChangeNotifier], sobald
 /// sich der Gate-Zustand ändert.
 class ProfileGateNotifier extends ChangeNotifier {
-  ProfileGateNotifier({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client {
+  ProfileGateNotifier({
+    SupabaseClient? client,
+    PowerSyncDatabase? localDb,
+  })  : _client = client ?? Supabase.instance.client,
+        _localDb = localDb {
     _authSub = _client.auth.onAuthStateChange.listen(_handleAuthEvent);
 
     if (_client.auth.currentSession == null) {
@@ -23,6 +28,7 @@ class ProfileGateNotifier extends ChangeNotifier {
   }
 
   final SupabaseClient _client;
+  final PowerSyncDatabase? _localDb;
   StreamSubscription<AuthState>? _authSub;
   bool _ready = false;
   bool _refreshing = false;
@@ -80,10 +86,11 @@ class ProfileGateNotifier extends ChangeNotifier {
             .eq('id', user.id)
             .maybeSingle();
       } catch (_) {
-        // Fallback: Feld existiert evtl. noch nicht oder Netzwerkfehler.
-        // Ohne Daten gilt das Profil als unvollständig, aber die Session bleibt.
+        // Netzwerkfehler / PostgREST: lokale PowerSync-Kopie nutzen (Offline).
         row = null;
       }
+
+      row ??= await _loadLocalProfileRow(user.id);
 
       _setData(
         ProfileGateData(
@@ -102,6 +109,27 @@ class ProfileGateNotifier extends ChangeNotifier {
       );
     } finally {
       _refreshing = false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadLocalProfileRow(String userId) async {
+    final db = _localDb;
+    if (db == null) return null;
+    try {
+      final sqliteRow = await db.getOptional(
+        '''
+        SELECT first_name, last_name, class_name, schooltrack, voice, role, choir,
+               onboarding_completed_at
+        FROM $kProfilesTable
+        WHERE id = ?
+        LIMIT 1
+        ''',
+        [userId],
+      );
+      if (sqliteRow == null) return null;
+      return Map<String, dynamic>.from(sqliteRow);
+    } catch (_) {
+      return null;
     }
   }
 

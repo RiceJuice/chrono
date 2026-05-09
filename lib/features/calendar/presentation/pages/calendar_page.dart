@@ -18,6 +18,7 @@ import 'package:chronoapp/features/settings/presentation/providers/settings_prof
 
 import '../widgets/calendar_header/calendar_header.dart';
 import '../widgets/calendar_header/calendar_search_overlay.dart';
+import '../widgets/calendar_header/calendar_search_ui_metrics.dart';
 import '../widgets/calendar_header/calendar_view_mode_overlay.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
@@ -29,11 +30,6 @@ class CalendarPage extends ConsumerStatefulWidget {
 
 class _CalendarPageState extends ConsumerState<CalendarPage> {
   static const Duration _searchDebounce = Duration(milliseconds: 300);
-  static const Duration _searchMorphDuration = Duration(milliseconds: 540);
-  static const Duration _searchMorphReverseDuration = Duration(
-    milliseconds: 360,
-  );
-  static const Curve _searchMorphCurve = Cubic(0.22, 1, 0.36, 1);
   static const Duration _viewModeTransitionDuration = Duration(
     milliseconds: 300,
   );
@@ -224,10 +220,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     required bool isTabletCalendar,
   }) {
     return AnimatedSwitcher(
-      duration: _searchMorphDuration,
-      reverseDuration: _searchMorphReverseDuration,
-      switchInCurve: _searchMorphCurve,
-      switchOutCurve: Curves.easeInCubic,
+      duration: kCalendarSearchMorphDuration,
+      reverseDuration: kCalendarSearchMorphDuration,
+      // Eine Kurve im [transitionBuilder] — sonst doppelte Easing-Kette (Switcher + Builder).
+      switchInCurve: Curves.linear,
+      switchOutCurve: Curves.linear,
       layoutBuilder: (currentChild, previousChildren) {
         return Stack(
           alignment: Alignment.topCenter,
@@ -291,80 +288,41 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     final key = child.key;
     final surface = key is ValueKey<_CalendarBodySurface> ? key.value : null;
     final isSearchSurface = surface == _CalendarBodySurface.search;
-    final curve = CurvedAnimation(
+    // Einheitliche Kurve für Ein- und Ausblendung (reverseCurve = curve).
+    final t = CurvedAnimation(
       parent: animation,
-      curve: _searchMorphCurve,
-      reverseCurve: Curves.easeInCubic,
+      curve: Curves.easeInOutCubic,
+      reverseCurve: Curves.easeInOutCubic,
     );
-    final fadeInterval = isSearchSurface
-        ? const Interval(0.08, 0.88, curve: Curves.easeOutCubic)
-        : const Interval(0.0, 0.58, curve: Curves.easeOutCubic);
-    final fadeAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).chain(CurveTween(curve: fadeInterval)).animate(animation);
-    final slideAnimation = TweenSequence<Offset>([
-      TweenSequenceItem(
-        tween: Tween<Offset>(
-          begin: isSearchSurface
-              ? const Offset(0, 0.072)
-              : const Offset(0, -0.026),
-          end: isSearchSurface
-              ? const Offset(0, -0.006)
-              : const Offset(0, 0.004),
-        ).chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 78,
-      ),
-      TweenSequenceItem(
-        tween: Tween<Offset>(
-          begin: isSearchSurface
-              ? const Offset(0, -0.006)
-              : const Offset(0, 0.004),
-          end: Offset.zero,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 22,
-      ),
-    ]).animate(curve);
-    final scaleAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: isSearchSurface ? 0.956 : 0.992,
-          end: isSearchSurface ? 1.006 : 1.002,
-        ).chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 76,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: isSearchSurface ? 1.006 : 1.002,
-          end: 1,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 24,
-      ),
-    ]).animate(curve);
-    final radiusAnimation = Tween<double>(
-      begin: isSearchSurface ? 34 : 18,
-      end: 0,
-    ).animate(curve);
-    final blurAnimation = Tween<double>(
-      begin: isSearchSurface ? 5.5 : 2.2,
-      end: 0,
-    ).animate(curve);
+    final slideBegin = isSearchSurface
+        ? const Offset(0, 0.048)
+        : const Offset(0, -0.022);
+    final slideAnimation = Tween<Offset>(
+      begin: slideBegin,
+      end: Offset.zero,
+    ).animate(t);
+    final beginScale = isSearchSurface ? 0.976 : 0.991;
+    final scaleAnimation = Tween<double>(begin: beginScale, end: 1).animate(t);
+    final radiusBegin = isSearchSurface ? 22.0 : 14.0;
+    final blurMax = isSearchSurface ? 3.2 : 1.2;
 
     return FadeTransition(
-      opacity: fadeAnimation,
+      opacity: t,
       child: SlideTransition(
         position: slideAnimation,
         child: ScaleTransition(
           scale: scaleAnimation,
           child: AnimatedBuilder(
-            animation: Listenable.merge([radiusAnimation, blurAnimation]),
+            animation: t,
             child: child,
             builder: (context, child) {
-              final blur = blurAnimation.value;
+              final v = t.value.clamp(0.0, 1.0);
+              final radius = radiusBegin * (1.0 - v);
+              final sigma = blurMax * (1.0 - v);
               return ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(radiusAnimation.value),
+                  borderRadius: BorderRadius.circular(radius),
                   child: child,
                 ),
               );
@@ -407,19 +365,15 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         searchFilters.hasUserOverrides;
     final viewMode = ref.watch(calendarViewModeProvider);
     final mediaPadding = MediaQuery.paddingOf(context);
-    // Muss zur kompakten Hoehe in CalendarSearchOverlay passen.
-    const searchOverlayTopPadding = 8.0;
-    const searchInputRowHeight = 42.0;
-    const searchInputToChipsGap = 8.0;
-    const chipRowExtent = 38.0;
-    const searchOverlayBottomPadding = 4.0;
     final searchBarBottomInset =
         mediaPadding.top +
-        searchOverlayTopPadding +
-        searchInputRowHeight +
-        searchInputToChipsGap +
-        (_isSearchOpen && hasVisibleSearchFilterChips ? chipRowExtent : 0) +
-        searchOverlayBottomPadding;
+        CalendarSearchOverlayMetrics.topPadding +
+        CalendarSearchOverlayMetrics.inputRowHeight +
+        CalendarSearchOverlayMetrics.inputToChipsGap +
+        (_isSearchOpen && hasVisibleSearchFilterChips
+            ? CalendarSearchOverlayMetrics.chipRowExtent
+            : 0) +
+        CalendarSearchOverlayMetrics.bottomPadding;
 
     return Scaffold(
       bottomNavigationBar: Stack(

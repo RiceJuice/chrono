@@ -1,9 +1,11 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/base_calendar_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class LessionCard extends StatelessWidget {
+class LessionCard extends ConsumerWidget {
   final CalendarEntry entry;
   final bool applyPastStyling;
   final bool showTimeColumn;
@@ -26,10 +28,11 @@ class LessionCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final accent = resolveCalendarEntryAccent(ref, entry);
     final backgroundColor = Color.alphaBlend(
-      entry.accentColor.withValues(alpha: 0.06),
+      accent.withValues(alpha: 0.06),
       scheme.surfaceContainerHigh,
     );
 
@@ -50,7 +53,7 @@ class LessionCard extends StatelessWidget {
       leadingIndicator: Container(
         width: 6,
         decoration: BoxDecoration(
-          color: entry.accentColor,
+          color: accent,
           borderRadius: BorderRadius.circular(3),
         ),
       ),
