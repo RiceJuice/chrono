@@ -1,9 +1,11 @@
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/base_calendar_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../domain/models/calendar_entry.dart';
 
-class ChorCard extends StatelessWidget {
+class ChorCard extends ConsumerWidget {
   final CalendarEntry entry;
   final bool applyPastStyling;
   final bool showTimeColumn;
@@ -26,8 +28,9 @@ class ChorCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final accent = resolveCalendarEntryAccent(ref, entry);
     return BaseCalendarCard(
       entry: entry,
       applyPastStyling: applyPastStyling,
@@ -48,7 +51,7 @@ class ChorCard extends StatelessWidget {
       leadingIndicator: Container(
         width: 6,
         decoration: BoxDecoration(
-          color: entry.accentColor,
+          color: accent,
           borderRadius: BorderRadius.circular(3),
         ),
       ),

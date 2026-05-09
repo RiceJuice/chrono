@@ -1,6 +1,8 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/data/calendar_image_url_resolver.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart'
+    show BottomModalHandle;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +11,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class BottomModalImages extends StatefulWidget {
   final CalendarEntry entry;
   final double height;
-  const BottomModalImages({super.key, required this.entry, this.height = 120});
+  final bool clipTopCorners;
+
+  const BottomModalImages({
+    super.key,
+    required this.entry,
+    this.height = 120,
+    this.clipTopCorners = false,
+  });
 
   @override
   State<BottomModalImages> createState() => _BottomModalImagesState();
@@ -131,33 +140,24 @@ class _BottomModalImagesState extends State<BottomModalImages> {
           );
         }
 
-        return ClipRRect(
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xl),
-          ),
-          child: Stack(
-            children: [
-              SizedBox(
-                height: 200,
-                child: ColoredBox(color: imagePanelBg, child: content),
-              ),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        final panel = Stack(
+          children: [
+            SizedBox(
+              height: 200,
+              child: ColoredBox(color: imagePanelBg, child: content),
+            ),
+            const BottomModalHandle(),
+          ],
         );
+
+        return widget.clipTopCorners
+            ? ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.xl),
+                ),
+                child: panel,
+              )
+            : panel;
       },
     );
   }

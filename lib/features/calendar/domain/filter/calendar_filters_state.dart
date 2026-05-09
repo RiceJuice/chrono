@@ -53,34 +53,34 @@ class CalendarFiltersState {
       diets.isNotEmpty;
 
   List<String> get choirDeviations => _visibleFilterChipsForCategory(
-        selected: choirs,
-        defaults: defaultChoirs,
-        isExplicit: isChoirExplicit,
-      );
+    selected: choirs,
+    defaults: defaultChoirs,
+    isExplicit: isChoirExplicit,
+  );
 
   List<String> get voiceDeviations => _visibleFilterChipsForCategory(
-        selected: voices,
-        defaults: defaultVoices,
-        isExplicit: isVoiceExplicit,
-      );
+    selected: voices,
+    defaults: defaultVoices,
+    isExplicit: isVoiceExplicit,
+  );
 
   List<String> get classNameDeviations => _visibleFilterChipsForCategory(
-        selected: classNames,
-        defaults: defaultClassNames,
-        isExplicit: isClassNameExplicit,
-      );
+    selected: classNames,
+    defaults: defaultClassNames,
+    isExplicit: isClassNameExplicit,
+  );
 
   List<String> get schoolTrackDeviations => _visibleFilterChipsForCategory(
-        selected: schoolTracks,
-        defaults: defaultSchoolTracks,
-        isExplicit: isSchoolTrackExplicit,
-      );
+    selected: schoolTracks,
+    defaults: defaultSchoolTracks,
+    isExplicit: isSchoolTrackExplicit,
+  );
 
   List<String> get dietDeviations => _visibleFilterChipsForCategory(
-        selected: diets,
-        defaults: defaultDiets,
-        isExplicit: isDietExplicit,
-      );
+    selected: diets,
+    defaults: defaultDiets,
+    isExplicit: isDietExplicit,
+  );
 
   bool get hasVisibleDeviationChips =>
       choirDeviations.isNotEmpty ||
@@ -95,6 +95,32 @@ class CalendarFiltersState {
       CalendarVisibility.meal => showMealCalendar,
       CalendarVisibility.school => showSchoolCalendar,
     };
+  }
+
+  /// Unabhängige Kopie aller Listen (z. B. für Sheet-Entwurf / Wiederherstellen).
+  CalendarFiltersState deepClone() {
+    return CalendarFiltersState(
+      choirs: List<String>.from(choirs),
+      voices: List<String>.from(voices),
+      classNames: List<String>.from(classNames),
+      schoolTracks: List<String>.from(schoolTracks),
+      diets: List<String>.from(diets),
+      defaultChoirs: List<String>.from(defaultChoirs),
+      defaultVoices: List<String>.from(defaultVoices),
+      defaultClassNames: List<String>.from(defaultClassNames),
+      defaultSchoolTracks: List<String>.from(defaultSchoolTracks),
+      defaultDiets: List<String>.from(defaultDiets),
+      hasInitializedDefaults: hasInitializedDefaults,
+      hasUserOverrides: hasUserOverrides,
+      isChoirExplicit: isChoirExplicit,
+      isVoiceExplicit: isVoiceExplicit,
+      isClassNameExplicit: isClassNameExplicit,
+      isSchoolTrackExplicit: isSchoolTrackExplicit,
+      isDietExplicit: isDietExplicit,
+      showChoirCalendar: showChoirCalendar,
+      showMealCalendar: showMealCalendar,
+      showSchoolCalendar: showSchoolCalendar,
+    );
   }
 
   CalendarFiltersState copyWith({
@@ -136,7 +162,8 @@ class CalendarFiltersState {
       isChoirExplicit: isChoirExplicit ?? this.isChoirExplicit,
       isVoiceExplicit: isVoiceExplicit ?? this.isVoiceExplicit,
       isClassNameExplicit: isClassNameExplicit ?? this.isClassNameExplicit,
-      isSchoolTrackExplicit: isSchoolTrackExplicit ?? this.isSchoolTrackExplicit,
+      isSchoolTrackExplicit:
+          isSchoolTrackExplicit ?? this.isSchoolTrackExplicit,
       isDietExplicit: isDietExplicit ?? this.isDietExplicit,
       showChoirCalendar: showChoirCalendar ?? this.showChoirCalendar,
       showMealCalendar: showMealCalendar ?? this.showMealCalendar,

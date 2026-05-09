@@ -62,17 +62,17 @@ abstract class CalendarFiltersNotifierBase
   void setCalendarVisibility(CalendarVisibility calendar, bool isVisible) {
     state = switch (calendar) {
       CalendarVisibility.choir => state.copyWith(
-          showChoirCalendar: isVisible,
-          hasUserOverrides: true,
-        ),
+        showChoirCalendar: isVisible,
+        hasUserOverrides: true,
+      ),
       CalendarVisibility.meal => state.copyWith(
-          showMealCalendar: isVisible,
-          hasUserOverrides: true,
-        ),
+        showMealCalendar: isVisible,
+        hasUserOverrides: true,
+      ),
       CalendarVisibility.school => state.copyWith(
-          showSchoolCalendar: isVisible,
-          hasUserOverrides: true,
-        ),
+        showSchoolCalendar: isVisible,
+        hasUserOverrides: true,
+      ),
     };
   }
 
@@ -194,6 +194,11 @@ abstract class CalendarFiltersNotifierBase
       hasUserOverrides: true,
       isDietExplicit: true,
     );
+  }
+
+  /// Ersetzt den gesamten Filterzustand (z. B. Sheet abbrechen / Entwurf übernehmen).
+  void replaceState(CalendarFiltersState next) {
+    state = next;
   }
 
   void resetToDefaults() {

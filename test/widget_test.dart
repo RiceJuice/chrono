@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:chronoapp/core/network/connectivity_notifier.dart';
 import 'package:chronoapp/core/router/app_router.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_notifier.dart';
 import 'package:chronoapp/main.dart';
@@ -20,10 +22,13 @@ void main() {
 
   testWidgets('app builds', (WidgetTester tester) async {
     await tester.pumpWidget(
-      MyApp(
-        startupNotifier: AppStartupNotifier(),
-        authSessionNotifier: AuthSessionNotifier(),
-        profileGateNotifier: ProfileGateNotifier(),
+      ProviderScope(
+        child: MyApp(
+          startupNotifier: AppStartupNotifier(),
+          authSessionNotifier: AuthSessionNotifier(),
+          profileGateNotifier: ProfileGateNotifier(),
+          connectivityNotifier: ConnectivityNotifier.test(),
+        ),
       ),
     );
     await tester.pump();

@@ -1,6 +1,7 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filtered_entries_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/calendar_entry_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart'
@@ -10,10 +11,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Graustufen (Luminanz) — alle nicht ausgewählten Karten gleich behandelt.
 const ColorFilter _kGrayscale = ColorFilter.matrix(<double>[
-  0.2126, 0.7152, 0.0722, 0, 0,
-  0.2126, 0.7152, 0.0722, 0, 0,
-  0.2126, 0.7152, 0.0722, 0, 0,
-  0, 0, 0, 1, 0,
+  0.2126,
+  0.7152,
+  0.0722,
+  0,
+  0,
+  0.2126,
+  0.7152,
+  0.0722,
+  0,
+  0,
+  0.2126,
+  0.7152,
+  0.0722,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
 ]);
 
 const double _kMutedCardOpacity = 0.28;
@@ -42,6 +59,28 @@ const double _kModalListEdgeFadeOut = 0.68;
 const double _kModalListEdgeFadeShortIn = 0.16;
 const double _kModalListEdgeFadeShortOut = 0.84;
 
+class BottomModalHandle extends StatelessWidget {
+  const BottomModalHandle({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class BottomModalHeader extends ConsumerWidget {
   final CalendarEntry entry;
   final double height;
@@ -50,7 +89,11 @@ class BottomModalHeader extends ConsumerWidget {
     super.key,
     required this.entry,
     this.height = kBottomModalHeaderHeight,
+    this.clipTopCorners = false,
   });
+
+  /// Wenn false, übernimmt ein äußeres [ClipRRect] (z. B. [BaseBottomModal]) die oberen Ecken.
+  final bool clipTopCorners;
 
   static DateTime _localDayStart(CalendarEntry anchor) {
     final local = anchor.startTime.toLocal();
@@ -93,117 +136,366 @@ class BottomModalHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final day = AppDateTime.localDay(entry.startTime);
+    final displayEntry = entry.copyWith(
+      accentColor: resolveCalendarEntryAccent(ref, entry),
+    );
+    final day = AppDateTime.localDay(displayEntry.startTime);
     final entriesAsync = ref.watch(filteredCalendarEntriesForDayProvider(day));
-    final scheme = Theme.of(context).colorScheme;
     final headerH = height;
+
+    final stack = Stack(
+      clipBehavior: Clip.hardEdge,
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: displayEntry.accentColor,
+              borderRadius: clipTopCorners
+                  ? const BorderRadius.vertical(
+                      top: Radius.circular(AppRadius.xl),
+                    )
+                  : null,
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return entriesAsync.when(
+                data: (dayEntries) {
+                  final dayStart = _localDayStart(displayEntry);
+                  final h = displayEntry.startTime.toLocal().hour;
+
+                  var curr = _entriesStartingAtLocalHour(
+                    dayEntries,
+                    dayStart,
+                    h,
+                  );
+                  if (curr.isEmpty) {
+                    curr = [displayEntry];
+                  }
+                  final prev = _entriesStartingAtLocalHour(
+                    dayEntries,
+                    dayStart,
+                    h - 1,
+                  );
+                  final next = _entriesStartingAtLocalHour(
+                    dayEntries,
+                    dayStart,
+                    h + 1,
+                  );
+
+                  final selectedIdx = curr.indexWhere(
+                    (e) => e.id == displayEntry.id,
+                  );
+                  final ix = selectedIdx >= 0 ? selectedIdx : 0;
+                  final selected = curr[ix];
+                  final beforeSel = curr.sublist(0, ix);
+                  final afterSel = curr.sublist(ix + 1, curr.length);
+                  final firstOfDay = _firstEntryOfLocalDay(
+                    dayEntries,
+                    dayStart,
+                  );
+
+                  final orderedPreview = <CalendarEntry>[
+                    ...prev,
+                    ...beforeSel,
+                    selected,
+                    ...afterSel,
+                    ...next,
+                  ];
+                  final si = orderedPreview.indexWhere(
+                    (e) => e.id == selected.id,
+                  );
+                  final hasNeighborBefore = si > 0 && orderedPreview.isNotEmpty;
+                  final hasNeighborAfter =
+                      si >= 0 && si < orderedPreview.length - 1;
+
+                  return _ModalHeaderEntryList(
+                    viewportHeight: constraints.maxHeight,
+                    prevHourEntries: prev,
+                    beforeSelectedSameHour: beforeSel,
+                    selected: selected,
+                    afterSelectedSameHour: afterSel,
+                    nextHourEntries: next,
+                    firstEntryOfDay: firstOfDay,
+                    hasNeighborBefore: hasNeighborBefore,
+                    hasNeighborAfter: hasNeighborAfter,
+                    applyPastStyling: AppDateTime.isTodayLocal(
+                      curr.first.startTime,
+                    ),
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
+              );
+            },
+          ),
+        ),
+        // Handle über der Liste, damit darunterliegende (gedimmte) Karten erlaubt sind.
+        const BottomModalHandle(),
+      ],
+    );
 
     return SizedBox(
       height: headerH,
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
+      child: clipTopCorners
+          ? ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadius.xl),
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: stack,
+            )
+          : stack,
+    );
+  }
+}
+
+/// Eine einzelne Karte, zentriert, ohne Uhrzeit — für Kalender-Einstellungen / Akzent-Vorschau.
+class BottomModalHeaderPreview extends ConsumerWidget {
+  final CalendarEntry entry;
+  final double height;
+
+  const BottomModalHeaderPreview({
+    super.key,
+    required this.entry,
+    this.height = kBottomModalHeaderHeight,
+    this.clipTopCorners = false,
+  });
+
+  /// Wenn false, sorgt das übergeordnete Sheet für eine einheitliche Rundung.
+  final bool clipTopCorners;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final displayEntry = entry.copyWith(
+      accentColor: resolveCalendarEntryAccent(ref, entry),
+    );
+    final stack = Stack(
+      clipBehavior: Clip.hardEdge,
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: displayEntry.accentColor,
+              borderRadius: clipTopCorners
+                  ? const BorderRadius.vertical(
+                      top: Radius.circular(AppRadius.xl),
+                    )
+                  : null,
+            ),
+          ),
         ),
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: entry.accentColor,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(AppRadius.xl),
-                  ),
+        Center(
+          child: _PreviewCardFrame(entry: displayEntry),
+        ),
+        const BottomModalHandle(),
+      ],
+    );
+
+    return SizedBox(
+      height: height,
+      child: clipTopCorners
+          ? ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadius.xl),
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: stack,
+            )
+          : stack,
+    );
+  }
+}
+
+/// Mehrseitige Vorschau: Akzentfarbe füllt fest den Hintergrund und wird beim
+/// Wischen sanft zwischen den Seiten interpoliert. Nur die Karte selbst sitzt
+/// im [PageView] und scrollt mit.
+class BottomModalHeaderPreviewSwiper extends StatelessWidget {
+  const BottomModalHeaderPreviewSwiper({
+    super.key,
+    required this.entries,
+    required this.pageController,
+    required this.pageValue,
+    required this.activeIndex,
+    this.height = kBottomModalHeaderHeight,
+    this.clipTopCorners = false,
+    this.bgAnimationDuration = const Duration(milliseconds: 320),
+  });
+
+  /// Eine Karte pro Seite. Die [CalendarEntry.accentColor] der Einträge wird
+  /// für die Hintergrundinterpolation benutzt — also vom Aufrufer bereits
+  /// auflösen (z. B. via [resolveCalendarEntryAccent]).
+  final List<CalendarEntry> entries;
+  final PageController pageController;
+
+  /// Aktuelle Position des [PageController]s als Gleitkommawert (0..n-1),
+  /// genutzt für die Crossfade-Animation des Akzent-Hintergrunds.
+  final double pageValue;
+  final int activeIndex;
+  final double height;
+  final bool clipTopCorners;
+
+  /// Sanfte Nachhilfe-Animation, falls sich die Akzentfarbe einer Seite ändert
+  /// (z. B. im Color-Picker), während der [PageController] in Ruhe ist.
+  final Duration bgAnimationDuration;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasMultiplePages = entries.length > 1;
+    final bgColor = _interpolatedAccent(entries, pageValue);
+
+    final stack = Stack(
+      clipBehavior: Clip.hardEdge,
+      children: [
+        Positioned.fill(
+          child: AnimatedContainer(
+            duration: bgAnimationDuration,
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: clipTopCorners
+                  ? const BorderRadius.vertical(
+                      top: Radius.circular(AppRadius.xl),
+                    )
+                  : null,
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: PageView.builder(
+            controller: pageController,
+            physics: hasMultiplePages
+                ? const BouncingScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              return Center(child: _PreviewCardFrame(entry: entries[index]));
+            },
+          ),
+        ),
+        const BottomModalHandle(),
+        if (hasMultiplePages)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 10,
+            child: _PreviewPageDots(
+              count: entries.length,
+              activeIndex: activeIndex,
+            ),
+          ),
+      ],
+    );
+
+    return SizedBox(
+      height: height,
+      child: clipTopCorners
+          ? ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppRadius.xl),
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: stack,
+            )
+          : stack,
+    );
+  }
+
+  /// Wechselt erst beim Überschreiten der 50%-Marke zwischen zwei Seiten auf
+  /// die nächste Akzentfarbe. Den weichen Übergang übernimmt der äußere
+  /// [AnimatedContainer] – so passiert die Animation tatsächlich erst nach der
+  /// Hälfte des Wisches und nicht kontinuierlich von Anfang an.
+  Color _interpolatedAccent(List<CalendarEntry> entries, double page) {
+    if (entries.isEmpty) return Colors.transparent;
+    final idx = page.round().clamp(0, entries.length - 1);
+    return entries[idx].accentColor;
+  }
+}
+
+/// Visuelles Karten-Frame inkl. Schatten — gemeinsam genutzt von
+/// [BottomModalHeaderPreview] und [BottomModalHeaderPreviewSwiper].
+class _PreviewCardFrame extends StatelessWidget {
+  const _PreviewCardFrame({required this.entry});
+
+  final CalendarEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+      child: IgnorePointer(
+        child: Transform.scale(
+          scale: 1.02,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.s),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 20,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 8),
                 ),
-              ),
-            ),
-            Positioned.fill(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return entriesAsync.when(
-                    data: (dayEntries) {
-                      final dayStart = _localDayStart(entry);
-                      final h = entry.startTime.toLocal().hour;
-
-                      var curr =
-                          _entriesStartingAtLocalHour(dayEntries, dayStart, h);
-                      if (curr.isEmpty) {
-                        curr = [entry];
-                      }
-                      final prev = _entriesStartingAtLocalHour(
-                        dayEntries,
-                        dayStart,
-                        h - 1,
-                      );
-                      final next = _entriesStartingAtLocalHour(
-                        dayEntries,
-                        dayStart,
-                        h + 1,
-                      );
-
-                      final selectedIdx =
-                          curr.indexWhere((e) => e.id == entry.id);
-                      final ix = selectedIdx >= 0 ? selectedIdx : 0;
-                      final selected = curr[ix];
-                      final beforeSel = curr.sublist(0, ix);
-                      final afterSel = curr.sublist(ix + 1, curr.length);
-                      final firstOfDay =
-                          _firstEntryOfLocalDay(dayEntries, dayStart);
-
-                      final orderedPreview = <CalendarEntry>[
-                        ...prev,
-                        ...beforeSel,
-                        selected,
-                        ...afterSel,
-                        ...next,
-                      ];
-                      final si = orderedPreview.indexWhere(
-                        (e) => e.id == selected.id,
-                      );
-                      final hasNeighborBefore =
-                          si > 0 && orderedPreview.isNotEmpty;
-                      final hasNeighborAfter = si >= 0 &&
-                          si < orderedPreview.length - 1;
-
-                      return _ModalHeaderEntryList(
-                        viewportHeight: constraints.maxHeight,
-                        prevHourEntries: prev,
-                        beforeSelectedSameHour: beforeSel,
-                        selected: selected,
-                        afterSelectedSameHour: afterSel,
-                        nextHourEntries: next,
-                        firstEntryOfDay: firstOfDay,
-                        hasNeighborBefore: hasNeighborBefore,
-                        hasNeighborAfter: hasNeighborAfter,
-                        applyPastStyling:
-                            AppDateTime.isTodayLocal(curr.first.startTime),
-                      );
-                    },
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, _) => const SizedBox.shrink(),
-                  );
-                },
-              ),
-            ),
-            // Handle über der Liste, damit darunterliegende (gedimmte) Karten erlaubt sind.
-            Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(100),
-                  ),
+                BoxShadow(
+                  color: entry.accentColor.withValues(alpha: 0.5),
+                  blurRadius: 28,
+                  spreadRadius: -4,
+                  offset: const Offset(0, 4),
                 ),
-              ),
+              ],
             ),
-          ],
+            child: CalendarEntryCard(
+              entry: entry,
+              applyPastStyling: false,
+              showTimeColumn: false,
+              showInlineTimeRange: false,
+              listTileHorizontalPadding: 0,
+              cardContentPadding: _kModalPreviewCardPadding,
+              cardTitleFontSize: _kModalPreviewTitleFontSize,
+            ),
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Pillen-Indikator für die aktuell sichtbare Seite des Akzent-Vorschau-Swipers.
+class _PreviewPageDots extends StatelessWidget {
+  const _PreviewPageDots({required this.count, required this.activeIndex});
+
+  final int count;
+  final int activeIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (int i = 0; i < count; i++)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            height: 8,
+            width: i == activeIndex ? 22 : 8,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: i == activeIndex ? 0.95 : 0.55,
+              ),
+              borderRadius: BorderRadius.circular(4),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
@@ -280,13 +572,19 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
     return true;
   }
 
-  static bool _useHeadBlock(List<CalendarEntry> ordered, CalendarEntry selected) {
+  static bool _useHeadBlock(
+    List<CalendarEntry> ordered,
+    CalendarEntry selected,
+  ) {
     if (ordered.length < 2) return false;
     final ix = ordered.indexWhere((e) => e.id == selected.id);
     return ix == 0;
   }
 
-  static bool _useTailBlock(List<CalendarEntry> ordered, CalendarEntry selected) {
+  static bool _useTailBlock(
+    List<CalendarEntry> ordered,
+    CalendarEntry selected,
+  ) {
     if (ordered.length < 2) return false;
     final ix = ordered.indexWhere((e) => e.id == selected.id);
     return ix == ordered.length - 1;
@@ -298,12 +596,22 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
     return n >= 3 ? 3 : 2;
   }
 
-  static int _headMergeCount(List<CalendarEntry> ordered, CalendarEntry selected) {
-    return _useHeadBlock(ordered, selected) ? _mergedEndCount(ordered.length) : 0;
+  static int _headMergeCount(
+    List<CalendarEntry> ordered,
+    CalendarEntry selected,
+  ) {
+    return _useHeadBlock(ordered, selected)
+        ? _mergedEndCount(ordered.length)
+        : 0;
   }
 
-  static int _tailMergeCount(List<CalendarEntry> ordered, CalendarEntry selected) {
-    return _useTailBlock(ordered, selected) ? _mergedEndCount(ordered.length) : 0;
+  static int _tailMergeCount(
+    List<CalendarEntry> ordered,
+    CalendarEntry selected,
+  ) {
+    return _useTailBlock(ordered, selected)
+        ? _mergedEndCount(ordered.length)
+        : 0;
   }
 
   Widget _entryCard(CalendarEntry e) {
@@ -332,21 +640,21 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
   @override
   Widget build(BuildContext context) {
     final ordered = _ordered(widget);
-    final pad =
-        (widget.viewportHeight > 0 ? widget.viewportHeight : 0) * 0.25;
-    final listStartsWithFirstOfDay = widget.firstEntryOfDay != null &&
+    final pad = (widget.viewportHeight > 0 ? widget.viewportHeight : 0) * 0.25;
+    final listStartsWithFirstOfDay =
+        widget.firstEntryOfDay != null &&
         ordered.isNotEmpty &&
         ordered.first.id == widget.firstEntryOfDay!.id;
-    final topPad = pad +
-        (listStartsWithFirstOfDay ? _kFirstOfDayModalListExtraTop : 0);
+    final topPad =
+        pad + (listStartsWithFirstOfDay ? _kFirstOfDayModalListExtraTop : 0);
     final n = ordered.length;
     final kHead = _headMergeCount(ordered, widget.selected);
     final kTail = _tailMergeCount(ordered, widget.selected);
     final itemCount = kTail > 0
         ? n - kTail + 1
         : kHead > 0
-            ? n - kHead + 1
-            : n;
+        ? n - kHead + 1
+        : n;
 
     final fadeInStop = widget.hasNeighborBefore
         ? _kModalListEdgeFadeIn
@@ -378,7 +686,8 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
           clipBehavior: Clip.hardEdge,
           padding: EdgeInsets.fromLTRB(0, topPad, 0, pad),
           itemCount: itemCount,
-          separatorBuilder: (_, _) => const SizedBox(height: _kModalCardSpacing),
+          separatorBuilder: (_, _) =>
+              const SizedBox(height: _kModalCardSpacing),
           itemBuilder: (context, index) {
             Widget wrapSelected(CalendarEntry e, Widget card) {
               if (e.id == widget.selected.id) {
@@ -453,18 +762,12 @@ class _HeaderEntryCard extends StatelessWidget {
     if (!isSelected) {
       card = ColorFiltered(
         colorFilter: _kGrayscale,
-        child: Opacity(
-          opacity: _kMutedCardOpacity,
-          child: card,
-        ),
+        child: Opacity(opacity: _kMutedCardOpacity, child: card),
       );
     }
 
     return IgnorePointer(
-      child: SizedBox(
-        width: double.infinity,
-        child: card,
-      ),
+      child: SizedBox(width: double.infinity, child: card),
     );
   }
 }

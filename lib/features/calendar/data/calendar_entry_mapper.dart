@@ -270,12 +270,16 @@ class CalendarEntryMapper {
     };
   }
 
+  static Color defaultAccentColorForType(CalendarEntryType type) {
+    return _defaultAccentColorForType(type);
+  }
+
   static Color _defaultAccentColorForType(CalendarEntryType type) {
     return switch (type) {
-      CalendarEntryType.lesson => const Color(0xFF3B82F6),
-      CalendarEntryType.meal => const Color(0xFFF59E0B),
-      CalendarEntryType.event => const Color(0xFF8B5CF6),
-      CalendarEntryType.choir => const Color(0xFF354974),
+      CalendarEntryType.lesson => const Color(0xFF124E30),
+      CalendarEntryType.meal => const Color(0xFF124E30),
+      CalendarEntryType.event => const Color(0xFF29509E),
+      CalendarEntryType.choir => const Color(0xFFCBBBA0),
     };
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/chor_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/event_bottom_modal.dart';
@@ -39,6 +40,7 @@ class BaseBottomModal extends StatelessWidget {
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
     final double effectiveMinHeight = minHeight ?? (screenHeight * 0.7);
+    final sheetSurface = Theme.of(context).colorScheme.surface;
 
     return SafeArea(
       top: false,
@@ -47,7 +49,15 @@ class BaseBottomModal extends StatelessWidget {
           minHeight: effectiveMinHeight,
           maxHeight: screenHeight * 0.9,
         ),
-        child: SingleChildScrollView(child: _buildModalContent()),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.xl),
+          ),
+          child: ColoredBox(
+            color: sheetSurface,
+            child: SingleChildScrollView(child: _buildModalContent()),
+          ),
+        ),
       ),
     );
   }

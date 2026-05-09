@@ -7,43 +7,23 @@ import 'core/auth/supabase_apple_auth_deep_links.dart';
 import 'core/database/calendar_events_debug_log.dart';
 import 'core/database/database_provider.dart';
 import 'core/database/powersync_auth_binding.dart';
+import 'core/network/connectivity_notifier.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_mode_provider.dart';
 import 'features/login/presentation/providers/profile_gate_notifier.dart';
 import 'features/login/presentation/providers/profile_gate_provider.dart';
 
 
-const String _defaultSupabaseUrl = 'https://chrbvfaknykaycwumuba.supabase.co';
-const String _defaultSupabaseAnonKey =
+const String kSupabaseUrl = 'https://chrbvfaknykaycwumuba.supabase.co';
+const String kSupabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNocmJ2ZmFrbnlrYXljd3VtdWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ0MjEsImV4cCI6MjA5MDQ3MDQyMX0.K7ChUbeWNd_-wCWCswo0b-dVpe50x57qK-dsBkN9NrE';
-
-const String _supabaseUrlFromEnv = String.fromEnvironment(
-  'SUPABASE_URL',
-  defaultValue: '',
-);
-const String _supabaseAnonKeyFromEnv = String.fromEnvironment(
-  'SUPABASE_ANON_KEY',
-  defaultValue: '',
-);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final supabaseUrl = _supabaseUrlFromEnv.trim().isEmpty
-      ? _defaultSupabaseUrl
-      : _supabaseUrlFromEnv.trim();
-  final supabaseAnonKey = _supabaseAnonKeyFromEnv.trim().isEmpty
-      ? _defaultSupabaseAnonKey
-      : _supabaseAnonKeyFromEnv.trim();
-
-  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-    throw StateError(
-      'Supabase Konfiguration fehlt. SUPABASE_URL und SUPABASE_ANON_KEY prüfen.',
-    );
-  }
-
   // 1. Supabasboard eintragen (s. core/auth/auth_redirect_config.dart).e & DB Setup
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  await Supabase.initialize(url: kSupabaseUrl, anonKey: kSupabaseAnonKey);
   // iOS/macOS: Mail-Bestätigungslink → App; Redirect-URL im Supabase-Dash
   await attachSupabaseAppleAuthDeepLinks();
   final powerSyncDb = await initializeDatabase();
@@ -53,7 +33,8 @@ void main() async {
 
   final startupNotifier = AppStartupNotifier();
   final authSessionNotifier = AuthSessionNotifier();
-  final profileGateNotifier = ProfileGateNotifier();
+  final connectivityNotifier = ConnectivityNotifier();
+  final profileGateNotifier = ProfileGateNotifier(localDb: powerSyncDb);
 
   runApp(
     ProviderScope(
@@ -65,6 +46,7 @@ void main() async {
         startupNotifier: startupNotifier,
         authSessionNotifier: authSessionNotifier,
         profileGateNotifier: profileGateNotifier,
+        connectivityNotifier: connectivityNotifier,
       ),
     ),
   );
@@ -81,11 +63,13 @@ class MyApp extends ConsumerStatefulWidget {
     required this.startupNotifier,
     required this.authSessionNotifier,
     required this.profileGateNotifier,
+    required this.connectivityNotifier,
   });
 
   final AppStartupNotifier startupNotifier;
   final AuthSessionNotifier authSessionNotifier;
   final ProfileGateNotifier profileGateNotifier;
+  final ConnectivityNotifier connectivityNotifier;
 
   @override
   ConsumerState<MyApp> createState() => _MyAppState();
@@ -96,6 +80,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     startupNotifier: widget.startupNotifier,
     authSessionNotifier: widget.authSessionNotifier,
     profileGateNotifier: widget.profileGateNotifier,
+    connectivityNotifier: widget.connectivityNotifier,
   );
 
   @override
@@ -103,16 +88,18 @@ class _MyAppState extends ConsumerState<MyApp> {
     PowerSyncAuthBinding.dispose();
     widget.authSessionNotifier.dispose();
     widget.profileGateNotifier.dispose();
+    widget.connectivityNotifier.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = ref.watch(appThemeModeProvider);
     return MaterialApp.router(
       title: 'Chrono',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       routerConfig: _appRouter.router,
     );
   }

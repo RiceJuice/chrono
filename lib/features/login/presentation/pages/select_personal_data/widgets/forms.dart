@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
 
 import '../../../widgets/login_dropdown_field.dart';
-import '../../../widgets/login_text_field.dart';
+import '../../../widgets/login_personal_name_fields.dart';
 
 class LoginPersonalDataFields extends StatelessWidget {
   const LoginPersonalDataFields({
@@ -34,55 +34,17 @@ class LoginPersonalDataFields extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const fieldContentPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 15);
-    final Color labelColor = Theme.of(context).colorScheme.onSurface;
+    final labelColor = Theme.of(context).colorScheme.onSurface;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Vorname',
-          style: TextStyle(
-            color: labelColor,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        LoginTextField(
-          formFieldKey: firstNameFieldKey,
-          controller: firstNameController,
-          hintText: 'Max',
-          prefixIcon: Icons.person_outline_rounded,
-          contentPadding: fieldContentPadding,
-          validator: (value) {
-            if ((value ?? '').trim().isEmpty) {
-              return 'Bitte Vornamen eingeben.';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Nachname',
-          style: TextStyle(
-            color: labelColor,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        LoginTextField(
-          formFieldKey: lastNameFieldKey,
-          controller: lastNameController,
-          hintText: 'Mustermann',
-          prefixIcon: Icons.badge_outlined,
-          contentPadding: fieldContentPadding,
-          validator: (value) {
-            if ((value ?? '').trim().isEmpty) {
-              return 'Bitte Nachnamen eingeben.';
-            }
-            return null;
-          },
+        LoginPersonalNameFields(
+          firstNameFieldKey: firstNameFieldKey,
+          lastNameFieldKey: lastNameFieldKey,
+          firstNameController: firstNameController,
+          lastNameController: lastNameController,
         ),
         const SizedBox(height: 16),
         Text(

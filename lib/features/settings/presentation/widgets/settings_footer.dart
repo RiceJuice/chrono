@@ -28,7 +28,7 @@ class SettingsFooter extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Alexander Ottmann\n'
+            'Alexander Ottmann, '
             'Frederick Seubert\n'
             'Florian Bandulik',
             style: textStyle,

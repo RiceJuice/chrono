@@ -1,14 +1,16 @@
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../domain/models/calendar_entry.dart';
 import 'calendar_card_style_resolver.dart';
 import 'calendar_entry_temporal_state.dart';
 
-class MealCard extends StatelessWidget {
+class MealCard extends ConsumerWidget {
   final CalendarEntry entry;
   final bool applyPastStyling;
   final bool showTimeColumn;
@@ -26,11 +28,12 @@ class MealCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final temporalState = CalendarEntryTemporalState.fromEntry(entry);
+    final accent = resolveCalendarEntryAccent(ref, entry);
     final style = CalendarCardStyleResolver.resolve(
       context: context,
-      baseBackgroundColor: const Color(0xFF124E30),
+      baseBackgroundColor: accent,
       temporalState: temporalState,
       applyPastStyling: applyPastStyling,
     );

@@ -1,3 +1,4 @@
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
@@ -6,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import '../../../../data/calendar_image_url_resolver.dart';
@@ -83,16 +85,30 @@ class _EventCardState extends State<EventCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final entry = widget.entry;
-    final temporalState = CalendarEntryTemporalState.fromEntry(entry);
-    final style = CalendarCardStyleResolver.resolve(
-      context: context,
-      baseBackgroundColor: scheme.secondary,
-      temporalState: temporalState,
-      applyPastStyling: widget.applyPastStyling,
+    return Consumer(
+      builder: (context, ref, _) {
+        final theme = Theme.of(context);
+        final entry = widget.entry;
+        final temporalState = CalendarEntryTemporalState.fromEntry(entry);
+        final accent = resolveCalendarEntryAccent(ref, entry);
+        final style = CalendarCardStyleResolver.resolve(
+          context: context,
+          baseBackgroundColor: accent,
+          temporalState: temporalState,
+          applyPastStyling: widget.applyPastStyling,
+        );
+        return _buildCard(context, theme, entry, style);
+      },
     );
+  }
+
+  Widget _buildCard(
+    BuildContext context,
+    ThemeData theme,
+    CalendarEntry entry,
+    CalendarCardStyle style,
+  ) {
+    final scheme = theme.colorScheme;
     final hasImageCandidate =
         (entry.imageUrls?.isNotEmpty ?? false) ||
         (entry.imagePaths?.isNotEmpty ?? false);

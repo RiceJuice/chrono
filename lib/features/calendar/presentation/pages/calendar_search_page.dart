@@ -31,7 +31,10 @@ class CalendarSearchPage extends ConsumerStatefulWidget {
 
 class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   static const double _stickyHeaderHeight = 40;
-  static const Duration _initialMorphWindow = Duration(milliseconds: 720);
+  static const Duration _initialMorphWindow = Duration(milliseconds: 520);
+  static const Duration _appBarTitleOpacityDuration = Duration(
+    milliseconds: 220,
+  );
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
   DateTime? _stickyDay;
@@ -41,6 +44,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   bool _hasUserInteractedWithList = false;
   bool _playInitialMorph = false;
   Timer? _initialMorphTimer;
+  bool _showAppBarTitle = false;
 
   @override
   void initState() {
@@ -59,6 +63,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
       _stickyDay = null;
       _stickyHeaderPushOffset = 0;
       _hasUserInteractedWithList = false;
+      _showAppBarTitle = false;
     }
     if (!oldWidget.playInitialMorph && widget.playInitialMorph) {
       _restartInitialMorph();
@@ -126,93 +131,147 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
           sectionIndex: sectionsResult.initialSectionIndex,
         );
 
+        final theme = Theme.of(context);
         return Listener(
           behavior: HitTestBehavior.translucent,
           onPointerDown: (_) => _dismissSearchKeyboard(),
-          child: Stack(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  _listViewportHeight = constraints.maxHeight;
-                  return NotificationListener<ScrollNotification>(
-                    onNotification: (notification) {
-                      if (notification is ScrollStartNotification ||
-                          notification is ScrollUpdateNotification ||
-                          notification is UserScrollNotification) {
-                        _dismissSearchKeyboard();
-                      }
-                      if (_hasUserInteractedWithList) return false;
-                      if (notification is ScrollUpdateNotification &&
-                          notification.dragDetails != null) {
-                        _hasUserInteractedWithList = true;
-                      } else if (notification is UserScrollNotification &&
-                          notification.direction != ScrollDirection.idle) {
-                        _hasUserInteractedWithList = true;
-                      }
-                      return false;
-                    },
-                    child: ScrollablePositionedList.builder(
-                      key: ValueKey(
-                        'search-list-${widget.query}-${_filtersSignature(filters)}',
-                      ),
-                      itemPositionsListener: _itemPositionsListener,
-                      padding: const EdgeInsets.only(
-                        top: _stickyHeaderHeight + AppSpacing.l,
-                        bottom: AppSpacing.l,
-                      ),
-                      itemCount: rows.length,
-                      initialScrollIndex: targetRowIndex,
-                      itemBuilder: (context, index) {
-                        final row = rows[index];
-                        final lastIndex = rows.length - 1;
-                        final Widget child;
-                        if (row.headerDay != null) {
-                          child = _buildDayHeader(
-                            context: context,
-                            day: row.headerDay!,
-                          );
-                        } else {
-                          child = CalendarEntryCard(
-                            key: ValueKey<String>(
-                              'calendar-entry-${row.entry!.id}',
-                            ),
-                            entry: row.entry!,
-                            applyPastStyling: true,
-                          );
-                        }
-                        final morphedChild = _wrapInitialMorph(
-                          child: child,
-                          index: index,
-                        );
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            morphedChild,
-                            if (index != lastIndex)
-                              const SizedBox(height: AppSpacing.m),
-                          ],
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-              if (_stickyDay != null)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: IgnorePointer(
-                    child: Transform.translate(
-                      offset: Offset(0, _stickyHeaderPushOffset),
-                      child: _buildDayHeader(
-                        context: context,
-                        day: _stickyDay!,
-                      ),
+              AppBar(
+                automaticallyImplyLeading: false,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                shadowColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                backgroundColor: theme.scaffoldBackgroundColor,
+                title: AnimatedOpacity(
+                  opacity: _showAppBarTitle ? 1 : 0,
+                  duration: _appBarTitleOpacityDuration,
+                  curve: Curves.easeIn,
+                  child: Text(
+                    'Suchergebnisse',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+              ),
+              Expanded(
+                child: Stack(
+                  children: [
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        _listViewportHeight = constraints.maxHeight;
+                        return ColoredBox(
+                          color: theme.scaffoldBackgroundColor,
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: (notification) {
+                              if (notification is ScrollStartNotification ||
+                                  notification is ScrollUpdateNotification ||
+                                  notification is UserScrollNotification) {
+                                _dismissSearchKeyboard();
+                              }
+                              if (_hasUserInteractedWithList) return false;
+                              if (notification is ScrollUpdateNotification &&
+                                  notification.dragDetails != null) {
+                                _hasUserInteractedWithList = true;
+                              } else if (notification is UserScrollNotification &&
+                                  notification.direction !=
+                                      ScrollDirection.idle) {
+                                _hasUserInteractedWithList = true;
+                              }
+                              return false;
+                            },
+                            child: ScrollablePositionedList.builder(
+                              key: ValueKey(
+                                'search-list-${widget.query}-${_filtersSignature(filters)}',
+                              ),
+                              itemPositionsListener: _itemPositionsListener,
+                              padding: const EdgeInsets.only(
+                                top: _stickyHeaderHeight,
+                                bottom: AppSpacing.l,
+                              ),
+                              itemCount: rows.length,
+                              initialScrollIndex: targetRowIndex,
+                              itemBuilder: (context, index) {
+                                final row = rows[index];
+                                final lastIndex = rows.length - 1;
+                                final Widget child;
+                                if (row.isPageTitle) {
+                                  child = Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      AppSpacing.l,
+                                      16,
+                                      AppSpacing.m,
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Suchergebnisse',
+                                        style: theme.textTheme.headlineSmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                              height: 1.15,
+                                            ),
+                                      ),
+                                    ),
+                                  );
+                                } else if (row.headerDay != null) {
+                                  child = _buildDayHeader(
+                                    context: context,
+                                    day: row.headerDay!,
+                                  );
+                                } else {
+                                  child = CalendarEntryCard(
+                                    key: ValueKey<String>(
+                                      'calendar-entry-${row.entry!.id}',
+                                    ),
+                                    entry: row.entry!,
+                                    applyPastStyling: true,
+                                  );
+                                }
+                                final morphedChild = row.isPageTitle
+                                    ? child
+                                    : _wrapInitialMorph(
+                                        child: child,
+                                        index: index,
+                                      );
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    morphedChild,
+                                    if (index != lastIndex)
+                                      const SizedBox(height: AppSpacing.m),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    if (_stickyDay != null)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          child: Transform.translate(
+                            offset: Offset(0, _stickyHeaderPushOffset),
+                            child: _buildDayHeader(
+                              context: context,
+                              day: _stickyDay!,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ],
           ),
         );
@@ -220,6 +279,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
       loading: () {
         _stickyDay = null;
         _stickyHeaderPushOffset = 0;
+        _showAppBarTitle = false;
         return const _DebouncedLoadingIndicator();
       },
       error: (err, stack) => Center(child: Text('Fehler: $err')),
@@ -250,8 +310,8 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     final cappedIndex = index.clamp(0, 8);
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 620),
-      curve: Curves.linear,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOutExpo,
       builder: (context, value, child) {
         final start = (0.038 * cappedIndex).clamp(0.0, 0.32);
         final effectiveValue = ((value - start) / (1 - start)).clamp(0.0, 1.0);
@@ -317,7 +377,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   }
 
   List<_SearchListRow> _buildRows(List<SearchDaySection> sections) {
-    final rows = <_SearchListRow>[];
+    final rows = <_SearchListRow>[_SearchListRow.pageTitle()];
     for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
       rows.add(
         _SearchListRow.header(
@@ -343,7 +403,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
         return i;
       }
     }
-    return 0;
+    return 1;
   }
 
   void _updateStickyDayFromPositions() {
@@ -357,51 +417,87 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     if (visible.isEmpty) return;
 
     visible.sort((a, b) => a.index.compareTo(b.index));
-    final topIndex = visible.first.index;
 
-    DateTime? nextStickyDay = _rowsForSticky[topIndex].headerDay;
-    if (nextStickyDay == null) {
-      for (var i = topIndex; i >= 0; i--) {
-        final candidate = _rowsForSticky[i].headerDay;
-        if (candidate != null) {
-          nextStickyDay = candidate;
-          break;
-        }
+    ItemPosition? pageTitlePosition;
+    for (final p in positions) {
+      if (p.index == 0 && _rowsForSticky[0].isPageTitle) {
+        pageTitlePosition = p;
+        break;
       }
     }
+    final bool nextShowAppBarTitle;
+    if (pageTitlePosition == null) {
+      final minIndex = positions
+          .map((p) => p.index)
+          .reduce((a, b) => a < b ? a : b);
+      nextShowAppBarTitle = minIndex > 0;
+    } else {
+      nextShowAppBarTitle = pageTitlePosition.itemTrailingEdge <= 0;
+    }
 
-    if (nextStickyDay == null) return;
+    int? contentTopIndex;
+    for (final v in visible) {
+      if (v.index >= _rowsForSticky.length) continue;
+      if (_rowsForSticky[v.index].isPageTitle) continue;
+      contentTopIndex = v.index;
+      break;
+    }
+
+    DateTime? nextStickyDay;
     var pushOffset = 0.0;
-    if (_listViewportHeight > 0) {
-      final nextHeaderPosition =
-          visible
-              .where(
-                (p) =>
-                    p.index > topIndex &&
-                    _rowsForSticky[p.index].headerDay != null,
-              )
-              .toList()
-            ..sort((a, b) => a.index.compareTo(b.index));
-      if (nextHeaderPosition.isNotEmpty) {
-        final leadingPx =
-            nextHeaderPosition.first.itemLeadingEdge * _listViewportHeight;
-        if (leadingPx < _stickyHeaderHeight) {
-          pushOffset = leadingPx - _stickyHeaderHeight;
+
+    if (contentTopIndex != null) {
+      final topIndex = contentTopIndex!;
+      nextStickyDay = _rowsForSticky[topIndex].headerDay;
+      if (nextStickyDay == null) {
+        for (var i = topIndex; i >= 0; i--) {
+          final candidate = _rowsForSticky[i].headerDay;
+          if (candidate != null) {
+            nextStickyDay = candidate;
+            break;
+          }
+        }
+      }
+
+      if (_listViewportHeight > 0 && nextStickyDay != null) {
+        final nextHeaderPosition =
+            visible
+                .where(
+                  (p) =>
+                      p.index > topIndex &&
+                      _rowsForSticky[p.index].headerDay != null,
+                )
+                .toList()
+              ..sort((a, b) => a.index.compareTo(b.index));
+        if (nextHeaderPosition.isNotEmpty) {
+          final leadingPx =
+              nextHeaderPosition.first.itemLeadingEdge * _listViewportHeight;
+          if (leadingPx < _stickyHeaderHeight) {
+            pushOffset = leadingPx - _stickyHeaderHeight;
+          }
         }
       }
     }
 
     final stickyDayChanged =
-        _stickyDay == null || !_isSameDay(_stickyDay!, nextStickyDay);
-    if (stickyDayChanged && _hasUserInteractedWithList) {
+        (_stickyDay == null) != (nextStickyDay == null) ||
+        (nextStickyDay != null &&
+            _stickyDay != null &&
+            !_isSameDay(_stickyDay!, nextStickyDay));
+    if (stickyDayChanged &&
+        _hasUserInteractedWithList &&
+        nextStickyDay != null) {
       HapticFeedback.mediumImpact();
     }
 
+    final appBarTitleChanged = nextShowAppBarTitle != _showAppBarTitle;
     if (stickyDayChanged ||
-        (_stickyHeaderPushOffset - pushOffset).abs() > 0.1) {
+        (_stickyHeaderPushOffset - pushOffset).abs() > 0.1 ||
+        appBarTitleChanged) {
       setState(() {
         _stickyDay = nextStickyDay;
         _stickyHeaderPushOffset = pushOffset;
+        _showAppBarTitle = nextShowAppBarTitle;
       });
     }
   }
@@ -428,7 +524,11 @@ class _SearchListRow {
     required this.sectionIndex,
     this.headerDay,
     this.entry,
+    this.isPageTitle = false,
   });
+
+  factory _SearchListRow.pageTitle() =>
+      const _SearchListRow._(sectionIndex: -1, isPageTitle: true);
 
   factory _SearchListRow.header({
     required int sectionIndex,
@@ -443,6 +543,7 @@ class _SearchListRow {
   final int sectionIndex;
   final DateTime? headerDay;
   final CalendarEntry? entry;
+  final bool isPageTitle;
 }
 
 class _DebouncedLoadingIndicator extends StatefulWidget {
