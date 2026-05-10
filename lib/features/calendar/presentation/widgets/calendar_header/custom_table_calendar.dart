@@ -114,6 +114,18 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           data: buildCalendarDayMarkers,
           orElse: () => const <DateTime, CalendarDayMarkerData>{},
         );
+    // Pill colour rule: as soon as the user has more than one choir active
+    // in the calendar filter, choir- *and* event-type segments are tinted
+    // by their associated choir so the user can tell different choirs
+    // apart at a glance. With a single (or no) choir selected, the plain
+    // per-type colours are used.
+    final activeChoirCount = ref
+        .watch(
+          calendarFiltersProvider.select((filters) => filters.choirs.length),
+        );
+    final markerColorResolver = CalendarMarkerColorResolver.standard(
+      distinguishChoirs: activeChoirCount > 1,
+    );
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
       if (widget.weekTimetableMode) return;
       final currentFocusedDay = ref.read(focusedDayProvider);
@@ -189,6 +201,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
               marker: marker,
               width: _dayMarkerWidth,
               height: _dayMarkerHeight,
+              colorResolver: markerColorResolver,
             ),
           );
         },
@@ -243,6 +256,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
                         marker: marker,
                         width: _dayMarkerWidth,
                         height: _dayMarkerHeight,
+                        colorResolver: markerColorResolver,
                       ),
                     ),
                   ],

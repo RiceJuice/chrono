@@ -72,6 +72,7 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
                     isSearchFilterMode: !isCalendarSettings,
                     options: choirOptions,
                     labelFor: calendarFilterChoirLabel,
+                    selectedAccentForOption: calendarFilterChoirChipSelectedAccent,
                     selectedColor: colorScheme.primary,
                     chipBackgroundColor: colorScheme.surfaceContainerHighest,
                     onToggle: (value) {
