@@ -32,9 +32,6 @@ class CalendarSearchPage extends ConsumerStatefulWidget {
 class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   static const double _stickyHeaderHeight = 40;
   static const Duration _initialMorphWindow = Duration(milliseconds: 520);
-  static const Duration _appBarTitleOpacityDuration = Duration(
-    milliseconds: 220,
-  );
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
   DateTime? _stickyDay;
@@ -44,7 +41,6 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   bool _hasUserInteractedWithList = false;
   bool _playInitialMorph = false;
   Timer? _initialMorphTimer;
-  bool _showAppBarTitle = false;
 
   @override
   void initState() {
@@ -63,7 +59,6 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
       _stickyDay = null;
       _stickyHeaderPushOffset = 0;
       _hasUserInteractedWithList = false;
-      _showAppBarTitle = false;
     }
     if (!oldWidget.playInitialMorph && widget.playInitialMorph) {
       _restartInitialMorph();
@@ -138,25 +133,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AppBar(
-                automaticallyImplyLeading: false,
-                elevation: 0,
-                scrolledUnderElevation: 0,
-                shadowColor: Colors.transparent,
-                surfaceTintColor: Colors.transparent,
-                backgroundColor: theme.scaffoldBackgroundColor,
-                title: AnimatedOpacity(
-                  opacity: _showAppBarTitle ? 1 : 0,
-                  duration: _appBarTitleOpacityDuration,
-                  curve: Curves.easeIn,
-                  child: Text(
-                    'Suchergebnisse',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
+              
               Expanded(
                 child: Stack(
                   children: [
@@ -198,27 +175,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                                 final row = rows[index];
                                 final lastIndex = rows.length - 1;
                                 final Widget child;
-                                if (row.isPageTitle) {
-                                  child = Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      16,
-                                      AppSpacing.l,
-                                      16,
-                                      AppSpacing.m,
-                                    ),
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        'Suchergebnisse',
-                                        style: theme.textTheme.headlineSmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                              height: 1.15,
-                                            ),
-                                      ),
-                                    ),
-                                  );
-                                } else if (row.headerDay != null) {
+                                if (row.headerDay != null) {
                                   child = _buildDayHeader(
                                     context: context,
                                     day: row.headerDay!,
@@ -232,12 +189,10 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                                     applyPastStyling: true,
                                   );
                                 }
-                                final morphedChild = row.isPageTitle
-                                    ? child
-                                    : _wrapInitialMorph(
-                                        child: child,
-                                        index: index,
-                                      );
+                                final morphedChild = _wrapInitialMorph(
+                                  child: child,
+                                  index: index,
+                                );
                                 return Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
@@ -279,7 +234,6 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
       loading: () {
         _stickyDay = null;
         _stickyHeaderPushOffset = 0;
-        _showAppBarTitle = false;
         return const _DebouncedLoadingIndicator();
       },
       error: (err, stack) => Center(child: Text('Fehler: $err')),
@@ -377,7 +331,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   }
 
   List<_SearchListRow> _buildRows(List<SearchDaySection> sections) {
-    final rows = <_SearchListRow>[_SearchListRow.pageTitle()];
+    final rows = <_SearchListRow>[];
     for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
       rows.add(
         _SearchListRow.header(
@@ -403,7 +357,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
         return i;
       }
     }
-    return 1;
+    return 0;
   }
 
   void _updateStickyDayFromPositions() {
@@ -418,27 +372,9 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
 
     visible.sort((a, b) => a.index.compareTo(b.index));
 
-    ItemPosition? pageTitlePosition;
-    for (final p in positions) {
-      if (p.index == 0 && _rowsForSticky[0].isPageTitle) {
-        pageTitlePosition = p;
-        break;
-      }
-    }
-    final bool nextShowAppBarTitle;
-    if (pageTitlePosition == null) {
-      final minIndex = positions
-          .map((p) => p.index)
-          .reduce((a, b) => a < b ? a : b);
-      nextShowAppBarTitle = minIndex > 0;
-    } else {
-      nextShowAppBarTitle = pageTitlePosition.itemTrailingEdge <= 0;
-    }
-
     int? contentTopIndex;
     for (final v in visible) {
       if (v.index >= _rowsForSticky.length) continue;
-      if (_rowsForSticky[v.index].isPageTitle) continue;
       contentTopIndex = v.index;
       break;
     }
@@ -447,7 +383,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     var pushOffset = 0.0;
 
     if (contentTopIndex != null) {
-      final topIndex = contentTopIndex!;
+      final topIndex = contentTopIndex;
       nextStickyDay = _rowsForSticky[topIndex].headerDay;
       if (nextStickyDay == null) {
         for (var i = topIndex; i >= 0; i--) {
@@ -490,14 +426,11 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
       HapticFeedback.mediumImpact();
     }
 
-    final appBarTitleChanged = nextShowAppBarTitle != _showAppBarTitle;
     if (stickyDayChanged ||
-        (_stickyHeaderPushOffset - pushOffset).abs() > 0.1 ||
-        appBarTitleChanged) {
+        (_stickyHeaderPushOffset - pushOffset).abs() > 0.1) {
       setState(() {
         _stickyDay = nextStickyDay;
         _stickyHeaderPushOffset = pushOffset;
-        _showAppBarTitle = nextShowAppBarTitle;
       });
     }
   }
@@ -524,11 +457,7 @@ class _SearchListRow {
     required this.sectionIndex,
     this.headerDay,
     this.entry,
-    this.isPageTitle = false,
   });
-
-  factory _SearchListRow.pageTitle() =>
-      const _SearchListRow._(sectionIndex: -1, isPageTitle: true);
 
   factory _SearchListRow.header({
     required int sectionIndex,
@@ -543,7 +472,6 @@ class _SearchListRow {
   final int sectionIndex;
   final DateTime? headerDay;
   final CalendarEntry? entry;
-  final bool isPageTitle;
 }
 
 class _DebouncedLoadingIndicator extends StatefulWidget {

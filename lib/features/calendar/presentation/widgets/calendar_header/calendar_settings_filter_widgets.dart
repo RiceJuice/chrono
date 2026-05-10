@@ -5,6 +5,7 @@ import '../event_list/modals/base_bottom_modal.dart';
 import '../../../domain/filter/calendar_filters_state.dart';
 import '../../../domain/preview/calendar_settings_kind.dart';
 import '../../providers/filter/shared/calendar_filters_notifier_base.dart';
+import 'calendar_marker_color_palette.dart';
 
 /// Aktionen für die Filter-Chips (Notifier oder lokaler Entwurf im Appearance-Sheet).
 class CalendarFilterSectionActions {
@@ -76,6 +77,7 @@ List<Widget> calendarSettingsFilterSections({
           isSearchFilterMode: false,
           options: choirOptions,
           labelFor: calendarFilterChoirLabel,
+          selectedAccentForOption: calendarFilterChoirChipSelectedAccent,
           selectedColor: selectedColor,
           chipBackgroundColor: chipColor,
           onToggle: actions.toggleChoir,
@@ -157,6 +159,11 @@ List<Widget> calendarSettingsFilterSections({
 
 const int _kChipEntranceStaggerMs = 40;
 
+/// How much choir marker colour is mixed into [chipBackgroundColor] for
+/// selected chips — kept low so filters stay calm, not poster-like.
+const double _choirChipAccentMixExplicit = 0.26;
+const double _choirChipAccentMixImplicit = 0.18;
+
 class _ChipSectionEntrance extends StatefulWidget {
   const _ChipSectionEntrance({required this.staggerIndex, required this.child});
 
@@ -232,6 +239,7 @@ class CalendarFilterChipSection extends StatelessWidget {
     required this.isSearchFilterMode,
     required this.options,
     required this.labelFor,
+    this.selectedAccentForOption,
     required this.selectedColor,
     required this.chipBackgroundColor,
     required this.onToggle,
@@ -247,6 +255,10 @@ class CalendarFilterChipSection extends StatelessWidget {
   final bool isSearchFilterMode;
   final List<String> options;
   final String Function(String value) labelFor;
+
+  /// When set, selected option chips use this colour instead of
+  /// [selectedColor] (e.g. per-choir tints matching day-marker pills).
+  final Color Function(String option)? selectedAccentForOption;
   final Color selectedColor;
   final Color chipBackgroundColor;
   final ValueChanged<String> onToggle;
@@ -254,13 +266,12 @@ class CalendarFilterChipSection extends StatelessWidget {
   final bool animateEntrance;
   final int entranceStaggerIndex;
 
+  Color _accentForOption(String option) =>
+      selectedAccentForOption?.call(option) ?? selectedColor;
+
   @override
   Widget build(BuildContext context) {
-    final initialSelectedColor = Color.lerp(
-      chipBackgroundColor,
-      selectedColor,
-      0.45,
-    )!;
+    final scheme = Theme.of(context).colorScheme;
     final defaultSet = defaultValues.toSet();
     final selectedSet = selectedValues.toSet();
     final isImplicitDefaultState =
@@ -270,6 +281,34 @@ class CalendarFilterChipSection extends StatelessWidget {
         selectedSet.containsAll(defaultSet);
     final showAllAsSelected =
         selectedValues.isEmpty && (!isSearchFilterMode || !isExplicitSelection);
+
+    Color optionChipSelectedFill(String option) {
+      final accent = _accentForOption(option);
+      final choirTint = selectedAccentForOption != null;
+      if (choirTint) {
+        final t = isImplicitDefaultState
+            ? _choirChipAccentMixImplicit
+            : _choirChipAccentMixExplicit;
+        return Color.lerp(chipBackgroundColor, accent, t)!;
+      }
+      if (isImplicitDefaultState) {
+        return Color.lerp(chipBackgroundColor, accent, 0.45)!;
+      }
+      return accent;
+    }
+
+    Color optionChipLabelColor(String option) {
+      final isSelected = selectedValues.contains(option);
+      if (!isSelected) return scheme.onSurface;
+      // Soft choir tints: keep typography on surface colours (readable, quiet).
+      if (selectedAccentForOption != null) {
+        return scheme.onSurface;
+      }
+      final fill = optionChipSelectedFill(option);
+      return ThemeData.estimateBrightnessForColor(fill) == Brightness.light
+          ? const Color(0xFF1C1B1F)
+          : Colors.white;
+    }
 
     final column = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,6 +323,14 @@ class CalendarFilterChipSection extends StatelessWidget {
               label: const Text('Alle'),
               selected: showAllAsSelected,
               showCheckmark: false,
+              labelStyle: TextStyle(
+                color: showAllAsSelected
+                    ? (ThemeData.estimateBrightnessForColor(selectedColor) ==
+                            Brightness.light
+                        ? const Color(0xFF1C1B1F)
+                        : Colors.white)
+                    : scheme.onSurface,
+              ),
               color: WidgetStateProperty.resolveWith((states) {
                 if (states.contains(WidgetState.selected)) {
                   return selectedColor;
@@ -298,14 +345,14 @@ class CalendarFilterChipSection extends StatelessWidget {
                 label: Text(labelFor(option)),
                 selected: selectedValues.contains(option),
                 showCheckmark: false,
+                labelStyle: TextStyle(
+                  color: optionChipLabelColor(option),
+                ),
                 color: WidgetStateProperty.resolveWith((states) {
                   if (!states.contains(WidgetState.selected)) {
                     return chipBackgroundColor;
                   }
-                  if (isImplicitDefaultState) {
-                    return initialSelectedColor;
-                  }
-                  return selectedColor;
+                  return optionChipSelectedFill(option);
                 }),
                 side: BorderSide.none,
                 onSelected: (_) => onToggle(option),
@@ -332,6 +379,15 @@ String calendarFilterChoirLabel(String value) {
     return _capitalize(value);
   }
   return choir.displayLabel;
+}
+
+/// Saturated choir marker colour; [CalendarFilterChipSection] blends it
+/// lightly into the chip background for a subtle tint (see
+/// [_choirChipAccentMixExplicit]).
+Color calendarFilterChoirChipSelectedAccent(String value) {
+  final choir = BackendChoirCodec.fromBackend(value);
+  const palette = CalendarMarkerColorPalette.standard;
+  return palette.byChoir[choir] ?? palette.fallback;
 }
 
 String calendarFilterVoiceLabel(String value) {
