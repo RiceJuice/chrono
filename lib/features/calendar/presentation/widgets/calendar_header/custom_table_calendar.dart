@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import '../../providers/calendar_providers.dart';
 import '../../theme/calendar_presentation_theme.dart';
 import 'calendar_day_marker_pill.dart';
+import 'week_timetable_mobile_day_header.dart';
 
 const _selectedDayBoxSize = 36.5;
 const _dayMarkerBottomOffset = 1.0;
@@ -102,6 +104,15 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.weekTimetableMode && weekScheduleIsPhoneViewport(context)) {
+      return AnimatedPadding(
+        duration: _calendarMorphDuration,
+        curve: _calendarMorphCurve,
+        padding: EdgeInsets.only(left: widget.leftGutterWidth),
+        child: const WeekTimetableMobileDayHeader(),
+      );
+    }
+
     final scheme = Theme.of(context).colorScheme;
     final todayAccentColor = CalendarPresentationTheme.todayAccentColor(
       context,
@@ -119,10 +130,9 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
     // by their associated choir so the user can tell different choirs
     // apart at a glance. With a single (or no) choir selected, the plain
     // per-type colours are used.
-    final activeChoirCount = ref
-        .watch(
-          calendarFiltersProvider.select((filters) => filters.choirs.length),
-        );
+    final activeChoirCount = ref.watch(
+      calendarFiltersProvider.select((filters) => filters.choirs.length),
+    );
     final markerColorResolver = CalendarMarkerColorResolver.standard(
       distinguishChoirs: activeChoirCount > 1,
     );
@@ -135,7 +145,11 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       }
     });
 
+    final visibleWeekStart = _startOfWeek(focusedDay);
     final table = TableCalendar(
+      key: widget.weekTimetableMode
+          ? ValueKey<DateTime>(visibleWeekStart)
+          : null,
       locale: 'de_DE',
       startingDayOfWeek: StartingDayOfWeek.monday,
       firstDay: DateTime(2020, 1, 1), //TODO: make this dynamic
@@ -154,7 +168,9 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       },
       rowHeight: 40,
       daysOfWeekHeight: 20,
-      availableGestures: AvailableGestures.horizontalSwipe,
+      availableGestures: widget.weekTimetableMode
+          ? AvailableGestures.none
+          : AvailableGestures.horizontalSwipe,
       headerVisible: false,
       calendarStyle: CalendarStyle(
         cellMargin: const EdgeInsets.all(2),

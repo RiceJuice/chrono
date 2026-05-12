@@ -1,13 +1,17 @@
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_grid.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_layout.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_mobile_body.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_page_transition.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_timeline.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class WeekScheduleView extends ConsumerStatefulWidget {
@@ -19,22 +23,24 @@ class WeekScheduleView extends ConsumerStatefulWidget {
 
 class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     with SingleTickerProviderStateMixin {
+  static const SpringDescription _overlaySpring = SpringDescription(
+    mass: 0.85,
+    stiffness: 430,
+    damping: 34,
+  );
+
   late final PageController _weekPageController;
+  late final ScrollController _phoneSeamlessScroll;
   AnimationController? _transitionController;
   int? _currentPage;
   int? _lastProgrammaticPage;
   _WeekTransitionData? _activeTransition;
   double _timelineScrollOffset = 0;
-  static const double _scrollVelocityBlend = 0.22;
-  double _horizontalVelocityEma = 0;
-  int? _lastVelocitySampleWallMicros;
-  double _peakAbsNormVelocity = 0;
-  double _latchedNormVelocity = 0;
-  DateTime? _latchedVelocityValidUntil;
 
   @override
   void initState() {
     super.initState();
+    _phoneSeamlessScroll = ScrollController();
     final monday = weekMondayLocal(ref.read(focusedDayProvider));
     final initialPage = pageIndexForMonday(monday);
     _weekPageController = PageController(initialPage: initialPage);
@@ -46,6 +52,7 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
   void dispose() {
     _transitionController?.dispose();
     _weekPageController.dispose();
+    _phoneSeamlessScroll.dispose();
     super.dispose();
   }
 
@@ -69,22 +76,12 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     return ((viewportWidth - 360.0) / (1180.0 - 360.0)).clamp(0.0, 1.0);
   }
 
-  double _lerpDouble(double begin, double end, double t) {
-    return begin + (end - begin) * t;
-  }
-
-  SpringDescription _overlaySpringForViewport() {
-    final widthFactor = _viewportWidthFactor();
-    return SpringDescription(
-      mass: _lerpDouble(0.85, 1.12, widthFactor),
-      stiffness: _lerpDouble(430, 305, widthFactor),
-      damping: _lerpDouble(34, 39, widthFactor),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.listen<DateTime>(focusedDayProvider, _syncPageToFocusedWeek);
+
+    final isPhone = weekScheduleIsPhoneViewport(context);
+    final hourHeight = weekScheduleHourHeightFor(context);
 
     return Stack(
       children: [
@@ -95,23 +92,30 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
               padding: const EdgeInsets.only(
                 left: kCalendarTimelineGutterWidth,
               ),
-              child: PageView.builder(
-                controller: _weekPageController,
-                physics:
-                    _SnappyPageViewPhysics(
-                      widthFactor: _viewportWidthFactor(),
-                    ).applyTo(
-                      ScrollConfiguration.of(context).getScrollPhysics(context),
+              child: isPhone
+                  ? WeekScheduleMobileBody(
+                      horizontalController: _phoneSeamlessScroll,
+                      hourHeight: hourHeight,
+                    )
+                  : PageView.builder(
+                      controller: _weekPageController,
+                      physics: _SnappyPageViewPhysics(
+                        widthFactor: _viewportWidthFactor(),
+                      ).applyTo(
+                        ScrollConfiguration.of(
+                          context,
+                        ).getScrollPhysics(context),
+                      ),
+                      itemCount: kWeekPageCount,
+                      onPageChanged: _handlePageChanged,
+                      itemBuilder: (context, pageIndex) {
+                        return WeekScheduleGrid(
+                          monday: mondayForPageIndex(pageIndex),
+                          showTimelineColumn: false,
+                          hourHeight: hourHeight,
+                        );
+                      },
                     ),
-                itemCount: kWeekPageCount,
-                onPageChanged: _handlePageChanged,
-                itemBuilder: (context, pageIndex) {
-                  return WeekScheduleGrid(
-                    monday: mondayForPageIndex(pageIndex),
-                    showTimelineColumn: false,
-                  );
-                },
-              ),
             ),
           ),
         ),
@@ -150,17 +154,21 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
         .map((day) => ref.watch(filteredCalendarEntriesForDayProvider(day)))
         .toList(growable: false);
 
-    if (asyncDays.any((day) => day.isLoading || day.hasError)) {
+    if (asyncDays.any((day) => day.hasError)) {
+      return const SizedBox.shrink();
+    }
+    if (asyncDays.any((day) => !day.hasValue)) {
       return const SizedBox.shrink();
     }
 
     final entriesByDay = asyncDays
-        .map((asyncDay) => asyncDay.requireValue)
+        .map((asyncDay) => asyncDay.value ?? const <CalendarEntry>[])
         .toList(growable: false);
     final bounds = computeWeekScheduleBounds(entriesByDay);
     if (bounds == null) return const SizedBox.shrink();
 
-    final totalHeight = bounds.heightForHourHeight(kWeekScheduleHourHeight);
+    final hourHeight = weekScheduleHourHeightFor(context);
+    final totalHeight = bounds.heightForHourHeight(hourHeight);
     final showCurrentTime = weekDays.any(AppDateTime.isTodayLocal);
 
     return ClipRect(
@@ -169,6 +177,7 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
         child: WeekTimelineColumn(
           bounds: bounds,
           totalHeight: totalHeight,
+          hourHeight: hourHeight,
           showCurrentTime: showCurrentTime,
         ),
       ),
@@ -176,8 +185,11 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
   }
 
   bool _handleScheduleScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollEndNotification &&
+        notification.metrics.axis == Axis.vertical) {
+      HapticFeedback.mediumImpact();
+    }
     if (notification.metrics.axis == Axis.horizontal) {
-      _handlePageViewScrollNotification(notification);
       return false;
     }
     if (notification.metrics.axis != Axis.vertical) return false;
@@ -194,63 +206,6 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     return false;
   }
 
-  void _handlePageViewScrollNotification(ScrollNotification notification) {
-    if (notification is ScrollStartNotification) {
-      _horizontalVelocityEma = 0;
-      _lastVelocitySampleWallMicros = null;
-      _peakAbsNormVelocity = 0;
-    }
-
-    if (notification is ScrollUpdateNotification &&
-        notification.scrollDelta != null) {
-      final nowMicros = DateTime.now().microsecondsSinceEpoch;
-      if (_lastVelocitySampleWallMicros != null) {
-        final dtMicros = nowMicros - _lastVelocitySampleWallMicros!;
-        if (dtMicros > 0) {
-          final dt = dtMicros / Duration.microsecondsPerSecond;
-          if (dt > 1e-6) {
-            final sample = notification.scrollDelta! / dt;
-            _horizontalVelocityEma =
-                _horizontalVelocityEma * (1 - _scrollVelocityBlend) +
-                sample * _scrollVelocityBlend;
-          }
-        }
-      }
-      _lastVelocitySampleWallMicros = nowMicros;
-      if (_weekPageController.hasClients) {
-        final extent = _weekPageController.position.viewportDimension;
-        if (extent > 0) {
-          final norm = (_horizontalVelocityEma / extent).abs();
-          if (norm > _peakAbsNormVelocity) {
-            _peakAbsNormVelocity = norm;
-          }
-        }
-      }
-    }
-
-    if (notification is ScrollEndNotification) {
-      final sign = _horizontalVelocityEma >= 0 ? 1.0 : -1.0;
-      _latchedNormVelocity = (sign * _peakAbsNormVelocity).clamp(-14.0, 14.0);
-      _latchedVelocityValidUntil = DateTime.now().add(
-        const Duration(milliseconds: 240),
-      );
-      _horizontalVelocityEma = 0;
-      _lastVelocitySampleWallMicros = null;
-      _peakAbsNormVelocity = 0;
-    }
-  }
-
-  double _consumePageViewVelocityForTransition() {
-    if (_latchedVelocityValidUntil == null ||
-        DateTime.now().isAfter(_latchedVelocityValidUntil!)) {
-      return 0;
-    }
-    final v = _latchedNormVelocity;
-    _latchedVelocityValidUntil = null;
-    _latchedNormVelocity = 0;
-    return v;
-  }
-
   void _startOverlayTransition({required int fromPage, required int toPage}) {
     final transition = _WeekTransitionData(
       fromMonday: mondayForPageIndex(fromPage),
@@ -262,25 +217,15 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
       _activeTransition = transition;
     });
 
-    final swipeSpeed = _consumePageViewVelocityForTransition().abs();
     final pageDelta = (toPage - fromPage).abs();
-    final widthFactor = _viewportWidthFactor();
-    final velocityScale = _lerpDouble(1, 0.62, widthFactor);
-    final simulationVelocity = swipeSpeed > 0
-        ? (swipeSpeed * velocityScale).clamp(
-            _lerpDouble(1.2, 0.85, widthFactor),
-            _lerpDouble(8.0, 5.0, widthFactor),
-          )
-        : ((1.1 + pageDelta * 0.22) * velocityScale).clamp(
-            _lerpDouble(1.1, 0.78, widthFactor),
-            _lerpDouble(3.8, 2.55, widthFactor),
-          );
 
     final transitionController = _ensureTransitionController();
     transitionController.stop();
     transitionController.value = 0;
+    final simulationVelocity =
+        (1.1 + pageDelta * 0.22).clamp(1.1, 3.8).toDouble();
     final simulation = SpringSimulation(
-      _overlaySpringForViewport(),
+      _overlaySpring,
       0,
       1,
       simulationVelocity,
@@ -298,6 +243,12 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
   }
 
   void _syncPageToFocusedWeek(DateTime? previous, DateTime next) {
+    if (!mounted) return;
+    if (weekScheduleIsPhoneViewport(context)) {
+      _syncPhoneSeamlessScrollToDay(next);
+      return;
+    }
+
     final targetPage = pageIndexForMonday(weekMondayLocal(next));
 
     void applySync() {
@@ -307,11 +258,15 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
         return;
       }
 
-      final currentPage =
-          _currentPage ??
+      final visiblePage =
           _weekPageController.page?.round() ??
+          _currentPage ??
           _weekPageController.initialPage;
-      if (currentPage == targetPage) return;
+      final currentPage = visiblePage;
+      if (currentPage == targetPage) {
+        _currentPage = targetPage;
+        return;
+      }
 
       _startOverlayTransition(fromPage: currentPage, toPage: targetPage);
       _lastProgrammaticPage = targetPage;
@@ -325,6 +280,40 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     }
 
     applySync();
+  }
+
+  void _syncPhoneSeamlessScrollToDay(DateTime next) {
+    void apply() {
+      if (!mounted) return;
+      if (!_phoneSeamlessScroll.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => apply());
+        return;
+      }
+      final innerW = _phoneSeamlessScroll.position.viewportDimension;
+      final dayW = weekSchedulePhoneDayColumnWidthFromInnerWidth(innerW);
+      if (dayW <= 0) return;
+
+      final globalIndex = AppDateTime.localDay(next)
+          .difference(kWeekPageAnchorMonday)
+          .inDays
+          .clamp(0, kWeekScheduleTotalDaySlots - 1);
+      final maxExtent = _phoneSeamlessScroll.position.maxScrollExtent;
+      final target = (globalIndex * dayW).clamp(0.0, maxExtent);
+      if ((_phoneSeamlessScroll.offset - target).abs() < 1.5) {
+        _currentPage = globalIndex ~/ 7;
+        return;
+      }
+
+      if (_timelineScrollOffset != 0) {
+        setState(() {
+          _timelineScrollOffset = 0;
+        });
+      }
+      _phoneSeamlessScroll.jumpTo(target);
+      _currentPage = globalIndex ~/ 7;
+    }
+
+    apply();
   }
 
   void _handlePageChanged(int index) {

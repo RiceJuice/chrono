@@ -8,19 +8,27 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_timeline.dart';
 import 'package:flutter/material.dart';
 
-class WeekDayColumns extends StatelessWidget {
-  const WeekDayColumns({
-    required this.weekDays,
-    required this.entriesByDay,
+/// Eine Tages-Spalte im Wochenraster (Tablet: in [WeekDayColumns], Handy:
+/// in [WeekScheduleMobileBody] mit fester Breite / nahtlosem Streifen).
+class WeekScheduleDayColumn extends StatelessWidget {
+  const WeekScheduleDayColumn({
+    required this.day,
+    required this.entries,
     required this.bounds,
     required this.totalHeight,
+    required this.hourHeight,
+    required this.columnIndex,
+    required this.columnCount,
     super.key,
   });
 
-  final List<DateTime> weekDays;
-  final List<List<CalendarEntry>> entriesByDay;
+  final DateTime day;
+  final List<CalendarEntry> entries;
   final WeekScheduleBounds bounds;
   final double totalHeight;
+  final double hourHeight;
+  final int columnIndex;
+  final int columnCount;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +46,66 @@ class WeekDayColumns extends StatelessWidget {
       ),
       scheme.surface,
     );
+    final isWeekend =
+        day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
 
+    return SizedBox(
+      height: totalHeight,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: isWeekend ? weekendBackgroundColor : null,
+          border: Border(
+            left: BorderSide(color: verticalDividerColor),
+            right: columnIndex == columnCount - 1
+                ? BorderSide(color: verticalDividerColor)
+                : BorderSide.none,
+          ),
+        ),
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: WeekHourGridPainter(
+                  bounds: bounds,
+                  lineColor: hourDividerColor,
+                  hourHeight: hourHeight,
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: WeekEntriesLayer(
+                entries: entries,
+                day: day,
+                bounds: bounds,
+                hourHeight: hourHeight,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class WeekDayColumns extends StatelessWidget {
+  const WeekDayColumns({
+    required this.weekDays,
+    required this.entriesByDay,
+    required this.bounds,
+    required this.totalHeight,
+    required this.hourHeight,
+    super.key,
+  });
+
+  final List<DateTime> weekDays;
+  final List<List<CalendarEntry>> entriesByDay;
+  final WeekScheduleBounds bounds;
+  final double totalHeight;
+  final double hourHeight;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
@@ -50,46 +117,24 @@ class WeekDayColumns extends StatelessWidget {
                 Row(
                   children: List.generate(7, (columnIndex) {
                     final day = weekDays[columnIndex];
-                    final isWeekend =
-                        day.weekday == DateTime.saturday ||
-                        day.weekday == DateTime.sunday;
-
                     return Expanded(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: isWeekend ? weekendBackgroundColor : null,
-                          border: Border(
-                            left: BorderSide(color: verticalDividerColor),
-                            right: columnIndex == 6
-                                ? BorderSide(color: verticalDividerColor)
-                                : BorderSide.none,
-                          ),
-                        ),
-                        child: Stack(
-                          clipBehavior: Clip.hardEdge,
-                          children: [
-                            Positioned.fill(
-                              child: CustomPaint(
-                                painter: WeekHourGridPainter(
-                                  bounds: bounds,
-                                  lineColor: hourDividerColor,
-                                ),
-                              ),
-                            ),
-                            Positioned.fill(
-                              child: WeekEntriesLayer(
-                                entries: entriesByDay[columnIndex],
-                                day: day,
-                                bounds: bounds,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: WeekScheduleDayColumn(
+                        day: day,
+                        entries: entriesByDay[columnIndex],
+                        bounds: bounds,
+                        totalHeight: totalHeight,
+                        hourHeight: hourHeight,
+                        columnIndex: columnIndex,
+                        columnCount: 7,
                       ),
                     );
                   }),
                 ),
-                WeekNowLine(weekDays: weekDays, bounds: bounds),
+                WeekNowLine(
+                  weekDays: weekDays,
+                  bounds: bounds,
+                  hourHeight: hourHeight,
+                ),
               ],
             ),
           ),
@@ -104,12 +149,14 @@ class WeekEntriesLayer extends StatelessWidget {
     required this.entries,
     required this.day,
     required this.bounds,
+    required this.hourHeight,
     super.key,
   });
 
   final List<CalendarEntry> entries;
   final DateTime day;
   final WeekScheduleBounds bounds;
+  final double hourHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +166,7 @@ class WeekEntriesLayer extends StatelessWidget {
           entries: entries,
           day: day,
           bounds: bounds,
-          hourHeight: kWeekScheduleHourHeight,
+          hourHeight: hourHeight,
         );
 
         return Stack(
@@ -180,10 +227,16 @@ class _WeekEntryCardFrame extends StatelessWidget {
 }
 
 class WeekNowLine extends StatefulWidget {
-  const WeekNowLine({required this.weekDays, required this.bounds, super.key});
+  const WeekNowLine({
+    required this.weekDays,
+    required this.bounds,
+    required this.hourHeight,
+    super.key,
+  });
 
   final List<DateTime> weekDays;
   final WeekScheduleBounds bounds;
+  final double hourHeight;
 
   @override
   State<WeekNowLine> createState() => _WeekNowLineState();
@@ -223,7 +276,11 @@ class _WeekNowLineState extends State<WeekNowLine> {
       return const SizedBox.shrink();
     }
 
-    final top = topForMinute(nowMinute, widget.bounds);
+    final top = topForMinute(
+      nowMinute,
+      widget.bounds,
+      widget.hourHeight,
+    );
     return Positioned(
       left: 0,
       right: 0,
