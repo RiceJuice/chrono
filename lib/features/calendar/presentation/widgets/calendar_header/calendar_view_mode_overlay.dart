@@ -21,7 +21,11 @@ class CalendarViewModeOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final topOffset = MediaQuery.paddingOf(context).top + kToolbarHeight;
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final topOffset = isLandscape
+        ? MediaQuery.paddingOf(context).top
+        : MediaQuery.paddingOf(context).top + kToolbarHeight;
 
     return IgnorePointer(
       ignoring: !isOpen,

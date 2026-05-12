@@ -28,12 +28,31 @@ class CalendarPage extends ConsumerStatefulWidget {
   ConsumerState<CalendarPage> createState() => _CalendarPageState();
 }
 
-class _CalendarPageState extends ConsumerState<CalendarPage> {
+class _CalendarPageState extends ConsumerState<CalendarPage>
+    with WidgetsBindingObserver {
   static const Duration _searchDebounce = Duration(milliseconds: 300);
   static const Duration _viewModeTransitionDuration = Duration(
     milliseconds: 300,
   );
   static const Curve _viewModeTransitionCurve = Cubic(0.2, 0.8, 0.2, 1);
+
+  void _restoreNonImmersiveSystemUi() {
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
+  }
+
+  void _syncCalendarLandscapeImmersive() {
+    if (!mounted) return;
+    final landscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    if (landscape) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      _restoreNonImmersiveSystemUi();
+    }
+  }
 
   bool _isSearchOpen = false;
   bool _isViewModeOverlayOpen = false;
@@ -94,6 +113,30 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       _isSearchOpen = false;
       _debouncedSearchQuery = '';
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncCalendarLandscapeImmersive();
+  }
+
+  @override
+  void didChangeMetrics() {
+    _syncCalendarLandscapeImmersive();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _syncCalendarLandscapeImmersive();
+    }
   }
 
   void _onSearchQueryChanged(String nextQuery) {
@@ -335,6 +378,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _restoreNonImmersiveSystemUi();
     _debounceTimer?.cancel();
     super.dispose();
   }
@@ -364,6 +409,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         _debouncedSearchQuery.isNotEmpty ||
         searchFilters.hasUserOverrides;
     final viewMode = ref.watch(calendarViewModeProvider);
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
     final mediaPadding = MediaQuery.paddingOf(context);
     final searchBarBottomInset =
         mediaPadding.top +
@@ -376,28 +423,30 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         CalendarSearchOverlayMetrics.bottomPadding;
 
     return Scaffold(
-      bottomNavigationBar: Stack(
-        children: [
-          MainNavigationBar(),
-          Positioned.fill(
-            child: IgnorePointer(
-              ignoring: !_isViewModeOverlayOpen,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 140),
-                curve: Curves.easeOutCubic,
-                opacity: _isViewModeOverlayOpen ? 1 : 0,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _closeViewModeOverlay,
-                  child: ColoredBox(
-                    color: Colors.black.withValues(alpha: 0.18),
+      bottomNavigationBar: isLandscape
+          ? null
+          : Stack(
+              children: [
+                MainNavigationBar(),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    ignoring: !_isViewModeOverlayOpen,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 140),
+                      curve: Curves.easeOutCubic,
+                      opacity: _isViewModeOverlayOpen ? 1 : 0,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _closeViewModeOverlay,
+                        child: ColoredBox(
+                          color: Colors.black.withValues(alpha: 0.18),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ),
-        ],
-      ),
       body: Stack(
         children: [
           Center(

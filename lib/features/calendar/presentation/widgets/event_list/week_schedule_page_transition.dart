@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_grid.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:flutter/material.dart';
 
 class WeekSchedulePageTransition extends StatelessWidget {
@@ -17,6 +18,7 @@ class WeekSchedulePageTransition extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hourHeight = weekScheduleHourHeightFor(context);
     final outgoingEndY = isForward ? -1.0 : 1.0;
     final incomingStartY = isForward ? 1.0 : -1.0;
 
@@ -56,6 +58,7 @@ class WeekSchedulePageTransition extends StatelessWidget {
                   key: ValueKey<String>('from-$fromMonday'),
                   monday: fromMonday,
                   showTimelineColumn: false,
+                  hourHeight: hourHeight,
                 ),
               ),
             ),
@@ -67,6 +70,7 @@ class WeekSchedulePageTransition extends StatelessWidget {
                   key: ValueKey<String>('to-$toMonday'),
                   monday: toMonday,
                   showTimelineColumn: false,
+                  hourHeight: hourHeight,
                 ),
               ),
             ),

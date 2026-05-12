@@ -9,12 +9,14 @@ class WeekTimelineColumn extends StatefulWidget {
   const WeekTimelineColumn({
     required this.bounds,
     required this.totalHeight,
+    required this.hourHeight,
     this.showCurrentTime = false,
     super.key,
   });
 
   final WeekScheduleBounds bounds;
   final double totalHeight;
+  final double hourHeight;
   final bool showCurrentTime;
 
   @override
@@ -69,7 +71,12 @@ class _WeekTimelineColumnState extends State<WeekTimelineColumn> {
           for (final label in buildTimeLabels(widget.bounds))
             if (label.minute != currentHourMinute)
               Positioned(
-                top: topForMinute(label.minute, widget.bounds) + 2,
+                top: topForMinute(
+                      label.minute,
+                      widget.bounds,
+                      widget.hourHeight,
+                    ) +
+                    2,
                 left: 8,
                 right: 2,
                 child: Text(
@@ -83,7 +90,7 @@ class _WeekTimelineColumnState extends State<WeekTimelineColumn> {
               ),
           if (nowMinute != null)
             Positioned(
-              top: topForMinute(nowMinute, widget.bounds) - 7,
+              top: topForMinute(nowMinute, widget.bounds, widget.hourHeight) - 7,
               left: 8,
               right: 2,
               child: Text(
@@ -117,10 +124,15 @@ class _WeekTimelineColumnState extends State<WeekTimelineColumn> {
 }
 
 class WeekHourGridPainter extends CustomPainter {
-  const WeekHourGridPainter({required this.bounds, required this.lineColor});
+  const WeekHourGridPainter({
+    required this.bounds,
+    required this.lineColor,
+    required this.hourHeight,
+  });
 
   final WeekScheduleBounds bounds;
   final Color lineColor;
+  final double hourHeight;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -136,7 +148,7 @@ class WeekHourGridPainter extends CustomPainter {
     );
 
     for (final label in buildTimeLabels(bounds)) {
-      final y = topForMinute(label.minute, bounds);
+      final y = topForMinute(label.minute, bounds, hourHeight);
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
@@ -145,7 +157,8 @@ class WeekHourGridPainter extends CustomPainter {
   bool shouldRepaint(covariant WeekHourGridPainter oldDelegate) {
     return oldDelegate.bounds.startMinute != bounds.startMinute ||
         oldDelegate.bounds.endMinute != bounds.endMinute ||
-        oldDelegate.lineColor != lineColor;
+        oldDelegate.lineColor != lineColor ||
+        oldDelegate.hourHeight != hourHeight;
   }
 }
 
@@ -177,8 +190,12 @@ List<WeekTimeLabel> buildTimeLabels(WeekScheduleBounds bounds) {
   return labels;
 }
 
-double topForMinute(double minute, WeekScheduleBounds bounds) {
-  return (minute - bounds.startMinute) / 60.0 * kWeekScheduleHourHeight;
+double topForMinute(
+  double minute,
+  WeekScheduleBounds bounds,
+  double hourHeight,
+) {
+  return (minute - bounds.startMinute) / 60.0 * hourHeight;
 }
 
 String formatMinute(double minute) {
