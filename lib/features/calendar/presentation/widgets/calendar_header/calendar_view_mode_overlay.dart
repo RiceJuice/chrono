@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_view_options.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -21,9 +22,8 @@ class CalendarViewModeOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
-    final topOffset = isLandscape
+    final compactLandscapeChrome = calendarUsePhoneLandscapeChrome(context);
+    final topOffset = compactLandscapeChrome
         ? MediaQuery.paddingOf(context).top
         : MediaQuery.paddingOf(context).top + kToolbarHeight;
 

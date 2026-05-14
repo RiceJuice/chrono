@@ -11,7 +11,6 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class WeekScheduleView extends ConsumerStatefulWidget {
@@ -185,10 +184,6 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
   }
 
   bool _handleScheduleScrollNotification(ScrollNotification notification) {
-    if (notification is ScrollEndNotification &&
-        notification.metrics.axis == Axis.vertical) {
-      HapticFeedback.mediumImpact();
-    }
     if (notification.metrics.axis == Axis.horizontal) {
       return false;
     }
@@ -290,7 +285,10 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
         return;
       }
       final innerW = _phoneSeamlessScroll.position.viewportDimension;
-      final dayW = weekSchedulePhoneDayColumnWidthFromInnerWidth(innerW);
+      final dayW = weekSchedulePhoneDayColumnWidthFromInnerWidth(
+        innerW,
+        orientation: MediaQuery.orientationOf(context),
+      );
       if (dayW <= 0) return;
 
       final globalIndex = AppDateTime.localDay(next)

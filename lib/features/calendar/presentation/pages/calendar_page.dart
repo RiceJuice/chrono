@@ -45,9 +45,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
 
   void _syncCalendarLandscapeImmersive() {
     if (!mounted) return;
-    final landscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
-    if (landscape) {
+    if (calendarUsePhoneLandscapeChrome(context)) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     } else {
       _restoreNonImmersiveSystemUi();
@@ -409,8 +407,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
         _debouncedSearchQuery.isNotEmpty ||
         searchFilters.hasUserOverrides;
     final viewMode = ref.watch(calendarViewModeProvider);
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final usePhoneLandscapeChrome = calendarUsePhoneLandscapeChrome(context);
     final mediaPadding = MediaQuery.paddingOf(context);
     final searchBarBottomInset =
         mediaPadding.top +
@@ -423,7 +420,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
         CalendarSearchOverlayMetrics.bottomPadding;
 
     return Scaffold(
-      bottomNavigationBar: isLandscape
+      bottomNavigationBar: usePhoneLandscapeChrome
           ? null
           : Stack(
               children: [
