@@ -96,8 +96,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final usePhoneLandscapeChrome = calendarUsePhoneLandscapeChrome(context);
     final titleDay = widget.weekTimetableMode
         ? ref.watch(focusedDayProvider)
         : ref.watch(selectedDayProvider);
@@ -126,7 +125,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
           ),
           child: Column(
             children: [
-              if (!isLandscape) ...[
+              if (!usePhoneLandscapeChrome) ...[
                 AppBar(
                   toolbarHeight: widget.weekTimetableMode ? 50 : kToolbarHeight,
                   title: AnimatedSwitcher(
@@ -202,7 +201,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
                   ],
                 ),
               ],
-              if (isLandscape)
+              if (usePhoneLandscapeChrome)
                 const SizedBox(height: _landscapeCalendarTopPadding),
               AnimatedSize(
                 duration: _headerMorphDuration,
@@ -311,7 +310,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
                         key: ValueKey<String>('week-header-spacer'),
                         height: 10,
                       )
-                    : isLandscape
+                    : usePhoneLandscapeChrome
                         ? const SizedBox.shrink()
                         : CalendarHandle(
                             key: const ValueKey<String>('day-header-handle'),

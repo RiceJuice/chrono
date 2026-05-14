@@ -18,8 +18,8 @@ const WeekScheduleBounds _kSeamlessEmptyWeekBounds = WeekScheduleBounds(
   endMinute: 20 * 60.0,
 );
 
-/// Mobiler Wochen-Stundenplan: horizontal durch alle Tage des konfigurierten
-/// Bereichs scrollbar (ohne harten Wochen-Sprung), drei Tage sichtbar, Tag-Snap.
+/// Mobiler Wochen-Stundenplan: horizontal scrollbar, Portrait: 3–7 sichtbare
+/// Tage je nach Breite, Querformat: immer 7 Tage, Tag-Snap.
 class WeekScheduleMobileBody extends ConsumerStatefulWidget {
   const WeekScheduleMobileBody({
     required this.horizontalController,
@@ -38,8 +38,9 @@ class WeekScheduleMobileBody extends ConsumerStatefulWidget {
 class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody> {
   bool _programmaticHorizontal = false;
   bool _handlingHorizontalScrollEnd = false;
-  /// Letzter eingefädelter Tages-Index nach Snap; `null` bis zum ersten Stopp.
-  int? _lastSnappedGlobalDayIndex;
+  /// Letzter Tages-Index (Snap/Haptik); `null` bis zur ersten bekannten Position.
+  int? _horizontalHapticLastDayIndex;
+  double? _lastHorizontalDayWidth;
 
   @override
   void initState() {
@@ -51,6 +52,7 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
   }
 
   void _scrollToSelectedDay({required bool animated}) {
+    if (!mounted) return;
     if (!widget.horizontalController.hasClients) return;
     final selected = ref.read(selectedDayProvider);
     final globalIndex = AppDateTime.localDay(selected)
@@ -58,13 +60,17 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
         .inDays
         .clamp(0, kWeekScheduleTotalDaySlots - 1);
     final innerWidth = widget.horizontalController.position.viewportDimension;
-    final dayWidth = weekSchedulePhoneDayColumnWidthFromInnerWidth(innerWidth);
+    final orientation = MediaQuery.orientationOf(context);
+    final dayWidth = weekSchedulePhoneDayColumnWidthFromInnerWidth(
+      innerWidth,
+      orientation: orientation,
+    );
     final maxExtent = widget.horizontalController.position.maxScrollExtent;
     final target = (globalIndex * dayWidth).clamp(0.0, maxExtent);
     _programmaticHorizontal = true;
     void finish() {
       _programmaticHorizontal = false;
-      _lastSnappedGlobalDayIndex = globalIndex;
+      _horizontalHapticLastDayIndex = globalIndex;
     }
 
     if (animated) {
@@ -90,7 +96,11 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
     _handlingHorizontalScrollEnd = true;
     try {
       final innerWidth = widget.horizontalController.position.viewportDimension;
-      final dayWidth = weekSchedulePhoneDayColumnWidthFromInnerWidth(innerWidth);
+      final orientation = MediaQuery.orientationOf(context);
+      final dayWidth = weekSchedulePhoneDayColumnWidthFromInnerWidth(
+        innerWidth,
+        orientation: orientation,
+      );
       if (dayWidth <= 0) return;
 
       final maxExtent = widget.horizontalController.position.maxScrollExtent;
@@ -113,17 +123,7 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
       final snappedIdx =
           (off / dayWidth).round().clamp(0, kWeekScheduleTotalDaySlots - 1);
 
-      final previous = _lastSnappedGlobalDayIndex;
-      if (previous != null) {
-        final delta = (snappedIdx - previous).abs();
-        if (delta > 0) {
-          final pulses = delta.clamp(1, 14);
-          for (var i = 0; i < pulses; i++) {
-            HapticFeedback.mediumImpact();
-          }
-        }
-      }
-      _lastSnappedGlobalDayIndex = snappedIdx;
+      _horizontalHapticLastDayIndex = snappedIdx;
 
       final day = kWeekPageAnchorMonday.add(Duration(days: snappedIdx));
       ref.read(focusedDayProvider.notifier).update(day);
@@ -134,10 +134,63 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
     }
   }
 
+  void _bootstrapHorizontalHapticAnchor() {
+    if (_programmaticHorizontal || !widget.horizontalController.hasClients) {
+      return;
+    }
+    if (!mounted) return;
+    final position = widget.horizontalController.position;
+    final w = weekSchedulePhoneDayColumnWidthFromInnerWidth(
+      position.viewportDimension,
+      orientation: MediaQuery.orientationOf(context),
+    );
+    if (w <= 0) return;
+    final idx = (position.pixels / w)
+        .round()
+        .clamp(0, kWeekScheduleTotalDaySlots - 1);
+    _horizontalHapticLastDayIndex = idx;
+  }
+
+  /// Pro überquertem Tag ein `mediumImpact` — wie beim Tageswechsel über
+  /// `SelectedDay.update` in der Eventliste (`calendar_providers.dart`).
+  void _emitHorizontalDayHaptics(int newIndex) {
+    if (_programmaticHorizontal) {
+      _horizontalHapticLastDayIndex = newIndex;
+      return;
+    }
+    final prev = _horizontalHapticLastDayIndex;
+    if (prev == null) {
+      _horizontalHapticLastDayIndex = newIndex;
+      return;
+    }
+    if (newIndex == prev) return;
+    final delta = (newIndex - prev).abs();
+    final pulses = delta.clamp(1, 12);
+    for (var i = 0; i < pulses; i++) {
+      HapticFeedback.mediumImpact();
+    }
+    _horizontalHapticLastDayIndex = newIndex;
+  }
+
   bool _onScrollNotification(ScrollNotification notification) {
-    if (notification is ScrollEndNotification &&
-        notification.metrics.axis == Axis.horizontal) {
-      _handleHorizontalScrollEnd();
+    if (notification.metrics.axis == Axis.horizontal) {
+      if (notification is ScrollStartNotification) {
+        _bootstrapHorizontalHapticAnchor();
+      } else if (notification is ScrollUpdateNotification) {
+        final m = notification.metrics;
+        final w = weekSchedulePhoneDayColumnWidthFromInnerWidth(
+          m.viewportDimension,
+          orientation: MediaQuery.orientationOf(context),
+        );
+        if (w > 0) {
+          final idx = (m.pixels / w)
+              .round()
+              .clamp(0, kWeekScheduleTotalDaySlots - 1);
+          _emitHorizontalDayHaptics(idx);
+        }
+      } else if (notification is ScrollEndNotification) {
+        _handleHorizontalScrollEnd();
+      }
     }
     return false;
   }
@@ -181,9 +234,18 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
     return LayoutBuilder(
       builder: (context, constraints) {
         final innerWidth = constraints.maxWidth;
+        final orientation = MediaQuery.orientationOf(context);
         final dayWidth = weekSchedulePhoneDayColumnWidthFromInnerWidth(
           innerWidth,
+          orientation: orientation,
         );
+        final prevDayW = _lastHorizontalDayWidth;
+        _lastHorizontalDayWidth = dayWidth;
+        if (prevDayW != null && (prevDayW - dayWidth).abs() > 0.5) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _scrollToSelectedDay(animated: false);
+          });
+        }
         final horizontalPhysics = WeekDaySnapScrollPhysics(
           dayColumnWidth: dayWidth,
         ).applyTo(ScrollConfiguration.of(context).getScrollPhysics(context));
