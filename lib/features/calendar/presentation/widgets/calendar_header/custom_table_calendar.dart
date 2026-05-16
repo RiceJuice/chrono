@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
 import '../../providers/calendar_providers.dart';
 import '../../theme/calendar_presentation_theme.dart';
+import 'calendar_day_cell.dart';
 import 'calendar_day_marker_pill.dart';
 import 'week_timetable_mobile_day_header.dart';
-
-const _selectedDayBoxSize = 36.5;
-const _dayMarkerBottomOffset = 1.0;
-const _dayMarkerWidth = 24.0;
-const _dayMarkerHeight = 6.0;
+import '../calendar_week_layout_tokens.dart';
 const _calendarMorphDuration = Duration(milliseconds: 420);
 const _calendarMorphCurve = Cubic(0.2, 0.8, 0.2, 1);
 
@@ -88,7 +85,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.weekTimetableMode && weekScheduleIsPhoneViewport(context)) {
+    if (widget.weekTimetableMode) {
       return AnimatedPadding(
         duration: _calendarMorphDuration,
         curve: _calendarMorphCurve,
@@ -129,29 +126,22 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       }
     });
 
-    final visibleWeekStart = _startOfWeek(focusedDay);
     final table = TableCalendar(
-      key: widget.weekTimetableMode
-          ? ValueKey<DateTime>(visibleWeekStart)
-          : null,
       locale: 'de_DE',
       startingDayOfWeek: StartingDayOfWeek.monday,
-      firstDay: DateTime(2020, 1, 1), //TODO: make this dynamic
-      lastDay: DateTime(2030, 12, 31), //TODO: make this dynamic
+      firstDay: kCalendarTableFirstDay,
+      lastDay: kCalendarTableLastDay,
       calendarFormat: widget.calendarFormat,
       focusedDay: focusedDay,
       pageJumpingEnabled: true,
-      // Wochen-Stundenplan: Riverpod setzt oft den Montag, während table_calendar
-      // nach dem Swipe den sichtbaren Tag behält — gleicher Seitenindex + Animation
-      // erzeugt sonst einen sichtbaren „Rücksprung“. Ohne Seiten-Animation nur jumpToPage.
       pageAnimationEnabled: !widget.weekTimetableMode,
       eventLoader: (day) {
         final marker = dayMarkersByDate[normalizeCalendarDay(day)];
         if (marker == null) return const [];
         return <CalendarDayMarkerData>[marker];
       },
-      rowHeight: 40,
-      daysOfWeekHeight: 20,
+      rowHeight: kCalendarDayRowHeight,
+      daysOfWeekHeight: kCalendarDaysOfWeekHeight,
       availableGestures: widget.weekTimetableMode
           ? AvailableGestures.none
           : AvailableGestures.horizontalSwipe,
@@ -195,14 +185,9 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           if (marker is! CalendarDayMarkerData || marker.totalMinutes <= 0) {
             return null;
           }
-          return Positioned(
-            bottom: _dayMarkerBottomOffset,
-            child: CalendarDayMarkerPill(
-              marker: marker,
-              width: _dayMarkerWidth,
-              height: _dayMarkerHeight,
-              colorResolver: markerColorResolver,
-            ),
+          return CalendarDayMarkerSlot(
+            marker: marker,
+            colorResolver: markerColorResolver,
           );
         },
         selectedBuilder: (context, day, focusedDay) {
@@ -220,49 +205,12 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
             );
           }
 
-          final isToday = AppDateTime.isTodayLocal(day);
           final marker = dayMarkersByDate[normalizeCalendarDay(day)];
 
-          return Center(
-            child: Transform.translate(
-              offset: const Offset(0, -2),
-              child: SizedBox.square(
-                dimension: _selectedDayBoxSize,
-                child: Stack(
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned.fill(
-                      child: Transform.translate(
-                        offset: const Offset(0, 4),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: scheme.primary,
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${day.day}',
-                      style: TextStyle(
-                        color: isToday ? todayAccentColor : scheme.onPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Positioned(
-                      bottom: _dayMarkerBottomOffset,
-                      child: CalendarDayMarkerPill(
-                        marker: marker,
-                        width: _dayMarkerWidth,
-                        height: _dayMarkerHeight,
-                        colorResolver: markerColorResolver,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          return CalendarSelectedDayCell(
+            day: day,
+            marker: marker,
+            colorResolver: markerColorResolver,
           );
         },
         todayBuilder: (context, day, focusedDay) {
@@ -294,16 +242,25 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },
       onPageChanged: (newFocusedDay) {
+        final pendingProgrammaticFocusedDay = _pendingProgrammaticFocusedDay;
         if (widget.weekTimetableMode) {
+          if (pendingProgrammaticFocusedDay != null &&
+              isSameDay(
+                pendingProgrammaticFocusedDay,
+                AppDateTime.localDay(newFocusedDay),
+              )) {
+            _pendingProgrammaticFocusedDay = null;
+            ref
+                .read(focusedDayProvider.notifier)
+                .update(pendingProgrammaticFocusedDay);
+            return;
+          }
           _pendingProgrammaticFocusedDay = null;
-          // Gleicher Kalendertag wie table_calendar intern — nicht auf Montag
-          // normalisieren, sonst didUpdateWidget + animateToPage(gleicher Index) = Bounce.
           ref
               .read(focusedDayProvider.notifier)
               .update(AppDateTime.localDay(newFocusedDay));
           return;
         }
-        final pendingProgrammaticFocusedDay = _pendingProgrammaticFocusedDay;
         final isProgrammaticMonthJump =
             pendingProgrammaticFocusedDay != null &&
             widget.calendarFormat == CalendarFormat.month &&

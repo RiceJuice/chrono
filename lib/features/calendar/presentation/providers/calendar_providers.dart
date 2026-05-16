@@ -21,14 +21,16 @@ class SelectedDay extends _$SelectedDay {
     return AppDateTime.todayLocal();
   }
 
-  void update(DateTime newDate) {
+  void update(DateTime newDate, {bool haptic = true}) {
     final next = AppDateTime.localDay(newDate);
     if (state.year == next.year &&
         state.month == next.month &&
         state.day == next.day) {
       return;
     }
-    HapticFeedback.mediumImpact();
+    if (haptic) {
+      HapticFeedback.mediumImpact();
+    }
     state = next;
   }
 }
@@ -44,6 +46,27 @@ class FocusedDay extends _$FocusedDay {
     state = AppDateTime.localDay(newDay);
   }
 }
+
+/// Leichter Vorschau-Tag während horizontalem Wischen im mobilen Wochenraster.
+/// Nur der Header lauscht darauf — [selectedDayProvider]/[focusedDayProvider]
+/// werden erst nach dem Snap gesetzt, damit nicht die ganze Woche neu lädt.
+class WeekScheduleScrollDay extends fr.Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+
+  void setPreview(DateTime day) {
+    state = AppDateTime.localDay(day);
+  }
+
+  void clear() {
+    state = null;
+  }
+}
+
+final weekScheduleScrollDayProvider =
+    fr.NotifierProvider<WeekScheduleScrollDay, DateTime?>(
+      WeekScheduleScrollDay.new,
+    );
 
 @riverpod
 CalendarRepository calendarRepository(Ref ref) {

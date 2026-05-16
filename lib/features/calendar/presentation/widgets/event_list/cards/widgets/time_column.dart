@@ -22,8 +22,7 @@ class TimeColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final narrow =
-        MediaQuery.sizeOf(context).width < kCalendarTabletBreakpoint;
+    final narrow = calendarIsPhoneLayout(context);
     final baseStyle =
         Theme.of(context).textTheme.bodyMedium?.copyWith(color: textColor);
     final textStyle = narrow

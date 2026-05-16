@@ -449,8 +449,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
           Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isTabletCalendar =
-                    constraints.maxWidth >= kCalendarTabletBreakpoint;
+                final isTabletCalendar = calendarIsTabletLayout(context);
                 return SizedBox.expand(
                   child: _buildSearchMorphBody(
                     showSearchResults: showSearchResults,

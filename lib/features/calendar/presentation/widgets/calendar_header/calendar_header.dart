@@ -97,9 +97,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
   @override
   Widget build(BuildContext context) {
     final usePhoneLandscapeChrome = calendarUsePhoneLandscapeChrome(context);
-    final titleDay = widget.weekTimetableMode
-        ? ref.watch(focusedDayProvider)
-        : ref.watch(selectedDayProvider);
+    final titleDay = ref.watch(selectedDayProvider);
     final monthName = DateFormat.MMMM('de').format(titleDay);
     final weekNumber = _isoWeekNumber(titleDay);
     final calendarFormat = widget.weekTimetableMode
@@ -250,7 +248,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const SizedBox(
-                                    height: 20,
+                                    height: kCalendarDaysOfWeekHeight,
                                     width: double.infinity,
                                     child: Align(
                                       alignment: Alignment.centerRight,
@@ -263,7 +261,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
                                     ),
                                   ),
                                   SizedBox(
-                                    height: 40,
+                                    height: kCalendarDayRowHeight,
                                     width: double.infinity,
                                     child: Align(
                                       alignment: Alignment.centerRight,

@@ -13,6 +13,8 @@ class PowerSyncAuthBinding {
   static StreamSubscription<AuthState>? _authSub;
   static BackendConnector? _connector;
 
+  static const Duration _connectTimeout = Duration(seconds: 8);
+
   static Future<void> start(PowerSyncDatabase db) async {
     if (!isPowerSyncSyncEnabled()) return;
 
@@ -29,7 +31,7 @@ class PowerSyncAuthBinding {
     _authSub = client.auth.onAuthStateChange.listen((data) async {
       switch (data.event) {
         case AuthChangeEvent.signedIn:
-          await connectIfNeeded();
+          await _connectSafely(connectIfNeeded);
         case AuthChangeEvent.signedOut:
           _connector = null;
           await db.disconnect();
@@ -40,7 +42,15 @@ class PowerSyncAuthBinding {
       }
     });
 
-    await connectIfNeeded();
+    await _connectSafely(connectIfNeeded);
+  }
+
+  static Future<void> _connectSafely(Future<void> Function() connect) async {
+    try {
+      await connect().timeout(_connectTimeout);
+    } catch (_) {
+      // Offline oder langsames Netz: Sync verbindet sich beim nächsten Versuch.
+    }
   }
 
   static Future<void> dispose() async {

@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/auth/supabase_apple_auth_deep_links.dart';
@@ -9,11 +13,11 @@ import 'core/database/database_provider.dart';
 import 'core/database/powersync_auth_binding.dart';
 import 'core/network/connectivity_notifier.dart';
 import 'core/router/app_router.dart';
+import 'core/startup/calendar_startup_state.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
 import 'features/login/presentation/providers/profile_gate_notifier.dart';
 import 'features/login/presentation/providers/profile_gate_provider.dart';
-
 
 const String kSupabaseUrl = 'https://chrbvfaknykaycwumuba.supabase.co';
 const String kSupabaseAnonKey =
@@ -22,14 +26,15 @@ const String kSupabaseAnonKey =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Supabasboard eintragen (s. core/auth/auth_redirect_config.dart).e & DB Setup
-  await Supabase.initialize(url: kSupabaseUrl, anonKey: kSupabaseAnonKey);
-  // iOS/macOS: Mail-Bestätigungslink → App; Redirect-URL im Supabase-Dash
-  await attachSupabaseAppleAuthDeepLinks();
-  final powerSyncDb = await initializeDatabase();
+  final results = await Future.wait<Object>([
+    Supabase.initialize(url: kSupabaseUrl, anonKey: kSupabaseAnonKey),
+    initializeDatabase(),
+    bootstrapThemeMode(),
+  ]);
+  final powerSyncDb = results[1] as PowerSyncDatabase;
+
   attachCalendarEventsDebugLogs(powerSyncDb);
   scheduleCalendarEventsLocalSnapshots(powerSyncDb);
-  await PowerSyncAuthBinding.start(powerSyncDb);
 
   final startupNotifier = AppStartupNotifier();
   final authSessionNotifier = AuthSessionNotifier();
@@ -51,9 +56,32 @@ void main() async {
     ),
   );
 
-  // Initialisierungs-Logik (parallel zum App-Start)
-  await initializeDateFormatting('de', null);
-  await Future.delayed(const Duration(seconds: 2));
+  unawaited(PowerSyncAuthBinding.start(powerSyncDb));
+  await _finishStartup(
+    startupNotifier: startupNotifier,
+    profileGateNotifier: profileGateNotifier,
+  );
+}
+
+/// Ladescreen bleibt, bis Theme, Locale, Kalender-Scroll und Profil-Gate bereit sind.
+Future<void> _finishStartup({
+  required AppStartupNotifier startupNotifier,
+  required ProfileGateNotifier profileGateNotifier,
+}) async {
+  final view = PlatformDispatcher.instance.views.first;
+  final pixelRatio = view.devicePixelRatio;
+  final logicalSize = Size(
+    view.physicalSize.width / pixelRatio,
+    view.physicalSize.height / pixelRatio,
+  );
+  CalendarStartupState.preload(logicalScreenSize: logicalSize);
+
+  await Future.wait<void>([
+    initializeDateFormatting('de', null),
+    attachSupabaseAppleAuthDeepLinks(),
+    profileGateNotifier.waitUntilReady(),
+  ]);
+
   startupNotifier.setReady();
 }
 
