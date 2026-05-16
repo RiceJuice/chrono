@@ -1,31 +1,31 @@
 import 'package:flutter/material.dart';
 
-/// Horizontale Physik für den mobilen Wochen-Stundenplan: wie `PageScrollPhysics`,
-/// aber mit **Tages-Spalten** als Seiten (nicht Viewport-Breite) und begrenztem
-/// Flingsprung (1 Tag, bei sehr schnellem Wisch maximal 2).
+/// Horizontale Physik für den mobilen Wochen-Stundenplan: snappy Einrasten auf
+/// [snapStride] (ein Tag oder eine Woche) mit begrenztem Flingsprung.
 ///
-/// Analog zum snappy `PageView` in `event_list.dart`: kein langes Ausrollen über
-/// viele Tage — Zielposition immer per Feder-Simulation.
-class WeekDaySnapScrollPhysics extends ScrollPhysics {
-  const WeekDaySnapScrollPhysics({
+/// [dayColumnWidth] dient nur der normierten Flug-Geschwindigkeit.
+class WeekScheduleSnapScrollPhysics extends ScrollPhysics {
+  const WeekScheduleSnapScrollPhysics({
+    required this.snapStride,
     required this.dayColumnWidth,
     super.parent,
   });
 
+  final double snapStride;
   final double dayColumnWidth;
 
   /// Ab dieser normierten Geschwindigkeit (|v| / [dayColumnWidth]) darf ein
-  /// zweiter Tag in Wischrichtung dazukommen.
+  /// zweiter Schritt in Wischrichtung dazukommen.
   static const double _twoStepFlingNormVelocity = 7.5;
 
   @override
-  WeekDaySnapScrollPhysics applyTo(ScrollPhysics? ancestor) =>
-      WeekDaySnapScrollPhysics(
+  WeekScheduleSnapScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      WeekScheduleSnapScrollPhysics(
+        snapStride: snapStride,
         dayColumnWidth: dayColumnWidth,
         parent: buildParent(ancestor),
       );
 
-  /// Steifere Feder: schnelleres Einrasten, weniger Nachlauf als zuvor.
   @override
   SpringDescription get spring => SpringDescription.withDampingRatio(
         mass: 0.18,
@@ -38,11 +38,11 @@ class WeekDaySnapScrollPhysics extends ScrollPhysics {
     Tolerance tolerance,
     double velocity,
   ) {
-    final w = dayColumnWidth;
+    final stride = snapStride;
     final maxExtent = position.maxScrollExtent;
-    if (w <= 0) return position.pixels.clamp(0.0, maxExtent);
+    if (stride <= 0) return position.pixels.clamp(0.0, maxExtent);
 
-    final page = position.pixels / w;
+    final page = position.pixels / stride;
     final double targetPage;
     if (velocity.abs() < tolerance.velocity) {
       targetPage = page.roundToDouble();
@@ -50,11 +50,11 @@ class WeekDaySnapScrollPhysics extends ScrollPhysics {
       final sign = velocity > 0 ? 1.0 : -1.0;
       final adjustedPage = page + 0.5 * sign;
       final primary = adjustedPage.round();
-      final norm = velocity.abs() / w;
+      final norm = velocity.abs() / dayColumnWidth;
       final extra = norm >= _twoStepFlingNormVelocity ? 1 : 0;
       targetPage = (primary + sign * extra).toDouble();
     }
-    return (targetPage * w).clamp(0.0, maxExtent);
+    return (targetPage * stride).clamp(0.0, maxExtent);
   }
 
   @override
@@ -72,8 +72,7 @@ class WeekDaySnapScrollPhysics extends ScrollPhysics {
     }
 
     final tolerance = toleranceFor(position);
-    final w = dayColumnWidth;
-    if (w <= 0) {
+    if (snapStride <= 0) {
       return super.createBallisticSimulation(position, velocity);
     }
 

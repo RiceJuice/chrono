@@ -13,7 +13,7 @@ class ConnectivityNotifier extends ChangeNotifier {
   ConnectivityNotifier() {
     final checker = InternetConnectionChecker.createInstance(
       checkInterval: const Duration(seconds: 2),
-      checkTimeout: const Duration(seconds: 4),
+      checkTimeout: const Duration(seconds: 2),
     );
     _checker = checker;
     _statusSub = checker.onStatusChange.listen(_onStatus);
@@ -51,11 +51,16 @@ class ConnectivityNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  static const Duration _bootstrapTimeout = Duration(seconds: 2);
+
   Future<void> _bootstrap() async {
     final checker = _checker;
     if (checker == null) return;
     try {
-      final status = await checker.connectionStatus;
+      final status = await checker.connectionStatus.timeout(
+        _bootstrapTimeout,
+        onTimeout: () => InternetConnectionStatus.disconnected,
+      );
       _lastKnownOnline = _isOnlineStatus(status);
     } catch (_) {
       _lastKnownOnline = false;

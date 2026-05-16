@@ -23,9 +23,11 @@ class ProfileGateNotifier extends ChangeNotifier {
       _data = const ProfileGateData.signedOut();
       _ready = true;
     } else {
-      unawaited(_refresh());
+      unawaited(_bootstrapWithSession());
     }
   }
+
+  static const Duration _remoteProfileTimeout = Duration(seconds: 2);
 
   final SupabaseClient _client;
   final PowerSyncDatabase? _localDb;
@@ -36,6 +38,17 @@ class ProfileGateNotifier extends ChangeNotifier {
 
   bool get isReady => _ready;
   ProfileGateData get data => _data;
+
+  /// Wartet bis Gate-Daten verfügbar sind (z. B. vor Verlassen des Ladescreens).
+  Future<void> waitUntilReady({
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    if (_ready) return;
+    final deadline = DateTime.now().add(timeout);
+    while (!_ready && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 16));
+    }
+  }
   String? get requiredPath => resolveRequiredOnboardingPath(_data);
   bool get isOnboardingComplete => _data.isOnboardingComplete;
 
@@ -65,6 +78,18 @@ class ProfileGateNotifier extends ChangeNotifier {
   /// `updateProfile`. Doppelte Aufrufe werden zusammengefasst.
   Future<void> refresh() => _refresh();
 
+  /// Lokales Profil sofort laden, damit Offline-Start nicht aufs Netz wartet.
+  Future<void> _bootstrapWithSession() async {
+    final user = _client.auth.currentUser;
+    if (user != null) {
+      final localRow = await _loadLocalProfileRow(user.id);
+      if (localRow != null) {
+        _setData(_profileDataFromRow(user, localRow));
+      }
+    }
+    await _refresh();
+  }
+
   Future<void> _refresh() async {
     if (_refreshing) return;
     _refreshing = true;
@@ -75,41 +100,50 @@ class ProfileGateNotifier extends ChangeNotifier {
         return;
       }
 
+      final localFuture = _loadLocalProfileRow(user.id);
       Map<String, dynamic>? row;
       try {
-        row = await _client
-            .from('profiles')
-            .select(
-              'first_name, last_name, class_name, schooltrack, voice, role, choir, '
-              'onboarding_completed_at',
-            )
-            .eq('id', user.id)
-            .maybeSingle();
+        row = await _fetchRemoteProfileRow(user.id)
+            .timeout(_remoteProfileTimeout);
       } catch (_) {
-        // Netzwerkfehler / PostgREST: lokale PowerSync-Kopie nutzen (Offline).
         row = null;
       }
 
-      row ??= await _loadLocalProfileRow(user.id);
+      row ??= await localFuture;
 
-      _setData(
-        ProfileGateData(
-          hasSession: true,
-          emailConfirmed: user.emailConfirmedAt != null,
-          firstName: _asString(row?['first_name']),
-          lastName: _asString(row?['last_name']),
-          className: _asString(row?['class_name']),
-          schoolTrack: _asString(row?['schooltrack']),
-          role: _asString(row?['role']),
-          voice: _asString(row?['voice']),
-          choir: _asString(row?['choir']),
-          onboardingCompletedAt:
-              _asDateTime(row?['onboarding_completed_at']),
-        ),
-      );
+      _setData(_profileDataFromRow(user, row));
     } finally {
       _refreshing = false;
     }
+  }
+
+  Future<Map<String, dynamic>?> _fetchRemoteProfileRow(String userId) async {
+    return _client
+        .from('profiles')
+        .select(
+          'first_name, last_name, class_name, schooltrack, voice, role, choir, '
+          'onboarding_completed_at',
+        )
+        .eq('id', userId)
+        .maybeSingle();
+  }
+
+  ProfileGateData _profileDataFromRow(
+    User user,
+    Map<String, dynamic>? row,
+  ) {
+    return ProfileGateData(
+      hasSession: true,
+      emailConfirmed: user.emailConfirmedAt != null,
+      firstName: _asString(row?['first_name']),
+      lastName: _asString(row?['last_name']),
+      className: _asString(row?['class_name']),
+      schoolTrack: _asString(row?['schooltrack']),
+      role: _asString(row?['role']),
+      voice: _asString(row?['voice']),
+      choir: _asString(row?['choir']),
+      onboardingCompletedAt: _asDateTime(row?['onboarding_completed_at']),
+    );
   }
 
   Future<Map<String, dynamic>?> _loadLocalProfileRow(String userId) async {

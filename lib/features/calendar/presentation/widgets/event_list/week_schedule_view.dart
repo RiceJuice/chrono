@@ -5,6 +5,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_l
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_grid.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_layout.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_mobile_body.dart';
+import 'package:chronoapp/core/startup/calendar_startup_state.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_page_transition.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_timeline.dart';
@@ -35,11 +36,15 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
   int? _lastProgrammaticPage;
   _WeekTransitionData? _activeTransition;
   double _timelineScrollOffset = 0;
+  bool? _lastUsesMobileSeamlessScroll;
 
   @override
   void initState() {
     super.initState();
-    _phoneSeamlessScroll = ScrollController();
+    _phoneSeamlessScroll = ScrollController(
+      initialScrollOffset:
+          CalendarStartupState.phoneSeamlessScrollOffset ?? 0,
+    );
     final monday = weekMondayLocal(ref.read(focusedDayProvider));
     final initialPage = pageIndexForMonday(monday);
     _weekPageController = PageController(initialPage: initialPage);
@@ -79,7 +84,17 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
   Widget build(BuildContext context) {
     ref.listen<DateTime>(focusedDayProvider, _syncPageToFocusedWeek);
 
-    final isPhone = weekScheduleIsPhoneViewport(context);
+    final usesMobileSeamless = weekScheduleUsesMobileSeamlessScroll(context);
+    if (_lastUsesMobileSeamlessScroll != null &&
+        _lastUsesMobileSeamlessScroll != usesMobileSeamless &&
+        !usesMobileSeamless) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _syncPageToFocusedWeek(null, ref.read(focusedDayProvider));
+      });
+    }
+    _lastUsesMobileSeamlessScroll = usesMobileSeamless;
+
     final hourHeight = weekScheduleHourHeightFor(context);
 
     return Stack(
@@ -91,7 +106,7 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
               padding: const EdgeInsets.only(
                 left: kCalendarTimelineGutterWidth,
               ),
-              child: isPhone
+              child: usesMobileSeamless
                   ? WeekScheduleMobileBody(
                       horizontalController: _phoneSeamlessScroll,
                       hourHeight: hourHeight,
@@ -239,8 +254,8 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
 
   void _syncPageToFocusedWeek(DateTime? previous, DateTime next) {
     if (!mounted) return;
-    if (weekScheduleIsPhoneViewport(context)) {
-      _syncPhoneSeamlessScrollToDay(next);
+    // Nahtlose Mobile-ListView (Phone-Portrait) scrollt über [WeekScheduleMobileBody].
+    if (weekScheduleUsesMobileSeamlessScroll(context)) {
       return;
     }
 
@@ -277,43 +292,6 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     applySync();
   }
 
-  void _syncPhoneSeamlessScrollToDay(DateTime next) {
-    void apply() {
-      if (!mounted) return;
-      if (!_phoneSeamlessScroll.hasClients) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => apply());
-        return;
-      }
-      final innerW = _phoneSeamlessScroll.position.viewportDimension;
-      final dayW = weekSchedulePhoneDayColumnWidthFromInnerWidth(
-        innerW,
-        orientation: MediaQuery.orientationOf(context),
-      );
-      if (dayW <= 0) return;
-
-      final globalIndex = AppDateTime.localDay(next)
-          .difference(kWeekPageAnchorMonday)
-          .inDays
-          .clamp(0, kWeekScheduleTotalDaySlots - 1);
-      final maxExtent = _phoneSeamlessScroll.position.maxScrollExtent;
-      final target = (globalIndex * dayW).clamp(0.0, maxExtent);
-      if ((_phoneSeamlessScroll.offset - target).abs() < 1.5) {
-        _currentPage = globalIndex ~/ 7;
-        return;
-      }
-
-      if (_timelineScrollOffset != 0) {
-        setState(() {
-          _timelineScrollOffset = 0;
-        });
-      }
-      _phoneSeamlessScroll.jumpTo(target);
-      _currentPage = globalIndex ~/ 7;
-    }
-
-    apply();
-  }
-
   void _handlePageChanged(int index) {
     _currentPage = index;
     if (_timelineScrollOffset != 0) {
@@ -327,7 +305,12 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
       return;
     }
 
-    ref.read(focusedDayProvider.notifier).update(mondayForPageIndex(index));
+    final monday = mondayForPageIndex(index);
+    final selected = ref.read(selectedDayProvider);
+    final weekdayOffset = (selected.weekday - DateTime.monday).clamp(0, 6);
+    final newDay = monday.add(Duration(days: weekdayOffset));
+    ref.read(selectedDayProvider.notifier).update(newDay, haptic: false);
+    ref.read(focusedDayProvider.notifier).update(newDay);
   }
 }
 

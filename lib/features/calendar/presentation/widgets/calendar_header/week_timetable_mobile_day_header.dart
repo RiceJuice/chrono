@@ -1,17 +1,17 @@
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
-import 'package:chronoapp/features/calendar/presentation/theme/calendar_presentation_theme.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_cell.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_marker_pill.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-const _dayMarkerBottomOffset = 1.0;
-const _dayMarkerWidth = 24.0;
-const _dayMarkerHeight = 6.0;
-const _rowHeight = 52.0;
+/// Wie [TableCalendar] mit `pageAnimationEnabled` (package table_calendar).
+const Curve _kWeekPageAnimCurve = Curves.easeOutCubic;
 
 /// Wochen-Kopf für schmale Viewports: eine Zeile mit 7 Tagen, sichtbare
 /// Auswahl und Wochenwechsel per horizontalem Wischen.
@@ -26,7 +26,7 @@ class WeekTimetableMobileDayHeader extends ConsumerStatefulWidget {
 class _WeekTimetableMobileDayHeaderState
     extends ConsumerState<WeekTimetableMobileDayHeader> {
   late final PageController _weekPageController;
-  int? _lastProgrammaticPage;
+  int? _programmaticTargetPage;
 
   @override
   void initState() {
@@ -42,8 +42,14 @@ class _WeekTimetableMobileDayHeaderState
     super.dispose();
   }
 
-  void _syncPageToFocusedWeek(DateTime? previous, DateTime next) {
-    final targetPage = pageIndexForMonday(weekMondayLocal(next));
+  Duration _durationForPageDelta(int delta) {
+    return Duration(
+      milliseconds: (delta.clamp(1, 6) * 40 + 220).clamp(220, 420).round(),
+    );
+  }
+
+  void _syncPageToWeek(DateTime day, {required bool animated}) {
+    final targetPage = pageIndexForMonday(weekMondayLocal(day));
 
     void apply() {
       if (!mounted) return;
@@ -51,20 +57,41 @@ class _WeekTimetableMobileDayHeaderState
         WidgetsBinding.instance.addPostFrameCallback((_) => apply());
         return;
       }
+
       final visible =
           _weekPageController.page?.round() ??
           _weekPageController.initialPage;
       if (visible == targetPage) return;
-      _lastProgrammaticPage = targetPage;
-      _weekPageController.jumpToPage(targetPage);
+
+      _programmaticTargetPage = targetPage;
+
+      if (animated) {
+        final delta = (targetPage - visible).abs();
+        _weekPageController
+            .animateToPage(
+              targetPage,
+              duration: _durationForPageDelta(delta),
+              curve: _kWeekPageAnimCurve,
+            )
+            .whenComplete(() {
+              if (mounted && _programmaticTargetPage == targetPage) {
+                _programmaticTargetPage = null;
+              }
+            });
+      } else {
+        _weekPageController.jumpToPage(targetPage);
+        _programmaticTargetPage = null;
+      }
     }
 
     apply();
   }
 
   void _onWeekPageChanged(int index) {
-    if (_lastProgrammaticPage == index) {
-      _lastProgrammaticPage = null;
+    if (_programmaticTargetPage != null) {
+      if (index == _programmaticTargetPage) {
+        _programmaticTargetPage = null;
+      }
       return;
     }
 
@@ -77,17 +104,39 @@ class _WeekTimetableMobileDayHeaderState
   }
 
   void _onDayTapped(DateTime day) {
+    ref.read(weekScheduleScrollDayProvider.notifier).clear();
     ref.read(selectedDayProvider.notifier).update(day);
     ref.read(focusedDayProvider.notifier).update(day);
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<DateTime>(focusedDayProvider, _syncPageToFocusedWeek);
+    ref.listen<DateTime?>(weekScheduleScrollDayProvider, (previous, next) {
+      if (next == null) return;
+      final stride = weekSchedulePanStrideFor(context);
+      _syncPageToWeek(
+        next,
+        animated: stride == WeekSchedulePanStride.day,
+      );
+    });
+
+    ref.listen<DateTime>(selectedDayProvider, (previous, next) {
+      if (previous == null) return;
+      _syncPageToWeek(next, animated: true);
+    });
+
+    ref.listen<DateTime>(focusedDayProvider, (previous, next) {
+      if (previous == null) return;
+      if (isSameDay(weekMondayLocal(previous), weekMondayLocal(next))) {
+        return;
+      }
+      _syncPageToWeek(next, animated: false);
+    });
 
     final scheme = Theme.of(context).colorScheme;
-    final todayAccent = CalendarPresentationTheme.todayAccentColor(context);
+    final scrollPreviewDay = ref.watch(weekScheduleScrollDayProvider);
     final selectedDay = ref.watch(selectedDayProvider);
+    final highlightDay = scrollPreviewDay ?? selectedDay;
     final dayMarkersByDate = ref
         .watch(filteredCalendarAllEntriesProvider)
         .maybeWhen(
@@ -103,7 +152,7 @@ class _WeekTimetableMobileDayHeaderState
     final weekdayFmt = DateFormat.E('de_DE');
 
     return SizedBox(
-      height: _rowHeight + _dayMarkerHeight + _dayMarkerBottomOffset + 4,
+      height: kCalendarWeekDayHeaderHeight,
       child: PageView.builder(
         controller: _weekPageController,
         itemCount: kWeekPageCount,
@@ -113,7 +162,7 @@ class _WeekTimetableMobileDayHeaderState
           return Row(
             children: List.generate(7, (i) {
               final day = monday.add(Duration(days: i));
-              final isSelected = isSameDay(selectedDay, day);
+              final isSelected = isSameDay(highlightDay, day);
               final isToday = AppDateTime.isTodayLocal(day);
               final marker = dayMarkersByDate[normalizeCalendarDay(day)];
 
@@ -123,64 +172,49 @@ class _WeekTimetableMobileDayHeaderState
                   child: InkWell(
                     onTap: () => _onDayTapped(day),
                     borderRadius: BorderRadius.circular(10),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            weekdayFmt.format(day),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: scheme.onSurface.withValues(
-                                    alpha: 0.65,
-                                  ),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeOutCubic,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? scheme.primary
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: kCalendarDaysOfWeekHeight,
+                          child: Center(
                             child: Text(
-                              '${day.day}',
-                              style: TextStyle(
-                                color: isSelected
-                                    ? (isToday
-                                          ? todayAccent
-                                          : scheme.onPrimary)
-                                    : (isToday
-                                          ? todayAccent
-                                          : scheme.onSurface),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
+                              weekdayFmt.format(day),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: scheme.onSurface.withValues(
+                                      alpha: 0.65,
+                                    ),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
                           ),
-                          if (marker != null && marker.totalMinutes > 0)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: CalendarDayMarkerPill(
-                                marker: marker,
-                                width: _dayMarkerWidth,
-                                height: _dayMarkerHeight,
-                                colorResolver: markerColorResolver,
-                              ),
-                            ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(
+                          height: kCalendarDayRowHeight,
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            child: isSelected
+                                ? CalendarSelectedDayCell(
+                                    key: ValueKey<DateTime>(day),
+                                    day: day,
+                                    marker: marker,
+                                    colorResolver: markerColorResolver,
+                                  )
+                                : CalendarDayNumberCell(
+                                    key: ValueKey('n-$day'),
+                                    day: day,
+                                    marker: marker,
+                                    isToday: isToday,
+                                    colorResolver: markerColorResolver,
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

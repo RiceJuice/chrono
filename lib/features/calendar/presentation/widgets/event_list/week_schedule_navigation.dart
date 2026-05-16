@@ -16,6 +16,13 @@ final DateTime kWeekPageAnchorMonday = DateTime(2018, 1, 1);
 
 const int kWeekPageCount = 700;
 
+/// Gleicher Zeitraum wie [kWeekPageCount] — für [TableCalendar.firstDay]/[lastDay].
+final DateTime kCalendarTableFirstDay = kWeekPageAnchorMonday;
+
+final DateTime kCalendarTableLastDay = kWeekPageAnchorMonday.add(
+  Duration(days: kWeekPageCount * 7 - 1),
+);
+
 int pageIndexForMonday(DateTime monday) {
   final days = monday.difference(kWeekPageAnchorMonday).inDays;
   final page = days ~/ 7;

@@ -19,12 +19,31 @@ const double kWeekSchedulePhoneDayTargetMinWidth = 112;
 /// weit auseinanderzieht.
 const double kWeekScheduleHourHeightPhone = 84;
 
-bool weekScheduleIsPhoneViewport(BuildContext context) {
-  return MediaQuery.sizeOf(context).width < kCalendarTabletBreakpoint;
+bool weekScheduleIsTabletViewport(BuildContext context) =>
+    calendarIsTabletLayout(context);
+
+bool weekScheduleIsPhoneViewport(BuildContext context) =>
+    calendarIsPhoneLayout(context);
+
+/// Nahtlose Tag-ListView nur im Phone-Portrait; Landscape-Phone und Tablets
+/// nutzen [WeekScheduleView]s Wochen-[PageView] + TableCalendar-Kopf.
+bool weekScheduleUsesMobileSeamlessScroll(BuildContext context) {
+  if (weekScheduleIsTabletViewport(context)) return false;
+  return MediaQuery.orientationOf(context) == Orientation.portrait;
+}
+
+/// Horizontale Snap-Einheit im mobilen Wochen-Stundenplan.
+enum WeekSchedulePanStride { day, week }
+
+/// Nur in der nahtlosen Mobile-ListView relevant (immer Tag).
+WeekSchedulePanStride weekSchedulePanStrideFor(BuildContext context) {
+  return weekScheduleUsesMobileSeamlessScroll(context)
+      ? WeekSchedulePanStride.day
+      : WeekSchedulePanStride.week;
 }
 
 double weekScheduleHourHeightFor(BuildContext context) {
-  return weekScheduleIsPhoneViewport(context)
+  return weekScheduleUsesMobileSeamlessScroll(context)
       ? kWeekScheduleHourHeightPhone
       : kWeekScheduleHourHeight;
 }
@@ -62,4 +81,17 @@ double weekSchedulePhoneDayColumnWidthFromInnerWidth(
     orientation: orientation,
   );
   return innerWidth / n;
+}
+
+/// Horizontale Snap-Strecke: ein Tag oder eine volle Woche (7 Spalten).
+double weekScheduleSnapStrideFromInnerWidth(
+  double innerWidth, {
+  required Orientation orientation,
+  required WeekSchedulePanStride stride,
+}) {
+  final dayW = weekSchedulePhoneDayColumnWidthFromInnerWidth(
+    innerWidth,
+    orientation: orientation,
+  );
+  return stride == WeekSchedulePanStride.day ? dayW : dayW * 7;
 }

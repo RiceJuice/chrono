@@ -6,11 +6,35 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _themeModePreferenceKey = 'app_theme_mode';
 
+ThemeMode? _bootstrappedThemeMode;
+
+/// Lädt den gespeicherten Modus vor dem ersten Frame (Splash / Ladescreen).
+Future<ThemeMode> bootstrapThemeMode() async {
+  final mode = await loadStoredThemeMode();
+  _bootstrappedThemeMode = mode;
+  return mode;
+}
+
+Future<ThemeMode> loadStoredThemeMode() async {
+  final preferences = await SharedPreferences.getInstance();
+  final storedValue = preferences.getString(_themeModePreferenceKey);
+  if (storedValue == null) return ThemeMode.system;
+  return ThemeMode.values.firstWhere(
+    (mode) => mode.name == storedValue,
+    orElse: () => ThemeMode.system,
+  );
+}
+
 class AppThemeModeController extends fr.Notifier<ThemeMode> {
   bool _hasLocalChange = false;
 
   @override
   ThemeMode build() {
+    final bootstrapped = _bootstrappedThemeMode;
+    if (bootstrapped != null) {
+      _bootstrappedThemeMode = null;
+      return bootstrapped;
+    }
     unawaited(_loadThemeMode());
     return ThemeMode.system;
   }
@@ -27,15 +51,11 @@ class AppThemeModeController extends fr.Notifier<ThemeMode> {
   }
 
   Future<void> _loadThemeMode() async {
-    final preferences = await SharedPreferences.getInstance();
-    final storedValue = preferences.getString(_themeModePreferenceKey);
-    if (storedValue == null) return;
     if (_hasLocalChange) return;
-
-    state = ThemeMode.values.firstWhere(
-      (mode) => mode.name == storedValue,
-      orElse: () => ThemeMode.system,
-    );
+    final loaded = await loadStoredThemeMode();
+    if (state != loaded) {
+      state = loaded;
+    }
   }
 }
 
