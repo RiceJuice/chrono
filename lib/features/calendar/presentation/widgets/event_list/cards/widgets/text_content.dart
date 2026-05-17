@@ -8,6 +8,39 @@ const _cardTextHeightTight = TextHeightBehavior(
   applyHeightToLastDescent: false,
 );
 
+/// Layout-Entscheidungen für kompakte Wochenraster-Karten (kein Overflow).
+({int titleMaxLines, bool showTimeRange}) resolveCalendarCompactTextLayout({
+  required BoxConstraints constraints,
+  required bool wantTimeRange,
+  required bool hasChoirLine,
+  double titleFontSize = 16,
+}) {
+  if (!constraints.hasBoundedHeight || !constraints.maxHeight.isFinite) {
+    return (titleMaxLines: 2, showTimeRange: wantTimeRange);
+  }
+
+  final maxH = constraints.maxHeight;
+  final choirH = hasChoirLine ? 14.0 : 0.0;
+  final lineH = titleFontSize + 2.0;
+  const timeBlock = 3.0 + 16.0;
+
+  final oneLineAndTime = choirH + lineH + timeBlock;
+  final twoLines = choirH + lineH * 2;
+  final twoLinesAndTime = twoLines + timeBlock;
+
+  if (twoLines <= maxH) {
+    final showTime = wantTimeRange && twoLinesAndTime <= maxH;
+    return (titleMaxLines: 2, showTimeRange: showTime);
+  }
+  if (oneLineAndTime <= maxH && wantTimeRange) {
+    return (titleMaxLines: 1, showTimeRange: true);
+  }
+  if (choirH + lineH <= maxH) {
+    return (titleMaxLines: 1, showTimeRange: false);
+  }
+  return (titleMaxLines: 1, showTimeRange: false);
+}
+
 /// Ob die Uhrzeit-Zeile bei begrenzter Kartenhöhe Platz hat (vermeidet Overflow).
 bool shouldShowCalendarEntryTimeRangeRow({
   required BoxConstraints constraints,
@@ -20,18 +53,75 @@ bool shouldShowCalendarEntryTimeRangeRow({
   if (!constraints.hasBoundedHeight || !constraints.maxHeight.isFinite) {
     return true;
   }
+  if (compact) {
+    return resolveCalendarCompactTextLayout(
+      constraints: constraints,
+      wantTimeRange: wantTimeRange,
+      hasChoirLine: hasChoirLine,
+    ).showTimeRange;
+  }
   var minH = 0.0;
   if (hasChoirLine) minH += 16;
-  if (compact) {
-    minH += 38;
-    minH += 18;
-  } else {
-    minH += 26;
-    // Nicht-kompakt: immer Beschreibungs-Zeile (auch leer), siehe [TextContent].
-    minH += 36;
-    minH += 22;
-  }
+  minH += 26;
+  // Nicht-kompakt: immer Beschreibungs-Zeile (auch leer), siehe [TextContent].
+  minH += 36;
+  minH += 22;
   return constraints.maxHeight >= minH;
+}
+
+/// Kompakter Karteninhalt für das Wochenraster: [TextContent] mit
+/// höhenabhängigem Ausblenden der Uhrzeitzeile (vermeidet Overflow).
+class CalendarCompactCardText extends StatelessWidget {
+  const CalendarCompactCardText({
+    super.key,
+    required this.entry,
+    required this.primaryTextColor,
+    required this.secondaryTextColor,
+    required this.wantInlineTimeRange,
+    this.showChoirAboveTitle = false,
+    this.titleFontSize,
+    this.titleFontWeight,
+  });
+
+  final CalendarEntry entry;
+  final Color primaryTextColor;
+  final Color secondaryTextColor;
+  final bool wantInlineTimeRange;
+  final bool showChoirAboveTitle;
+  final double? titleFontSize;
+  final FontWeight? titleFontWeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fontSize = titleFontSize ?? 16;
+        final layout = resolveCalendarCompactTextLayout(
+          constraints: constraints,
+          wantTimeRange: wantInlineTimeRange,
+          hasChoirLine:
+              showChoirAboveTitle && entry.choir != BackendChoir.unknown,
+          titleFontSize: fontSize,
+        );
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+          child: ClipRect(
+            child: TextContent(
+              entry: entry,
+              primaryTextColor: primaryTextColor,
+              secondaryTextColor: secondaryTextColor,
+              showChoirAboveTitle: showChoirAboveTitle,
+              titleFontSize: titleFontSize,
+              titleFontWeight: titleFontWeight,
+              compact: true,
+              compactTitleMaxLines: layout.titleMaxLines,
+              showInlineTimeRange: layout.showTimeRange,
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// Zeile mit Uhrzeit-Icon und „HH:mm – HH:mm“ (für Karten ohne [TimeColumn]).
@@ -132,6 +222,7 @@ class TextContent extends StatelessWidget {
     this.titleFontSize,
     this.titleFontWeight,
     this.compact = false,
+    this.compactTitleMaxLines,
     this.showInlineTimeRange = false,
   });
 
@@ -142,6 +233,9 @@ class TextContent extends StatelessWidget {
   final double? titleFontSize;
   final FontWeight? titleFontWeight;
   final bool compact;
+
+  /// Nur im Kompaktmodus: 1 oder 2 Titelzeilen je nach verfügbarer Höhe.
+  final int? compactTitleMaxLines;
 
   /// Wenn true: Zeitspanne unter Titel/Beschreibung (z. B. Wochenraster ohne Zeitleiste).
   final bool showInlineTimeRange;
@@ -182,7 +276,7 @@ class TextContent extends StatelessWidget {
         ],
         Text(
           entry.eventName,
-          maxLines: compact ? 2 : null,
+          maxLines: compact ? (compactTitleMaxLines ?? 2).clamp(1, 2) : null,
           overflow: compact ? TextOverflow.ellipsis : null,
           textHeightBehavior: _cardTextHeightTight,
           style: theme.textTheme.bodyLarge?.copyWith(

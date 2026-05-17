@@ -133,60 +133,14 @@ class _EventCardState extends State<EventCard> {
             ),
             child: Align(
               alignment: Alignment.topLeft,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final hasChoir = entry.choir != BackendChoir.unknown;
-                  final showTime = shouldShowCalendarEntryTimeRangeRow(
-                    constraints: constraints,
-                    wantTimeRange: wantTimeRange,
-                    compact: true,
-                    hasChoirLine: hasChoir,
-                    hasDescription: false,
-                  );
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (entry.choir != BackendChoir.unknown) ...[
-                        Text(
-                          entry.choir.displayLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textHeightBehavior: _compactTextHeightBehavior,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: style.secondaryTextColor.withValues(
-                              alpha: 0.75,
-                            ),
-                            height: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                      ],
-                      Text(
-                        entry.eventName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textHeightBehavior: _compactTextHeightBehavior,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: style.primaryTextColor,
-                          height: 1,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (showTime) ...[
-                        const SizedBox(height: 3),
-                        CalendarEntryTimeRangeRow(
-                          entry: entry,
-                          mutedColor: style.secondaryTextColor.withValues(
-                            alpha: 0.58,
-                          ),
-                          compact: true,
-                        ),
-                      ],
-                    ],
-                  );
-                },
+              child: CalendarCompactCardText(
+                entry: entry,
+                primaryTextColor: style.primaryTextColor,
+                secondaryTextColor: style.secondaryTextColor,
+                wantInlineTimeRange: wantTimeRange,
+                showChoirAboveTitle: true,
+                titleFontSize: 14,
+                titleFontWeight: FontWeight.w500,
               ),
             ),
           ),

@@ -16,7 +16,14 @@ const Curve _kWeekPageAnimCurve = Curves.easeOutCubic;
 /// Wochen-Kopf für schmale Viewports: eine Zeile mit 7 Tagen, sichtbare
 /// Auswahl und Wochenwechsel per horizontalem Wischen.
 class WeekTimetableMobileDayHeader extends ConsumerStatefulWidget {
-  const WeekTimetableMobileDayHeader({super.key});
+  const WeekTimetableMobileDayHeader({
+    this.showSelectedDayIndicator = true,
+    super.key,
+  });
+
+  /// Bei [WeekSchedulePanStride.week]: keine Auswahlbox, Pillen nur an nicht
+  /// ausgewählten Tagen (siehe [CustomTableCalendar]).
+  final bool showSelectedDayIndicator;
 
   @override
   ConsumerState<WeekTimetableMobileDayHeader> createState() =>
@@ -31,7 +38,7 @@ class _WeekTimetableMobileDayHeaderState
   @override
   void initState() {
     super.initState();
-    final monday = weekMondayLocal(ref.read(focusedDayProvider));
+    final monday = AppDateTime.localMondayOfWeek(ref.read(focusedDayProvider));
     final initialPage = pageIndexForMonday(monday);
     _weekPageController = PageController(initialPage: initialPage);
   }
@@ -49,7 +56,7 @@ class _WeekTimetableMobileDayHeaderState
   }
 
   void _syncPageToWeek(DateTime day, {required bool animated}) {
-    final targetPage = pageIndexForMonday(weekMondayLocal(day));
+    final targetPage = pageIndexForMonday(AppDateTime.localMondayOfWeek(day));
 
     void apply() {
       if (!mounted) return;
@@ -97,8 +104,10 @@ class _WeekTimetableMobileDayHeaderState
 
     final monday = mondayForPageIndex(index);
     final selected = ref.read(selectedDayProvider);
-    final weekdayOffset = (selected.weekday - DateTime.monday).clamp(0, 6);
-    final newDay = monday.add(Duration(days: weekdayOffset));
+    final newDay = AppDateTime.sameWeekdayInWeekOf(
+      weekReference: monday,
+      weekdaySource: selected,
+    );
     ref.read(selectedDayProvider.notifier).update(newDay);
     ref.read(focusedDayProvider.notifier).update(newDay);
   }
@@ -127,7 +136,7 @@ class _WeekTimetableMobileDayHeaderState
 
     ref.listen<DateTime>(focusedDayProvider, (previous, next) {
       if (previous == null) return;
-      if (isSameDay(weekMondayLocal(previous), weekMondayLocal(next))) {
+      if (AppDateTime.isSameLocalWeek(previous, next)) {
         return;
       }
       _syncPageToWeek(next, animated: false);
@@ -161,7 +170,7 @@ class _WeekTimetableMobileDayHeaderState
           final monday = mondayForPageIndex(pageIndex);
           return Row(
             children: List.generate(7, (i) {
-              final day = monday.add(Duration(days: i));
+              final day = AppDateTime.addLocalCalendarDays(monday, i);
               final isSelected = isSameDay(highlightDay, day);
               final isToday = AppDateTime.isTodayLocal(day);
               final marker = dayMarkersByDate[normalizeCalendarDay(day)];
@@ -198,7 +207,8 @@ class _WeekTimetableMobileDayHeaderState
                             duration: const Duration(milliseconds: 200),
                             switchInCurve: Curves.easeOutCubic,
                             switchOutCurve: Curves.easeInCubic,
-                            child: isSelected
+                            child: isSelected &&
+                                    widget.showSelectedDayIndicator
                                 ? CalendarSelectedDayCell(
                                     key: ValueKey<DateTime>(day),
                                     day: day,
@@ -208,7 +218,7 @@ class _WeekTimetableMobileDayHeaderState
                                 : CalendarDayNumberCell(
                                     key: ValueKey('n-$day'),
                                     day: day,
-                                    marker: marker,
+                                    marker: isSelected ? null : marker,
                                     isToday: isToday,
                                     colorResolver: markerColorResolver,
                                   ),

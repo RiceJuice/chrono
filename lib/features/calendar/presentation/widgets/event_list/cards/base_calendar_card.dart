@@ -1,5 +1,5 @@
-import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/leading_indicator/calendar_card_leading_indicator.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
@@ -14,7 +14,8 @@ class BaseCalendarCard extends StatelessWidget {
   final bool applyPastStyling;
   final Color? backgroundColor;
   final EdgeInsetsGeometry contentPadding;
-  final Widget? leadingIndicator; // Für den farbigen Strich bei Events
+  /// Akzentfarbe für den farbigen Streifen links; `null` = kein Streifen.
+  final Color? leadingIndicatorColor;
   final bool showChoirAboveTitle;
   final double? titleFontSize;
   final FontWeight? titleFontWeight;
@@ -32,11 +33,8 @@ class BaseCalendarCard extends StatelessWidget {
     required this.entry,
     this.applyPastStyling = false,
     this.backgroundColor,
-    this.contentPadding = const EdgeInsets.symmetric(
-      horizontal: AppSpacing.s,
-      vertical: AppSpacing.s,
-    ),
-    this.leadingIndicator,
+    this.contentPadding = CalendarCardLeadingIndicator.contentPadding,
+    this.leadingIndicatorColor,
     this.showChoirAboveTitle = false,
     this.titleFontSize,
     this.titleFontWeight,
@@ -81,37 +79,22 @@ class BaseCalendarCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (leadingIndicator != null) ...[
-                      leadingIndicator!,
-                      const SizedBox(width: AppSpacing.s),
+                    if (leadingIndicatorColor != null) ...[
+                      CalendarCardLeadingIndicator(color: leadingIndicatorColor!),
+                      const SizedBox(width: CalendarCardLeadingIndicator.gapAfterBar),
                     ],
                     Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final showCompactInlineTime =
-                              shouldShowCalendarEntryTimeRangeRow(
-                                constraints: constraints,
-                                wantTimeRange: inlineTime,
-                                compact: true,
-                                hasChoirLine:
-                                    showChoirAboveTitle &&
-                                    entry.choir != BackendChoir.unknown,
-                                hasDescription: false,
-                              );
-                          return Align(
-                            alignment: Alignment.topLeft,
-                            child: TextContent(
-                              entry: entry,
-                              primaryTextColor: style.primaryTextColor,
-                              secondaryTextColor: style.secondaryTextColor,
-                              showChoirAboveTitle: showChoirAboveTitle,
-                              titleFontSize: titleFontSize,
-                              titleFontWeight: titleFontWeight,
-                              compact: true,
-                              showInlineTimeRange: showCompactInlineTime,
-                            ),
-                          );
-                        },
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: CalendarCompactCardText(
+                          entry: entry,
+                          primaryTextColor: style.primaryTextColor,
+                          secondaryTextColor: style.secondaryTextColor,
+                          wantInlineTimeRange: inlineTime,
+                          showChoirAboveTitle: showChoirAboveTitle,
+                          titleFontSize: titleFontSize,
+                          titleFontWeight: titleFontWeight,
+                        ),
                       ),
                     ),
                   ],
@@ -169,9 +152,13 @@ class BaseCalendarCard extends StatelessWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              if (leadingIndicator != null) ...[
-                                leadingIndicator!,
-                                const SizedBox(width: AppSpacing.s),
+                              if (leadingIndicatorColor != null) ...[
+                                CalendarCardLeadingIndicator(
+                                  color: leadingIndicatorColor!,
+                                ),
+                                const SizedBox(
+                                  width: CalendarCardLeadingIndicator.gapAfterBar,
+                                ),
                               ],
                               Expanded(
                                 child: TextContent(

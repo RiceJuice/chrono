@@ -89,6 +89,17 @@ class CalendarFiltersState {
       schoolTrackDeviations.isNotEmpty ||
       dietDeviations.isNotEmpty;
 
+  /// Anzahl Kategorien mit Abweichung vom Profil-Standard (Chor zählt einmal).
+  int get deviationCategoryCount {
+    var count = 0;
+    if (choirDeviations.isNotEmpty) count++;
+    if (voiceDeviations.isNotEmpty) count++;
+    if (classNameDeviations.isNotEmpty) count++;
+    if (schoolTrackDeviations.isNotEmpty) count++;
+    if (dietDeviations.isNotEmpty) count++;
+    return count;
+  }
+
   bool isCalendarVisible(CalendarVisibility calendar) {
     return switch (calendar) {
       CalendarVisibility.choir => showChoirCalendar,

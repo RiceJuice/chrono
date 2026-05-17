@@ -14,6 +14,32 @@ export 'filter/calendar/calendar_filters_state.dart';
 export 'filter/search/search_filters_provider.dart';
 part 'calendar_providers.g.dart';
 
+/// Ursache der letzten [SelectedDay]-Änderung — steuert z. B. den Appear-Bounce
+/// in [CalendarDaySelectionAppear] (nur bei [external], nicht bei [tap]).
+enum CalendarDaySelectionOrigin {
+  tap,
+  external,
+}
+
+class CalendarDaySelectionOriginTracker extends fr.Notifier<CalendarDaySelectionOrigin> {
+  /// Wird nur in [SelectedDay.update] erhöht — verhindert Appear beim Kaltstart.
+  int changeGeneration = 0;
+
+  @override
+  CalendarDaySelectionOrigin build() => CalendarDaySelectionOrigin.external;
+
+  void setOrigin(CalendarDaySelectionOrigin origin) {
+    state = origin;
+    changeGeneration++;
+  }
+}
+
+final calendarDaySelectionOriginProvider =
+    fr.NotifierProvider<CalendarDaySelectionOriginTracker,
+        CalendarDaySelectionOrigin>(
+      CalendarDaySelectionOriginTracker.new,
+    );
+
 @riverpod
 class SelectedDay extends _$SelectedDay {
   @override
@@ -21,13 +47,18 @@ class SelectedDay extends _$SelectedDay {
     return AppDateTime.todayLocal();
   }
 
-  void update(DateTime newDate, {bool haptic = true}) {
+  void update(
+    DateTime newDate, {
+    bool haptic = true,
+    CalendarDaySelectionOrigin origin = CalendarDaySelectionOrigin.external,
+  }) {
     final next = AppDateTime.localDay(newDate);
     if (state.year == next.year &&
         state.month == next.month &&
         state.day == next.day) {
       return;
     }
+    ref.read(calendarDaySelectionOriginProvider.notifier).setOrigin(origin);
     if (haptic) {
       HapticFeedback.mediumImpact();
     }

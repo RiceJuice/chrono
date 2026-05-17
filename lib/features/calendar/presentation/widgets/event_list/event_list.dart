@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/core/time/local_calendar_index.dart';
 import '../../providers/calendar_providers.dart';
 import 'day_page.dart';
-import 'event_list_navigation_logic.dart';
 import 'event_list_page_transition.dart';
 
 /// Feste Gesamthöhe des farbigen Headers im Termin-Bottom-Sheet (ohne Skalierung).
@@ -22,8 +22,7 @@ class _EventListState extends ConsumerState<EventList>
     with SingleTickerProviderStateMixin {
   late PageController _pageController;
   int? _currentIndex;
-  late final DateTime _startDate;
-  late final EventListNavigationLogic _navigationLogic;
+  late final LocalCalendarIndex _dayIndex;
   late final AnimationController _transitionController;
   _TransitionData? _activeTransition;
   int? _pendingProgrammaticPage;
@@ -104,9 +103,9 @@ class _EventListState extends ConsumerState<EventList>
 
   void _startOverlayTransition({required int fromIndex, required int toIndex}) {
     final transition = _TransitionData(
-      fromDate: _navigationLogic.dateFromIndex(fromIndex),
-      toDate: _navigationLogic.dateFromIndex(toIndex),
-      isForward: _navigationLogic.isForward(fromIndex, toIndex),
+      fromDate: _dayIndex.dayAt(fromIndex),
+      toDate: _dayIndex.dayAt(toIndex),
+      isForward: toIndex > fromIndex,
     );
 
     setState(() {
@@ -143,21 +142,16 @@ class _EventListState extends ConsumerState<EventList>
   void initState() {
     super.initState();
     final normalizedToday = AppDateTime.todayLocal();
-    _startDate = DateTime(
-      normalizedToday.year,
-      normalizedToday.month,
-      normalizedToday.day - 500,
+    _dayIndex = LocalCalendarIndex(
+      AppDateTime.addLocalCalendarDays(normalizedToday, -500),
     );
-    _navigationLogic = EventListNavigationLogic(startDate: _startDate);
     _transitionController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 120),
     );
 
-    final initialDay = _navigationLogic.normalize(
-      ref.read(selectedDayProvider),
-    );
-    final initialIndex = _navigationLogic.indexFromDate(initialDay);
+    final initialDay = _dayIndex.normalize(ref.read(selectedDayProvider));
+    final initialIndex = _dayIndex.indexOf(initialDay);
     _currentIndex = initialIndex;
     _pageController = PageController(initialPage: initialIndex);
   }
@@ -172,11 +166,10 @@ class _EventListState extends ConsumerState<EventList>
   @override
   Widget build(BuildContext context) {
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
-      final targetIndex = _navigationLogic.indexFromDate(next);
+      final targetIndex = _dayIndex.indexOf(next);
       final currentIndex = _currentIndex;
 
-      if (!_pageController.hasClients ||
-          !_navigationLogic.shouldNavigate(currentIndex, targetIndex)) {
+      if (!_pageController.hasClients || currentIndex == targetIndex) {
         return;
       }
 
@@ -201,20 +194,19 @@ class _EventListState extends ConsumerState<EventList>
             ),
             onPageChanged: (index) {
               _currentIndex = index;
+              final newDate = _dayIndex.dayAt(index);
               if (_pendingProgrammaticPage != null &&
                   _pendingProgrammaticPage == index) {
                 _pendingProgrammaticPage = null;
                 return;
               }
               _pendingProgrammaticPage = null;
-              final newDate = _navigationLogic.dateFromIndex(index);
-              if (_navigationLogic.normalize(ref.read(selectedDayProvider)) !=
-                  newDate) {
+              if (_dayIndex.normalize(ref.read(selectedDayProvider)) != newDate) {
                 ref.read(selectedDayProvider.notifier).update(newDate);
               }
             },
             itemBuilder: (context, index) {
-              final dateForPage = _navigationLogic.dateFromIndex(index);
+              final dateForPage = _dayIndex.dayAt(index);
               return DayPage(
                 key: ValueKey<DateTime>(dateForPage),
                 date: dateForPage,

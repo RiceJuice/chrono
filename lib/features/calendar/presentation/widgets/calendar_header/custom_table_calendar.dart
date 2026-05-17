@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import '../../providers/calendar_providers.dart';
 import '../../theme/calendar_presentation_theme.dart';
 import 'calendar_day_cell.dart';
 import 'calendar_day_marker_pill.dart';
+import 'calendar_day_spring_interaction.dart';
 import 'week_timetable_mobile_day_header.dart';
 import '../calendar_week_layout_tokens.dart';
 const _calendarMorphDuration = Duration(milliseconds: 420);
@@ -38,13 +40,19 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
     return a.year == b.year && a.month == b.month;
   }
 
-  DateTime _startOfWeek(DateTime day) {
-    final normalizedDay = DateTime(day.year, day.month, day.day);
-    final offsetFromMonday = normalizedDay.weekday - DateTime.monday;
-    return DateTime(
-      normalizedDay.year,
-      normalizedDay.month,
-      normalizedDay.day - offsetFromMonday,
+  bool get _dayInteractionEnabled => !widget.weekTimetableMode;
+
+  /// Tages-Snap (Phone-Portrait): runde Auswahlbox + leere Pille.
+  /// Wochen-Snap (Landscape/Tablet): nur normale Zellen, Pillen außer am Auswahltag.
+  bool _showSelectedDayIndicator(BuildContext context) {
+    if (!widget.weekTimetableMode) return true;
+    return weekSchedulePanStrideFor(context) == WeekSchedulePanStride.day;
+  }
+
+  Widget _wrapDayInteraction(Widget child) {
+    return CalendarDaySpringInteraction(
+      enabled: _dayInteractionEnabled,
+      child: child,
     );
   }
 
@@ -71,12 +79,9 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           1,
         );
       case CalendarFormat.week:
-        final weekStart = _startOfWeek(normalizedFocusedDay);
-        final weekdayOffset = currentSelectedDay.weekday - DateTime.monday;
-        return DateTime(
-          weekStart.year,
-          weekStart.month,
-          weekStart.day + weekdayOffset,
+        return AppDateTime.sameWeekdayInWeekOf(
+          weekReference: normalizedFocusedDay,
+          weekdaySource: currentSelectedDay,
         );
       case CalendarFormat.twoWeeks:
         return normalizedFocusedDay;
@@ -90,7 +95,9 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
         duration: _calendarMorphDuration,
         curve: _calendarMorphCurve,
         padding: EdgeInsets.only(left: widget.leftGutterWidth),
-        child: const WeekTimetableMobileDayHeader(),
+        child: WeekTimetableMobileDayHeader(
+          showSelectedDayIndicator: _showSelectedDayIndicator(context),
+        ),
       );
     }
 
@@ -100,6 +107,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
     );
     final selectedDay = ref.watch(selectedDayProvider);
     final focusedDay = ref.watch(focusedDayProvider);
+    final showSelectedDayIndicator = _showSelectedDayIndicator(context);
     final dayMarkersByDate = ref
         .watch(filteredCalendarAllEntriesProvider)
         .maybeWhen(
@@ -177,7 +185,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
       ),
       calendarBuilders: CalendarBuilders(
         markerBuilder: (context, day, events) {
-          if (!widget.weekTimetableMode && isSameDay(day, selectedDay)) {
+          if (isSameDay(day, selectedDay) && showSelectedDayIndicator) {
             return const SizedBox.shrink();
           }
           if (events.isEmpty) return null;
@@ -190,10 +198,28 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
             colorResolver: markerColorResolver,
           );
         },
-        selectedBuilder: (context, day, focusedDay) {
-          if (widget.calendarFormat == CalendarFormat.month &&
-              !_isSameMonth(day, focusedDay)) {
-            return Container(
+        defaultBuilder: (context, day, focusedDay) {
+          final isOutsideMonth =
+              widget.calendarFormat == CalendarFormat.month &&
+              !_isSameMonth(day, focusedDay);
+          return _wrapDayInteraction(
+            Container(
+              margin: const EdgeInsets.all(2),
+              alignment: Alignment.center,
+              child: Text(
+                '${day.day}',
+                style: TextStyle(
+                  color: isOutsideMonth
+                      ? scheme.onSurface.withValues(alpha: 0.3)
+                      : scheme.onSurface,
+                ),
+              ),
+            ),
+          );
+        },
+        outsideBuilder: (context, day, focusedDay) {
+          return _wrapDayInteraction(
+            Container(
               margin: const EdgeInsets.all(2),
               alignment: Alignment.center,
               child: Text(
@@ -202,43 +228,73 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
                   color: scheme.onSurface.withValues(alpha: 0.3),
                 ),
               ),
+            ),
+          );
+        },
+        selectedBuilder: (context, day, focusedDay) {
+          if (!showSelectedDayIndicator) {
+            return null;
+          }
+          if (widget.calendarFormat == CalendarFormat.month &&
+              !_isSameMonth(day, focusedDay)) {
+            return _wrapDayInteraction(
+              Container(
+                margin: const EdgeInsets.all(2),
+                alignment: Alignment.center,
+                child: Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    color: scheme.onSurface.withValues(alpha: 0.3),
+                  ),
+                ),
+              ),
             );
           }
 
           final marker = dayMarkersByDate[normalizeCalendarDay(day)];
 
-          return CalendarSelectedDayCell(
-            day: day,
-            marker: marker,
-            colorResolver: markerColorResolver,
+          return _wrapDayInteraction(
+            CalendarDaySelectionAppear(
+              day: day,
+              child: CalendarSelectedDayCell(
+                day: day,
+                marker: marker,
+                colorResolver: markerColorResolver,
+              ),
+            ),
           );
         },
         todayBuilder: (context, day, focusedDay) {
-          if (!widget.weekTimetableMode && isSameDay(day, selectedDay)) {
+          if (isSameDay(day, selectedDay) && showSelectedDayIndicator) {
             return null;
           }
-          return Container(
-            margin: const EdgeInsets.all(2),
-            alignment: Alignment.center,
-            child: Text(
-              '${day.day}',
-              style: TextStyle(
-                color: todayAccentColor,
-                fontWeight: FontWeight.w700,
+          return _wrapDayInteraction(
+            Container(
+              margin: const EdgeInsets.all(2),
+              alignment: Alignment.center,
+              child: Text(
+                '${day.day}',
+                style: TextStyle(
+                  color: todayAccentColor,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           );
         },
       ),
-      selectedDayPredicate: widget.weekTimetableMode
-          ? (_) => false
-          : (day) => isSameDay(selectedDay, day),
+      selectedDayPredicate: showSelectedDayIndicator
+          ? (day) => isSameDay(selectedDay, day)
+          : (_) => false,
       onFormatChanged: widget.onFormatChanged,
       onDaySelected: (newSelectedDay, newFocusedDay) {
         if (widget.weekTimetableMode) return;
         final currentSelectedDay = ref.read(selectedDayProvider);
         if (isSameDay(currentSelectedDay, newSelectedDay)) return;
-        ref.read(selectedDayProvider.notifier).update(newSelectedDay);
+        ref.read(selectedDayProvider.notifier).update(
+              newSelectedDay,
+              origin: CalendarDaySelectionOrigin.tap,
+            );
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },
       onPageChanged: (newFocusedDay) {

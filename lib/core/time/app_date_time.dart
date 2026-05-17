@@ -10,6 +10,56 @@ class AppDateTime {
     return DateTime(local.year, local.month, local.day);
   }
 
+  /// Kalendertags-Index (UTC-Datumsteil), unabhängig von Sommer-/Winterzeit.
+  static int localCalendarDayNumber(DateTime value) {
+    final day = localDay(value);
+    return DateTime.utc(day.year, day.month, day.day)
+        .difference(DateTime.utc(1970, 1, 1))
+        .inDays;
+  }
+
+  /// Addiert Kalendertage per Datumskomponente (kein [Duration]-Add auf Local).
+  static DateTime addLocalCalendarDays(DateTime value, int days) {
+    final day = localDay(value);
+    return DateTime(day.year, day.month, day.day + days);
+  }
+
+  /// Kalendertage zwischen zwei lokalen Tagen (immer ganzzahlig).
+  static int localCalendarDaysBetween(DateTime from, DateTime to) {
+    return localCalendarDayNumber(to) - localCalendarDayNumber(from);
+  }
+
+  /// Montag der ISO-Woche, die [day] enthält (lokales Datum).
+  static DateTime localMondayOfWeek(DateTime day) {
+    final normalized = localDay(day);
+    final offsetFromMonday = normalized.weekday - DateTime.monday;
+    return DateTime(
+      normalized.year,
+      normalized.month,
+      normalized.day - offsetFromMonday,
+    );
+  }
+
+  /// 0 = Montag … 6 = Sonntag innerhalb der Woche von [day].
+  static int weekdayOffsetFromMonday(DateTime day) {
+    return (localDay(day).weekday - DateTime.monday).clamp(0, 6);
+  }
+
+  /// Wochentag von [weekdaySource] in der Woche, die [weekReference] enthält.
+  static DateTime sameWeekdayInWeekOf({
+    required DateTime weekReference,
+    required DateTime weekdaySource,
+  }) {
+    return addLocalCalendarDays(
+      localMondayOfWeek(weekReference),
+      weekdayOffsetFromMonday(weekdaySource),
+    );
+  }
+
+  static bool isSameLocalWeek(DateTime a, DateTime b) {
+    return isSameLocalDay(localMondayOfWeek(a), localMondayOfWeek(b));
+  }
+
   static DateTime todayLocal({DateTime? now}) =>
       localDay(now ?? DateTime.now());
 

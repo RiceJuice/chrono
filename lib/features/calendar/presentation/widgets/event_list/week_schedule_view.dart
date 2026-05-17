@@ -45,7 +45,7 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
       initialScrollOffset:
           CalendarStartupState.phoneSeamlessScrollOffset ?? 0,
     );
-    final monday = weekMondayLocal(ref.read(focusedDayProvider));
+    final monday = AppDateTime.localMondayOfWeek(ref.read(focusedDayProvider));
     final initialPage = pageIndexForMonday(monday);
     _weekPageController = PageController(initialPage: initialPage);
     _ensureTransitionController();
@@ -159,10 +159,10 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
   }
 
   Widget _buildFixedTimeline(BuildContext context) {
-    final monday = weekMondayLocal(ref.watch(focusedDayProvider));
+    final monday = AppDateTime.localMondayOfWeek(ref.watch(focusedDayProvider));
     final weekDays = List<DateTime>.generate(
       7,
-      (index) => monday.add(Duration(days: index)),
+      (index) => AppDateTime.addLocalCalendarDays(monday, index),
     );
     final asyncDays = weekDays
         .map((day) => ref.watch(filteredCalendarEntriesForDayProvider(day)))
@@ -259,7 +259,7 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
       return;
     }
 
-    final targetPage = pageIndexForMonday(weekMondayLocal(next));
+    final targetPage = pageIndexForMonday(AppDateTime.localMondayOfWeek(next));
 
     void applySync() {
       if (!mounted) return;
@@ -307,8 +307,10 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
 
     final monday = mondayForPageIndex(index);
     final selected = ref.read(selectedDayProvider);
-    final weekdayOffset = (selected.weekday - DateTime.monday).clamp(0, 6);
-    final newDay = monday.add(Duration(days: weekdayOffset));
+    final newDay = AppDateTime.sameWeekdayInWeekOf(
+      weekReference: monday,
+      weekdaySource: selected,
+    );
     ref.read(selectedDayProvider.notifier).update(newDay, haptic: false);
     ref.read(focusedDayProvider.notifier).update(newDay);
   }

@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_day_columns.dart';
@@ -25,7 +26,7 @@ class WeekScheduleGrid extends ConsumerWidget {
         hourHeight ?? weekScheduleHourHeightFor(context);
     final weekDays = List<DateTime>.generate(
       7,
-      (index) => monday.add(Duration(days: index)),
+      (index) => AppDateTime.addLocalCalendarDays(monday, index),
     );
     final asyncDays = weekDays
         .map((day) => ref.watch(filteredCalendarEntriesForDayProvider(day)))

@@ -1,34 +1,34 @@
-import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/core/time/local_calendar_index.dart';
 
-/// Montag der Kalenderwoche (lokal), [day] nur Datumsteil relevant.
-DateTime weekMondayLocal(DateTime day) {
-  final normalized = AppDateTime.localDay(day);
-  final offsetFromMonday = normalized.weekday - DateTime.monday;
-  return DateTime(
-    normalized.year,
-    normalized.month,
-    normalized.day - offsetFromMonday,
-  );
-}
-
-/// Genügend großer Wochenbereich für den bestehenden Kalender-Header.
+/// Genügend großer Wochenbereich für Kalender-Header und Wochen-[PageView].
 final DateTime kWeekPageAnchorMonday = DateTime(2018, 1, 1);
 
 const int kWeekPageCount = 700;
 
-/// Gleicher Zeitraum wie [kWeekPageCount] — für [TableCalendar.firstDay]/[lastDay].
-final DateTime kCalendarTableFirstDay = kWeekPageAnchorMonday;
+/// Anzahl Tages-Slots in der nahtlosen Mobile-ListView (= [kWeekPageCount] Wochen).
+const int kWeekScheduleTotalDaySlots = kWeekPageCount * 7;
 
-final DateTime kCalendarTableLastDay = kWeekPageAnchorMonday.add(
-  Duration(days: kWeekPageCount * 7 - 1),
+final LocalCalendarIndex kWeekScheduleDayIndex = LocalCalendarIndex(
+  kWeekPageAnchorMonday,
 );
 
-int pageIndexForMonday(DateTime monday) {
-  final days = monday.difference(kWeekPageAnchorMonday).inDays;
-  final page = days ~/ 7;
-  return page.clamp(0, kWeekPageCount - 1);
-}
+/// Gleicher Zeitraum wie [kWeekPageCount] — für [TableCalendar.firstDay]/[lastDay].
+final DateTime kCalendarTableFirstDay = kWeekScheduleDayIndex.anchor;
 
-DateTime mondayForPageIndex(int page) {
-  return kWeekPageAnchorMonday.add(Duration(days: page * 7));
-}
+final DateTime kCalendarTableLastDay = kWeekScheduleDayIndex.dayAt(
+  kWeekScheduleTotalDaySlots - 1,
+);
+
+int pageIndexForMonday(DateTime monday) =>
+    kWeekScheduleDayIndex.weekPageIndex(monday, pageCount: kWeekPageCount);
+
+DateTime mondayForPageIndex(int page) => kWeekScheduleDayIndex.mondayForPage(page);
+
+int weekScheduleGlobalDayIndex(DateTime day) => kWeekScheduleDayIndex
+    .indexOf(day)
+    .clamp(0, kWeekScheduleTotalDaySlots - 1);
+
+DateTime weekScheduleDayFromGlobalIndex(int globalDayIndex) =>
+    kWeekScheduleDayIndex.dayAt(
+      globalDayIndex.clamp(0, kWeekScheduleTotalDaySlots - 1),
+    );

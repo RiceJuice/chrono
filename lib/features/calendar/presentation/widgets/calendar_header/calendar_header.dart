@@ -7,6 +7,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_view_options.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
+import 'calendar_filter_deviation_icon.dart';
 import 'calendar_handle.dart';
 import 'custom_table_calendar.dart';
 
@@ -188,9 +189,8 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
                         option: selectedViewOption,
                         onPressed: widget.onViewMenuPressed!,
                       ),
-                    IconButton(
+                    CalendarFilterDeviationIcon(
                       onPressed: widget.onFilterPressed,
-                      icon: const Icon(Icons.calendar_month_outlined),
                     ),
                     IconButton(
                       onPressed: widget.onSearchPressed,

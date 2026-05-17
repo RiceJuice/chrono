@@ -1,7 +1,7 @@
-import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/base_calendar_card.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/leading_indicator/calendar_card_leading_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,20 +43,11 @@ class LessionCard extends ConsumerWidget {
       weekGridCompact: weekGridCompact,
       showInlineTimeRange: showInlineTimeRange,
       listTileHorizontalPadding: listTileHorizontalPadding,
-      contentPadding: contentPadding ??
-          const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s,
-            vertical: AppSpacing.s,
-          ),
+      contentPadding:
+          contentPadding ?? CalendarCardLeadingIndicator.contentPadding,
       titleFontSize: titleFontSize,
       backgroundColor: backgroundColor,
-      leadingIndicator: Container(
-        width: 6,
-        decoration: BoxDecoration(
-          color: accent,
-          borderRadius: BorderRadius.circular(3),
-        ),
-      ),
+      leadingIndicatorColor: accent,
     );
   }
 }
