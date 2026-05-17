@@ -86,6 +86,7 @@ List<WeekEntryPlacement> buildWeekEntryPlacements({
   required DateTime day,
   required WeekScheduleBounds bounds,
   required double hourHeight,
+  double adjacentEntryGap = kWeekScheduleAdjacentEntryGap,
 }) {
   final intervals = _buildIntervals(entries: entries, day: day);
   final placements = <WeekEntryPlacement>[];
@@ -130,10 +131,10 @@ List<WeekEntryPlacement> buildWeekEntryPlacements({
           lane: lane,
           laneCount: 1,
           insetTop: _touchesPrevious(intervals, interval)
-              ? kWeekScheduleAdjacentEntryGap / 2
+              ? adjacentEntryGap / 2
               : 0,
           insetBottom: _touchesNext(intervals, interval)
-              ? kWeekScheduleAdjacentEntryGap / 2
+              ? adjacentEntryGap / 2
               : 0,
         ),
       );

@@ -6,6 +6,7 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/calendar_entry_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_layout.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_timeline.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:flutter/material.dart';
 
 /// Eine Tages-Spalte im Wochenraster (Tablet: in [WeekDayColumns], Handy:
@@ -162,11 +163,15 @@ class WeekEntriesLayer extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final compactMobile = weekScheduleUsesMobileSeamlessScroll(context);
         final placements = buildWeekEntryPlacements(
           entries: entries,
           day: day,
           bounds: bounds,
           hourHeight: hourHeight,
+          adjacentEntryGap: compactMobile
+              ? kWeekScheduleAdjacentEntryGapPhone
+              : kWeekScheduleAdjacentEntryGap,
         );
 
         return Stack(
@@ -195,8 +200,13 @@ class _WeekEntryCardFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const horizontalGap = 6.0;
-    const verticalGap = 3.0;
+    final compactMobile = weekScheduleUsesMobileSeamlessScroll(context);
+    final horizontalGap = compactMobile
+        ? kWeekScheduleEntryHorizontalGapPhone
+        : kWeekScheduleEntryHorizontalGapDefault;
+    final verticalGap = compactMobile
+        ? kWeekScheduleEntryVerticalGapPhone
+        : kWeekScheduleEntryVerticalGapDefault;
     final laneWidth =
         (columnWidth - horizontalGap * (placement.laneCount + 1)) /
         placement.laneCount;

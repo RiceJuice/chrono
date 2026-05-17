@@ -1,25 +1,15 @@
 import 'dart:math' as math;
 
-import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:flutter/material.dart';
-
-const int kWeekScheduleTotalDaySlots = kWeekPageCount * 7;
 
 /// Ob die nahtlose Mobile-ListView auf dieser Bildschirmgröße genutzt wird.
 bool weekScheduleUsesMobileSeamlessForSize(Size logicalSize) {
   final shortest = math.min(logicalSize.width, logicalSize.height);
   if (shortest >= kCalendarPhoneLayoutMaxShortestSide) return false;
   return logicalSize.height >= logicalSize.width;
-}
-
-int weekScheduleGlobalDayIndex(DateTime day) {
-  return AppDateTime.localDay(day)
-      .difference(kWeekPageAnchorMonday)
-      .inDays
-      .clamp(0, kWeekScheduleTotalDaySlots - 1);
 }
 
 int weekScheduleScrollTargetGlobalIndex(

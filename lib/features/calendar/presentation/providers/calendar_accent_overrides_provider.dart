@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../domain/filter/calendar_filter_text.dart';
 import '../../domain/models/calendar_entry.dart';
+import 'filter/calendar/calendar_filters_provider.dart';
+import '../widgets/calendar_header/calendar_marker_color_palette.dart';
 
 const _prefsKey = 'calendar_accent_overrides';
 
@@ -83,8 +87,29 @@ final calendarAccentOverridesProvider =
         Map<CalendarEntryType, Color>>(CalendarAccentOverridesNotifier.new);
 
 Color resolveCalendarEntryAccent(WidgetRef ref, CalendarEntry entry) {
+  final type = entry.type;
+  if (type == CalendarEntryType.choir || type == CalendarEntryType.event) {
+    final ownChoirs = ref.watch(
+      calendarFiltersProvider.select((filters) => filters.defaultChoirs),
+    );
+    if (ownChoirs.isNotEmpty && !_entryMatchesUserChoir(entry.choir, ownChoirs)) {
+      return _choirMarkerAccent(entry.choir);
+    }
+  }
+
   final overrides = ref.watch(calendarAccentOverridesProvider);
   return overrides[entry.type] ?? entry.accentColor;
+}
+
+bool _entryMatchesUserChoir(BackendChoir choir, List<String> userChoirs) {
+  if (choir == BackendChoir.unknown) return true;
+  final normalized = normalizeCalendarFilterText(choir.toBackend());
+  return normalized != null && userChoirs.contains(normalized);
+}
+
+Color _choirMarkerAccent(BackendChoir choir) {
+  const palette = CalendarMarkerColorPalette.standard;
+  return palette.byChoir[choir] ?? palette.fallback;
 }
 
 Color resolveCalendarTypeAccent(

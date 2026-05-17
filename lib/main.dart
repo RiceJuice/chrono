@@ -16,6 +16,7 @@ import 'core/router/app_router.dart';
 import 'core/startup/calendar_startup_state.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
+import 'features/calendar/presentation/providers/calendar_view_options.dart';
 import 'features/login/presentation/providers/profile_gate_notifier.dart';
 import 'features/login/presentation/providers/profile_gate_provider.dart';
 
@@ -30,6 +31,7 @@ void main() async {
     Supabase.initialize(url: kSupabaseUrl, anonKey: kSupabaseAnonKey),
     initializeDatabase(),
     bootstrapThemeMode(),
+    bootstrapCalendarViewMode(),
   ]);
   final powerSyncDb = results[1] as PowerSyncDatabase;
 
@@ -74,7 +76,10 @@ Future<void> _finishStartup({
     view.physicalSize.width / pixelRatio,
     view.physicalSize.height / pixelRatio,
   );
-  CalendarStartupState.preload(logicalScreenSize: logicalSize);
+  CalendarStartupState.preload(
+    logicalScreenSize: logicalSize,
+    viewMode: bootstrappedCalendarViewModeOrDefault(),
+  );
 
   await Future.wait<void>([
     initializeDateFormatting('de', null),

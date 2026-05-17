@@ -1,5 +1,6 @@
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/base_calendar_card.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/leading_indicator/calendar_card_leading_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,16 +46,9 @@ class ChorCard extends ConsumerWidget {
       titleFontWeight: FontWeight.w500,
       backgroundColor: scheme.primary,
       contentPadding: weekGridCompact
-          ? const EdgeInsets.symmetric(vertical: 6, horizontal: 8)
-          : (contentPadding ??
-              const EdgeInsets.symmetric(vertical: 12, horizontal: 14)),
-      leadingIndicator: Container(
-        width: 6,
-        decoration: BoxDecoration(
-          color: accent,
-          borderRadius: BorderRadius.circular(3),
-        ),
-      ),
+          ? CalendarCardLeadingIndicator.contentPadding
+          : (contentPadding ?? CalendarCardLeadingIndicator.contentPadding),
+      leadingIndicatorColor: accent,
     );
   }
 }

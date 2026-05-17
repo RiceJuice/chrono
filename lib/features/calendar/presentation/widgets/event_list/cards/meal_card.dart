@@ -49,23 +49,18 @@ class MealCard extends ConsumerWidget {
           },
           child: Ink(
             height: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s,
-              vertical: AppSpacing.s,
-            ),
+            padding: AppInsets.eventCardContentCompact,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.s),
               color: style.cardBackgroundColor,
             ),
             child: Align(
               alignment: Alignment.topLeft,
-              child: TextContent(
+              child: CalendarCompactCardText(
                 entry: entry,
                 primaryTextColor: style.primaryTextColor,
                 secondaryTextColor: style.secondaryTextColor,
-                compact: true,
-                showInlineTimeRange:
-                    showInlineTimeRange ?? !showTimeColumn,
+                wantInlineTimeRange: showInlineTimeRange ?? !showTimeColumn,
               ),
             ),
           ),

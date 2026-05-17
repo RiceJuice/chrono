@@ -391,22 +391,12 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
     final selected = ref.read(selectedDayProvider);
 
-    final weekdayOffset =
+    final weekdayOffset = AppDateTime.weekdayOffsetFromMonday(selected);
 
-        (selected.weekday - DateTime.monday).clamp(0, 6);
-
-    final previewDay = AppDateTime.localDay(
-
-      kWeekPageAnchorMonday.add(
-
-        Duration(days: stride == WeekSchedulePanStride.week
-
-            ? mondayIndex + weekdayOffset
-
-            : clamped),
-
-      ),
-
+    final previewDay = weekScheduleDayFromGlobalIndex(
+      stride == WeekSchedulePanStride.week
+          ? mondayIndex + weekdayOffset
+          : clamped,
     );
 
     HapticFeedback.mediumImpact();
@@ -441,11 +431,7 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
     final selected = ref.read(selectedDayProvider);
 
-    final weekdayOffset =
-
-        (selected.weekday - DateTime.monday).clamp(0, 6);
-
-
+    final weekdayOffset = AppDateTime.weekdayOffsetFromMonday(selected);
 
     final int commitGlobalIndex;
 
@@ -471,11 +457,7 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
         commitGlobalIndex.clamp(0, kWeekScheduleTotalDaySlots - 1);
 
-    final day = AppDateTime.localDay(
-
-      kWeekPageAnchorMonday.add(Duration(days: clamped)),
-
-    );
+    final day = weekScheduleDayFromGlobalIndex(clamped);
 
     _lastTrackedDayIndex = clamped;
 
@@ -673,13 +655,15 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
 
 
-    final focusMonday = weekMondayLocal(ref.watch(selectedDayProvider));
+    final focusMonday = AppDateTime.localMondayOfWeek(
+      ref.watch(selectedDayProvider),
+    );
 
     final focusWeekDays = List<DateTime>.generate(
 
       7,
 
-      (i) => focusMonday.add(Duration(days: i)),
+      (i) => AppDateTime.addLocalCalendarDays(focusMonday, i),
 
     );
 
@@ -910,21 +894,17 @@ class WeekScheduleSeamlessDayTile extends ConsumerWidget {
 
   Widget build(BuildContext context, WidgetRef ref) {
 
-    final day = kWeekPageAnchorMonday.add(Duration(days: globalDayIndex));
+    final day = weekScheduleDayFromGlobalIndex(globalDayIndex);
 
-    final monday = weekMondayLocal(day);
+    final monday = AppDateTime.localMondayOfWeek(day);
 
-    final columnIndex = AppDateTime.localDay(day)
-
-        .difference(AppDateTime.localDay(monday))
-
-        .inDays;
+    final columnIndex = AppDateTime.weekdayOffsetFromMonday(day);
 
     final weekDays = List<DateTime>.generate(
 
       7,
 
-      (i) => monday.add(Duration(days: i)),
+      (i) => AppDateTime.addLocalCalendarDays(monday, i),
 
     );
 

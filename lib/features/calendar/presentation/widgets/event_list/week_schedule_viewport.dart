@@ -19,6 +19,14 @@ const double kWeekSchedulePhoneDayTargetMinWidth = 112;
 /// weit auseinanderzieht.
 const double kWeekScheduleHourHeightPhone = 84;
 
+/// Abstände zwischen Termin-Kacheln im Wochenraster (mobil: H/V ähnlich).
+const double kWeekScheduleEntryHorizontalGapPhone = 2;
+const double kWeekScheduleEntryHorizontalGapDefault = 6;
+/// Pro Kante; sichtbar ~2× dieser Wert zwischen übereinander liegenden Terminen.
+const double kWeekScheduleEntryVerticalGapPhone = 1;
+const double kWeekScheduleEntryVerticalGapDefault = 3;
+const double kWeekScheduleAdjacentEntryGapPhone = 1;
+
 bool weekScheduleIsTabletViewport(BuildContext context) =>
     calendarIsTabletLayout(context);
 

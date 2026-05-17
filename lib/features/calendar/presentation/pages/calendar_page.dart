@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
+import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/core/widgets/main_navigation_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/pages/calendar_search_page.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
@@ -9,7 +10,6 @@ import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -56,6 +56,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
   bool _isViewModeOverlayOpen = false;
   Timer? _debounceTimer;
   String _debouncedSearchQuery = '';
+
+  /// Letzter bekannter Landscape-Zustand — nur um beim Eintreten ins Querformat
+  /// den Fokus auf den Montag zu setzen.
+  bool? _prevIsPhoneLandscape;
 
   void _openSearch() {
     HapticFeedback.selectionClick();
@@ -163,7 +167,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     if (nextMode == CalendarViewMode.week) {
       ref
           .read(focusedDayProvider.notifier)
-          .update(weekMondayLocal(selectedDay));
+          .update(AppDateTime.localMondayOfWeek(selectedDay));
     } else {
       ref.read(selectedDayProvider.notifier).update(focusedDay);
     }
@@ -184,6 +188,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
       switchOutCurve: Curves.easeInCubic,
       layoutBuilder: (currentChild, previousChildren) {
         return Stack(
+          fit: StackFit.expand,
           alignment: Alignment.topCenter,
           children: <Widget>[...previousChildren, ?currentChild],
         );
@@ -268,6 +273,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
       switchOutCurve: Curves.linear,
       layoutBuilder: (currentChild, previousChildren) {
         return Stack(
+          fit: StackFit.expand,
           alignment: Alignment.topCenter,
           children: <Widget>[...previousChildren, ?currentChild],
         );
@@ -406,8 +412,36 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
         _isSearchOpen ||
         _debouncedSearchQuery.isNotEmpty ||
         searchFilters.hasUserOverrides;
-    final viewMode = ref.watch(calendarViewModeProvider);
+    final storedViewMode = ref.watch(calendarViewModeProvider);
     final usePhoneLandscapeChrome = calendarUsePhoneLandscapeChrome(context);
+    // Handy im Querformat → immer Wochenansicht, ohne den gespeicherten Modus zu ändern.
+    // Beim Zurückdrehen gilt wieder storedViewMode, da der Provider unberührt bleibt.
+    final viewMode =
+        usePhoneLandscapeChrome ? CalendarViewMode.week : storedViewMode;
+
+    // Fokus auf Montag setzen, sobald wir ins Querformat wechseln.
+    if (usePhoneLandscapeChrome && _prevIsPhoneLandscape == false) {
+      _prevIsPhoneLandscape = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final selectedDay = ref.read(selectedDayProvider);
+        ref
+            .read(focusedDayProvider.notifier)
+            .update(AppDateTime.localMondayOfWeek(selectedDay));
+      });
+    } else if (!usePhoneLandscapeChrome && _prevIsPhoneLandscape == true) {
+      _prevIsPhoneLandscape = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final stored = ref.read(calendarViewModeProvider);
+        if (stored != CalendarViewMode.week) {
+          final focusedDay = ref.read(focusedDayProvider);
+          ref.read(selectedDayProvider.notifier).update(focusedDay);
+        }
+      });
+    } else {
+      _prevIsPhoneLandscape = usePhoneLandscapeChrome;
+    }
     final mediaPadding = MediaQuery.paddingOf(context);
     final searchBarBottomInset =
         mediaPadding.top +
@@ -445,21 +479,25 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
               ],
             ),
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          Center(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isTabletCalendar = calendarIsTabletLayout(context);
-                return SizedBox.expand(
-                  child: _buildSearchMorphBody(
-                    showSearchResults: showSearchResults,
-                    viewMode: viewMode,
-                    searchBarBottomInset: searchBarBottomInset,
-                    isTabletCalendar: isTabletCalendar,
-                  ),
-                );
-              },
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+                return const SizedBox.shrink();
+              }
+              final isTabletCalendar = calendarIsTabletLayout(context);
+              return SizedBox(
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                child: _buildSearchMorphBody(
+                  showSearchResults: showSearchResults,
+                  viewMode: viewMode,
+                  searchBarBottomInset: searchBarBottomInset,
+                  isTabletCalendar: isTabletCalendar,
+                ),
+              );
+            },
           ),
           CalendarViewModeOverlay(
             isOpen: _isViewModeOverlayOpen,
