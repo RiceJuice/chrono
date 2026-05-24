@@ -59,6 +59,11 @@ Map<DateTime, CalendarDayMarkerData> buildCalendarDayMarkers(
         entry.type == CalendarEntryType.meal) {
       continue;
     }
+    // Recurring choir rehearsals from calendar_series are shown in the
+    // event list but should not contribute to day-marker pills.
+    if (entry.type == CalendarEntryType.choir && entry.isRecurringInstance) {
+      continue;
+    }
     final start = AppDateTime.toLocal(entry.startTime);
     final end = AppDateTime.toLocal(entry.endTime);
     if (!end.isAfter(start)) continue;

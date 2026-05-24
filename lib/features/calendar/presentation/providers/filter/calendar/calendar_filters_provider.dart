@@ -8,7 +8,7 @@ import '../shared/calendar_filters_notifier_base.dart';
 class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
   void initializeFromProfile(ProfileSnapshot? profile) {
     final defaultChoirs = normalizedCalendarFilterList([profile?.choir]);
-    final defaultVoices = const <String>[];
+    final defaultVoices = normalizedCalendarFilterList([profile?.voice]);
     final defaultClassNames = normalizedCalendarFilterList([profile?.className]);
     final defaultSchoolTracks = normalizedCalendarFilterList([profile?.schoolTrack]);
     final defaultDiets = normalizedCalendarFilterList([profile?.diet]);
