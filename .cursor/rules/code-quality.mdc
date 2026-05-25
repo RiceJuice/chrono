@@ -1,0 +1,27 @@
+---
+description: Code-Qualität, Benennung und Wartbarkeit
+alwaysApply: false
+---
+
+# Code-Qualität
+
+## Mindset
+
+- Lesbarkeit und Wartbarkeit vor Cleverness
+- Produktionsreif liefern: keine Placeholder, keine TODOs als „fertig“
+- Namen nach Domain-Bedeutung; Booleans mit `is` / `has` / `can` / `should`
+- Kommentare nur für nicht-offensichtliche Regeln oder Sync-/Architektur-Entscheide
+
+## Dateigröße (Richtwert, kein Gesetz)
+
+Lieber mehrere fokussierte Dateien als eine wachsende Alles-Datei. Beim Bearbeiten großer Dateien: schrittweise aufteilen, nicht alles auf einmal umbauen.
+
+## Vermeiden
+
+- Business-Logik und Datenzugriff in Widgets
+- Magic Values ohne Konstante oder Typ
+- Verschluckte Fehler, auskommentierter Totcode
+- Neue Dependencies ohne klaren Nutzen und Abgleich mit `pubspec.yaml`
+- Abstraktionen, die nur eine Zeile sparen
+
+Extrahieren, wenn Lesbarkeit oder Testbarkeit klar gewinnen.

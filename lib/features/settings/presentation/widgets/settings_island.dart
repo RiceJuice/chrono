@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:figma_squircle/figma_squircle.dart';
+
+import '../../../../core/theme/theme_tokens.dart';
 
 class SettingsIsland extends StatelessWidget {
   const SettingsIsland({super.key, required this.children});
@@ -9,12 +12,12 @@ class SettingsIsland extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return DecoratedBox(
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
+        shape: AppSquircle.shape(AppRadius.l),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+      child: ClipSmoothRect(
+        radius: AppSquircle.borderRadius(AppRadius.l),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: _withDividers(context),

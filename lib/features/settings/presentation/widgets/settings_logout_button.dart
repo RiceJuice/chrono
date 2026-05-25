@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/theme/theme_tokens.dart';
+
 class SettingsLogoutButton extends StatelessWidget {
   const SettingsLogoutButton({super.key, required this.onPressed});
 
@@ -16,9 +18,7 @@ class SettingsLogoutButton extends StatelessWidget {
           backgroundColor: scheme.surfaceContainerHigh,
           foregroundColor: scheme.error,
           minimumSize: const Size.fromHeight(54),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          shape: AppSquircle.shape(AppRadius.l),
         ),
         icon: const Icon(Icons.logout_rounded, size: 19),
         label: const Text('Abmelden'),

@@ -1,0 +1,28 @@
+---
+description: Schichten und Clean Architecture in Features
+alwaysApply: false
+---
+
+# Architektur
+
+## Schichten (Richtung)
+
+| Schicht | Enthält typischerweise | Enthält nicht |
+|---------|------------------------|---------------|
+| **presentation** | UI, State-Beobachtung, User-Events | DB/API, komplexe Business-Regeln |
+| **domain** | Modelle, Regeln, Repository-Interfaces | Framework-Clients, Widgets |
+| **data** | Repository-Implementierungen, Mapping, externe Quellen | UI |
+
+Infrastruktur (Sync, Auth-Client) gehört in `data/` oder `core/`, nicht in Widgets.
+
+## Guidelines
+
+- Logik dort platzieren, wo sie testbar bleibt und Schichten nicht vermischen
+- Beim Bearbeiten: angrenzende Verstöße eher mitbereinigen als drüberbauen
+- Komplexität lieber in kleine Typen/Funktionen zerlegen als tiefe Verschachtelung
+
+## Kurz-Check vor Abschluss
+
+- Richtige Schicht?
+- Kein direkter Datenzugriff aus der UI?
+- Wiederverwendbar ohne unnötige Kopplung?

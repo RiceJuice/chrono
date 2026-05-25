@@ -128,17 +128,19 @@ class WeekHourGridPainter extends CustomPainter {
     required this.bounds,
     required this.lineColor,
     required this.hourHeight,
+    required this.lineWidth,
   });
 
   final WeekScheduleBounds bounds;
   final Color lineColor;
   final double hourHeight;
+  final double lineWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = lineColor
-      ..strokeWidth = 1;
+      ..strokeWidth = lineWidth;
 
     canvas.drawLine(Offset.zero, Offset(size.width, 0), paint);
     canvas.drawLine(
@@ -158,7 +160,8 @@ class WeekHourGridPainter extends CustomPainter {
     return oldDelegate.bounds.startMinute != bounds.startMinute ||
         oldDelegate.bounds.endMinute != bounds.endMinute ||
         oldDelegate.lineColor != lineColor ||
-        oldDelegate.hourHeight != hourHeight;
+        oldDelegate.hourHeight != hourHeight ||
+        oldDelegate.lineWidth != lineWidth;
   }
 }
 

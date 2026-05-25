@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:chronoapp/core/theme/theme_tokens.dart';
+
 class CalendarPresentationTheme {
   CalendarPresentationTheme._();
 
@@ -37,5 +39,20 @@ class CalendarPresentationTheme {
   static Color dimmedSurface(BuildContext context, Color base) {
     final overlay = Theme.of(context).colorScheme.surface.withValues(alpha: 0.5);
     return Color.alphaBlend(overlay, base);
+  }
+
+  /// Hintergrundfarbe für die farbigen Kalender-Karten über einer neutralen Surface.
+  ///
+  /// Motivation: In Dark-Mode wirken fixe Alpha-Overlays mit Akzentfarben oft
+  /// “zu bunt”. Große UI-Stylesystems lösen das über semantische Rollen und
+  /// passende Overlay-Stärken pro Theme (Light/Dark).
+  static Color lessonCardBackgroundColor(BuildContext context, Color accent) {
+    final scheme = Theme.of(context).colorScheme;
+    final overlayAlpha =
+        scheme.brightness == Brightness.dark ? AppOpacity.low * 0.5 : AppOpacity.low;
+    return Color.alphaBlend(
+      accent.withValues(alpha: overlayAlpha),
+      scheme.surfaceContainerHigh,
+    );
   }
 }

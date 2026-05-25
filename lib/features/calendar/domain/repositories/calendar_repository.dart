@@ -5,6 +5,7 @@ import 'package:sqlite3/common.dart';
 import '../../../../core/database/powersync_schema.dart';
 import '../../../../core/time/app_date_time.dart';
 import '../../data/calendar_entry_mapper.dart';
+import '../../event_editor/data/calendar_event_recurrence_id.dart';
 import '../models/calendar_entry.dart';
 
 class CalendarRepository {
@@ -207,7 +208,9 @@ class CalendarRepository {
               tags: seriesTemplate.tags,
               userId: seriesTemplate.userId,
               seriesId: seriesId,
-              recurrenceId: instance.toUtc(),
+              recurrenceId: parseCalendarRecurrenceId(
+                formatCalendarRecurrenceId(instance),
+              ),
               isRecurringInstance: true,
             ),
           );
@@ -243,7 +246,7 @@ class CalendarRepository {
 
   String? _seriesOverrideKey(String? seriesId, DateTime? recurrenceId) {
     if (seriesId == null || recurrenceId == null) return null;
-    return '$seriesId|${recurrenceId.toUtc().toIso8601String()}';
+    return '$seriesId|${formatCalendarRecurrenceId(recurrenceId)}';
   }
 
   bool _matchesQuery(CalendarEntry entry, String query) {

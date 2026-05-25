@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
 import 'theme_tokens.dart';
 
@@ -28,9 +29,7 @@ class AppComponentThemes {
       elevation: isDark ? 0 : 6,
       shadowColor: isDark ? null : Colors.black.withValues(alpha: 0.14),
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.l),
-      ),
+      shape: AppSquircle.shape(AppRadius.l),
     );
   }
 
@@ -42,10 +41,12 @@ class AppComponentThemes {
   }
 
   static DividerThemeData dividerTheme(ColorScheme scheme) {
-    final alpha = scheme.brightness == Brightness.dark ? 0.20 : 0.15;
+    final alpha = scheme.brightness == Brightness.dark ? 0.15 : 0.15;
     return DividerThemeData(
       color: scheme.onSurface.withValues(alpha: alpha),
-      thickness: 0.5,
+      // Note: logical thickness can't guarantee a 1-physical-pixel hairline
+      // across devices. Prefer `AppHairlineDivider` in critical places.
+      thickness: 1,
       space: 1,
     );
   }
@@ -71,9 +72,7 @@ class AppComponentThemes {
         elevation: const WidgetStatePropertyAll(0),
         shadowColor: const WidgetStatePropertyAll(Colors.transparent),
         shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.s),
-          ),
+          AppSquircle.shape(AppRadius.s),
         ),
         minimumSize: const WidgetStatePropertyAll(Size(0, 60)),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -84,9 +83,7 @@ class AppComponentThemes {
   static FilledButtonThemeData filledButtonTheme(ColorScheme scheme) {
     return FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.m),
-        ),
+        shape: AppSquircle.shape(AppRadius.m),
       ),
     );
   }
@@ -116,25 +113,25 @@ class AppComponentThemes {
       fillColor: scheme.surfaceContainerHighest,
       contentPadding: AppInsets.inputContent,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppSquircle.borderRadius(AppRadius.m),
         borderSide: unfocusedBorderSide,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppSquircle.borderRadius(AppRadius.m),
         borderSide: unfocusedBorderSide,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppSquircle.borderRadius(AppRadius.m),
         borderSide: focusedBorderSide,
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppSquircle.borderRadius(AppRadius.m),
         borderSide: BorderSide(
           color: scheme.error.withValues(alpha: 0.65),
         ),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppSquircle.borderRadius(AppRadius.m),
         borderSide: BorderSide(color: scheme.error),
       ),
     );
@@ -145,9 +142,7 @@ class AppComponentThemes {
       selectedColor: scheme.primary,
       backgroundColor: scheme.surfaceContainerHighest,
       side: BorderSide.none,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
+      shape: AppSquircle.shape(AppRadius.pill),
       labelStyle: TextStyle(color: scheme.onSurface),
       secondaryLabelStyle: TextStyle(color: scheme.onPrimary),
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -161,10 +156,8 @@ class AppComponentThemes {
       modalBackgroundColor: scheme.surfaceContainer,
       surfaceTintColor: Colors.transparent,
       dragHandleColor: scheme.outlineVariant,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
+      shape: SmoothRectangleBorder(
+        borderRadius: AppSquircle.topSheet(AppRadius.xl),
       ),
     );
   }
@@ -174,7 +167,7 @@ class AppComponentThemes {
       backgroundColor: scheme.surfaceContainer,
       indicatorColor: Colors.transparent,
       elevation: 0,
-      height: 50,
+      height: 44,
       overlayColor: WidgetStateProperty.all(Colors.transparent),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {

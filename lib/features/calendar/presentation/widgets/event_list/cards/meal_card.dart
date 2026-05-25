@@ -118,6 +118,7 @@ class MealCard extends ConsumerWidget {
                                 secondaryTextColor: style.secondaryTextColor,
                                 showInlineTimeRange:
                                     showInlineTimeRange ?? !showTimeColumn,
+                                descriptionMaxLines: 2,
                               ),
                             ),
                           ),

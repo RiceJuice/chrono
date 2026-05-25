@@ -1,0 +1,23 @@
+---
+description: Tests – wann und wie
+globs: test/**
+alwaysApply: false
+---
+
+# Tests
+
+Framework und Struktur dem Projekt entnehmen (`pubspec.yaml`, bestehende Tests unter `test/`).
+
+## Priorität
+
+1. Pure Domain-Logik und Utilities
+2. Repositories/Services mit injizierbaren Abhängigkeiten
+3. UI nur bei stabilen, kritischen Flows
+
+## Guidelines
+
+- Deterministisch; keine echten Netzwerk-/DB-Calls in Unit-Tests
+- Testordner grob an `lib/`-Features anlehnen
+- Tests, die echtes Verhalten absichern – keine Assertions auf Trivialitäten
+
+Neue Tests im Stil der Tests im gleichen Bereich (`test/core/…`, `test/features/…`).

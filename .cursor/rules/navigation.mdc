@@ -1,0 +1,17 @@
+---
+description: Navigation mit go_router
+alwaysApply: false
+---
+
+# Navigation
+
+## Guidelines
+
+- Routen und Redirects zentral pflegen, nicht in jedem Screen neu erfinden
+- Pfade als Konstanten/Specs, keine Magic-Route-Strings verstreut
+- Auth-, Profil- und Connectivity-Zustände über Router-Refresh/Notifier lösen, nicht dupliziert in Widgets
+- Navigation bleibt in Presentation/Router – nicht in Domain oder Data
+
+Neue Screens: Route registrieren, Redirect-/Gate-Logik am bestehenden Router-Ort ergänzen.
+
+Orientierung am Router-Setup unter `lib/core/` und route-nahen Dateien im betroffenen Feature.

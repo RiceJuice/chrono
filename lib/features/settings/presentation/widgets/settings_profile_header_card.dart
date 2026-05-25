@@ -2,6 +2,8 @@ import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/settings_profile_display.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/theme_tokens.dart';
+
 class SettingsProfileHeaderCard extends StatelessWidget {
   const SettingsProfileHeaderCard({super.key, required this.profile});
 
@@ -13,9 +15,9 @@ class SettingsProfileHeaderCard extends StatelessWidget {
     final initials = _initials(profile);
 
     return DecoratedBox(
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
+        shape: AppSquircle.shape(AppRadius.xl),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),

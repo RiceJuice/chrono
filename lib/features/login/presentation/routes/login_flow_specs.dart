@@ -1,3 +1,4 @@
+import '../../../../core/auth/profile_role_ids.dart';
 import '../../domain/models/profile_gate_data.dart';
 import 'login_paths.dart';
 
@@ -15,6 +16,9 @@ class LoginFlowStepSpec {
 
 bool _isNonEmpty(String? value) => value != null && value.trim().isNotEmpty;
 
+bool _isAdminProfile(ProfileGateData data) =>
+    data.role?.trim() == ProfileRoleIds.admin;
+
 /// Geordnete Liste aller Onboarding-Schritte. Neue Schritte einfach hier
 /// einhängen – Resolver, Router-Guard und Slide-Reihenfolge ziehen automatisch
 /// nach.
@@ -30,15 +34,17 @@ final List<LoginFlowStepSpec> loginFlowSpecs = <LoginFlowStepSpec>[
   LoginFlowStepSpec(
     path: LoginPaths.personalData,
     isSatisfiedBy: (data) =>
-        _isNonEmpty(data.firstName) &&
-        _isNonEmpty(data.lastName) &&
-        _isNonEmpty(data.className) &&
-        _isNonEmpty(data.schoolTrack),
+        _isAdminProfile(data) ||
+        (_isNonEmpty(data.firstName) &&
+            _isNonEmpty(data.lastName) &&
+            _isNonEmpty(data.className) &&
+            _isNonEmpty(data.schoolTrack)),
   ),
   LoginFlowStepSpec(
     path: LoginPaths.choir,
     isSatisfiedBy: (data) =>
-        _isNonEmpty(data.voice) && _isNonEmpty(data.choir),
+        _isAdminProfile(data) ||
+        (_isNonEmpty(data.voice) && _isNonEmpty(data.choir)),
   ),
 ];
 

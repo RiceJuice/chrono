@@ -1,0 +1,31 @@
+---
+description: Chronoapp – Projektidentität und Stack-Richtlinien
+alwaysApply: true
+---
+
+# Chronoapp – Kern
+
+Flutter-Kalender-App. Material 3, Nutzer-Texte auf Deutsch.
+
+**Orientierung:** Diese Regeln sind Guidelines. Bei Unklarheit oder Widerspruch gelten `pubspec.yaml`, `analysis_options.yaml` und bestehender Code im gleichen Feature/Layer.
+
+## Struktur
+
+- `lib/core/` – querschnittlich (Routing, Theme, DB/Sync, Auth-Hilfen, Shared UI)
+- `lib/features/<feature>/` – fachlich getrennt, typisch mit `presentation/`, `domain/`, `data/`
+- Größere Bereiche dürfen Unterordner mit eigenen Layern haben – gleiche Schicht-Logik wie im Parent-Feature
+
+## Stack (Richtung, nicht abschließend)
+
+- **State:** Riverpod (inkl. Codegen, wo im Projekt bereits genutzt)
+- **Navigation:** go_router, zentral statt verstreute Navigation
+- **Daten:** Supabase (Auth/API) + PowerSync (lokale Sync-DB) – kein paralleler HTTP-Stack ohne Abstimmung
+- **Prefs:** über abstrahierte Repositories/Services, nicht direkt aus Widgets
+
+Neue Packages nur nach Prüfung von `pubspec.yaml` und bestehenden Mustern im Feature.
+
+## Immer
+
+- `flutter analyze` sauber halten
+- Secrets nicht duplizieren oder in neue Dateien streuen
+- Bestehende Konventionen im bearbeiteten Ordner mitziehen, nicht blind neue Patterns einführen

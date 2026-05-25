@@ -1,0 +1,28 @@
+---
+description: UI, Widgets und zentrales Theme
+globs: lib/**/presentation/**,lib/core/theme/**
+alwaysApply: false
+---
+
+# UI & Theme
+
+## Widgets
+
+- Klein und composable; Sub-Widgets auslagern statt monolithischer `build()`-Methoden
+- Keine Business- oder Datenzugriffs-Logik in Widgets
+- `const` wo sinnvoll; Ressourcen in `dispose()` freigeben
+
+## Theme & Styling
+
+- Farben/Typografie über zentrales Theme (`lib/core/theme/`) und `Theme.of(context)`
+- Feature-spezifische Styles nur wenn nötig – nicht globale Tokens duplizieren
+- Material 3 beibehalten
+
+## Listen & Performance
+
+- Große Listen lazy bauen; teure Arbeit nicht in `build()`
+- Async-UI: Loading / Empty / Error berücksichtigen
+
+## UX
+
+Nutzer-Texte auf Deutsch, klar und knapp. Bestehende UI-Muster im gleichen Feature als Vorlage nutzen.

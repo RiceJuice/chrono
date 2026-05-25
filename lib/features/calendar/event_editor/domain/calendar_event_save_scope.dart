@@ -1,0 +1,4 @@
+enum CalendarEventSaveScope {
+  singleInstance,
+  entireSeries,
+}
