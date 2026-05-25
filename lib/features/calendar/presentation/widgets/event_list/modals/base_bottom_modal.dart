@@ -5,6 +5,7 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/chor_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/event_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/lesson_bottom_modal.dart';
+import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/admin_edit_button.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/meal_bottom_modal.dart';
 
 /// Etwas langsameres, weicheres Ein-/Ausblenden als Material-Default (~250 ms),
@@ -55,7 +56,13 @@ class BaseBottomModal extends StatelessWidget {
           ),
           child: ColoredBox(
             color: sheetSurface,
-            child: SingleChildScrollView(child: _buildModalContent()),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                SingleChildScrollView(child: _buildModalContent()),
+                AdminEditButton(entry: entry),
+              ],
+            ),
           ),
         ),
       ),

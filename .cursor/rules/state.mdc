@@ -1,0 +1,24 @@
+---
+description: State Management mit Riverpod
+alwaysApply: false
+---
+
+# State (Riverpod)
+
+## Guidelines
+
+- DI über Riverpod; kein zweites DI-Framework parallel einführen
+- Provider klein und thematisch; lange Abhängigkeitsketten vermeiden
+- Codegen nur dort, wo das Feature es bereits nutzt – sonst gleiches Muster wie Nachbarn
+- App-weite Singletons (z. B. DB) über Overrides/Bootstrap in `main`, nicht heimlich ohne Setup konsumieren
+
+## UI vs App-State
+
+- **App/Domain:** Daten, Filter, Auth/Profil-Status, Sync-Ergebnisse
+- **UI:** Scroll, Fokus, Animation, rein lokale Formularzustände
+
+`ref.watch` / `ref.read` bewusst: Rebuild vs einmalige Aktion.
+
+## Async & Fehler
+
+Lade-, Erfolgs-, Leer- und Fehlerzustände explizit. Fehler in der Datenschicht typisieren und für die UI verständlich machen – keine rohen Exceptions in Widgets.

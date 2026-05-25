@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sqlite3/common.dart' as sqlite;
 
 import '../../../core/database/backend_enums.dart';
+import '../../../core/database/postgres_enum_array_codec.dart';
 import '../../../core/time/app_date_time.dart';
 import '../domain/models/calendar_entry.dart';
 
@@ -35,15 +36,13 @@ class CalendarEntryMapper {
 
     final rawType = _asString(_rowValue(row, 'type'));
     final backendType = CalendarEventTypeCodec.fromBackend(rawType);
-    final choirRaw = _asString(_rowValue(row, 'choir'));
-    final voicesRaw = _asString(_rowValue(row, 'voices'));
-    final schoolTrackRaw = _asString(_rowValue(row, 'schooltrack'));
-    final dietRaw = _asString(_rowValue(row, 'diet'));
-    final choir = BackendChoirCodec.fromBackend(choirRaw);
-    final voices = _parseVoices(voicesRaw);
+    final choir = _parseChoir(_rowValue(row, 'choir'));
+    final voices = _parseVoices(_asString(_rowValue(row, 'voices')));
     final voice = voices.isEmpty ? BackendVoice.unknown : voices.first;
-    final schoolTrack = BackendSchoolTrackCodec.fromBackend(schoolTrackRaw);
-    final diet = BackendDietCodec.fromBackend(dietRaw);
+    final schoolTrack = BackendSchoolTrackCodec.fromBackend(
+      _asString(_rowValue(row, 'schooltrack')),
+    );
+    final diet = BackendDietCodec.fromBackend(_asString(_rowValue(row, 'diet')));
 
     return CalendarEntry(
       id: rowId,
@@ -87,12 +86,10 @@ class CalendarEntryMapper {
     final backendType = CalendarEventTypeCodec.fromBackend(rawType);
     final eventName = _asString(_rowValue(row, 'event_name')) ?? '';
     final description = _asString(_rowValue(row, 'description'));
-    final choirRaw = _asString(_rowValue(row, 'choir'));
-    final voicesRaw = _asString(_rowValue(row, 'voices'));
+    final choir = _parseChoir(_rowValue(row, 'choir'));
+    final voices = _parseVoices(_asString(_rowValue(row, 'voices')));
     final schoolTrackRaw = _asString(_rowValue(row, 'schooltrack'));
     final dietRaw = _asString(_rowValue(row, 'diet'));
-    final choir = BackendChoirCodec.fromBackend(choirRaw);
-    final voices = _parseVoices(voicesRaw);
     final voice = voices.isEmpty ? BackendVoice.unknown : voices.first;
     final schoolTrack = BackendSchoolTrackCodec.fromBackend(schoolTrackRaw);
     final diet = BackendDietCodec.fromBackend(dietRaw);
@@ -198,6 +195,11 @@ class CalendarEntryMapper {
     }
 
     return AppDateTime.parseDatabaseTimeOnDate(seriesStart, raw);
+  }
+
+  static BackendChoir _parseChoir(Object? raw) {
+    final token = PostgresEnumArrayCodec.decodeFirstToken(_asString(raw));
+    return BackendChoirCodec.fromBackend(token);
   }
 
   static List<BackendVoice> _parseVoices(String? voicesRaw) {

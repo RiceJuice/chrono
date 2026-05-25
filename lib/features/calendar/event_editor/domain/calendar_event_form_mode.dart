@@ -1,0 +1,1 @@
+enum CalendarEventFormMode { edit, create }

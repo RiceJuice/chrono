@@ -1,0 +1,26 @@
+---
+description: Daten, Sync, Repositories und externe Quellen
+globs: lib/**/data/**,lib/core/**
+alwaysApply: false
+---
+
+# Daten & Sync
+
+## Guidelines
+
+- **Lokal/Sync:** PowerSync-Muster im Projekt beibehalten; Schema-/DB-Änderungen mit Migration/Versionierung im bestehenden DB-Setup mitdenken
+- **Remote/Auth:** Supabase über Repositories/Services, nicht aus Widgets
+- **Interfaces** in Domain, **Implementierung** in Data
+- Nutzer-sichtbare Fehlertexte: verständlich, Deutsch, aus der Datenschicht gemappt
+
+## Modelle
+
+Einfache Dart-Typen reichen. Serialisierung/Mapping in Data – keine Pflicht auf Codegen, wenn das Feature es nicht nutzt.
+
+## Vorsicht
+
+- Keine Secrets/Keys in zusätzliche Dateien kopieren
+- Keinen alternativen HTTP-Client-Stack leichtfertig einführen
+- Storage/Prefs nicht direkt aus Presentation
+
+Neues Verhalten: gleiches Repository-Muster wie im Feature suchen und anpassen.
