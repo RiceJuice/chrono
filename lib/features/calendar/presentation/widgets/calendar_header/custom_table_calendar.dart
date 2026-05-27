@@ -3,15 +3,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import '../../providers/calendar_providers.dart';
 import '../../theme/calendar_presentation_theme.dart';
+import 'calendar_break_range_bar.dart';
 import 'calendar_day_cell.dart';
 import 'calendar_day_marker_pill.dart';
+import 'calendar_header_entry_range.dart';
 import 'calendar_day_spring_interaction.dart';
 import 'week_timetable_mobile_day_header.dart';
 import '../calendar_week_layout_tokens.dart';
+
 const _calendarMorphDuration = Duration(milliseconds: 420);
 const _calendarMorphCurve = Cubic(0.2, 0.8, 0.2, 1);
 
@@ -118,18 +122,34 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
     }
 
     final scheme = Theme.of(context).colorScheme;
-    final todayAccentColor = CalendarPresentationTheme.todayAccentColor(
-      context,
-    );
     final selectedDay = ref.watch(selectedDayProvider);
     final focusedDay = ref.watch(focusedDayProvider);
     final showSelectedDayIndicator = _showSelectedDayIndicator(context);
+    final headerRange = calendarHeaderEntryRange(
+      focusedDay: focusedDay,
+      calendarFormat: widget.calendarFormat,
+    );
     final dayMarkersByDate = ref
-        .watch(filteredCalendarAllEntriesProvider)
+        .watch(filteredCalendarEntriesInLocalRangeProvider(headerRange))
         .maybeWhen(
           data: buildCalendarDayMarkers,
           orElse: () => const <DateTime, CalendarDayMarkerData>{},
         );
+    final breakRangeByDate = ref
+        .watch(calendarBreakDaysInLocalRangeProvider(headerRange))
+        .maybeWhen(
+          data: buildBreakRangeSegmentsFromDays,
+          orElse: () => const <DateTime, CalendarBreakRangeSegment>{},
+        );
+    final breakDays = ref
+        .watch(calendarBreakDaysInLocalRangeProvider(headerRange))
+        .maybeWhen(
+          data: (days) => days.map(normalizeCalendarDay).toSet(),
+          orElse: () => const <DateTime>{},
+        );
+    final holidayDays = ref
+        .watch(calendarEntriesInLocalRangeProvider(headerRange))
+        .maybeWhen(data: buildHolidayDays, orElse: () => const <DateTime>{});
     // Pill colour rule: as soon as the user has more than one choir active
     // in the calendar filter, choir- *and* event-type segments are tinted
     // by their associated choir so the user can tell different choirs
@@ -140,7 +160,34 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
     );
     final markerColorResolver = CalendarMarkerColorResolver.standard(
       distinguishChoirs: activeChoirCount > 1,
+      palette: CalendarMarkerColorPalette.standard.copyWith(
+        byType: <CalendarEntryType, Color>{
+          ...CalendarMarkerColorPalette.standard.byType,
+          CalendarEntryType.breakType: CalendarPresentationTheme.holidayBlue(
+            context,
+          ),
+        },
+      ),
     );
+    final vacationRangeColor = CalendarPresentationTheme.vacationRangeBarColor(
+      context,
+    );
+
+    CalendarBreakRangeSegment? breakSegmentFor(DateTime day) {
+      return breakRangeByDate[normalizeCalendarDay(day)];
+    }
+
+    Widget wrapWithVacationShell({
+      required DateTime day,
+      required Widget child,
+    }) {
+      return CalendarDayVacationShell(
+        breakRangeSegment: breakSegmentFor(day),
+        breakRangeColor: vacationRangeColor,
+        child: child,
+      );
+    }
+
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
       if (widget.weekTimetableMode) return;
       final currentFocusedDay = ref.read(focusedDayProvider);
@@ -206,7 +253,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           }
           if (events.isEmpty) return null;
           final marker = events.first;
-          if (marker is! CalendarDayMarkerData || marker.totalMinutes <= 0) {
+          if (marker is! CalendarDayMarkerData || marker.segments.isEmpty) {
             return null;
           }
           return CalendarDayMarkerSlot(
@@ -215,34 +262,36 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           );
         },
         defaultBuilder: (context, day, focusedDay) {
-          final isOutsideMonth =
-              widget.calendarFormat == CalendarFormat.month &&
-              !_isSameMonth(day, focusedDay);
+          final marker = dayMarkersByDate[normalizeCalendarDay(day)];
+          final normalizedDay = normalizeCalendarDay(day);
+          final isHoliday =
+              holidayDays.contains(normalizedDay) ||
+              breakDays.contains(normalizedDay);
           return _wrapDayInteraction(
-            Container(
-              margin: const EdgeInsets.all(2),
-              alignment: Alignment.center,
-              child: Text(
-                '${day.day}',
-                style: TextStyle(
-                  color: isOutsideMonth
-                      ? scheme.onSurface.withValues(alpha: 0.3)
-                      : scheme.onSurface,
-                ),
+            wrapWithVacationShell(
+              day: day,
+              child: CalendarDayNumberCell(
+                day: day,
+                marker: marker,
+                colorResolver: markerColorResolver,
+                dayNumberColor: isHoliday
+                    ? CalendarPresentationTheme.holidayBlue(context)
+                    : null,
+                isToday: false,
               ),
             ),
           );
         },
         outsideBuilder: (context, day, focusedDay) {
           return _wrapDayInteraction(
-            Container(
-              margin: const EdgeInsets.all(2),
-              alignment: Alignment.center,
-              child: Text(
-                '${day.day}',
-                style: TextStyle(
-                  color: scheme.onSurface.withValues(alpha: 0.3),
-                ),
+            wrapWithVacationShell(
+              day: day,
+              child: CalendarDayNumberCell(
+                day: day,
+                marker: null,
+                colorResolver: markerColorResolver,
+                dayNumberColor: scheme.onSurface.withValues(alpha: 0.3),
+                isToday: false,
               ),
             ),
           );
@@ -254,13 +303,16 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           if (widget.calendarFormat == CalendarFormat.month &&
               !_isSameMonth(day, focusedDay)) {
             return _wrapDayInteraction(
-              Container(
-                margin: const EdgeInsets.all(2),
-                alignment: Alignment.center,
-                child: Text(
-                  '${day.day}',
-                  style: TextStyle(
-                    color: scheme.onSurface.withValues(alpha: 0.3),
+              wrapWithVacationShell(
+                day: day,
+                child: Container(
+                  margin: const EdgeInsets.all(2),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '${day.day}',
+                    style: TextStyle(
+                      color: scheme.onSurface.withValues(alpha: 0.3),
+                    ),
                   ),
                 ),
               ),
@@ -268,14 +320,24 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           }
 
           final marker = dayMarkersByDate[normalizeCalendarDay(day)];
+          final normalizedDay = normalizeCalendarDay(day);
+          final isHoliday =
+              holidayDays.contains(normalizedDay) ||
+              breakDays.contains(normalizedDay);
 
           return _wrapDayInteraction(
-            CalendarDaySelectionAppear(
+            wrapWithVacationShell(
               day: day,
-              child: CalendarSelectedDayCell(
+              child: CalendarDaySelectionAppear(
                 day: day,
-                marker: marker,
-                colorResolver: markerColorResolver,
+                child: CalendarSelectedDayCell(
+                  day: day,
+                  marker: marker,
+                  colorResolver: markerColorResolver,
+                  dayNumberColor: isHoliday
+                      ? CalendarPresentationTheme.holidayBlue(context)
+                      : null,
+                ),
               ),
             ),
           );
@@ -284,16 +346,22 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           if (isSameDay(day, selectedDay) && showSelectedDayIndicator) {
             return null;
           }
+          final marker = dayMarkersByDate[normalizeCalendarDay(day)];
+          final normalizedDay = normalizeCalendarDay(day);
+          final isHoliday =
+              holidayDays.contains(normalizedDay) ||
+              breakDays.contains(normalizedDay);
           return _wrapDayInteraction(
-            Container(
-              margin: const EdgeInsets.all(2),
-              alignment: Alignment.center,
-              child: Text(
-                '${day.day}',
-                style: TextStyle(
-                  color: todayAccentColor,
-                  fontWeight: FontWeight.w700,
-                ),
+            wrapWithVacationShell(
+              day: day,
+              child: CalendarDayNumberCell(
+                day: day,
+                marker: marker,
+                colorResolver: markerColorResolver,
+                dayNumberColor: isHoliday
+                    ? CalendarPresentationTheme.holidayBlue(context)
+                    : null,
+                isToday: !isHoliday,
               ),
             ),
           );
@@ -307,10 +375,9 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
         if (widget.weekTimetableMode) return;
         final currentSelectedDay = ref.read(selectedDayProvider);
         if (isSameDay(currentSelectedDay, newSelectedDay)) return;
-        ref.read(selectedDayProvider.notifier).update(
-              newSelectedDay,
-              origin: CalendarDaySelectionOrigin.tap,
-            );
+        ref
+            .read(selectedDayProvider.notifier)
+            .update(newSelectedDay, origin: CalendarDaySelectionOrigin.tap);
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },
       onPageChanged: (newFocusedDay) async {

@@ -18,6 +18,10 @@ class AppRadius {
   static const double m = 12;
   static const double l = 14;
   static const double xl = 16;
+
+  /// Bottom-Sheets / Modals (iOS-ähnlich, deutlich runder als [xl]).
+  static const double sheet = 28;
+
   static const double pill = 100;
 }
 

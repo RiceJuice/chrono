@@ -15,6 +15,9 @@ class ChorCard extends ConsumerWidget {
   final double? listTileHorizontalPadding;
   final EdgeInsetsGeometry? contentPadding;
   final double? titleFontSize;
+  final bool modalHeaderPreview;
+  final double? neighborGlassBlurSigma;
+  final double? neighborGlassTintAlpha;
 
   const ChorCard({
     super.key,
@@ -26,6 +29,9 @@ class ChorCard extends ConsumerWidget {
     this.listTileHorizontalPadding,
     this.contentPadding,
     this.titleFontSize,
+    this.modalHeaderPreview = false,
+    this.neighborGlassBlurSigma,
+    this.neighborGlassTintAlpha,
   });
 
   @override
@@ -49,6 +55,9 @@ class ChorCard extends ConsumerWidget {
           ? CalendarCardLeadingIndicator.contentPadding
           : (contentPadding ?? CalendarCardLeadingIndicator.contentPadding),
       leadingIndicatorColor: accent,
+      modalHeaderPreview: modalHeaderPreview,
+      neighborGlassBlurSigma: neighborGlassBlurSigma,
+      neighborGlassTintAlpha: neighborGlassTintAlpha,
     );
   }
 }

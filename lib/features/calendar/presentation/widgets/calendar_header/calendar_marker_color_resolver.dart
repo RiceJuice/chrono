@@ -75,7 +75,9 @@ class ChoirAwareMarkerColorResolver extends CalendarMarkerColorResolver {
     return switch (type) {
       CalendarEntryType.choir => true,
       CalendarEntryType.event => applyChoirColorToEvents,
-      CalendarEntryType.lesson || CalendarEntryType.meal => false,
+      CalendarEntryType.lesson ||
+      CalendarEntryType.meal ||
+      CalendarEntryType.breakType => false,
     };
   }
 

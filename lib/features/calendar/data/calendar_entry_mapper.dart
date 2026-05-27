@@ -42,7 +42,9 @@ class CalendarEntryMapper {
     final schoolTrack = BackendSchoolTrackCodec.fromBackend(
       _asString(_rowValue(row, 'schooltrack')),
     );
-    final diet = BackendDietCodec.fromBackend(_asString(_rowValue(row, 'diet')));
+    final diet = BackendDietCodec.fromBackend(
+      _asString(_rowValue(row, 'diet')),
+    );
 
     return CalendarEntry(
       id: rowId,
@@ -103,6 +105,9 @@ class CalendarEntryMapper {
     final parsedSeriesId = forceSeriesIdFromId
         ? rowId
         : _asString(_rowValue(row, 'series_id'));
+    final startTime = _parseDateTime(_rowValue(row, 'start_time'));
+    final endTime =
+        _parseDateTimeOrNull(_rowValue(row, 'end_time')) ?? startTime;
 
     return CalendarEntry(
       id: _rowValue(row, 'id').toString(),
@@ -110,8 +115,8 @@ class CalendarEntryMapper {
       description: description,
       note: _asString(_rowValue(row, 'note')),
       location: _asString(_rowValue(row, 'location')),
-      startTime: _parseDateTime(_rowValue(row, 'start_time')),
-      endTime: _parseDateTime(_rowValue(row, 'end_time')),
+      startTime: startTime,
+      endTime: endTime,
       imageUrls: null,
       accentColor: _defaultAccentColorForType(domainType),
       type: domainType,
@@ -268,6 +273,7 @@ class CalendarEntryMapper {
       CalendarEventType.meal => CalendarEntryType.meal,
       CalendarEventType.event => CalendarEntryType.event,
       CalendarEventType.choir => CalendarEntryType.choir,
+      CalendarEventType.breakType => CalendarEntryType.breakType,
       CalendarEventType.unknown => CalendarEntryType.event,
     };
   }
@@ -282,6 +288,7 @@ class CalendarEntryMapper {
       CalendarEntryType.meal => const Color(0xFF124E30),
       CalendarEntryType.event => const Color(0xFF29509E),
       CalendarEntryType.choir => const Color(0xFFCBBBA0),
+      CalendarEntryType.breakType => const Color(0xFF29509E),
     };
   }
 

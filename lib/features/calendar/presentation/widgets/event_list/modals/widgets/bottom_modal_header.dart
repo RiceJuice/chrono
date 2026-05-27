@@ -6,34 +6,51 @@ import 'package:chronoapp/features/calendar/presentation/providers/filter/calend
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/calendar_entry_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart'
     show kBottomModalHeaderHeight;
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Graustufen (Luminanz) — alle nicht ausgewählten Karten gleich behandelt.
-const ColorFilter _kGrayscale = ColorFilter.matrix(<double>[
-  0.2126,
-  0.7152,
-  0.0722,
-  0,
-  0,
-  0.2126,
-  0.7152,
-  0.0722,
-  0,
-  0,
-  0.2126,
-  0.7152,
-  0.0722,
-  0,
-  0,
-  0,
-  0,
-  0,
-  1,
-  0,
-]);
+/// Max. Blur (σ) — gilt erst bei größerem Abstand zur Auswahl.
+const double kModalPreviewNeighborBlurSigmaMax = 5;
 
-const double _kMutedCardOpacity = 0.28;
+/// Min. Blur direkt neben der Auswahl (soll noch lesbar bleiben).
+const double kModalPreviewNeighborBlurSigmaMin = 0.8;
+
+/// Abstand ≥ dieses Ziel → volle Blur-Stärke ([kModalPreviewNeighborBlurSigmaMax]).
+const double kModalPreviewBlurDistanceNorm = 3;
+
+/// > 1: Blur/Farbe wachsen am Anfang langsamer (exponentielle Kurve).
+const double kModalPreviewBlurCurveExponent = 2.4;
+
+/// Glas-Tönung: Minimum (Abstand 1) und Maximum (ferne Nachbarn).
+const double kModalPreviewNeighborGlassTintMin = 0.045;
+const double kModalPreviewNeighborGlassTintMax = 0.15;
+
+/// Farbe wächst schneller als Blur (niedrigerer Exponent = mehr Farbe früh).
+const double kModalPreviewTintCurveExponent = 1.2;
+
+/// σ für Nachbar-Karten: exponentiell nach Abstand zur Auswahl.
+double modalPreviewBlurSigmaForDistance(int distanceFromSelected) {
+  if (distanceFromSelected <= 0) return 0;
+  final t = (distanceFromSelected / kModalPreviewBlurDistanceNorm)
+      .clamp(0.0, 1.0);
+  final curved = math.pow(t, kModalPreviewBlurCurveExponent).toDouble();
+  return kModalPreviewNeighborBlurSigmaMin +
+      (kModalPreviewNeighborBlurSigmaMax - kModalPreviewNeighborBlurSigmaMin) *
+          curved;
+}
+
+/// Glas-Tönung: stärker und früher als der Blur.
+double modalPreviewGlassTintForDistance(int distanceFromSelected) {
+  if (distanceFromSelected <= 0) return 0;
+  final t = (distanceFromSelected / kModalPreviewBlurDistanceNorm)
+      .clamp(0.0, 1.0);
+  final curved = math.pow(t, kModalPreviewTintCurveExponent).toDouble();
+  return kModalPreviewNeighborGlassTintMin +
+      (kModalPreviewNeighborGlassTintMax - kModalPreviewNeighborGlassTintMin) *
+          curved;
+}
 
 /// Vertikaler Abstand zwischen allen Karten in der Vorschau-Liste.
 const double _kModalCardSpacing = AppSpacing.m;
@@ -49,15 +66,15 @@ const double _kModalPreviewTitleFontSize = 17.5;
 /// der chronologisch erste Termin des lokalen Tages ist.
 const double _kFirstOfDayModalListExtraTop = 24;
 
-/// Vertikaler Masken-Verlauf ([ShaderMask]): Basis-Stops (Mitte = volle Sicht).
+/// Vertikaler Masken-Verlauf ([ShaderMask]): Mitte = volle Sicht (breiter).
 const double _kModalListEdgeFadeIn = 0.32;
 const double _kModalListEdgeFadeOut = 0.68;
 
 /// Wenn oberhalb / unterhalb des ausgewählten Eintrags keine weiteren Karten
 /// in der Vorschau sind: kürzere Ausblendzone an dieser Kante (Termin „beginnt“
 /// bzw. „endet“ dort).
-const double _kModalListEdgeFadeShortIn = 0.16;
-const double _kModalListEdgeFadeShortOut = 0.84;
+const double _kModalListEdgeFadeShortIn = 0.10;
+const double _kModalListEdgeFadeShortOut = 0.80;
 
 class BottomModalHandle extends StatelessWidget {
   const BottomModalHandle({super.key});
@@ -100,11 +117,10 @@ class BottomModalHeader extends ConsumerWidget {
     return DateTime(local.year, local.month, local.day);
   }
 
-  static CalendarEntry? _firstEntryOfLocalDay(
+  static List<CalendarEntry> _entriesOnLocalDay(
     List<CalendarEntry> dayEntries,
     DateTime dayStart,
   ) {
-    if (dayEntries.isEmpty) return null;
     final y = dayStart.year;
     final m = dayStart.month;
     final d = dayStart.day;
@@ -112,9 +128,36 @@ class BottomModalHeader extends ConsumerWidget {
       final s = e.startTime.toLocal();
       return s.year == y && s.month == m && s.day == d;
     }).toList();
-    if (sameDay.isEmpty) return null;
     sameDay.sort((a, b) => a.startTime.compareTo(b.startTime));
-    return sameDay.first;
+    return sameDay;
+  }
+
+  static CalendarEntry? _firstEntryOfLocalDay(
+    List<CalendarEntry> dayEntries,
+    DateTime dayStart,
+  ) {
+    final sameDay = _entriesOnLocalDay(dayEntries, dayStart);
+    return sameDay.isEmpty ? null : sameDay.first;
+  }
+
+  /// Chronologisch unmittelbar vor [anchor] am selben lokalen Tag.
+  static CalendarEntry? _entryImmediatelyBeforeOnDay(
+    List<CalendarEntry> daySorted,
+    CalendarEntry anchor,
+  ) {
+    final ix = daySorted.indexWhere((e) => e.id == anchor.id);
+    if (ix <= 0) return null;
+    return daySorted[ix - 1];
+  }
+
+  /// Chronologisch unmittelbar nach [anchor] am selben lokalen Tag.
+  static CalendarEntry? _entryImmediatelyAfterOnDay(
+    List<CalendarEntry> daySorted,
+    CalendarEntry anchor,
+  ) {
+    final ix = daySorted.indexWhere((e) => e.id == anchor.id);
+    if (ix < 0 || ix >= daySorted.length - 1) return null;
+    return daySorted[ix + 1];
   }
 
   static List<CalendarEntry> _entriesStartingAtLocalHour(
@@ -152,7 +195,7 @@ class BottomModalHeader extends ConsumerWidget {
               color: displayEntry.accentColor,
               borderRadius: clipTopCorners
                   ? const BorderRadius.vertical(
-                      top: Radius.circular(AppRadius.xl),
+                      top: Radius.circular(AppRadius.sheet),
                     )
                   : null,
             ),
@@ -164,6 +207,7 @@ class BottomModalHeader extends ConsumerWidget {
               return entriesAsync.when(
                 data: (dayEntries) {
                   final dayStart = _localDayStart(displayEntry);
+                  final daySorted = _entriesOnLocalDay(dayEntries, dayStart);
                   final h = displayEntry.startTime.toLocal().hour;
 
                   var curr = _entriesStartingAtLocalHour(
@@ -174,12 +218,12 @@ class BottomModalHeader extends ConsumerWidget {
                   if (curr.isEmpty) {
                     curr = [displayEntry];
                   }
-                  final prev = _entriesStartingAtLocalHour(
+                  var prev = _entriesStartingAtLocalHour(
                     dayEntries,
                     dayStart,
                     h - 1,
                   );
-                  final next = _entriesStartingAtLocalHour(
+                  var next = _entriesStartingAtLocalHour(
                     dayEntries,
                     dayStart,
                     h + 1,
@@ -192,6 +236,29 @@ class BottomModalHeader extends ConsumerWidget {
                   final selected = curr[ix];
                   final beforeSel = curr.sublist(0, ix);
                   final afterSel = curr.sublist(ix + 1, curr.length);
+
+                  // Lücken zwischen Stunden: letzten / nächsten Termin des Tages
+                  // als Vorschau, damit oben/unten nicht leer wirkt.
+                  if (prev.isEmpty) {
+                    final before = _entryImmediatelyBeforeOnDay(
+                      daySorted,
+                      displayEntry,
+                    );
+                    if (before != null &&
+                        !beforeSel.any((e) => e.id == before.id)) {
+                      prev = [before];
+                    }
+                  }
+                  if (next.isEmpty) {
+                    final after = _entryImmediatelyAfterOnDay(
+                      daySorted,
+                      displayEntry,
+                    );
+                    if (after != null &&
+                        !afterSel.any((e) => e.id == after.id)) {
+                      next = [after];
+                    }
+                  }
                   final firstOfDay = _firstEntryOfLocalDay(
                     dayEntries,
                     dayStart,
@@ -242,7 +309,7 @@ class BottomModalHeader extends ConsumerWidget {
       child: clipTopCorners
           ? ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadius.xl),
+                top: Radius.circular(AppRadius.sheet),
               ),
               clipBehavior: Clip.hardEdge,
               child: stack,
@@ -281,7 +348,7 @@ class BottomModalHeaderPreview extends ConsumerWidget {
               color: displayEntry.accentColor,
               borderRadius: clipTopCorners
                   ? const BorderRadius.vertical(
-                      top: Radius.circular(AppRadius.xl),
+                      top: Radius.circular(AppRadius.sheet),
                     )
                   : null,
             ),
@@ -299,7 +366,7 @@ class BottomModalHeaderPreview extends ConsumerWidget {
       child: clipTopCorners
           ? ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadius.xl),
+                top: Radius.circular(AppRadius.sheet),
               ),
               clipBehavior: Clip.hardEdge,
               child: stack,
@@ -357,7 +424,7 @@ class BottomModalHeaderPreviewSwiper extends StatelessWidget {
               color: bgColor,
               borderRadius: clipTopCorners
                   ? const BorderRadius.vertical(
-                      top: Radius.circular(AppRadius.xl),
+                      top: Radius.circular(AppRadius.sheet),
                     )
                   : null,
             ),
@@ -394,7 +461,7 @@ class BottomModalHeaderPreviewSwiper extends StatelessWidget {
       child: clipTopCorners
           ? ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadius.xl),
+                top: Radius.circular(AppRadius.sheet),
               ),
               clipBehavior: Clip.hardEdge,
               child: stack,
@@ -614,12 +681,32 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
         : 0;
   }
 
-  Widget _entryCard(CalendarEntry e) {
-    return _HeaderEntryCard(
+  int _distanceFromSelected(CalendarEntry e, List<CalendarEntry> ordered) {
+    final selIx = ordered.indexWhere((x) => x.id == widget.selected.id);
+    final ix = ordered.indexWhere((x) => x.id == e.id);
+    if (selIx < 0 || ix < 0) return 1;
+    return (ix - selIx).abs();
+  }
+
+  Widget _entrySlot(CalendarEntry e, List<CalendarEntry> ordered) {
+    final isSelected = e.id == widget.selected.id;
+    final distance = _distanceFromSelected(e, ordered);
+    final card = _HeaderEntryCard(
       entry: e,
       applyPastStyling: widget.applyPastStyling,
-      isSelected: e.id == widget.selected.id,
+      modalHeaderPreview: true,
+      neighborGlassBlurSigma: isSelected
+          ? null
+          : modalPreviewBlurSigmaForDistance(distance),
+      neighborGlassTintAlpha: isSelected
+          ? null
+          : modalPreviewGlassTintForDistance(distance),
     );
+
+    if (isSelected) {
+      return KeyedSubtree(key: _selectedKey, child: card);
+    }
+    return card;
   }
 
   void _scheduleCenterSelected() {
@@ -666,6 +753,9 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
     return ShaderMask(
       blendMode: BlendMode.dstIn,
       shaderCallback: (bounds) {
+        // Exponentielle Ein-/Ausblendung: in der Mitte länger volle Sicht.
+        final fadeIn = math.pow(fadeInStop, 1.35).toDouble();
+        final fadeOut = 1 - math.pow(1 - fadeOutStop, 1.35).toDouble();
         return LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -675,13 +765,12 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
             Color(0xFFFFFFFF),
             Color(0x00FFFFFF),
           ],
-          stops: [0, fadeInStop, fadeOutStop, 1],
+          stops: [0, fadeIn, fadeOut, 1],
         ).createShader(bounds);
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+        padding: const EdgeInsets.only(right: AppSpacing.m),
         child: ListView.separated(
-          // Nur programmatisch über [ensureVisible] — kein Wisch-Konflikt mit dem Sheet.
           physics: const NeverScrollableScrollPhysics(),
           clipBehavior: Clip.hardEdge,
           padding: EdgeInsets.fromLTRB(0, topPad, 0, pad),
@@ -689,13 +778,6 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
           separatorBuilder: (_, _) =>
               const SizedBox(height: _kModalCardSpacing),
           itemBuilder: (context, index) {
-            Widget wrapSelected(CalendarEntry e, Widget card) {
-              if (e.id == widget.selected.id) {
-                return KeyedSubtree(key: _selectedKey, child: card);
-              }
-              return card;
-            }
-
             if (kHead > 0 && index == 0) {
               return Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.l),
@@ -705,7 +787,7 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
                   children: [
                     for (var i = 0; i < kHead; i++) ...[
                       if (i > 0) const SizedBox(height: _kModalCardSpacing),
-                      wrapSelected(ordered[i], _entryCard(ordered[i])),
+                      _entrySlot(ordered[i], ordered),
                     ],
                   ],
                 ),
@@ -719,18 +801,14 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
                 children: [
                   for (var i = 0; i < kTail; i++) ...[
                     if (i > 0) const SizedBox(height: _kModalCardSpacing),
-                    wrapSelected(
-                      ordered[start + i],
-                      _entryCard(ordered[start + i]),
-                    ),
+                    _entrySlot(ordered[start + i], ordered),
                   ],
                 ],
               );
             }
 
             final oi = kHead > 0 ? kHead + index - 1 : index;
-            final e = ordered[oi];
-            return wrapSelected(e, _entryCard(e));
+            return _entrySlot(ordered[oi], ordered);
           },
         ),
       ),
@@ -741,33 +819,35 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
 class _HeaderEntryCard extends StatelessWidget {
   final CalendarEntry entry;
   final bool applyPastStyling;
-  final bool isSelected;
+  final bool modalHeaderPreview;
+  final double? neighborGlassBlurSigma;
+  final double? neighborGlassTintAlpha;
 
   const _HeaderEntryCard({
     required this.entry,
     required this.applyPastStyling,
-    required this.isSelected,
+    this.modalHeaderPreview = false,
+    this.neighborGlassBlurSigma,
+    this.neighborGlassTintAlpha,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget card = CalendarEntryCard(
-      entry: entry,
-      applyPastStyling: applyPastStyling,
-      listTileHorizontalPadding: 0,
-      cardContentPadding: _kModalPreviewCardPadding,
-      cardTitleFontSize: _kModalPreviewTitleFontSize,
-    );
-
-    if (!isSelected) {
-      card = ColorFiltered(
-        colorFilter: _kGrayscale,
-        child: Opacity(opacity: _kMutedCardOpacity, child: card),
-      );
-    }
-
     return IgnorePointer(
-      child: SizedBox(width: double.infinity, child: card),
+      child: SizedBox(
+        width: double.infinity,
+        child: CalendarEntryCard(
+          entry: entry,
+          applyPastStyling: applyPastStyling,
+          listTileHorizontalPadding:
+              modalHeaderPreview ? AppSpacing.s : 0,
+          cardContentPadding: _kModalPreviewCardPadding,
+          cardTitleFontSize: _kModalPreviewTitleFontSize,
+          modalHeaderPreview: modalHeaderPreview,
+          neighborGlassBlurSigma: neighborGlassBlurSigma,
+          neighborGlassTintAlpha: neighborGlassTintAlpha,
+        ),
+      ),
     );
   }
 }

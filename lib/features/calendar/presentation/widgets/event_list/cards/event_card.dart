@@ -22,6 +22,10 @@ class EventCard extends StatefulWidget {
   final bool weekGridCompact;
   final bool? showInlineTimeRange;
   final double? listTileHorizontalPadding;
+  final bool modalHeaderPreview;
+  final double? neighborGlassBlurSigma;
+  final double? neighborGlassTintAlpha;
+
   const EventCard({
     super.key,
     required this.entry,
@@ -30,6 +34,9 @@ class EventCard extends StatefulWidget {
     this.weekGridCompact = false,
     this.showInlineTimeRange,
     this.listTileHorizontalPadding,
+    this.modalHeaderPreview = false,
+    this.neighborGlassBlurSigma,
+    this.neighborGlassTintAlpha,
   });
 
   @override
@@ -175,6 +182,7 @@ class _EventCardState extends State<EventCard> {
                       entry: entry,
                       textColor: style.timeTextColor,
                       alignToContentHeight: true,
+                      suppressEdgeNudge: widget.modalHeaderPreview,
                     ),
                   ),
                 Expanded(

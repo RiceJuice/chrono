@@ -10,6 +10,8 @@ import '../../providers/calendar_accent_overrides_provider.dart';
 import '../../providers/calendar_providers.dart';
 import 'calendar_appearance_bottom_sheet.dart';
 import 'calendar_settings_filter_widgets.dart';
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
+
 import '../event_list/modals/base_bottom_modal.dart';
 
 enum CalendarFilterBottomSheetMode { calendarSettings, searchFilter }
@@ -22,7 +24,6 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final bottomSheetTheme = Theme.of(context).bottomSheetTheme;
     final isCalendarSettings =
         mode == CalendarFilterBottomSheetMode.calendarSettings;
     final filters = ref.watch(
@@ -39,9 +40,7 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
     final title = isCalendarSettings ? 'Kalender-Einstellungen' : 'Suchfilter';
     final calendarFiltersNotifier = ref.read(calendarFiltersProvider.notifier);
 
-    return ColoredBox(
-      color:
-          bottomSheetTheme.modalBackgroundColor ?? colorScheme.surfaceContainer,
+    return AppModalSheetChrome(
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -248,11 +247,10 @@ class _CalendarSettingsListSectionState
 
     _isAppearanceSheetOpen = true;
     try {
-      await showModalBottomSheet<void>(
+      await AppModalSheet.show<void>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
-        sheetAnimationStyle: kCalendarBottomSheetMotion,
         builder: (_) => CalendarAppearanceBottomSheet(kind: kind),
       );
     } finally {

@@ -92,6 +92,14 @@ CalendarEntry calendarPreviewPlaceholderForType(CalendarEntryType type) {
         type: type,
         diet: BackendDiet.unknown,
       ),
+    CalendarEntryType.breakType => CalendarEntry(
+        id: 'preview-placeholder-break',
+        eventName: 'Kein bevorstehender Ferien-/Feiertagseintrag',
+        startTime: now,
+        endTime: end,
+        accentColor: accent,
+        type: type,
+      ),
     CalendarEntryType.lesson => CalendarEntry(
         id: 'preview-placeholder-lesson',
         eventName: 'Keine bevorstehende Schulstunde',

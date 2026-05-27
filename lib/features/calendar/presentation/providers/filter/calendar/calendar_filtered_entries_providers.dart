@@ -15,7 +15,7 @@ final filteredCalendarEntriesForDayProvider =
       return source.whenData((entries) {
         return entries
             .where(
-              (entry) => calendarEntryMatchesFilters(
+              (entry) => calendarEntryVisibleInEventList(
                 entry: entry,
                 filters: filters,
                 hideUnknownWhenFilterActive: false,
@@ -28,6 +28,26 @@ final filteredCalendarEntriesForDayProvider =
 final filteredCalendarAllEntriesProvider =
     fr.Provider<fr.AsyncValue<List<CalendarEntry>>>((ref) {
       final source = ref.watch(calendarAllEntriesProvider);
+      final filters = ref.watch(calendarFiltersProvider);
+      return source.whenData((entries) {
+        return entries
+            .where(
+              (entry) => calendarEntryMatchesFilters(
+                entry: entry,
+                filters: filters,
+                hideUnknownWhenFilterActive: false,
+              ),
+            )
+            .toList(growable: false);
+      });
+    });
+
+final filteredCalendarEntriesInLocalRangeProvider =
+    fr.Provider.family<
+      fr.AsyncValue<List<CalendarEntry>>,
+      CalendarEntryLocalRange
+    >((ref, range) {
+      final source = ref.watch(calendarEntriesInLocalRangeProvider(range));
       final filters = ref.watch(calendarFiltersProvider);
       return source.whenData((entries) {
         return entries

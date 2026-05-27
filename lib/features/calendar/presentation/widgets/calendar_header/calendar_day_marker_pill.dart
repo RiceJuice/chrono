@@ -45,8 +45,7 @@ const _horizontalOverlapEpsilon = 0.5;
 /// Padding inside the pill between the rounded background and the segments.
 const _pillContentInset = 1.5;
 
-DateTime normalizeCalendarDay(DateTime day) =>
-    DateTime(day.year, day.month, day.day);
+DateTime normalizeCalendarDay(DateTime day) => AppDateTime.localDay(day);
 
 Map<DateTime, CalendarDayMarkerData> buildCalendarDayMarkers(
   List<CalendarEntry> entries,
@@ -64,9 +63,15 @@ Map<DateTime, CalendarDayMarkerData> buildCalendarDayMarkers(
     if (entry.type == CalendarEntryType.choir && entry.isRecurringInstance) {
       continue;
     }
+    // Break entries use the multi-day range bar and must not appear in day pills.
+    if (entry.type == CalendarEntryType.breakType) {
+      continue;
+    }
     final start = AppDateTime.toLocal(entry.startTime);
     final end = AppDateTime.toLocal(entry.endTime);
-    if (!end.isAfter(start)) continue;
+    if (!end.isAfter(start)) {
+      continue;
+    }
 
     // Both choir- *and* event-type entries can carry a meaningful
     // [BackendChoir]: e.g. a concert tagged with a specific choir. We keep

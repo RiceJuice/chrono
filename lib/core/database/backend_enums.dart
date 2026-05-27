@@ -1,4 +1,4 @@
-enum CalendarEventType { lesson, event, meal, choir, unknown }
+enum CalendarEventType { lesson, event, meal, choir, breakType, unknown }
 
 enum BackendChoir { dkm, raedlinger, giehl, szuczies, schola, unknown }
 
@@ -19,6 +19,7 @@ extension CalendarEventTypeCodec on CalendarEventType {
       'event' => CalendarEventType.event,
       'meal' => CalendarEventType.meal,
       'choir' => CalendarEventType.choir,
+      'break' => CalendarEventType.breakType,
       // Legacy-Schreibweise aus altem App-Enum.
       'chor' => CalendarEventType.choir,
       _ => CalendarEventType.unknown,
@@ -31,6 +32,7 @@ extension CalendarEventTypeCodec on CalendarEventType {
       CalendarEventType.event => 'event',
       CalendarEventType.meal => 'meal',
       CalendarEventType.choir => 'choir',
+      CalendarEventType.breakType => 'break',
       CalendarEventType.unknown => null,
     };
   }

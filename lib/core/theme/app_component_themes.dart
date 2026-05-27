@@ -157,7 +157,7 @@ class AppComponentThemes {
       surfaceTintColor: Colors.transparent,
       dragHandleColor: scheme.outlineVariant,
       shape: SmoothRectangleBorder(
-        borderRadius: AppSquircle.topSheet(AppRadius.xl),
+        borderRadius: AppSquircle.topSheet(AppRadius.sheet),
       ),
     );
   }

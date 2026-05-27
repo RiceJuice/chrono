@@ -16,6 +16,9 @@ class CalendarEntryCard extends StatelessWidget {
     this.listTileHorizontalPadding,
     this.cardContentPadding,
     this.cardTitleFontSize,
+    this.modalHeaderPreview = false,
+    this.neighborGlassBlurSigma,
+    this.neighborGlassTintAlpha,
     super.key,
   });
 
@@ -36,6 +39,10 @@ class CalendarEntryCard extends StatelessWidget {
   /// Optional: Titelgröße (z. B. Sheet-Header-Vorschau).
   final double? cardTitleFontSize;
 
+  final bool modalHeaderPreview;
+  final double? neighborGlassBlurSigma;
+  final double? neighborGlassTintAlpha;
+
   @override
   Widget build(BuildContext context) {
     switch (entry.type) {
@@ -49,6 +56,9 @@ class CalendarEntryCard extends StatelessWidget {
           listTileHorizontalPadding: listTileHorizontalPadding,
           contentPadding: cardContentPadding,
           titleFontSize: cardTitleFontSize,
+          modalHeaderPreview: modalHeaderPreview,
+          neighborGlassBlurSigma: neighborGlassBlurSigma,
+          neighborGlassTintAlpha: neighborGlassTintAlpha,
         );
       case CalendarEntryType.choir:
         return ChorCard(
@@ -60,6 +70,9 @@ class CalendarEntryCard extends StatelessWidget {
           listTileHorizontalPadding: listTileHorizontalPadding,
           contentPadding: cardContentPadding,
           titleFontSize: cardTitleFontSize,
+          modalHeaderPreview: modalHeaderPreview,
+          neighborGlassBlurSigma: neighborGlassBlurSigma,
+          neighborGlassTintAlpha: neighborGlassTintAlpha,
         );
       case CalendarEntryType.meal:
         return MealCard(
@@ -69,6 +82,9 @@ class CalendarEntryCard extends StatelessWidget {
           weekGridCompact: weekGridCompact,
           showInlineTimeRange: showInlineTimeRange,
           listTileHorizontalPadding: listTileHorizontalPadding,
+          modalHeaderPreview: modalHeaderPreview,
+          neighborGlassBlurSigma: neighborGlassBlurSigma,
+          neighborGlassTintAlpha: neighborGlassTintAlpha,
         );
       case CalendarEntryType.event:
         return EventCard(
@@ -78,7 +94,12 @@ class CalendarEntryCard extends StatelessWidget {
           weekGridCompact: weekGridCompact,
           showInlineTimeRange: showInlineTimeRange,
           listTileHorizontalPadding: listTileHorizontalPadding,
+          modalHeaderPreview: modalHeaderPreview,
+          neighborGlassBlurSigma: neighborGlassBlurSigma,
+          neighborGlassTintAlpha: neighborGlassTintAlpha,
         );
+      case CalendarEntryType.breakType:
+        return const SizedBox.shrink();
     }
   }
 }

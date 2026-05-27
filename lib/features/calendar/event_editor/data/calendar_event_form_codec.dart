@@ -51,6 +51,7 @@ class CalendarEventFormCodec {
       CalendarEntryType.meal => CalendarEventType.meal,
       CalendarEntryType.event => CalendarEventType.event,
       CalendarEntryType.choir => CalendarEventType.choir,
+      CalendarEntryType.breakType => CalendarEventType.breakType,
     };
     return backend.toBackend() ?? 'event';
   }

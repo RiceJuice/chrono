@@ -3,7 +3,7 @@ import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filter_options_providers.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -40,14 +40,10 @@ class CalendarEventFormPage extends ConsumerStatefulWidget {
     required CalendarEntry sourceEntry,
     CalendarEventFormMode mode = CalendarEventFormMode.edit,
   }) {
-    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
-
-    return showModalBottomSheet<void>(
+    return AppModalSheet.show<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: backgroundColor,
-      sheetAnimationStyle: kCalendarBottomSheetMotion,
       builder: (sheetContext) => CalendarEventFormPage(
         sourceEntry: sourceEntry,
         mode: mode,
@@ -225,7 +221,6 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final classOptions =
         ref.watch(calendarClassFilterOptionsProvider).asData?.value ??
         const <String>[];
@@ -240,15 +235,11 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
         if (didPop) return;
         await _onClose();
       },
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
-        child: Material(
-          color: theme.scaffoldBackgroundColor,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      child: AppModalSheetChrome(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
               EventFormModalHeader(
                 title: title,
                 saving: _saving,
@@ -306,7 +297,6 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
               ),
             ],
           ),
-        ),
       ),
     );
   }
