@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
 class AppSpacing {
   AppSpacing._();
@@ -18,6 +19,36 @@ class AppRadius {
   static const double l = 14;
   static const double xl = 16;
   static const double pill = 100;
+}
+
+class AppSquircle {
+  AppSquircle._();
+
+  /// 0.6 ist die gängige Figma/iOS-Näherung für „squircle“-artige Ecken.
+  static const double cornerSmoothing = 0.6;
+
+  static SmoothBorderRadius borderRadius(double r) => SmoothBorderRadius(
+        cornerRadius: r,
+        cornerSmoothing: cornerSmoothing,
+      );
+
+  static SmoothBorderRadius topSheet(double r) => SmoothBorderRadius.only(
+        topLeft: SmoothRadius(
+          cornerRadius: r,
+          cornerSmoothing: cornerSmoothing,
+        ),
+        topRight: SmoothRadius(
+          cornerRadius: r,
+          cornerSmoothing: cornerSmoothing,
+        ),
+      );
+
+  static SmoothRectangleBorder shape(double r, {BorderSide side = BorderSide.none}) {
+    return SmoothRectangleBorder(
+      side: side,
+      borderRadius: borderRadius(r),
+    );
+  }
 }
 
 class AppInsets {

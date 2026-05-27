@@ -14,6 +14,7 @@ import 'custom_table_calendar.dart';
 const _headerMorphDuration = Duration(milliseconds: 420);
 const _headerMorphCurve = Cubic(0.2, 0.8, 0.2, 1);
 const _landscapeCalendarTopPadding = 12.0;
+const _headerBottomRadius = 18.0;
 
 class CalendarHeader extends ConsumerStatefulWidget {
   const CalendarHeader({
@@ -119,7 +120,7 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainer,
             borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(15),
+              bottom: Radius.circular(_headerBottomRadius),
             ),
           ),
           child: Column(

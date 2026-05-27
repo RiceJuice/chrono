@@ -9,6 +9,8 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../../core/widgets/app_hairline_divider.dart';
+
 /// Eine Tages-Spalte im Wochenraster (Tablet: in [WeekDayColumns], Handy:
 /// in [WeekScheduleMobileBody] mit fester Breite / nahtlosem Streifen).
 class WeekScheduleDayColumn extends StatelessWidget {
@@ -36,10 +38,10 @@ class WeekScheduleDayColumn extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = Theme.of(context).colorScheme;
     final verticalDividerColor = theme.brightness == Brightness.dark
-        ? const Color(0xFF242424)
+        ? const Color(0xFFFFFFFF).withValues(alpha: 0.15)
         : scheme.outline.withValues(alpha: 0.20);
     final hourDividerColor = theme.brightness == Brightness.dark
-        ? const Color(0xFF1C1C1E)
+        ? const Color(0xFFFFFFFF).withValues(alpha: 0.12)
         : scheme.outline.withValues(alpha: 0.14);
     final weekendBackgroundColor = Color.alphaBlend(
       Colors.black.withValues(
@@ -56,9 +58,9 @@ class WeekScheduleDayColumn extends StatelessWidget {
         decoration: BoxDecoration(
           color: isWeekend ? weekendBackgroundColor : null,
           border: Border(
-            left: BorderSide(color: verticalDividerColor),
+            left: AppHairlineDivider.borderSide(context, verticalDividerColor),
             right: columnIndex == columnCount - 1
-                ? BorderSide(color: verticalDividerColor)
+                ? AppHairlineDivider.borderSide(context, verticalDividerColor)
                 : BorderSide.none,
           ),
         ),
@@ -71,6 +73,7 @@ class WeekScheduleDayColumn extends StatelessWidget {
                   bounds: bounds,
                   lineColor: hourDividerColor,
                   hourHeight: hourHeight,
+                  lineWidth: AppHairlineDivider.physicalPixel(context),
                 ),
               ),
             ),

@@ -9,28 +9,28 @@ InputDecoration loginInputDecoration(
 }) {
   final colorScheme = Theme.of(context).colorScheme;
   final enabledBorder = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(AppRadius.s),
+    borderRadius: AppSquircle.borderRadius(AppRadius.s),
     borderSide: BorderSide(
       color: colorScheme.surfaceContainerHighest,
       width: 1,
     ),
   );
   final focusedBorder = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(AppRadius.s),
+    borderRadius: AppSquircle.borderRadius(AppRadius.s),
     borderSide: BorderSide(
       color: colorScheme.surfaceContainerHighest,
       width: 2.2,
     ),
   );
   final errorBorder = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(AppRadius.s),
+    borderRadius: AppSquircle.borderRadius(AppRadius.s),
     borderSide: BorderSide(
       color: colorScheme.error,
       width: 1.8,
     ),
   );
   final focusedErrorBorder = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(AppRadius.s),
+    borderRadius: AppSquircle.borderRadius(AppRadius.s),
     borderSide: BorderSide(
       color: colorScheme.error,
       width: 2.2,

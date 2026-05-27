@@ -224,6 +224,7 @@ class TextContent extends StatelessWidget {
     this.compact = false,
     this.compactTitleMaxLines,
     this.showInlineTimeRange = false,
+    this.descriptionMaxLines,
   });
 
   final CalendarEntry entry;
@@ -239,6 +240,9 @@ class TextContent extends StatelessWidget {
 
   /// Wenn true: Zeitspanne unter Titel/Beschreibung (z. B. Wochenraster ohne Zeitleiste).
   final bool showInlineTimeRange;
+
+  /// Optional: Begrenzung der Beschreibungszeilen (nur nicht-kompakt).
+  final int? descriptionMaxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -291,6 +295,10 @@ class TextContent extends StatelessWidget {
           if (hasDescription)
             Text(
               entry.description!,
+              maxLines: descriptionMaxLines,
+              overflow: descriptionMaxLines != null
+                  ? TextOverflow.ellipsis
+                  : null,
               textHeightBehavior: _cardTextHeightTight,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: secondaryTextColor,

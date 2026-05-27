@@ -1,6 +1,7 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/core/widgets/app_hairline_divider.dart';
 import 'package:flutter/material.dart';
 import 'package:rrule/rrule.dart';
 
@@ -182,7 +183,7 @@ class _EventRecurrenceSectionState extends State<EventRecurrenceSection> {
   Widget _islandDivider(Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      child: SizedBox(height: 1, child: ColoredBox(color: color)),
+      child: AppHairlineDivider.horizontal(color: color),
     );
   }
 

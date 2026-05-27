@@ -5,14 +5,14 @@ class AppColorSchemes {
 
   static const accent = Color(0xFFCBBBA0); // primary accent color
   static const darkBackground = Color(0xFF000000);
-  static const darkSurface = Color(0xFF0F0F0F);
-  static const darkSurfaceContainer = Color(0xFF0F0F0F);
+  static const darkSurface = Color.fromARGB(255, 20, 20, 20);
+  static const darkSurfaceContainer = Color.fromARGB(255, 20, 20, 20);
   static const darkSurfaceContainerHighest = Color.fromARGB(255, 32, 32, 32);
 
   static const lightAccent = Color(0xFF273655);
   static const lightBackground = Color(0xFFFFFFFF);
-  static const lightSurfaceContainer = Color.fromARGB(255, 248, 248, 248);
-  static const lightSurfaceContainerHighest = Color(0xFFE7E7E7);
+  static const lightSurfaceContainer = Color.fromARGB(255, 243, 243, 243);
+  static const lightSurfaceContainerHighest = Color.fromARGB(255, 228, 228, 228);
 
   static const eventCardDark = Color(0xFF111827);
   static const toastSuccess = Color(0xFF2E7D32);

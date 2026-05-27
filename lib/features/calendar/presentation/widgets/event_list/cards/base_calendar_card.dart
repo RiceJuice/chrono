@@ -6,6 +6,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 import 'calendar_card_style_resolver.dart';
 import 'calendar_entry_temporal_state.dart';
 
@@ -61,18 +62,18 @@ class BaseCalendarCard extends StatelessWidget {
       return Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.s),
+          customBorder: AppSquircle.shape(AppRadius.s),
           onTap: () {
             HapticFeedback.heavyImpact();
             BaseBottomModal.show(context, entry: entry);
           },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.s),
+          child: ClipSmoothRect(
+            radius: AppSquircle.borderRadius(AppRadius.s),
             child: Ink(
               height: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.s),
+              decoration: ShapeDecoration(
                 color: style.cardBackgroundColor,
+                shape: AppSquircle.shape(AppRadius.s),
               ),
               child: Padding(
                 padding: contentPadding,
@@ -121,6 +122,7 @@ class BaseCalendarCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onCardTap,
+          customBorder: AppSquircle.shape(AppRadius.s),
           child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -139,12 +141,12 @@ class BaseCalendarCard extends StatelessWidget {
                     ),
                   ),
                 Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.s),
+                  child: ClipSmoothRect(
+                    radius: AppSquircle.borderRadius(AppRadius.s),
                     child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppRadius.s),
+                      decoration: ShapeDecoration(
                         color: style.cardBackgroundColor,
+                        shape: AppSquircle.shape(AppRadius.s),
                       ),
                       child: Padding(
                         padding: contentPadding,

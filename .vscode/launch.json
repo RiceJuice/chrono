@@ -1,4 +1,4 @@
-{
+﻿{
     "version":  "0.2.0",
     "configurations":  [
                            {
@@ -12,7 +12,8 @@
                                "args":  [
                                             "-d",
                                             "emulator-5554"
-                                        ]
+                                        ],
+                               "deviceId":  "emulator-5554"
                            }
                        ]
 }

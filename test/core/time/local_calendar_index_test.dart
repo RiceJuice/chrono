@@ -1,5 +1,4 @@
 import 'package:chronoapp/core/time/app_date_time.dart';
-import 'package:chronoapp/core/time/local_calendar_index.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
 import 'package:flutter_test/flutter_test.dart';
 

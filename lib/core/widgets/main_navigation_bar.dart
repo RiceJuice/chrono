@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/calendar/presentation/providers/calendar_providers.dart';
+import 'app_hairline_divider.dart';
 
 class MainNavigationBar extends ConsumerWidget {
   const MainNavigationBar({super.key});
@@ -26,21 +27,15 @@ class MainNavigationBar extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Divider(
-          height: 1,
-          thickness: 0.05,
-          color: Theme.of(
-            context,
-          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.18),
-        ),
+        const AppHairlineDivider.horizontal(),
         NavigationBar(
           selectedIndex: currentIndex,
-          labelTextStyle: MaterialStateProperty.resolveWith((states) {
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
             return TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
               leadingDistribution: TextLeadingDistribution.even,
-              letterSpacing: 0.1,
+              letterSpacing: 0,
             );
           }),
           onDestinationSelected: (int index) {

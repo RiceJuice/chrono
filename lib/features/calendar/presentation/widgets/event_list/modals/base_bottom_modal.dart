@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
@@ -50,10 +51,8 @@ class BaseBottomModal extends StatelessWidget {
           minHeight: effectiveMinHeight,
           maxHeight: screenHeight * 0.9,
         ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xl),
-          ),
+        child: ClipSmoothRect(
+          radius: AppSquircle.topSheet(AppRadius.xl),
           child: ColoredBox(
             color: sheetSurface,
             child: Stack(
