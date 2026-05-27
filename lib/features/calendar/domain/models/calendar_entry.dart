@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/database/backend_enums.dart';
 
-enum CalendarEntryType { lesson, meal, event, choir }
+enum CalendarEntryType { lesson, meal, event, choir, breakType }
 
 class CalendarEntry {
   final String id;

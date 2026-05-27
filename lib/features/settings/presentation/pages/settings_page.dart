@@ -1,6 +1,7 @@
 import 'package:chronoapp/core/database/backend_connector.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:chronoapp/core/theme/theme_mode_provider.dart';
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/core/widgets/main_navigation_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
@@ -299,14 +300,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
 
     HapticFeedback.heavyImpact();
-    final value = await showModalBottomSheet<String>(
+    final value = await AppModalSheet.show<String>(
       context: context,
       showDragHandle: true,
       builder: (context) {
-        return SettingsChoiceActionSheet(
-          title: title,
-          options: options,
-          initialValue: initialValue,
+        return AppModalSheetChrome(
+          child: SettingsChoiceActionSheet(
+            title: title,
+            options: options,
+            initialValue: initialValue,
+          ),
         );
       },
     );

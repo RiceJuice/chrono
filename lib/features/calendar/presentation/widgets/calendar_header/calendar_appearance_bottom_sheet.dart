@@ -1,4 +1,4 @@
-import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/data/calendar_entry_mapper.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/domain/preview/calendar_settings_kind.dart';
@@ -116,25 +116,18 @@ class _CalendarAppearanceBottomSheetState
 
     final activeAccentType = _accentTypes[_activeIndex];
 
-    return ColoredBox(
+    return AppModalSheetChrome(
       color: scheme.surfaceContainerHigh,
+      constraints: BoxConstraints(
+        minHeight: screenHeight * 0.7,
+        maxHeight: screenHeight * 0.9,
+      ),
       child: SafeArea(
         top: false,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: screenHeight * 0.7,
-            maxHeight: screenHeight * 0.9,
-          ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.xl),
-            ),
-            child: ColoredBox(
-              color: scheme.surfaceContainerHigh,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -190,10 +183,7 @@ class _CalendarAppearanceBottomSheetState
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
+            ],
           ),
         ),
       ),

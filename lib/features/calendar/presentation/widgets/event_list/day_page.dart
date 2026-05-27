@@ -8,6 +8,7 @@ import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import '../../../domain/models/calendar_entry.dart';
 import '../../providers/calendar_providers.dart';
+import 'calendar_day_empty_state.dart';
 import 'cards/calendar_entry_card.dart';
 
 class DayPage extends ConsumerStatefulWidget {
@@ -139,7 +140,7 @@ class _DayPageState extends ConsumerState<DayPage> {
         if (entries.isEmpty) {
           _didInitialScroll = false;
           _didScheduleInitialScrollbarReveal = false;
-          return const Center(child: Text('Keine Einträge für diesen Tag.'));
+          return const CalendarDayEmptyState();
         }
         final isToday = AppDateTime.isTodayLocal(widget.date);
         final nowAnchorEntryIndex = isToday

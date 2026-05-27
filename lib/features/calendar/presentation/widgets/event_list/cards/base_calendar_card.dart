@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/leading_indicator/calendar_card_leading_indicator.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
@@ -29,6 +31,15 @@ class BaseCalendarCard extends StatelessWidget {
   /// Wenn `null`: wie bisher `!showTimeColumn`.
   final bool? showInlineTimeRange;
 
+  /// Sheet-Header: Uhrzeiten nicht am Rand abschneiden.
+  final bool modalHeaderPreview;
+
+  /// Wenn gesetzt: Backdrop-Blur nur auf der Kartenfläche (nicht Uhrzeit).
+  final double? neighborGlassBlurSigma;
+
+  /// Leichte Tönung über dem Blur (0 = nur Blur).
+  final double? neighborGlassTintAlpha;
+
   const BaseCalendarCard({
     super.key,
     required this.entry,
@@ -43,6 +54,9 @@ class BaseCalendarCard extends StatelessWidget {
     this.weekGridCompact = false,
     this.listTileHorizontalPadding,
     this.showInlineTimeRange,
+    this.modalHeaderPreview = false,
+    this.neighborGlassBlurSigma,
+    this.neighborGlassTintAlpha,
   });
 
   @override
@@ -138,52 +152,86 @@ class BaseCalendarCard extends StatelessWidget {
                       entry: entry,
                       textColor: style.timeTextColor,
                       alignToContentHeight: true,
+                      suppressEdgeNudge: modalHeaderPreview,
                     ),
                   ),
                 Expanded(
-                  child: ClipSmoothRect(
-                    radius: AppSquircle.borderRadius(AppRadius.s),
-                    child: Container(
-                      decoration: ShapeDecoration(
-                        color: style.cardBackgroundColor,
-                        shape: AppSquircle.shape(AppRadius.s),
-                      ),
-                      child: Padding(
-                        padding: contentPadding,
-                        child: IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (leadingIndicatorColor != null) ...[
-                                CalendarCardLeadingIndicator(
-                                  color: leadingIndicatorColor!,
-                                ),
-                                const SizedBox(
-                                  width: CalendarCardLeadingIndicator.gapAfterBar,
-                                ),
-                              ],
-                              Expanded(
-                                child: TextContent(
-                                  entry: entry,
-                                  primaryTextColor: style.primaryTextColor,
-                                  secondaryTextColor: style.secondaryTextColor,
-                                  showChoirAboveTitle: showChoirAboveTitle,
-                                  titleFontSize: titleFontSize,
-                                  titleFontWeight: titleFontWeight,
-                                  showInlineTimeRange: inlineTime,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                  child: _buildCardBody(
+                    style: style,
+                    inlineTime: inlineTime,
                   ),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCardBody({
+    required CalendarCardStyle style,
+    required bool inlineTime,
+  }) {
+    Widget body = ClipSmoothRect(
+      radius: AppSquircle.borderRadius(AppRadius.s),
+      child: Container(
+        decoration: ShapeDecoration(
+          color: style.cardBackgroundColor,
+          shape: AppSquircle.shape(AppRadius.s),
+        ),
+        child: Padding(
+          padding: contentPadding,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (leadingIndicatorColor != null) ...[
+                  CalendarCardLeadingIndicator(color: leadingIndicatorColor!),
+                  const SizedBox(
+                    width: CalendarCardLeadingIndicator.gapAfterBar,
+                  ),
+                ],
+                Expanded(
+                  child: TextContent(
+                    entry: entry,
+                    primaryTextColor: style.primaryTextColor,
+                    secondaryTextColor: style.secondaryTextColor,
+                    showChoirAboveTitle: showChoirAboveTitle,
+                    titleFontSize: titleFontSize,
+                    titleFontWeight: titleFontWeight,
+                    showInlineTimeRange: inlineTime,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final sigma = neighborGlassBlurSigma;
+    if (sigma == null) return body;
+
+    final tintAlpha = neighborGlassTintAlpha ?? 0;
+    final tint = tintAlpha > 0
+        ? Colors.white.withValues(alpha: tintAlpha)
+        : Colors.transparent;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.s),
+      child: Stack(
+        fit: StackFit.passthrough,
+        alignment: Alignment.center,
+        children: [
+          body,
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+              child: ColoredBox(color: tint),
+            ),
+          ),
+        ],
       ),
     );
   }

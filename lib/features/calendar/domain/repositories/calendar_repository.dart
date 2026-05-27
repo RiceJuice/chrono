@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:powersync/powersync.dart';
 import 'package:rrule/rrule.dart';
 import 'package:sqlite3/common.dart';
@@ -17,6 +19,45 @@ class CalendarRepository {
   Stream<List<CalendarEntry>> watchEntriesForDay(DateTime date) {
     final (startUtc, endUtc) = AppDateTime.utcBoundsForLocalDay(date);
     return _watchMergedWindow(startUtc: startUtc, endExclusiveUtc: endUtc);
+  }
+
+  Stream<List<CalendarEntry>> watchEntriesInLocalRange({
+    required DateTime startInclusive,
+    required DateTime endExclusive,
+  }) {
+    final (startUtc, _) = AppDateTime.utcBoundsForLocalDay(startInclusive);
+    final (endUtc, _) = AppDateTime.utcBoundsForLocalDay(endExclusive);
+    return _watchMergedWindow(startUtc: startUtc, endExclusiveUtc: endUtc);
+  }
+
+  Stream<Set<DateTime>> watchBreakDaysInLocalRange({
+    required DateTime startInclusive,
+    required DateTime endExclusive,
+  }) {
+    final startDay = AppDateTime.localDay(startInclusive);
+    final endDay = AppDateTime.localDay(endExclusive);
+    final startDate = _formatDate(startDay);
+    final endDate = _formatDate(endDay);
+
+    return _db
+        .watch(
+          '''
+          SELECT id, event_name, series_start, series_end
+          FROM $kCalendarSeriesTable
+          WHERE type = 'break'
+            AND date(series_start) < date(?)
+            AND (series_end IS NULL OR date(series_end) >= date(?))
+          ''',
+          parameters: [endDate, startDate],
+          triggerOnTables: const {kCalendarSeriesTable},
+        )
+        .map(
+          (rows) => _expandBreakSeriesRowsToDays(
+            rows,
+            startInclusive: startDay,
+            endExclusive: endDay,
+          ),
+        );
   }
 
   Stream<List<CalendarEntry>> watchEntriesByQuery(String query) {
@@ -98,6 +139,7 @@ class CalendarRepository {
     final events = <CalendarEntry>[];
     final series = <CalendarEntry>[];
     final rulesBySeriesId = <String, RecurrenceRule>{};
+    final seriesStartBySeriesId = <String, DateTime>{};
     final seriesEndExclusiveBySeriesId = <String, DateTime>{};
 
     for (final row in rows) {
@@ -106,34 +148,53 @@ class CalendarRepository {
         if (source == 'series') {
           final mapped = CalendarEntryMapper.fromSeriesRow(row);
           series.add(mapped);
+          final seriesId = mapped.seriesId ?? mapped.id;
           final parsedRule = _parseRecurrenceRule(
             _safeRowValue(row, 'rrule')?.toString(),
           );
           if (parsedRule != null) {
-            rulesBySeriesId[mapped.seriesId ?? mapped.id] = parsedRule;
+            rulesBySeriesId[seriesId] = parsedRule;
+          }
+          final seriesStartLocal = _parseSeriesStartLocal(
+            _safeRowValue(row, 'series_start'),
+          );
+          if (seriesStartLocal != null) {
+            seriesStartBySeriesId[seriesId] = seriesStartLocal;
           }
           final seriesEndExclusiveUtc = _parseSeriesEndExclusiveUtc(
             _safeRowValue(row, 'series_end'),
           );
           if (seriesEndExclusiveUtc != null) {
-            seriesEndExclusiveBySeriesId[mapped.seriesId ?? mapped.id] =
-                seriesEndExclusiveUtc;
+            seriesEndExclusiveBySeriesId[seriesId] = seriesEndExclusiveUtc;
           }
         } else {
           events.add(CalendarEntryMapper.fromEventRow(row));
         }
-      } catch (_) {}
+      } catch (error, stackTrace) {
+        _logMappingError(row, error, stackTrace);
+      }
     }
 
     final expandedSeries = _expandSeriesOccurrences(
       seriesTemplates: series,
       rulesBySeriesId: rulesBySeriesId,
+      seriesStartBySeriesId: seriesStartBySeriesId,
       seriesEndExclusiveBySeriesId: seriesEndExclusiveBySeriesId,
       startUtc: startUtc,
       endExclusiveUtc: endExclusiveUtc,
     );
+    final freeDays = _collectFreeDays(events, expandedSeries);
+    final filteredSeries = expandedSeries
+        .where((entry) {
+          if (entry.type == CalendarEntryType.breakType) {
+            return true;
+          }
+          final day = AppDateTime.localDay(entry.startTime);
+          return !freeDays.contains(day);
+        })
+        .toList(growable: false);
 
-    final merged = _mergeWithOverrides(events, expandedSeries);
+    final merged = _mergeWithOverrides(events, filteredSeries);
     final filtered = query == null
         ? merged
         : merged.where((entry) => _matchesQuery(entry, query)).toList();
@@ -144,6 +205,7 @@ class CalendarRepository {
   List<CalendarEntry> _expandSeriesOccurrences({
     required List<CalendarEntry> seriesTemplates,
     required Map<String, RecurrenceRule> rulesBySeriesId,
+    required Map<String, DateTime> seriesStartBySeriesId,
     required Map<String, DateTime> seriesEndExclusiveBySeriesId,
     required DateTime startUtc,
     required DateTime endExclusiveUtc,
@@ -153,7 +215,23 @@ class CalendarRepository {
     for (final seriesTemplate in seriesTemplates) {
       final seriesId = seriesTemplate.seriesId ?? seriesTemplate.id;
       final rule = rulesBySeriesId[seriesId];
-      if (rule == null) continue;
+      if (rule == null) {
+        if (seriesTemplate.type == CalendarEntryType.breakType) {
+          final seriesStartLocal = seriesStartBySeriesId[seriesId];
+          if (seriesStartLocal != null) {
+            out.addAll(
+              _expandDateRangeBreakSeries(
+                seriesTemplate: seriesTemplate,
+                seriesStartLocal: seriesStartLocal,
+                seriesEndExclusiveUtc: seriesEndExclusiveBySeriesId[seriesId],
+                startUtc: startUtc,
+                endExclusiveUtc: endExclusiveUtc,
+              ),
+            );
+          }
+        }
+        continue;
+      }
 
       try {
         final duration = seriesTemplate.endTime.difference(
@@ -215,9 +293,82 @@ class CalendarRepository {
             ),
           );
         }
-      } catch (_) {}
+      } catch (error, stackTrace) {
+        _logSeriesExpansionError(seriesTemplate, error, stackTrace);
+      }
     }
 
+    return out;
+  }
+
+  List<CalendarEntry> _expandDateRangeBreakSeries({
+    required CalendarEntry seriesTemplate,
+    required DateTime seriesStartLocal,
+    required DateTime? seriesEndExclusiveUtc,
+    required DateTime startUtc,
+    required DateTime endExclusiveUtc,
+  }) {
+    final seriesId = seriesTemplate.seriesId ?? seriesTemplate.id;
+    final windowStartLocal = AppDateTime.localDay(startUtc.toLocal());
+    final windowEndExclusiveLocal = AppDateTime.localDay(
+      endExclusiveUtc.toLocal(),
+    );
+    final seriesEndInclusiveLocal = seriesEndExclusiveUtc == null
+        ? seriesStartLocal
+        : AppDateTime.addLocalCalendarDays(
+            AppDateTime.localDay(seriesEndExclusiveUtc.toLocal()),
+            -1,
+          );
+
+    var day = seriesStartLocal;
+    if (day.isBefore(windowStartLocal)) {
+      day = windowStartLocal;
+    }
+    var lastDay = seriesEndInclusiveLocal;
+    final lastVisibleDay = AppDateTime.addLocalCalendarDays(
+      windowEndExclusiveLocal,
+      -1,
+    );
+    if (lastDay.isAfter(lastVisibleDay)) {
+      lastDay = lastVisibleDay;
+    }
+    if (day.isAfter(lastDay)) {
+      return const <CalendarEntry>[];
+    }
+
+    final out = <CalendarEntry>[];
+    while (!day.isAfter(lastDay)) {
+      final (dayStartUtc, dayEndUtc) = AppDateTime.utcBoundsForLocalDay(day);
+      out.add(
+        CalendarEntry(
+          id: 'series:$seriesId:${dayStartUtc.toIso8601String()}',
+          eventName: seriesTemplate.eventName,
+          description: seriesTemplate.description,
+          note: seriesTemplate.note,
+          location: seriesTemplate.location,
+          startTime: dayStartUtc,
+          endTime: dayEndUtc,
+          imageUrls: seriesTemplate.imageUrls,
+          accentColor: seriesTemplate.accentColor,
+          type: seriesTemplate.type,
+          choir: seriesTemplate.choir,
+          voice: seriesTemplate.voice,
+          voices: seriesTemplate.voices,
+          schoolTrack: seriesTemplate.schoolTrack,
+          diet: seriesTemplate.diet,
+          className: seriesTemplate.className,
+          imagePaths: seriesTemplate.imagePaths,
+          tags: seriesTemplate.tags,
+          userId: seriesTemplate.userId,
+          seriesId: seriesId,
+          recurrenceId: parseCalendarRecurrenceId(
+            formatCalendarRecurrenceId(dayStartUtc),
+          ),
+          isRecurringInstance: true,
+        ),
+      );
+      day = AppDateTime.addLocalCalendarDays(day, 1);
+    }
     return out;
   }
 
@@ -258,6 +409,12 @@ class CalendarRepository {
       entry.note ?? '',
     ].join(' ').toLowerCase();
     return searchable.contains(q);
+  }
+
+  DateTime? _parseSeriesStartLocal(Object? value) {
+    final s = value?.toString();
+    if (s == null || s.trim().isEmpty) return null;
+    return AppDateTime.localDay(DateTime.parse(s.trim()));
   }
 
   DateTime? _parseSeriesEndExclusiveUtc(Object? value) {
@@ -317,5 +474,120 @@ class CalendarRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  Set<DateTime> _expandBreakSeriesRowsToDays(
+    ResultSet rows, {
+    required DateTime startInclusive,
+    required DateTime endExclusive,
+  }) {
+    final days = <DateTime>{};
+    for (final row in rows) {
+      try {
+        final seriesStart = _parseSeriesStartLocal(
+          _safeRowValue(row, 'series_start'),
+        );
+        if (seriesStart == null) continue;
+
+        final rawSeriesEnd = _safeRowValue(row, 'series_end')?.toString();
+        final seriesEndInclusive =
+            rawSeriesEnd == null || rawSeriesEnd.trim().isEmpty
+            ? seriesStart
+            : AppDateTime.localDay(DateTime.parse(rawSeriesEnd.trim()));
+
+        var day = seriesStart.isBefore(startInclusive)
+            ? startInclusive
+            : seriesStart;
+        final lastVisibleDay = AppDateTime.addLocalCalendarDays(
+          endExclusive,
+          -1,
+        );
+        final lastDay = seriesEndInclusive.isAfter(lastVisibleDay)
+            ? lastVisibleDay
+            : seriesEndInclusive;
+
+        while (!day.isAfter(lastDay)) {
+          days.add(day);
+          day = AppDateTime.addLocalCalendarDays(day, 1);
+        }
+      } catch (error, stackTrace) {
+        _logBreakSeriesRangeError(row, error, stackTrace);
+      }
+    }
+    return days;
+  }
+
+  String _formatDate(DateTime day) {
+    final local = AppDateTime.localDay(day);
+    final year = local.year.toString().padLeft(4, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final date = local.day.toString().padLeft(2, '0');
+    return '$year-$month-$date';
+  }
+
+  void _logMappingError(Row row, Object error, StackTrace stackTrace) {
+    assert(() {
+      developer.log(
+        'Kalenderzeile konnte nicht gemappt werden: '
+        'source=${_safeRowValue(row, 'source')} id=${_safeRowValue(row, 'id')}',
+        name: 'CalendarRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 900,
+      );
+      return true;
+    }());
+  }
+
+  void _logSeriesExpansionError(
+    CalendarEntry seriesTemplate,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    assert(() {
+      developer.log(
+        'Kalenderserie konnte nicht expandiert werden: '
+        'id=${seriesTemplate.id} name=${seriesTemplate.eventName}',
+        name: 'CalendarRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 900,
+      );
+      return true;
+    }());
+  }
+
+  void _logBreakSeriesRangeError(Row row, Object error, StackTrace stackTrace) {
+    assert(() {
+      developer.log(
+        'Ferienserie konnte nicht zu Tagen expandiert werden: '
+        'id=${_safeRowValue(row, 'id')} name=${_safeRowValue(row, 'event_name')}',
+        name: 'CalendarRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 900,
+      );
+      return true;
+    }());
+  }
+
+  Set<DateTime> _collectFreeDays(
+    List<CalendarEntry> events,
+    List<CalendarEntry> expandedSeries,
+  ) {
+    final freeDays = <DateTime>{};
+    for (final event in events) {
+      if (event.type != CalendarEntryType.breakType) continue;
+      final startDay = AppDateTime.localDay(event.startTime);
+      final endDay = AppDateTime.localDay(event.endTime);
+      if (startDay == endDay) {
+        freeDays.add(startDay);
+      }
+    }
+    for (final seriesEntry in expandedSeries) {
+      if (seriesEntry.type != CalendarEntryType.breakType) continue;
+      freeDays.add(AppDateTime.localDay(seriesEntry.startTime));
+    }
+    return freeDays;
   }
 }

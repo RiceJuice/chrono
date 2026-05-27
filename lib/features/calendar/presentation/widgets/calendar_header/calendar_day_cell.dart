@@ -50,6 +50,7 @@ class CalendarDayNumberCell extends StatelessWidget {
     required this.day,
     required this.colorResolver,
     this.marker,
+    this.dayNumberColor,
     this.isToday = false,
     super.key,
   });
@@ -57,6 +58,7 @@ class CalendarDayNumberCell extends StatelessWidget {
   final DateTime day;
   final CalendarDayMarkerData? marker;
   final CalendarMarkerColorResolver colorResolver;
+  final Color? dayNumberColor;
   final bool isToday;
 
   @override
@@ -72,7 +74,7 @@ class CalendarDayNumberCell extends StatelessWidget {
           child: Text(
             '${day.day}',
             style: TextStyle(
-              color: isToday ? todayAccent : scheme.onSurface,
+              color: dayNumberColor ?? (isToday ? todayAccent : scheme.onSurface),
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -89,12 +91,14 @@ class CalendarSelectedDayCell extends StatelessWidget {
     required this.day,
     required this.colorResolver,
     this.marker,
+    this.dayNumberColor,
     super.key,
   });
 
   final DateTime day;
   final CalendarDayMarkerData? marker;
   final CalendarMarkerColorResolver colorResolver;
+  final Color? dayNumberColor;
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +129,7 @@ class CalendarSelectedDayCell extends StatelessWidget {
               Text(
                 '${day.day}',
                 style: TextStyle(
-                  color: isToday ? todayAccent : scheme.onPrimary,
+                  color: dayNumberColor ?? (isToday ? todayAccent : scheme.onPrimary),
                   fontWeight: FontWeight.w700,
                 ),
               ),

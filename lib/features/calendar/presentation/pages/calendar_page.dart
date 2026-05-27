@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/main_navigation_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/pages/calendar_search_page.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
@@ -9,7 +10,6 @@ import 'package:chronoapp/features/calendar/presentation/providers/calendar_view
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_filter_bottom_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -84,11 +84,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
 
   Future<void> _openCalendarFilters() async {
     HapticFeedback.heavyImpact();
-    await showModalBottomSheet<void>(
+    await AppModalSheet.show<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      sheetAnimationStyle: kCalendarBottomSheetMotion,
       builder: (_) => const CalendarFilterBottomSheet(
         mode: CalendarFilterBottomSheetMode.calendarSettings,
       ),
@@ -97,11 +96,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
 
   Future<void> _openSearchFilters() async {
     HapticFeedback.heavyImpact();
-    await showModalBottomSheet<void>(
+    await AppModalSheet.show<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      sheetAnimationStyle: kCalendarBottomSheetMotion,
       builder: (_) => const CalendarFilterBottomSheet(
         mode: CalendarFilterBottomSheetMode.searchFilter,
       ),

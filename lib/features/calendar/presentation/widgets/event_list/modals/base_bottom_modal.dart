@@ -1,22 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:figma_squircle/figma_squircle.dart';
-
-import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/chor_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/event_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/lesson_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/admin_edit_button.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/meal_bottom_modal.dart';
+import 'package:flutter/material.dart';
 
-/// Etwas langsameres, weicheres Ein-/Ausblenden als Material-Default (~250 ms),
-/// näher an typischen iOS-Sheet-Präsentationen.
-const AnimationStyle kCalendarBottomSheetMotion = AnimationStyle(
-  duration: Duration(milliseconds: 300),
-  reverseDuration: Duration(milliseconds: 300),
-  curve: Cubic(0.25, 0.1, 0.25, 1.0),
-  reverseCurve: Cubic(0.33, 0.0, 0.67, 1.0),
-);
+export 'package:chronoapp/core/widgets/app_modal_sheet.dart' show kAppModalSheetMotion;
+
+/// Alias für bestehende Importe im Kalender-Feature.
+const AnimationStyle kCalendarBottomSheetMotion = kAppModalSheetMotion;
 
 class BaseBottomModal extends StatelessWidget {
   final CalendarEntry entry;
@@ -29,11 +23,9 @@ class BaseBottomModal extends StatelessWidget {
     required CalendarEntry entry,
     double? minHeight,
   }) {
-    return showModalBottomSheet<T>(
+    return AppModalSheet.show<T>(
       context: context,
-      isScrollControlled: true,
       useSafeArea: true,
-      sheetAnimationStyle: kCalendarBottomSheetMotion,
       builder: (_) => BaseBottomModal(entry: entry, minHeight: minHeight),
     );
   }
@@ -46,23 +38,18 @@ class BaseBottomModal extends StatelessWidget {
 
     return SafeArea(
       top: false,
-      child: ConstrainedBox(
+      child: AppModalSheetChrome(
+        color: sheetSurface,
         constraints: BoxConstraints(
           minHeight: effectiveMinHeight,
           maxHeight: screenHeight * 0.9,
         ),
-        child: ClipSmoothRect(
-          radius: AppSquircle.topSheet(AppRadius.xl),
-          child: ColoredBox(
-            color: sheetSurface,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                SingleChildScrollView(child: _buildModalContent()),
-                AdminEditButton(entry: entry),
-              ],
-            ),
-          ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            SingleChildScrollView(child: _buildModalContent()),
+            AdminEditButton(entry: entry),
+          ],
         ),
       ),
     );
@@ -73,6 +60,7 @@ class BaseBottomModal extends StatelessWidget {
       CalendarEntryType.lesson => LessonBottomModal(entry: entry),
       CalendarEntryType.meal => MealBottomModal(entry: entry),
       CalendarEntryType.event => EventBottomModal(entry: entry),
+      CalendarEntryType.breakType => EventBottomModal(entry: entry),
       CalendarEntryType.choir => ChorBottomModal(entry: entry),
     };
   }

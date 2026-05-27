@@ -11,11 +11,15 @@ class TimeColumn extends StatelessWidget {
     /// Start- und Endzeit an Ober- und Unterkante der verfügbaren Höhe
     /// (sinnvoll neben gestrecktem Karteninhalt, z. B. [BaseCalendarCard]).
     this.alignToContentHeight = false,
+    this.suppressEdgeNudge = false,
   });
 
   final CalendarEntry entry;
   final Color? textColor;
   final bool alignToContentHeight;
+
+  /// Kein negativer [Transform.translate] am linken Rand (Sheet-Header-Vorschau).
+  final bool suppressEdgeNudge;
 
   static const double _phoneEdgeNudge = 5;
   static const double _phoneTimePairGap = 5;
@@ -55,7 +59,7 @@ class TimeColumn extends StatelessWidget {
             ],
     );
 
-    if (narrow) {
+    if (narrow && !suppressEdgeNudge) {
       column = Transform.translate(
         offset: const Offset(-_phoneEdgeNudge, 0),
         child: column,

@@ -12,6 +12,7 @@ const _typeLabels = <CalendarEntryType, String>{
   CalendarEntryType.meal: 'Essen',
   CalendarEntryType.event: 'Event',
   CalendarEntryType.choir: 'Chor',
+  CalendarEntryType.breakType: 'Ferien/Feiertag',
 };
 
 class EventBasicSection extends StatelessWidget {

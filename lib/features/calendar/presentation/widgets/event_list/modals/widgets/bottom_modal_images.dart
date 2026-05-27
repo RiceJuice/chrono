@@ -153,7 +153,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
         return widget.clipTopCorners
             ? ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadius.xl),
+                  top: Radius.circular(AppRadius.sheet),
                 ),
                 child: panel,
               )

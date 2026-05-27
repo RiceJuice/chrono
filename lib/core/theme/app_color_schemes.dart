@@ -6,12 +6,16 @@ class AppColorSchemes {
   static const accent = Color(0xFFCBBBA0); // primary accent color
   static const darkBackground = Color(0xFF000000);
   static const darkSurface = Color.fromARGB(255, 20, 20, 20);
-  static const darkSurfaceContainer = Color.fromARGB(255, 20, 20, 20);
+  static const darkSurfaceContainerLow = Color.fromARGB(255, 12, 12, 12);
+  static const darkSurfaceContainer = Color.fromARGB(255, 16, 16, 16);
+  static const darkSurfaceContainerHigh = Color.fromARGB(255, 20, 20, 20);
   static const darkSurfaceContainerHighest = Color.fromARGB(255, 32, 32, 32);
 
   static const lightAccent = Color(0xFF273655);
   static const lightBackground = Color(0xFFFFFFFF);
+  static const lightSurfaceContainerLow = Color.fromARGB(255, 235, 235, 235);
   static const lightSurfaceContainer = Color.fromARGB(255, 243, 243, 243);
+  static const lightSurfaceContainerHigh = Color.fromARGB(255, 250, 250, 250);
   static const lightSurfaceContainerHighest = Color.fromARGB(255, 228, 228, 228);
 
   static const eventCardDark = Color(0xFF111827);
@@ -30,8 +34,8 @@ class AppColorSchemes {
       background: darkBackground, // ignore: deprecated_member_use
     ).copyWith(
       surfaceContainer: darkSurfaceContainer,
-      surfaceContainerLow: darkSurfaceContainer,
-      surfaceContainerHigh: darkSurfaceContainer,
+      surfaceContainerLow: darkSurfaceContainerLow,
+      surfaceContainerHigh: darkSurfaceContainerHigh,
       surfaceContainerHighest: darkSurfaceContainerHighest,
       tertiaryContainer: eventCardDark,
       surfaceTint: Colors.transparent,
@@ -49,8 +53,8 @@ class AppColorSchemes {
       onError: Colors.white,
     ).copyWith(
       surfaceContainer: lightSurfaceContainer,
-      surfaceContainerLow: lightSurfaceContainer,
-      surfaceContainerHigh: lightSurfaceContainer,
+      surfaceContainerLow: lightSurfaceContainerLow,
+      surfaceContainerHigh: lightSurfaceContainerHigh,
       surfaceContainerHighest: lightSurfaceContainerHighest,
       tertiaryContainer: lightSurfaceContainerHighest,
     );

@@ -14,14 +14,17 @@ export 'filter/calendar/calendar_filters_state.dart';
 export 'filter/search/search_filters_provider.dart';
 part 'calendar_providers.g.dart';
 
+typedef CalendarEntryLocalRange = ({
+  DateTime startInclusive,
+  DateTime endExclusive,
+});
+
 /// Ursache der letzten [SelectedDay]-Änderung — steuert z. B. den Appear-Bounce
 /// in [CalendarDaySelectionAppear] (nur bei [external], nicht bei [tap]).
-enum CalendarDaySelectionOrigin {
-  tap,
-  external,
-}
+enum CalendarDaySelectionOrigin { tap, external }
 
-class CalendarDaySelectionOriginTracker extends fr.Notifier<CalendarDaySelectionOrigin> {
+class CalendarDaySelectionOriginTracker
+    extends fr.Notifier<CalendarDaySelectionOrigin> {
   /// Wird nur in [SelectedDay.update] erhöht — verhindert Appear beim Kaltstart.
   int changeGeneration = 0;
 
@@ -35,10 +38,10 @@ class CalendarDaySelectionOriginTracker extends fr.Notifier<CalendarDaySelection
 }
 
 final calendarDaySelectionOriginProvider =
-    fr.NotifierProvider<CalendarDaySelectionOriginTracker,
-        CalendarDaySelectionOrigin>(
-      CalendarDaySelectionOriginTracker.new,
-    );
+    fr.NotifierProvider<
+      CalendarDaySelectionOriginTracker,
+      CalendarDaySelectionOrigin
+    >(CalendarDaySelectionOriginTracker.new);
 
 @riverpod
 class SelectedDay extends _$SelectedDay {
@@ -127,6 +130,30 @@ final calendarEntriesByQueryProvider =
     fr.StreamProvider.family<List<CalendarEntry>, String>((ref, query) {
       final repository = ref.watch(calendarRepositoryProvider);
       return repository.watchEntriesByQuery(query);
+    });
+
+final calendarEntriesInLocalRangeProvider =
+    fr.StreamProvider.family<List<CalendarEntry>, CalendarEntryLocalRange>((
+      ref,
+      range,
+    ) {
+      final repository = ref.watch(calendarRepositoryProvider);
+      return repository.watchEntriesInLocalRange(
+        startInclusive: range.startInclusive,
+        endExclusive: range.endExclusive,
+      );
+    });
+
+final calendarBreakDaysInLocalRangeProvider =
+    fr.StreamProvider.family<Set<DateTime>, CalendarEntryLocalRange>((
+      ref,
+      range,
+    ) {
+      final repository = ref.watch(calendarRepositoryProvider);
+      return repository.watchBreakDaysInLocalRange(
+        startInclusive: range.startInclusive,
+        endExclusive: range.endExclusive,
+      );
     });
 
 final calendarAllEntriesProvider = fr.StreamProvider<List<CalendarEntry>>((

@@ -1,6 +1,10 @@
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
+import 'package:chronoapp/features/calendar/presentation/theme/calendar_presentation_theme.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_break_range_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_cell.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_header_entry_range.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_marker_pill.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
@@ -66,8 +70,7 @@ class _WeekTimetableMobileDayHeaderState
       }
 
       final visible =
-          _weekPageController.page?.round() ??
-          _weekPageController.initialPage;
+          _weekPageController.page?.round() ?? _weekPageController.initialPage;
       if (visible == targetPage) return;
 
       _programmaticTargetPage = targetPage;
@@ -123,10 +126,7 @@ class _WeekTimetableMobileDayHeaderState
     ref.listen<DateTime?>(weekScheduleScrollDayProvider, (previous, next) {
       if (next == null) return;
       final stride = weekSchedulePanStrideFor(context);
-      _syncPageToWeek(
-        next,
-        animated: stride == WeekSchedulePanStride.day,
-      );
+      _syncPageToWeek(next, animated: stride == WeekSchedulePanStride.day);
     });
 
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
@@ -146,17 +146,44 @@ class _WeekTimetableMobileDayHeaderState
     final scrollPreviewDay = ref.watch(weekScheduleScrollDayProvider);
     final selectedDay = ref.watch(selectedDayProvider);
     final highlightDay = scrollPreviewDay ?? selectedDay;
+    final headerRange = calendarWeekHeaderEntryRange(highlightDay);
     final dayMarkersByDate = ref
-        .watch(filteredCalendarAllEntriesProvider)
+        .watch(filteredCalendarEntriesInLocalRangeProvider(headerRange))
         .maybeWhen(
           data: buildCalendarDayMarkers,
           orElse: () => const <DateTime, CalendarDayMarkerData>{},
         );
+    final breakRangeByDate = ref
+        .watch(calendarBreakDaysInLocalRangeProvider(headerRange))
+        .maybeWhen(
+          data: buildBreakRangeSegmentsFromDays,
+          orElse: () => const <DateTime, CalendarBreakRangeSegment>{},
+        );
+    final breakDays = ref
+        .watch(calendarBreakDaysInLocalRangeProvider(headerRange))
+        .maybeWhen(
+          data: (days) => days.map(normalizeCalendarDay).toSet(),
+          orElse: () => const <DateTime>{},
+        );
+    final holidayDays = ref
+        .watch(calendarEntriesInLocalRangeProvider(headerRange))
+        .maybeWhen(data: buildHolidayDays, orElse: () => const <DateTime>{});
     final activeChoirCount = ref.watch(
       calendarFiltersProvider.select((filters) => filters.choirs.length),
     );
     final markerColorResolver = CalendarMarkerColorResolver.standard(
       distinguishChoirs: activeChoirCount > 1,
+      palette: CalendarMarkerColorPalette.standard.copyWith(
+        byType: <CalendarEntryType, Color>{
+          ...CalendarMarkerColorPalette.standard.byType,
+          CalendarEntryType.breakType: CalendarPresentationTheme.holidayBlue(
+            context,
+          ),
+        },
+      ),
+    );
+    final vacationRangeColor = CalendarPresentationTheme.vacationRangeBarColor(
+      context,
     );
     final weekdayFmt = DateFormat.E('de_DE');
 
@@ -174,6 +201,11 @@ class _WeekTimetableMobileDayHeaderState
               final isSelected = isSameDay(highlightDay, day);
               final isToday = AppDateTime.isTodayLocal(day);
               final marker = dayMarkersByDate[normalizeCalendarDay(day)];
+              final breakSegment = breakRangeByDate[normalizeCalendarDay(day)];
+              final normalizedDay = normalizeCalendarDay(day);
+              final isHoliday =
+                  holidayDays.contains(normalizedDay) ||
+                  breakDays.contains(normalizedDay);
 
               return Expanded(
                 child: Material(
@@ -203,25 +235,39 @@ class _WeekTimetableMobileDayHeaderState
                         ),
                         SizedBox(
                           height: kCalendarDayRowHeight,
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 200),
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeInCubic,
-                            child: isSelected &&
-                                    widget.showSelectedDayIndicator
-                                ? CalendarSelectedDayCell(
-                                    key: ValueKey<DateTime>(day),
-                                    day: day,
-                                    marker: marker,
-                                    colorResolver: markerColorResolver,
-                                  )
-                                : CalendarDayNumberCell(
-                                    key: ValueKey('n-$day'),
-                                    day: day,
-                                    marker: isSelected ? null : marker,
-                                    isToday: isToday,
-                                    colorResolver: markerColorResolver,
-                                  ),
+                          child: CalendarDayVacationShell(
+                            breakRangeSegment: breakSegment,
+                            breakRangeColor: vacationRangeColor,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              child:
+                                  isSelected && widget.showSelectedDayIndicator
+                                  ? CalendarSelectedDayCell(
+                                      key: ValueKey<DateTime>(day),
+                                      day: day,
+                                      marker: marker,
+                                      colorResolver: markerColorResolver,
+                                      dayNumberColor: isHoliday
+                                          ? CalendarPresentationTheme.holidayBlue(
+                                              context,
+                                            )
+                                          : null,
+                                    )
+                                  : CalendarDayNumberCell(
+                                      key: ValueKey('n-$day'),
+                                      day: day,
+                                      marker: isSelected ? null : marker,
+                                      isToday: isToday,
+                                      colorResolver: markerColorResolver,
+                                      dayNumberColor: isHoliday
+                                          ? CalendarPresentationTheme.holidayBlue(
+                                              context,
+                                            )
+                                          : null,
+                                    ),
+                            ),
                           ),
                         ),
                       ],

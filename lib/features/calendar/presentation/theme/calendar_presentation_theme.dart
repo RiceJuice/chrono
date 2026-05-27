@@ -23,9 +23,7 @@ class CalendarPresentationTheme {
     BuildContext context,
     TextStyle? baseStyle,
   ) {
-    return baseStyle?.copyWith(
-      color: pastTextColor(context),
-    );
+    return baseStyle?.copyWith(color: pastTextColor(context));
   }
 
   static Color pastTextColor(BuildContext context) {
@@ -37,7 +35,9 @@ class CalendarPresentationTheme {
   }
 
   static Color dimmedSurface(BuildContext context, Color base) {
-    final overlay = Theme.of(context).colorScheme.surface.withValues(alpha: 0.5);
+    final overlay = Theme.of(
+      context,
+    ).colorScheme.surface.withValues(alpha: 0.5);
     return Color.alphaBlend(overlay, base);
   }
 
@@ -48,11 +48,37 @@ class CalendarPresentationTheme {
   /// passende Overlay-Stärken pro Theme (Light/Dark).
   static Color lessonCardBackgroundColor(BuildContext context, Color accent) {
     final scheme = Theme.of(context).colorScheme;
-    final overlayAlpha =
-        scheme.brightness == Brightness.dark ? AppOpacity.low * 0.5 : AppOpacity.low;
+    final overlayAlpha = scheme.brightness == Brightness.dark
+        ? AppOpacity.low * 0.5
+        : AppOpacity.low;
     return Color.alphaBlend(
       accent.withValues(alpha: overlayAlpha),
       scheme.surfaceContainerHigh,
     );
+  }
+
+  static Color holidayBlue(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return scheme.brightness == Brightness.dark
+        ? const Color(0xFF5B8FD8)
+        : const Color(0xFF29509E);
+  }
+
+  static Color vacationRangeFill(BuildContext context) {
+    return vacationRangeBarColor(context);
+  }
+
+  /// Neutraler Balken fuer Ferienbereiche im Kalenderkopf.
+  ///
+  /// Liegt bewusst zwischen `surfaceContainer` und `surfaceContainerHigh`:
+  /// sichtbar als Range-Hintergrund, aber ruhiger als normale Cards/Inputs.
+  static Color vacationRangeBarColor(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Color.lerp(
+          scheme.surfaceContainer,
+          scheme.surfaceContainerHigh,
+          0.74,
+        ) ??
+        scheme.surfaceContainerHigh;
   }
 }

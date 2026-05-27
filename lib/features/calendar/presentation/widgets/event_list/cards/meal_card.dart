@@ -17,6 +17,10 @@ class MealCard extends ConsumerWidget {
   final bool weekGridCompact;
   final bool? showInlineTimeRange;
   final double? listTileHorizontalPadding;
+  final bool modalHeaderPreview;
+  final double? neighborGlassBlurSigma;
+  final double? neighborGlassTintAlpha;
+
   const MealCard({
     super.key,
     required this.entry,
@@ -25,6 +29,9 @@ class MealCard extends ConsumerWidget {
     this.weekGridCompact = false,
     this.showInlineTimeRange,
     this.listTileHorizontalPadding,
+    this.modalHeaderPreview = false,
+    this.neighborGlassBlurSigma,
+    this.neighborGlassTintAlpha,
   });
 
   @override
@@ -94,6 +101,7 @@ class MealCard extends ConsumerWidget {
                       entry: entry,
                       textColor: style.timeTextColor,
                       alignToContentHeight: true,
+                      suppressEdgeNudge: modalHeaderPreview,
                     ),
                   ),
                 Expanded(

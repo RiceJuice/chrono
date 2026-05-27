@@ -56,6 +56,7 @@ class CalendarMarkerColorPalette {
       // palette in another context still gets a sensible colour.
       CalendarEntryType.lesson: Color(0xFF124E30),
       CalendarEntryType.meal: Color(0xFF124E30),
+      CalendarEntryType.breakType: Color(0xFF29509E),
     },
     byChoir: <BackendChoir, Color>{
       BackendChoir.dkm: Color(0xFFCBBBA0),

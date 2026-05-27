@@ -3,11 +3,19 @@ import '../models/calendar_entry.dart';
 import 'calendar_filters_state.dart';
 import 'calendar_filter_text.dart';
 
+bool calendarEntryCountsAsAppointment(CalendarEntry entry) {
+  return entry.type != CalendarEntryType.breakType;
+}
+
 bool calendarEntryMatchesFilters({
   required CalendarEntry entry,
   required CalendarFiltersState filters,
   required bool hideUnknownWhenFilterActive,
 }) {
+  if (!calendarEntryCountsAsAppointment(entry)) {
+    return false;
+  }
+
   if (!_isEntryCalendarVisible(entry: entry, filters: filters)) {
     return false;
   }
@@ -89,7 +97,20 @@ bool _isEntryCalendarVisible({
     CalendarEntryType.meal => filters.showMealCalendar,
     CalendarEntryType.lesson => filters.showSchoolCalendar,
     CalendarEntryType.event => filters.showChoirCalendar,
+    CalendarEntryType.breakType => true,
   };
+}
+
+bool calendarEntryVisibleInEventList({
+  required CalendarEntry entry,
+  required CalendarFiltersState filters,
+  required bool hideUnknownWhenFilterActive,
+}) {
+  return calendarEntryMatchesFilters(
+    entry: entry,
+    filters: filters,
+    hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+  );
 }
 
 bool _matchesCategory({
