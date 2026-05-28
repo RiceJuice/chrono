@@ -53,6 +53,7 @@ class AppTheme {
       inputDecorationTheme: AppComponentThemes.inputDecorationTheme(scheme),
       chipTheme: AppComponentThemes.chipTheme(scheme),
       bottomSheetTheme: AppComponentThemes.bottomSheetTheme(scheme),
+      dialogTheme: AppComponentThemes.dialogTheme(scheme),
       navigationBarTheme: AppComponentThemes.navigationBarTheme(
         scheme,
       ).copyWith(backgroundColor: scaffoldBackgroundColor),

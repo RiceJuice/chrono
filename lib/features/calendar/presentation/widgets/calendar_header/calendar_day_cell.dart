@@ -108,7 +108,7 @@ class CalendarSelectedDayCell extends StatelessWidget {
 
     return Center(
       child: Transform.translate(
-        offset: const Offset(0, -2),
+        offset: const Offset(0, kCalendarSelectedDayContainerOffsetY),
         child: SizedBox.square(
           dimension: kCalendarSelectedDayBoxSize,
           child: Stack(
@@ -117,7 +117,7 @@ class CalendarSelectedDayCell extends StatelessWidget {
             children: [
               Positioned.fill(
                 child: Transform.translate(
-                  offset: const Offset(0, 4),
+                  offset: const Offset(0, kCalendarSelectedDayFillOffsetY),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: scheme.primary,

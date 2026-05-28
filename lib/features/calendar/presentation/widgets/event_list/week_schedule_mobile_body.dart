@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:chronoapp/core/time/app_date_time.dart';
 
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
@@ -33,18 +35,6 @@ const int _kMaxScrollAnimMs = 620;
 /// Schneller Start, weiches Auslaufen — kein ease-in am Anfang.
 
 const Curve _kExternalScrollCurve = Curves.easeInOutCubic;
-
-
-
-/// Fallback-Zeitspanne, wenn eine Woche ohne Einträge ist (nur nahtlose Ansicht).
-
-const WeekScheduleBounds _kSeamlessEmptyWeekBounds = WeekScheduleBounds(
-
-  startMinute: 10 * 60.0,
-
-  endMinute: 20 * 60.0,
-
-);
 
 
 
@@ -103,6 +93,8 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
   WeekScheduleBounds? _cachedAnchorBounds;
 
   bool _initialScrollDone = false;
+  late final ScrollController _allDayHeaderController;
+  bool _syncingAllDayHeaderOffset = false;
 
 
 
@@ -111,9 +103,52 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
   void initState() {
 
     super.initState();
+    _allDayHeaderController = ScrollController();
+    widget.horizontalController.addListener(_syncAllDayHeaderFromGrid);
+    _allDayHeaderController.addListener(_syncGridFromAllDayHeader);
 
     _scheduleInitialScrollRetry();
 
+  }
+
+  @override
+  void dispose() {
+    widget.horizontalController.removeListener(_syncAllDayHeaderFromGrid);
+    _allDayHeaderController.removeListener(_syncGridFromAllDayHeader);
+    _allDayHeaderController.dispose();
+    super.dispose();
+  }
+
+  void _syncAllDayHeaderFromGrid() {
+    if (_syncingAllDayHeaderOffset) return;
+    if (!_allDayHeaderController.hasClients ||
+        !widget.horizontalController.hasClients) {
+      return;
+    }
+    final target = widget.horizontalController.offset.clamp(
+      0.0,
+      _allDayHeaderController.position.maxScrollExtent,
+    );
+    if ((_allDayHeaderController.offset - target).abs() < 0.5) return;
+    _syncingAllDayHeaderOffset = true;
+    _allDayHeaderController.jumpTo(target);
+    _syncingAllDayHeaderOffset = false;
+  }
+
+  void _syncGridFromAllDayHeader() {
+    if (_syncingAllDayHeaderOffset) return;
+    if (!_allDayHeaderController.hasClients ||
+        !widget.horizontalController.hasClients) {
+      return;
+    }
+    final target = _allDayHeaderController.offset.clamp(
+      0.0,
+      widget.horizontalController.position.maxScrollExtent,
+    );
+    if ((widget.horizontalController.offset - target).abs() < 0.5) return;
+    _syncingAllDayHeaderOffset = true;
+    widget.horizontalController.jumpTo(target);
+    _syncingAllDayHeaderOffset = false;
   }
 
   /// Beim ersten App-Start sind die Kalender-Daten asynchron — der Build liefert
@@ -701,9 +736,26 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
         .toList(growable: false);
 
-    final computedBounds =
+    final regularFocusEntries = focusEntries
+        .map(
+          (entries) => entries
+              .where((entry) => entry.type != CalendarEntryType.breakType)
+              .toList(growable: false),
+        )
+        .toList(growable: false);
 
-        computeWeekScheduleBounds(focusEntries) ?? _kSeamlessEmptyWeekBounds;
+    final computedBounds = computeWeekScheduleBoundsOrDefault(
+      regularFocusEntries,
+    );
+
+    final maxAllDayBreaks = focusEntries.fold<int>(
+      0,
+      (max, entries) => math.max(max, distinctBreakNames(entries).length),
+    );
+    final hasAnyAllDayBreakInFocusWeek = maxAllDayBreaks > 0;
+    final allDayRowHeight = hasAnyAllDayBreakInFocusWeek
+        ? weekAllDayRowHeight(maxAllDayBreaks)
+        : 0.0;
 
     if (allWeekDataReady) {
 
@@ -713,7 +765,7 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
     final anchorBounds = _cachedAnchorBounds ?? computedBounds;
 
-    final anchorTotalHeight = anchorBounds.heightForHourHeight(widget.hourHeight);
+    final anchorGridHeight = anchorBounds.heightForHourHeight(widget.hourHeight);
 
 
 
@@ -804,9 +856,12 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
               hourHeight: widget.hourHeight,
 
-              listCrossExtent: anchorTotalHeight,
+              listCrossExtent: anchorGridHeight,
 
               dayWidth: dayWidth,
+              showAllDayRow: false,
+              allDayRowHeight: 0,
+              sharedBounds: anchorBounds,
 
             );
 
@@ -816,40 +871,51 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
 
 
-        return NotificationListener<ScrollNotification>(
-
-          onNotification: _onScrollNotification,
-
-          child: SizedBox(
-
-            height: anchorTotalHeight,
-
-            width: innerWidth,
-
-            child: Stack(
-
-              fit: StackFit.expand,
-
-              children: [
-
-                Opacity(
-
-                  opacity: _initialScrollDone ? 1.0 : 0.0,
-
-                  child: listView,
-
+        final allDayHeader = hasAnyAllDayBreakInFocusWeek
+            ? SizedBox(
+                height: allDayRowHeight,
+                child: ListView.builder(
+                  controller: _allDayHeaderController,
+                  scrollDirection: Axis.horizontal,
+                  physics: horizontalPhysics,
+                  itemExtent: dayWidth,
+                  itemCount: kWeekScheduleTotalDaySlots,
+                  itemBuilder: (context, globalDayIndex) {
+                    return _WeekScheduleStickyAllDayHeaderTile(
+                      globalDayIndex: globalDayIndex,
+                    );
+                  },
                 ),
+              )
+            : const SizedBox.shrink();
 
-                if (!_initialScrollDone)
-
-                  const Center(child: CircularProgressIndicator()),
-
-              ],
-
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            allDayHeader,
+            Expanded(
+              child: SingleChildScrollView(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onScrollNotification,
+                  child: SizedBox(
+                    height: anchorGridHeight,
+                    width: innerWidth,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Opacity(
+                          opacity: _initialScrollDone ? 1.0 : 0.0,
+                          child: listView,
+                        ),
+                        if (!_initialScrollDone)
+                          const Center(child: CircularProgressIndicator()),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-
-          ),
-
+          ],
         );
 
       },
@@ -858,6 +924,29 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
   }
 
+}
+
+class _WeekScheduleStickyAllDayHeaderTile extends ConsumerWidget {
+  const _WeekScheduleStickyAllDayHeaderTile({required this.globalDayIndex});
+
+  final int globalDayIndex;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final day = weekScheduleDayFromGlobalIndex(globalDayIndex);
+    final asyncEntries = ref.watch(filteredCalendarEntriesForDayProvider(day));
+    final entries = asyncEntries.value ?? const <CalendarEntry>[];
+    final labels = distinctBreakNames(entries);
+    final borderColor = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFFFFFFF).withValues(alpha: 0.15)
+        : Theme.of(context).colorScheme.outline.withValues(alpha: 0.20);
+    return WeekAllDayBreakCell(
+      labels: labels,
+      columnIndex: 0,
+      columnCount: 1,
+      borderColor: borderColor,
+    );
+  }
 }
 
 
@@ -873,6 +962,9 @@ class WeekScheduleSeamlessDayTile extends ConsumerWidget {
     required this.listCrossExtent,
 
     required this.dayWidth,
+    required this.showAllDayRow,
+    required this.allDayRowHeight,
+    required this.sharedBounds,
 
     super.key,
 
@@ -887,6 +979,9 @@ class WeekScheduleSeamlessDayTile extends ConsumerWidget {
   final double listCrossExtent;
 
   final double dayWidth;
+  final bool showAllDayRow;
+  final double allDayRowHeight;
+  final WeekScheduleBounds sharedBounds;
 
 
 
@@ -896,101 +991,40 @@ class WeekScheduleSeamlessDayTile extends ConsumerWidget {
 
     final day = weekScheduleDayFromGlobalIndex(globalDayIndex);
 
-    final monday = AppDateTime.localMondayOfWeek(day);
-
     final columnIndex = AppDateTime.weekdayOffsetFromMonday(day);
-
-    final weekDays = List<DateTime>.generate(
-
-      7,
-
-      (i) => AppDateTime.addLocalCalendarDays(monday, i),
-
-    );
-
-    final asyncDays = weekDays
-
-        .map((d) => ref.watch(filteredCalendarEntriesForDayProvider(d)))
-
-        .toList(growable: false);
-
-
-
-    for (final asyncDay in asyncDays) {
-
-      if (asyncDay.hasError) {
-
-        return SizedBox(
-
-          width: dayWidth,
-
-          height: listCrossExtent,
-
-          child: Center(
-
-            child: Text(
-
-              'Fehler',
-
-              style: Theme.of(context).textTheme.labelSmall,
-
-            ),
-
+    final dayEntriesAsync = ref.watch(filteredCalendarEntriesForDayProvider(day));
+    if (dayEntriesAsync.hasError) {
+      return SizedBox(
+        width: dayWidth,
+        height: listCrossExtent,
+        child: Center(
+          child: Text('Fehler', style: Theme.of(context).textTheme.labelSmall),
+        ),
+      );
+    }
+    if (!dayEntriesAsync.hasValue) {
+      return SizedBox(
+        width: dayWidth,
+        height: listCrossExtent,
+        child: const Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
-
-        );
-
-      }
-
+        ),
+      );
     }
 
-    for (final asyncDay in asyncDays) {
-
-      if (!asyncDay.hasValue) {
-
-        return SizedBox(
-
-          width: dayWidth,
-
-          height: listCrossExtent,
-
-          child: const Center(
-
-            child: SizedBox(
-
-              width: 22,
-
-              height: 22,
-
-              child: CircularProgressIndicator(strokeWidth: 2),
-
-            ),
-
-          ),
-
-        );
-
-      }
-
-    }
-
-
-
-    final entriesByDay = asyncDays
-
-        .map((asyncDay) => asyncDay.value ?? const <CalendarEntry>[])
-
-        .toList(growable: false);
-
-    final bounds =
-
-        computeWeekScheduleBounds(entriesByDay) ?? _kSeamlessEmptyWeekBounds;
-
+    final entries = dayEntriesAsync.value ?? const <CalendarEntry>[];
+    final bounds = sharedBounds;
     final totalHeight = bounds.heightForHourHeight(hourHeight);
 
     final safeColumnIndex = columnIndex.clamp(0, 6);
-
-    final entries = entriesByDay[safeColumnIndex];
+    final allDayLabels = distinctBreakNames(entries);
+    final targetAllDayRowHeight = showAllDayRow
+        ? allDayRowHeight.clamp(0.0, listCrossExtent)
+        : 0.0;
 
 
 
@@ -1001,57 +1035,81 @@ class WeekScheduleSeamlessDayTile extends ConsumerWidget {
       height: listCrossExtent,
 
       child: ClipRect(
-
-        child: Align(
-
-          alignment: Alignment.topCenter,
-
-          child: SizedBox(
-
-            width: dayWidth,
-
-            height: totalHeight,
-
-            child: Stack(
-
-              clipBehavior: Clip.hardEdge,
-
+        child: TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          tween: Tween<double>(end: targetAllDayRowHeight),
+          builder: (context, animatedAllDayRowHeight, child) {
+            final timelineGridHeight = math.max(
+              0.0,
+              listCrossExtent - animatedAllDayRowHeight,
+            );
+            final maxVisibleLabels = weekAllDayVisibleLabelLimit(
+              animatedAllDayRowHeight,
+            );
+            final borderColor = Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFFFFFFFF).withValues(alpha: 0.15)
+                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.20);
+            return Stack(
+              fit: StackFit.expand,
               children: [
-
-                WeekScheduleDayColumn(
-
-                  day: day,
-
-                  entries: entries,
-
-                  bounds: bounds,
-
-                  totalHeight: totalHeight,
-
-                  hourHeight: hourHeight,
-
-                  columnIndex: safeColumnIndex,
-
-                  columnCount: 7,
-
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: animatedAllDayRowHeight,
+                  height: timelineGridHeight,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      width: dayWidth,
+                      height: totalHeight,
+                      child: Stack(
+                        clipBehavior: Clip.hardEdge,
+                        children: [
+                          WeekScheduleDayColumn(
+                            day: day,
+                            entries: entries,
+                            bounds: bounds,
+                            totalHeight: totalHeight,
+                            hourHeight: hourHeight,
+                            columnIndex: safeColumnIndex,
+                            columnCount: 7,
+                          ),
+                          WeekNowLine(
+                            weekDays: [day],
+                            bounds: bounds,
+                            hourHeight: hourHeight,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-
-                WeekNowLine(
-
-                  weekDays: [day],
-
-                  bounds: bounds,
-
-                  hourHeight: hourHeight,
-
-                ),
-
+                if (showAllDayRow)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: animatedAllDayRowHeight,
+                    child: ClipRect(
+                      child: Opacity(
+                        opacity: targetAllDayRowHeight <= 0
+                            ? 0
+                            : (animatedAllDayRowHeight / targetAllDayRowHeight)
+                                  .clamp(0, 1),
+                        child: WeekAllDayBreakCell(
+                          labels: allDayLabels,
+                          maxVisibleLabels: maxVisibleLabels,
+                          columnIndex: 0,
+                          columnCount: 1,
+                          borderColor: borderColor,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
-
-            ),
-
-          ),
-
+            );
+          },
         ),
 
       ),

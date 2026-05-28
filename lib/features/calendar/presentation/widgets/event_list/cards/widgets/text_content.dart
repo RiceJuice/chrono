@@ -247,6 +247,7 @@ class TextContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final effectiveTitleFontSize = (titleFontSize ?? 16) - (compact ? 1 : 0);
     final mutedTimeColor = (secondaryTextColor ?? theme.colorScheme.onSurface)
         .withValues(alpha: 0.58);
     final hasDescription =
@@ -285,9 +286,9 @@ class TextContent extends StatelessWidget {
           textHeightBehavior: _cardTextHeightTight,
           style: theme.textTheme.bodyLarge?.copyWith(
             color: primaryTextColor,
-            height: 1,
+            height: compact ? 0.95 : 1,
             fontWeight: titleFontWeight ?? FontWeight.w400,
-            fontSize: titleFontSize ?? 16,
+            fontSize: effectiveTitleFontSize,
           ),
         ),
         if (!compact) const SizedBox(height: 2),

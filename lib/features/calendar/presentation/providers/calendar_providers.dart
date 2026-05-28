@@ -156,6 +156,18 @@ final calendarBreakDaysInLocalRangeProvider =
       );
     });
 
+final calendarHolidayDaysInLocalRangeProvider =
+    fr.StreamProvider.family<Set<DateTime>, CalendarEntryLocalRange>((
+      ref,
+      range,
+    ) {
+      final repository = ref.watch(calendarRepositoryProvider);
+      return repository.watchHolidayDaysInLocalRange(
+        startInclusive: range.startInclusive,
+        endExclusive: range.endExclusive,
+      );
+    });
+
 final calendarAllEntriesProvider = fr.StreamProvider<List<CalendarEntry>>((
   ref,
 ) {

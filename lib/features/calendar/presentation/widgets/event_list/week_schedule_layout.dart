@@ -5,6 +5,12 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 
 const double kWeekScheduleHourHeight = 72;
 const double kWeekScheduleAdjacentEntryGap = 2;
+const double kWeekScheduleDefaultStartMinute = 8 * 60.0;
+const double kWeekScheduleDefaultEndMinute = 18 * 60.0;
+const WeekScheduleBounds kWeekScheduleDefaultEmptyBounds = WeekScheduleBounds(
+  startMinute: kWeekScheduleDefaultStartMinute,
+  endMinute: kWeekScheduleDefaultEndMinute,
+);
 
 class WeekScheduleBounds {
   const WeekScheduleBounds({
@@ -79,6 +85,12 @@ WeekScheduleBounds? computeWeekScheduleBounds(
   }
 
   return WeekScheduleBounds(startMinute: startMin, endMinute: endMin);
+}
+
+WeekScheduleBounds computeWeekScheduleBoundsOrDefault(
+  List<List<CalendarEntry>> entriesByDay,
+) {
+  return computeWeekScheduleBounds(entriesByDay) ?? kWeekScheduleDefaultEmptyBounds;
 }
 
 List<WeekEntryPlacement> buildWeekEntryPlacements({

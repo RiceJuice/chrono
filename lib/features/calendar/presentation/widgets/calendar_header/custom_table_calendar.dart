@@ -141,15 +141,12 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           data: buildBreakRangeSegmentsFromDays,
           orElse: () => const <DateTime, CalendarBreakRangeSegment>{},
         );
-    final breakDays = ref
-        .watch(calendarBreakDaysInLocalRangeProvider(headerRange))
+    final holidayDays = ref
+        .watch(calendarHolidayDaysInLocalRangeProvider(headerRange))
         .maybeWhen(
           data: (days) => days.map(normalizeCalendarDay).toSet(),
           orElse: () => const <DateTime>{},
         );
-    final holidayDays = ref
-        .watch(calendarEntriesInLocalRangeProvider(headerRange))
-        .maybeWhen(data: buildHolidayDays, orElse: () => const <DateTime>{});
     // Pill colour rule: as soon as the user has more than one choir active
     // in the calendar filter, choir- *and* event-type segments are tinted
     // by their associated choir so the user can tell different choirs
@@ -264,9 +261,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
         defaultBuilder: (context, day, focusedDay) {
           final marker = dayMarkersByDate[normalizeCalendarDay(day)];
           final normalizedDay = normalizeCalendarDay(day);
-          final isHoliday =
-              holidayDays.contains(normalizedDay) ||
-              breakDays.contains(normalizedDay);
+          final isHoliday = holidayDays.contains(normalizedDay);
           return _wrapDayInteraction(
             wrapWithVacationShell(
               day: day,
@@ -321,9 +316,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
 
           final marker = dayMarkersByDate[normalizeCalendarDay(day)];
           final normalizedDay = normalizeCalendarDay(day);
-          final isHoliday =
-              holidayDays.contains(normalizedDay) ||
-              breakDays.contains(normalizedDay);
+          final isHoliday = holidayDays.contains(normalizedDay);
 
           return _wrapDayInteraction(
             wrapWithVacationShell(
@@ -348,9 +341,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           }
           final marker = dayMarkersByDate[normalizeCalendarDay(day)];
           final normalizedDay = normalizeCalendarDay(day);
-          final isHoliday =
-              holidayDays.contains(normalizedDay) ||
-              breakDays.contains(normalizedDay);
+          final isHoliday = holidayDays.contains(normalizedDay);
           return _wrapDayInteraction(
             wrapWithVacationShell(
               day: day,

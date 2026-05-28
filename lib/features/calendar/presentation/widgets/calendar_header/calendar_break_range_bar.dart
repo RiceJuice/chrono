@@ -105,55 +105,79 @@ class CalendarBreakRangeBar extends StatelessWidget {
   final Color color;
 
   static const _cellMarginOverlap = 2.0;
-  static const _selectedIndicatorVerticalOffset = 2.0;
   static const _selectedIndicatorRadius = Radius.circular(11);
 
   @override
   Widget build(BuildContext context) {
-    final (leftInset, rightInset) = switch (segment) {
-      CalendarBreakRangeSegment.single => (0.0, 0.0),
-      CalendarBreakRangeSegment.start => (0.0, -_cellMarginOverlap),
-      CalendarBreakRangeSegment.middle => (
-        -_cellMarginOverlap,
-        -_cellMarginOverlap,
-      ),
-      CalendarBreakRangeSegment.end => (-_cellMarginOverlap, 0.0),
-    };
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cellWidth = constraints.maxWidth;
+          final centeredInset = ((cellWidth - kCalendarSelectedDayBoxSize) / 2)
+              .clamp(0.0, double.infinity);
 
-    final radius = BorderRadius.horizontal(
-      left: switch (segment) {
-        CalendarBreakRangeSegment.single ||
-        CalendarBreakRangeSegment.start => _selectedIndicatorRadius,
-        CalendarBreakRangeSegment.middle ||
-        CalendarBreakRangeSegment.end => Radius.zero,
-      },
-      right: switch (segment) {
-        CalendarBreakRangeSegment.single ||
-        CalendarBreakRangeSegment.end => _selectedIndicatorRadius,
-        CalendarBreakRangeSegment.start ||
-        CalendarBreakRangeSegment.middle => Radius.zero,
-      },
-    );
-
-    return Positioned(
-      left: leftInset,
-      right: rightInset,
-      top: 0,
-      bottom: 0,
-      child: Align(
-        alignment: Alignment.center,
-        child: Transform.translate(
-          offset: const Offset(0, _selectedIndicatorVerticalOffset),
-          child: FractionallySizedBox(
-            widthFactor: 1,
-            child: SizedBox(
-              height: kCalendarSelectedDayBoxSize,
-              child: DecoratedBox(
-                decoration: BoxDecoration(color: color, borderRadius: radius),
-              ),
+          final (leftInset, rightInset) = switch (segment) {
+            // Einzel-Tag exakt auf der Breite des Selected-Day-Markings.
+            CalendarBreakRangeSegment.single => (centeredInset, centeredInset),
+            // Start/Ende: runde Außenkante am Selected-Day-Marker ausrichten,
+            // innen weiterziehen, damit mehrtägige Bereiche verbunden bleiben.
+            CalendarBreakRangeSegment.start => (
+              centeredInset,
+              -_cellMarginOverlap,
             ),
-          ),
-        ),
+            CalendarBreakRangeSegment.middle => (
+              -_cellMarginOverlap,
+              -_cellMarginOverlap,
+            ),
+            CalendarBreakRangeSegment.end => (
+              -_cellMarginOverlap,
+              centeredInset,
+            ),
+          };
+
+          final radius = BorderRadius.horizontal(
+            left: switch (segment) {
+              CalendarBreakRangeSegment.single ||
+              CalendarBreakRangeSegment.start => _selectedIndicatorRadius,
+              CalendarBreakRangeSegment.middle ||
+              CalendarBreakRangeSegment.end => Radius.zero,
+            },
+            right: switch (segment) {
+              CalendarBreakRangeSegment.single ||
+              CalendarBreakRangeSegment.end => _selectedIndicatorRadius,
+              CalendarBreakRangeSegment.start ||
+              CalendarBreakRangeSegment.middle => Radius.zero,
+            },
+          );
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: leftInset,
+                right: rightInset,
+                top: 0,
+                bottom: 0,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Transform.translate(
+                    offset: const Offset(0, kCalendarSelectedDayVisualOffsetY),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: kCalendarSelectedDayBoxSize,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: radius,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
