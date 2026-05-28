@@ -106,6 +106,10 @@ bool calendarEntryVisibleInEventList({
   required CalendarFiltersState filters,
   required bool hideUnknownWhenFilterActive,
 }) {
+  // Ferien/Feiertage sollen in der Event-List immer sichtbar sein.
+  if (entry.type == CalendarEntryType.breakType) {
+    return true;
+  }
   return calendarEntryMatchesFilters(
     entry: entry,
     filters: filters,

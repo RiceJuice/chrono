@@ -4,6 +4,7 @@ import 'package:chronoapp/features/calendar/presentation/providers/calendar_prov
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_grid.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_layout.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_day_columns.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_mobile_body.dart';
 import 'package:chronoapp/core/startup/calendar_startup_state.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
@@ -178,23 +179,58 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     final entriesByDay = asyncDays
         .map((asyncDay) => asyncDay.value ?? const <CalendarEntry>[])
         .toList(growable: false);
-    final bounds = computeWeekScheduleBounds(entriesByDay);
-    if (bounds == null) return const SizedBox.shrink();
+    final regularEntriesByDay = entriesByDay
+        .map(
+          (entries) => entries
+              .where((entry) => entry.type != CalendarEntryType.breakType)
+              .toList(growable: false),
+        )
+        .toList(growable: false);
+    final bounds = computeWeekScheduleBoundsOrDefault(regularEntriesByDay);
 
+    final maxAllDayBreaks = entriesByDay.fold<int>(
+      0,
+      (max, entries) => max < distinctBreakNames(entries).length
+          ? distinctBreakNames(entries).length
+          : max,
+    );
+    final allDayRowHeight = weekAllDayRowHeight(maxAllDayBreaks);
     final hourHeight = weekScheduleHourHeightFor(context);
     final totalHeight = bounds.heightForHourHeight(hourHeight);
     final showCurrentTime = weekDays.any(AppDateTime.isTodayLocal);
 
-    return ClipRect(
-      child: Transform.translate(
-        offset: Offset(0, -_timelineScrollOffset),
-        child: WeekTimelineColumn(
-          bounds: bounds,
-          totalHeight: totalHeight,
-          hourHeight: hourHeight,
-          showCurrentTime: showCurrentTime,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (allDayRowHeight > 0)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: allDayRowHeight,
+            child: const ColoredBox(color: Colors.transparent),
+          ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: allDayRowHeight,
+          bottom: 0,
+          child: ClipRect(
+            child: Transform.translate(
+              offset: Offset(0, -_timelineScrollOffset),
+              child: SizedBox(
+                height: totalHeight,
+                child: WeekTimelineColumn(
+                  bounds: bounds,
+                  totalHeight: totalHeight,
+                  hourHeight: hourHeight,
+                  showCurrentTime: showCurrentTime,
+                ),
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 

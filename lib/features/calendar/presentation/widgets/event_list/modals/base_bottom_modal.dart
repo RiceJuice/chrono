@@ -25,7 +25,7 @@ class BaseBottomModal extends StatelessWidget {
   }) {
     return AppModalSheet.show<T>(
       context: context,
-      useSafeArea: true,
+      useSafeArea: false,
       builder: (_) => BaseBottomModal(entry: entry, minHeight: minHeight),
     );
   }
@@ -36,21 +36,18 @@ class BaseBottomModal extends StatelessWidget {
     final double effectiveMinHeight = minHeight ?? (screenHeight * 0.7);
     final sheetSurface = Theme.of(context).colorScheme.surface;
 
-    return SafeArea(
-      top: false,
-      child: AppModalSheetChrome(
-        color: sheetSurface,
-        constraints: BoxConstraints(
-          minHeight: effectiveMinHeight,
-          maxHeight: screenHeight * 0.9,
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            SingleChildScrollView(child: _buildModalContent()),
-            AdminEditButton(entry: entry),
-          ],
-        ),
+    return AppModalSheetChrome(
+      color: sheetSurface,
+      constraints: BoxConstraints(
+        minHeight: effectiveMinHeight,
+        maxHeight: screenHeight * 0.9,
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          SingleChildScrollView(child: _buildModalContent()),
+          AdminEditButton(entry: entry),
+        ],
       ),
     );
   }

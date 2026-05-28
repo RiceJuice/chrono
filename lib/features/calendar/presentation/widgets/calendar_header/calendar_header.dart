@@ -14,7 +14,7 @@ import 'custom_table_calendar.dart';
 const _headerMorphDuration = Duration(milliseconds: 420);
 const _headerMorphCurve = Cubic(0.2, 0.8, 0.2, 1);
 const _landscapeCalendarTopPadding = 12.0;
-const _headerBottomRadius = 18.0;
+const _headerBottomRadius = 28.0;
 
 class CalendarHeader extends ConsumerStatefulWidget {
   const CalendarHeader({
@@ -109,9 +109,13 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onVerticalDragStart: _onVerticalDragStart,
-      onVerticalDragUpdate: _onVerticalDragUpdate,
-      onVerticalDragEnd: _onVerticalDragEnd,
+      onVerticalDragStart: widget.weekTimetableMode
+          ? null
+          : _onVerticalDragStart,
+      onVerticalDragUpdate: widget.weekTimetableMode
+          ? null
+          : _onVerticalDragUpdate,
+      onVerticalDragEnd: widget.weekTimetableMode ? null : _onVerticalDragEnd,
       child: AnimatedSize(
         duration: _headerMorphDuration,
         curve: _headerMorphCurve,

@@ -162,6 +162,14 @@ class AppComponentThemes {
     );
   }
 
+  static DialogThemeData dialogTheme(ColorScheme scheme) {
+    return DialogThemeData(
+      backgroundColor: scheme.surfaceContainer,
+      surfaceTintColor: Colors.transparent,
+      shape: AppSquircle.shape(AppRadius.sheet),
+    );
+  }
+
   static NavigationBarThemeData navigationBarTheme(ColorScheme scheme) {
     return NavigationBarThemeData(
       backgroundColor: scheme.surfaceContainer,

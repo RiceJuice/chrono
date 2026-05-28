@@ -159,15 +159,12 @@ class _WeekTimetableMobileDayHeaderState
           data: buildBreakRangeSegmentsFromDays,
           orElse: () => const <DateTime, CalendarBreakRangeSegment>{},
         );
-    final breakDays = ref
-        .watch(calendarBreakDaysInLocalRangeProvider(headerRange))
+    final holidayDays = ref
+        .watch(calendarHolidayDaysInLocalRangeProvider(headerRange))
         .maybeWhen(
           data: (days) => days.map(normalizeCalendarDay).toSet(),
           orElse: () => const <DateTime>{},
         );
-    final holidayDays = ref
-        .watch(calendarEntriesInLocalRangeProvider(headerRange))
-        .maybeWhen(data: buildHolidayDays, orElse: () => const <DateTime>{});
     final activeChoirCount = ref.watch(
       calendarFiltersProvider.select((filters) => filters.choirs.length),
     );
@@ -203,9 +200,7 @@ class _WeekTimetableMobileDayHeaderState
               final marker = dayMarkersByDate[normalizeCalendarDay(day)];
               final breakSegment = breakRangeByDate[normalizeCalendarDay(day)];
               final normalizedDay = normalizeCalendarDay(day);
-              final isHoliday =
-                  holidayDays.contains(normalizedDay) ||
-                  breakDays.contains(normalizedDay);
+              final isHoliday = holidayDays.contains(normalizedDay);
 
               return Expanded(
                 child: Material(

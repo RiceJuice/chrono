@@ -60,6 +60,36 @@ class CalendarRepository {
         );
   }
 
+  Stream<Set<DateTime>> watchHolidayDaysInLocalRange({
+    required DateTime startInclusive,
+    required DateTime endExclusive,
+  }) {
+    final startDay = AppDateTime.localDay(startInclusive);
+    final endDay = AppDateTime.localDay(endExclusive);
+    final startDate = _formatDate(startDay);
+    final endDate = _formatDate(endDay);
+
+    return _db
+        .watch(
+          '''
+          SELECT id, start_time, end_time
+          FROM $kCalendarEventsTable
+          WHERE type = 'break'
+            AND julianday(start_time) < julianday(?)
+            AND julianday(COALESCE(end_time, start_time)) >= julianday(?)
+          ''',
+          parameters: [endDate, startDate],
+          triggerOnTables: const {kCalendarEventsTable},
+        )
+        .map(
+          (rows) => _expandHolidayEventRowsToDays(
+            rows,
+            startInclusive: startDay,
+            endExclusive: endDay,
+          ),
+        );
+  }
+
   Stream<List<CalendarEntry>> watchEntriesByQuery(String query) {
     final normalizedQuery = query.trim().toLowerCase();
     if (normalizedQuery.isEmpty) {
@@ -103,8 +133,16 @@ class CalendarRepository {
               choir, voices, schooltrack, class, diet, image_paths, series_id, recurrence_id,
               NULL AS rrule, NULL AS series_start, NULL AS series_end
           FROM $kCalendarEventsTable
-          WHERE julianday(start_time) >= julianday(?)
-            AND julianday(start_time) < julianday(?)
+          WHERE (
+              type = 'break'
+              AND julianday(start_time) < julianday(?)
+              AND julianday(COALESCE(end_time, start_time)) >= julianday(?)
+            )
+             OR (
+              type != 'break'
+              AND julianday(start_time) >= julianday(?)
+              AND julianday(start_time) < julianday(?)
+            )
 
           UNION ALL
 
@@ -117,7 +155,7 @@ class CalendarRepository {
           WHERE date(series_start) <= date(?)
             AND (series_end IS NULL OR date(series_end) >= date(?))
           ''',
-          parameters: [lo, hi, hiDate, loDate],
+          parameters: [hi, lo, lo, hi, hiDate, loDate],
           triggerOnTables: const {kCalendarEventsTable, kCalendarSeriesTable},
         )
         .map(
@@ -517,6 +555,71 @@ class CalendarRepository {
     return days;
   }
 
+  Set<DateTime> _expandHolidayEventRowsToDays(
+    ResultSet rows, {
+    required DateTime startInclusive,
+    required DateTime endExclusive,
+  }) {
+    final days = <DateTime>{};
+    for (final row in rows) {
+      try {
+        final start = _parseRequiredDateTime(
+          _safeRowValue(row, 'start_time'),
+          fieldName: 'start_time',
+        );
+        final end =
+            _parseOptionalDateTime(_safeRowValue(row, 'end_time')) ?? start;
+        final startDay = AppDateTime.localDay(start);
+        var endDay = AppDateTime.localDay(end);
+        final isNextMidnightExclusive =
+            end.isAfter(start) &&
+            AppDateTime.localCalendarDaysBetween(startDay, endDay) == 1 &&
+            end.toLocal().hour == 0 &&
+            end.toLocal().minute == 0;
+        if (isNextMidnightExclusive) {
+          endDay = startDay;
+        }
+
+        var day = startDay.isBefore(startInclusive) ? startInclusive : startDay;
+        final lastVisibleDay = AppDateTime.addLocalCalendarDays(
+          endExclusive,
+          -1,
+        );
+        final lastDay = endDay.isAfter(lastVisibleDay)
+            ? lastVisibleDay
+            : endDay;
+
+        while (!day.isAfter(lastDay)) {
+          days.add(day);
+          day = AppDateTime.addLocalCalendarDays(day, 1);
+        }
+      } catch (error, stackTrace) {
+        _logHolidayEventRangeError(row, error, stackTrace);
+      }
+    }
+    return days;
+  }
+
+  DateTime _parseRequiredDateTime(Object? value, {required String fieldName}) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty) {
+      throw FormatException('$fieldName fehlt oder leer');
+    }
+    return AppDateTime.parseDatabaseDateTime(
+      raw,
+      assumeUtcWhenTimezoneMissing: true,
+    );
+  }
+
+  DateTime? _parseOptionalDateTime(Object? value) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty) return null;
+    return AppDateTime.parseDatabaseDateTime(
+      raw,
+      assumeUtcWhenTimezoneMissing: true,
+    );
+  }
+
   String _formatDate(DateTime day) {
     final local = AppDateTime.localDay(day);
     final year = local.year.toString().padLeft(4, '0');
@@ -571,6 +674,24 @@ class CalendarRepository {
     }());
   }
 
+  void _logHolidayEventRangeError(
+    Row row,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    assert(() {
+      developer.log(
+        'Feiertag aus calendar_events konnte nicht gelesen werden: '
+        'id=${_safeRowValue(row, 'id')}',
+        name: 'CalendarRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 900,
+      );
+      return true;
+    }());
+  }
+
   Set<DateTime> _collectFreeDays(
     List<CalendarEntry> events,
     List<CalendarEntry> expandedSeries,
@@ -579,9 +700,20 @@ class CalendarRepository {
     for (final event in events) {
       if (event.type != CalendarEntryType.breakType) continue;
       final startDay = AppDateTime.localDay(event.startTime);
-      final endDay = AppDateTime.localDay(event.endTime);
-      if (startDay == endDay) {
-        freeDays.add(startDay);
+      var endDay = AppDateTime.localDay(event.endTime);
+      final isNextMidnightExclusive =
+          event.endTime.isAfter(event.startTime) &&
+          AppDateTime.localCalendarDaysBetween(startDay, endDay) == 1 &&
+          event.endTime.toLocal().hour == 0 &&
+          event.endTime.toLocal().minute == 0;
+      if (isNextMidnightExclusive) {
+        endDay = startDay;
+      }
+
+      var day = startDay;
+      while (!day.isAfter(endDay)) {
+        freeDays.add(day);
+        day = AppDateTime.addLocalCalendarDays(day, 1);
       }
     }
     for (final seriesEntry in expandedSeries) {

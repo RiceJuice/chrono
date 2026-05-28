@@ -46,37 +46,56 @@ class WeekScheduleGrid extends ConsumerWidget {
     final entriesByDay = asyncDays
         .map((asyncDay) => asyncDay.value ?? const <CalendarEntry>[])
         .toList(growable: false);
-    final bounds = computeWeekScheduleBounds(entriesByDay);
-    if (bounds == null) {
-      return const Center(child: Text('Keine Einträge für diese Woche.'));
-    }
+    final regularEntriesByDay = entriesByDay
+        .map(
+          (entries) => entries
+              .where((entry) => entry.type != CalendarEntryType.breakType)
+              .toList(growable: false),
+        )
+        .toList(growable: false);
+    final bounds = computeWeekScheduleBoundsOrDefault(regularEntriesByDay);
 
     final totalHeight = bounds.heightForHourHeight(resolvedHourHeight);
 
-    return SingleChildScrollView(
-      child: SizedBox(
-        height: totalHeight,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (showTimelineColumn)
-              WeekTimelineColumn(
-                bounds: bounds,
-                totalHeight: totalHeight,
-                hourHeight: resolvedHourHeight,
-              ),
-            Expanded(
-              child: WeekDayColumns(
-                weekDays: weekDays,
-                entriesByDay: entriesByDay,
-                bounds: bounds,
-                totalHeight: totalHeight,
-                hourHeight: resolvedHourHeight,
+    return Column(
+      children: [
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: WeekAllDayBreakRow(
+            entriesByDay: entriesByDay,
+            showTimelineColumn: showTimelineColumn,
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            child: SizedBox(
+              height: totalHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (showTimelineColumn)
+                    WeekTimelineColumn(
+                      bounds: bounds,
+                      totalHeight: totalHeight,
+                      hourHeight: resolvedHourHeight,
+                    ),
+                  Expanded(
+                    child: WeekDayColumns(
+                      weekDays: weekDays,
+                      entriesByDay: entriesByDay,
+                      bounds: bounds,
+                      totalHeight: totalHeight,
+                      hourHeight: resolvedHourHeight,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

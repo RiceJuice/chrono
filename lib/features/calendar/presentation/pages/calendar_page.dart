@@ -11,6 +11,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_view.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -441,6 +442,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
       _prevIsPhoneLandscape = usePhoneLandscapeChrome;
     }
     final mediaPadding = MediaQuery.paddingOf(context);
+    final navOverlayAlpha = defaultTargetPlatform == TargetPlatform.iOS
+        ? 0.12
+        : 0.18;
     final searchBarBottomInset =
         mediaPadding.top +
         CalendarSearchOverlayMetrics.topPadding +
@@ -468,7 +472,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
                         behavior: HitTestBehavior.opaque,
                         onTap: _closeViewModeOverlay,
                         child: ColoredBox(
-                          color: Colors.black.withValues(alpha: 0.18),
+                          color: Colors.black.withValues(alpha: navOverlayAlpha),
                         ),
                       ),
                     ),

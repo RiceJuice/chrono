@@ -76,8 +76,8 @@ class CalendarPresentationTheme {
     final scheme = Theme.of(context).colorScheme;
     return Color.lerp(
           scheme.surfaceContainer,
-          scheme.surfaceContainerHigh,
-          0.74,
+          scheme.surfaceContainerHighest,
+          1,
         ) ??
         scheme.surfaceContainerHigh;
   }

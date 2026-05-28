@@ -13,6 +13,10 @@ const double kCalendarDayMarkerWidth = 24.0;
 const double kCalendarDayMarkerHeight = 6.0;
 
 const double kCalendarSelectedDayBoxSize = 36.5;
+const double kCalendarSelectedDayContainerOffsetY = -2.0;
+const double kCalendarSelectedDayFillOffsetY = 4.0;
+const double kCalendarSelectedDayVisualOffsetY =
+    kCalendarSelectedDayContainerOffsetY + kCalendarSelectedDayFillOffsetY;
 const double kCalendarDayRowHeight = 40.0;
 const double kCalendarDaysOfWeekHeight = 20.0;
 const double kCalendarWeekDayHeaderHeight =
