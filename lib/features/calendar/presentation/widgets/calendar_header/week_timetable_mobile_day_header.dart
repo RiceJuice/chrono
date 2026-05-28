@@ -4,11 +4,12 @@ import 'package:chronoapp/features/calendar/presentation/providers/calendar_prov
 import 'package:chronoapp/features/calendar/presentation/theme/calendar_presentation_theme.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_break_range_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_cell.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_spring_interaction.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_header_entry_range.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_sliding_day_selection.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_marker_pill.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -117,16 +118,31 @@ class _WeekTimetableMobileDayHeaderState
 
   void _onDayTapped(DateTime day) {
     ref.read(weekScheduleScrollDayProvider.notifier).clear();
-    ref.read(selectedDayProvider.notifier).update(day);
+    ref
+        .read(selectedDayProvider.notifier)
+        .update(day, origin: CalendarDaySelectionOrigin.tap);
     ref.read(focusedDayProvider.notifier).update(day);
+  }
+
+  int _selectedColumnIndex(DateTime monday, DateTime highlightDay) {
+    final mondayLocal = DateTime(monday.year, monday.month, monday.day);
+    final highlightLocal = DateTime(
+      highlightDay.year,
+      highlightDay.month,
+      highlightDay.day,
+    );
+    final delta = highlightLocal.difference(mondayLocal).inDays;
+    if (delta >= 0 && delta < 7) return delta;
+    return highlightDay.weekday - 1;
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen<DateTime?>(weekScheduleScrollDayProvider, (previous, next) {
       if (next == null) return;
-      final stride = weekSchedulePanStrideFor(context);
-      _syncPageToWeek(next, animated: stride == WeekSchedulePanStride.day);
+      // Vorschau beim Wischen: Seite ohne Animation nachziehen, sonst
+      // überlappen PageView-Übergänge mit AnimatedSwitcher-Updates.
+      _syncPageToWeek(next, animated: false);
     });
 
     ref.listen<DateTime>(selectedDayProvider, (previous, next) {
@@ -192,88 +208,140 @@ class _WeekTimetableMobileDayHeaderState
         onPageChanged: _onWeekPageChanged,
         itemBuilder: (context, pageIndex) {
           final monday = mondayForPageIndex(pageIndex);
-          return Row(
-            children: List.generate(7, (i) {
-              final day = AppDateTime.addLocalCalendarDays(monday, i);
-              final isSelected = isSameDay(highlightDay, day);
-              final isToday = AppDateTime.isTodayLocal(day);
-              final marker = dayMarkersByDate[normalizeCalendarDay(day)];
-              final breakSegment = breakRangeByDate[normalizeCalendarDay(day)];
-              final normalizedDay = normalizeCalendarDay(day);
-              final isHoliday = holidayDays.contains(normalizedDay);
 
-              return Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => _onDayTapped(day),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          height: kCalendarDaysOfWeekHeight,
-                          child: Center(
-                            child: Text(
-                              weekdayFmt.format(day),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: scheme.onSurface.withValues(
-                                      alpha: 0.65,
-                                    ),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
+          Widget buildDayRow({required bool useSlidingSelectionOverlay}) {
+            return Row(
+              children: List.generate(7, (columnIndex) {
+                final day = AppDateTime.addLocalCalendarDays(monday, columnIndex);
+                final normalizedDay = normalizeCalendarDay(day);
+                final isSelected = isSameDay(highlightDay, day);
+                final isToday = AppDateTime.isTodayLocal(day);
+                final marker = dayMarkersByDate[normalizedDay];
+                final breakSegment = breakRangeByDate[normalizedDay];
+                final isHoliday = holidayDays.contains(normalizedDay);
+
+                return Expanded(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _onDayTapped(day),
+                      borderRadius: BorderRadius.circular(10),
+                      child: CalendarDaySpringInteraction(
+                        child: CalendarDayVacationShell(
+                          breakRangeSegment: breakSegment,
+                          breakRangeColor: vacationRangeColor,
+                          child: _buildDayCell(
+                            context: context,
+                            day: day,
+                            normalizedDay: normalizedDay,
+                            isSelected: isSelected,
+                            isToday: isToday,
+                            isHoliday: isHoliday,
+                            marker: marker,
+                            markerColorResolver: markerColorResolver,
+                            useSlidingSelectionOverlay:
+                                useSlidingSelectionOverlay,
                           ),
                         ),
-                        SizedBox(
-                          height: kCalendarDayRowHeight,
-                          child: CalendarDayVacationShell(
-                            breakRangeSegment: breakSegment,
-                            breakRangeColor: vacationRangeColor,
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 200),
-                              switchInCurve: Curves.easeOutCubic,
-                              switchOutCurve: Curves.easeInCubic,
-                              child:
-                                  isSelected && widget.showSelectedDayIndicator
-                                  ? CalendarSelectedDayCell(
-                                      key: ValueKey<DateTime>(day),
-                                      day: day,
-                                      marker: marker,
-                                      colorResolver: markerColorResolver,
-                                      dayNumberColor: isHoliday
-                                          ? CalendarPresentationTheme.holidayBlue(
-                                              context,
-                                            )
-                                          : null,
-                                    )
-                                  : CalendarDayNumberCell(
-                                      key: ValueKey('n-$day'),
-                                      day: day,
-                                      marker: isSelected ? null : marker,
-                                      isToday: isToday,
-                                      colorResolver: markerColorResolver,
-                                      dayNumberColor: isHoliday
-                                          ? CalendarPresentationTheme.holidayBlue(
-                                              context,
-                                            )
-                                          : null,
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            );
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: List.generate(7, (i) {
+                  final day = AppDateTime.addLocalCalendarDays(monday, i);
+                  return Expanded(
+                    child: SizedBox(
+                      height: kCalendarDaysOfWeekHeight,
+                      child: Center(
+                        child: Text(
+                          weekdayFmt.format(day),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: scheme.onSurface.withValues(alpha: 0.65),
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              SizedBox(
+                height: kCalendarDayRowHeight,
+                child: widget.showSelectedDayIndicator
+                    ? CalendarSlidingDaySelectionLayer(
+                        selectedIndex: _selectedColumnIndex(monday, highlightDay),
+                        itemCount: 7,
+                        animate: scrollPreviewDay == null,
+                        child: buildDayRow(useSlidingSelectionOverlay: true),
+                      )
+                    : buildDayRow(useSlidingSelectionOverlay: false),
+              ),
+            ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildDayCell({
+    required BuildContext context,
+    required DateTime day,
+    required DateTime normalizedDay,
+    required bool isSelected,
+    required bool isToday,
+    required bool isHoliday,
+    required CalendarDayMarkerData? marker,
+    required CalendarMarkerColorResolver markerColorResolver,
+    required bool useSlidingSelectionOverlay,
+  }) {
+    final showSelected = isSelected && widget.showSelectedDayIndicator;
+    final dayKey = normalizedDay.millisecondsSinceEpoch;
+    final holidayColor = isHoliday
+        ? CalendarPresentationTheme.holidayBlue(context)
+        : null;
+
+    if (useSlidingSelectionOverlay) {
+      final scheme = Theme.of(context).colorScheme;
+      final todayAccent = CalendarPresentationTheme.todayAccentColor(context);
+      return CalendarDayNumberCell(
+        key: ValueKey('slide-$dayKey'),
+        day: day,
+        marker: marker,
+        isToday: isToday,
+        colorResolver: markerColorResolver,
+        dayNumberColor: showSelected
+            ? (holidayColor ?? (isToday ? todayAccent : scheme.onPrimary))
+            : holidayColor,
+      );
+    }
+
+    if (showSelected) {
+      return CalendarSelectedDayCell(
+        key: ValueKey('sel-$dayKey'),
+        day: day,
+        marker: marker,
+        colorResolver: markerColorResolver,
+        dayNumberColor: holidayColor,
+      );
+    }
+
+    return CalendarDayNumberCell(
+      key: ValueKey('num-$dayKey'),
+      day: day,
+      marker: marker,
+      isToday: isToday,
+      colorResolver: markerColorResolver,
+      dayNumberColor: holidayColor,
     );
   }
 }

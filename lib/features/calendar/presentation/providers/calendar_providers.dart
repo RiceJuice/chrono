@@ -1,7 +1,7 @@
-import 'package:flutter/services.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
+import '../../../../core/haptics/app_haptics.dart';
 import '../../../../core/database/database_provider.dart';
 import '../../../../core/time/app_date_time.dart';
 import '../../domain/models/calendar_entry.dart';
@@ -63,7 +63,7 @@ class SelectedDay extends _$SelectedDay {
     }
     ref.read(calendarDaySelectionOriginProvider.notifier).setOrigin(origin);
     if (haptic) {
-      HapticFeedback.mediumImpact();
+      AppHaptics.selection();
     }
     state = next;
   }
