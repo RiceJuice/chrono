@@ -93,8 +93,6 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
   WeekScheduleBounds? _cachedAnchorBounds;
 
   bool _initialScrollDone = false;
-  late final ScrollController _allDayHeaderController;
-  bool _syncingAllDayHeaderOffset = false;
 
 
 
@@ -103,52 +101,9 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
   void initState() {
 
     super.initState();
-    _allDayHeaderController = ScrollController();
-    widget.horizontalController.addListener(_syncAllDayHeaderFromGrid);
-    _allDayHeaderController.addListener(_syncGridFromAllDayHeader);
 
     _scheduleInitialScrollRetry();
 
-  }
-
-  @override
-  void dispose() {
-    widget.horizontalController.removeListener(_syncAllDayHeaderFromGrid);
-    _allDayHeaderController.removeListener(_syncGridFromAllDayHeader);
-    _allDayHeaderController.dispose();
-    super.dispose();
-  }
-
-  void _syncAllDayHeaderFromGrid() {
-    if (_syncingAllDayHeaderOffset) return;
-    if (!_allDayHeaderController.hasClients ||
-        !widget.horizontalController.hasClients) {
-      return;
-    }
-    final target = widget.horizontalController.offset.clamp(
-      0.0,
-      _allDayHeaderController.position.maxScrollExtent,
-    );
-    if ((_allDayHeaderController.offset - target).abs() < 0.5) return;
-    _syncingAllDayHeaderOffset = true;
-    _allDayHeaderController.jumpTo(target);
-    _syncingAllDayHeaderOffset = false;
-  }
-
-  void _syncGridFromAllDayHeader() {
-    if (_syncingAllDayHeaderOffset) return;
-    if (!_allDayHeaderController.hasClients ||
-        !widget.horizontalController.hasClients) {
-      return;
-    }
-    final target = _allDayHeaderController.offset.clamp(
-      0.0,
-      widget.horizontalController.position.maxScrollExtent,
-    );
-    if ((widget.horizontalController.offset - target).abs() < 0.5) return;
-    _syncingAllDayHeaderOffset = true;
-    widget.horizontalController.jumpTo(target);
-    _syncingAllDayHeaderOffset = false;
   }
 
   /// Beim ersten App-Start sind die Kalender-Daten asynchron — der Build liefert
@@ -442,6 +397,17 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
 
 
+  double _alignedHorizontalOffset(
+    double offset,
+    double dayWidth,
+    double snapStride,
+    WeekSchedulePanStride stride,
+  ) {
+    return stride == WeekSchedulePanStride.week
+        ? (offset / snapStride).round() * snapStride
+        : (offset / dayWidth).round() * dayWidth;
+  }
+
   void _commitFromSnappedOffset(
 
     double offset,
@@ -454,11 +420,8 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
   ) {
 
-    final alignedOffset = stride == WeekSchedulePanStride.week
-
-        ? (offset / snapStride).round() * snapStride
-
-        : (offset / dayWidth).round() * dayWidth;
+    final alignedOffset =
+        _alignedHorizontalOffset(offset, dayWidth, snapStride, stride);
 
     final snappedGlobalIndex =
 
@@ -580,8 +543,29 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
 
       final offset = widget.horizontalController.offset;
+      final alignedOffset = _alignedHorizontalOffset(
+        offset,
+        dayWidth,
+        snapStride,
+        stride,
+      ).clamp(0.0, widget.horizontalController.position.maxScrollExtent);
 
-      _commitFromSnappedOffset(offset, dayWidth, snapStride, stride);
+      if ((offset - alignedOffset).abs() > 0.5) {
+        _programmaticHorizontal = true;
+        try {
+          await widget.horizontalController.animateTo(
+            alignedOffset,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+          );
+        } finally {
+          if (mounted) {
+            _programmaticHorizontal = false;
+          }
+        }
+      }
+
+      _commitFromSnappedOffset(alignedOffset, dayWidth, snapStride, stride);
 
     } finally {
 
@@ -609,8 +593,8 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
     if (notification is ScrollStartNotification) {
 
-      // Nur Nutzer-Gesten abbrechen — programmatische Scrolls (Header-Sync)
-      // dürfen _externalScrollGeneration nicht invalidieren.
+      // Nur Nutzer-Gesten abbrechen — programmatische Scrolls dürfen
+      // _externalScrollGeneration nicht invalidieren.
       if (notification.dragDetails != null) {
 
         _externalScrollGeneration++;
@@ -871,48 +855,51 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
 
 
-        final allDayHeader = hasAnyAllDayBreakInFocusWeek
-            ? SizedBox(
-                height: allDayRowHeight,
-                child: ListView.builder(
-                  controller: _allDayHeaderController,
-                  scrollDirection: Axis.horizontal,
-                  physics: horizontalPhysics,
-                  itemExtent: dayWidth,
-                  itemCount: kWeekScheduleTotalDaySlots,
-                  itemBuilder: (context, globalDayIndex) {
-                    return _WeekScheduleStickyAllDayHeaderTile(
-                      globalDayIndex: globalDayIndex,
-                    );
-                  },
-                ),
-              )
-            : const SizedBox.shrink();
+        final gridStack = SizedBox(
+          height: anchorGridHeight,
+          width: innerWidth,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Opacity(
+                opacity: _initialScrollDone ? 1.0 : 0.0,
+                child: listView,
+              ),
+              if (!_initialScrollDone)
+                const Center(child: CircularProgressIndicator()),
+            ],
+          ),
+        );
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            allDayHeader,
+            if (hasAnyAllDayBreakInFocusWeek)
+              _WeekScheduleMobileAllDayHeaderStrip(
+                horizontalController: widget.horizontalController,
+                dayWidth: dayWidth,
+                viewportWidth: innerWidth,
+                rowHeight: allDayRowHeight,
+                onUserScrollEnd: _handleHorizontalScrollEnd,
+                onUserScrollUpdate: (offset) {
+                  final idx = _globalDayIndexFromOffset(offset, dayWidth);
+                  _setScrollPreviewIndex(idx, stride);
+                },
+              ),
             Expanded(
-              child: SingleChildScrollView(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: _onScrollNotification,
-                  child: SizedBox(
-                    height: anchorGridHeight,
-                    width: innerWidth,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Opacity(
-                          opacity: _initialScrollDone ? 1.0 : 0.0,
-                          child: listView,
-                        ),
-                        if (!_initialScrollDone)
-                          const Center(child: CircularProgressIndicator()),
-                      ],
-                    ),
-                  ),
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final needsVerticalScroll =
+                      anchorGridHeight > constraints.maxHeight + 0.5;
+                  final gridPane = NotificationListener<ScrollNotification>(
+                    onNotification: _onScrollNotification,
+                    child: gridStack,
+                  );
+                  if (!needsVerticalScroll) {
+                    return gridPane;
+                  }
+                  return SingleChildScrollView(child: gridPane);
+                },
               ),
             ),
           ],
@@ -924,6 +911,84 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
   }
 
+}
+
+/// Ganztagszeile oberhalb des Rasters: folgt dem einen horizontalen
+/// [ScrollController] per Transform (kein zweites [ListView] mehr).
+class _WeekScheduleMobileAllDayHeaderStrip extends StatelessWidget {
+  const _WeekScheduleMobileAllDayHeaderStrip({
+    required this.horizontalController,
+    required this.dayWidth,
+    required this.viewportWidth,
+    required this.rowHeight,
+    required this.onUserScrollEnd,
+    required this.onUserScrollUpdate,
+  });
+
+  final ScrollController horizontalController;
+  final double dayWidth;
+  final double viewportWidth;
+  final double rowHeight;
+  final Future<void> Function() onUserScrollEnd;
+  final void Function(double offset) onUserScrollUpdate;
+
+  void _dragBy(double deltaDx) {
+    if (!horizontalController.hasClients || dayWidth <= 0) return;
+    final position = horizontalController.position;
+    final next = (horizontalController.offset - deltaDx)
+        .clamp(0.0, position.maxScrollExtent);
+    if ((horizontalController.offset - next).abs() < 0.01) return;
+    horizontalController.jumpTo(next);
+    onUserScrollUpdate(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: rowHeight,
+      width: viewportWidth,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragUpdate: (details) => _dragBy(details.delta.dx),
+        onHorizontalDragEnd: (_) {
+          onUserScrollEnd();
+        },
+        child: AnimatedBuilder(
+          animation: horizontalController,
+          builder: (context, _) {
+            if (!horizontalController.hasClients || dayWidth <= 0) {
+              return const SizedBox.shrink();
+            }
+            final offset = horizontalController.offset;
+            final firstIndex = (offset / dayWidth)
+                .floor()
+                .clamp(0, kWeekScheduleTotalDaySlots - 1);
+            final visibleCount = math.min(
+              kWeekScheduleTotalDaySlots - firstIndex,
+              (viewportWidth / dayWidth).ceil() + 2,
+            );
+            return ClipRect(
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  for (var i = 0; i < visibleCount; i++)
+                    Positioned(
+                      left: (firstIndex + i) * dayWidth - offset,
+                      width: dayWidth,
+                      top: 0,
+                      bottom: 0,
+                      child: _WeekScheduleStickyAllDayHeaderTile(
+                        globalDayIndex: firstIndex + i,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _WeekScheduleStickyAllDayHeaderTile extends ConsumerWidget {

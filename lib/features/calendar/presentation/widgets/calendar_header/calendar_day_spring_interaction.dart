@@ -4,45 +4,71 @@ import 'package:flutter/physics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-/// Feder-Parameter — bewusst zurückhaltend und kritisch gedämpft (kein Bounce).
+/// Feder-Parameter im Stil von UIKit (leichter Overshoot, schneller Ansprung).
 abstract final class CalendarDaySpringPhysics {
   static const double restScale = 1.0;
-  static const double pressedScale = 0.96;
-  static const double minScale = 0.94;
-  static const double maxScale = 1.01;
+  static const double pressedScale = 0.86;
+  static const double minScale = 0.78;
+  static const double maxScale = 1.1;
 
-  static const SpringDescription press = SpringDescription(
-    mass: 0.22,
-    stiffness: 620,
-    damping: 30,
-  );
-
-  static const SpringDescription release = SpringDescription(
-    mass: 0.26,
-    stiffness: 560,
-    damping: 32,
-  );
-
-  /// Dezentes Einblenden der Auswahl (Swipe, Programmatik, …).
-  static const SpringDescription appear = SpringDescription(
-    mass: 0.3,
+  /// Schnelles Einfedern beim Drücken — ohne Nachschwingen.
+  static final SpringDescription press = SpringDescription.withDampingRatio(
+    mass: 1,
     stiffness: 520,
-    damping: 31,
+    ratio: 1.02,
   );
 
-  static const double appearStartScale = 0.94;
+  /// Loslassen mit dezentem iOS-Bounce.
+  static final SpringDescription release = SpringDescription.withDampingRatio(
+    mass: 1,
+    stiffness: 380,
+    ratio: 0.72,
+  );
+
+  /// Einblenden bei programmatischer / Swipe-Auswahl.
+  static final SpringDescription appear = SpringDescription.withDampingRatio(
+    mass: 1,
+    stiffness: 320,
+    ratio: 0.68,
+  );
+
+  /// Horizontales Gleiten der Auswahl-Pille (Wochenkopf).
+  static final SpringDescription slide = SpringDescription.withDampingRatio(
+    mass: 1,
+    stiffness: 340,
+    ratio: 0.78,
+  );
+
+  static const double appearStartScale = 0.72;
+  static const double appearStartOpacity = 0.45;
 
   static const Tolerance simulationTolerance = Tolerance(
-    velocity: 0.02,
-    distance: 0.002,
+    velocity: 0.015,
+    distance: 0.0015,
   );
 
-  /// Opazität bei gedrücktem Zustand (Rest = 1.0) — nur leicht spürbar.
   static double opacityForScale(double scale) {
     final t =
         ((scale - pressedScale) / (restScale - pressedScale)).clamp(0.0, 1.0);
-    return 0.92 + 0.08 * t;
+    return 0.88 + 0.12 * t;
   }
+}
+
+void _runSpringOn(
+  AnimationController controller, {
+  required double target,
+  required SpringDescription spring,
+  double velocity = 0,
+}) {
+  controller.stop();
+  final simulation = SpringSimulation(
+    spring,
+    controller.value,
+    target,
+    velocity,
+    tolerance: CalendarDaySpringPhysics.simulationTolerance,
+  );
+  controller.animateWith(simulation);
 }
 
 /// Physikbasierter Druck-/Loslass-Effekt für einzelne Kalendertage.
@@ -86,30 +112,11 @@ class _CalendarDaySpringInteractionState extends State<CalendarDaySpringInteract
     super.dispose();
   }
 
-  void _runSpring({
-    required double target,
-    required SpringDescription spring,
-    double velocity = 0,
-  }) {
-    _scaleController.stop();
-    final simulation = SpringSimulation(
-      spring,
-      _scaleController.value,
-      target,
-      velocity,
-      tolerance: CalendarDaySpringPhysics.simulationTolerance,
-    );
-    _scaleController.animateWith(simulation);
-  }
-
   void _onPointerDown(PointerDownEvent event) {
     if (!widget.enabled) return;
     _isPressed = true;
-    // Kein HapticFeedback hier: bei erfolgreichem Tages-Tap feuert
-    // [SelectedDay.update] in calendar_providers.dart bereits
-    // [HapticFeedback.mediumImpact]. Zusätzliches Feedback auf pointerDown
-    // würde doppelt vibrieren (Press + Provider-Wechsel).
-    _runSpring(
+    _runSpringOn(
+      _scaleController,
       target: CalendarDaySpringPhysics.pressedScale,
       spring: CalendarDaySpringPhysics.press,
     );
@@ -127,10 +134,11 @@ class _CalendarDaySpringInteractionState extends State<CalendarDaySpringInteract
     if (!widget.enabled || !_isPressed) return;
     _isPressed = false;
     final delta = CalendarDaySpringPhysics.restScale - _scaleController.value;
-    _runSpring(
+    _runSpringOn(
+      _scaleController,
       target: CalendarDaySpringPhysics.restScale,
       spring: CalendarDaySpringPhysics.release,
-      velocity: delta * 6,
+      velocity: delta * 10,
     );
   }
 
@@ -163,11 +171,7 @@ class _CalendarDaySpringInteractionState extends State<CalendarDaySpringInteract
   }
 }
 
-/// Dezentes Appear, wenn der Tag **extern** ausgewählt wird (Wischen, Listener, …).
-///
-/// Bei direktem Tap ([CalendarDaySelectionOrigin.tap]) bleibt die Animation aus,
-/// damit sie nicht mit dem Druck-Feedback von [CalendarDaySpringInteraction]
-/// kollidiert — dort liefert [SelectedDay.update] bereits Haptic.
+/// Bouncy Appear bei externer Auswahl (Wischen, Scroll-Snap, Programmatik).
 class CalendarDaySelectionAppear extends ConsumerStatefulWidget {
   const CalendarDaySelectionAppear({
     required this.day,
@@ -186,24 +190,32 @@ class CalendarDaySelectionAppear extends ConsumerStatefulWidget {
 }
 
 class _CalendarDaySelectionAppearState extends ConsumerState<CalendarDaySelectionAppear>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _appearController;
+    with TickerProviderStateMixin {
+  late final AnimationController _scaleController;
+  late final AnimationController _opacityController;
 
   @override
   void initState() {
     super.initState();
-    _appearController = AnimationController(
+    _scaleController = AnimationController(
       vsync: this,
       value: CalendarDaySpringPhysics.restScale,
       lowerBound: CalendarDaySpringPhysics.minScale,
       upperBound: CalendarDaySpringPhysics.maxScale,
+    );
+    _opacityController = AnimationController(
+      vsync: this,
+      value: 1,
+      lowerBound: 0,
+      upperBound: 1,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybePlayAppear());
   }
 
   @override
   void dispose() {
-    _appearController.dispose();
+    _scaleController.dispose();
+    _opacityController.dispose();
     super.dispose();
   }
 
@@ -212,24 +224,29 @@ class _CalendarDaySelectionAppearState extends ConsumerState<CalendarDaySelectio
     if (!isSameDay(ref.read(selectedDayProvider), widget.day)) return;
     final originTracker = ref.read(calendarDaySelectionOriginProvider.notifier);
     if (originTracker.changeGeneration == 0) return;
-    if (ref.read(calendarDaySelectionOriginProvider) !=
-        CalendarDaySelectionOrigin.external) {
+    if (ref.read(calendarDaySelectionOriginProvider) ==
+        CalendarDaySelectionOrigin.tap) {
       return;
     }
     _playAppear();
   }
 
   void _playAppear() {
-    _appearController.stop();
-    _appearController.value = CalendarDaySpringPhysics.appearStartScale;
-    final simulation = SpringSimulation(
-      CalendarDaySpringPhysics.appear,
-      CalendarDaySpringPhysics.appearStartScale,
-      CalendarDaySpringPhysics.restScale,
-      0,
-      tolerance: CalendarDaySpringPhysics.simulationTolerance,
+    _scaleController.stop();
+    _opacityController.stop();
+    _scaleController.value = CalendarDaySpringPhysics.appearStartScale;
+    _opacityController.value = CalendarDaySpringPhysics.appearStartOpacity;
+
+    _runSpringOn(
+      _scaleController,
+      target: CalendarDaySpringPhysics.restScale,
+      spring: CalendarDaySpringPhysics.appear,
     );
-    _appearController.animateWith(simulation);
+    _runSpringOn(
+      _opacityController,
+      target: 1,
+      spring: CalendarDaySpringPhysics.appear,
+    );
   }
 
   @override
@@ -243,13 +260,16 @@ class _CalendarDaySelectionAppearState extends ConsumerState<CalendarDaySelectio
     if (!widget.enabled) return widget.child;
 
     return AnimatedBuilder(
-      animation: _appearController,
+      animation: Listenable.merge([_scaleController, _opacityController]),
       builder: (context, child) {
-        return Transform.scale(
-          scale: _appearController.value,
-          alignment: Alignment.center,
-          filterQuality: FilterQuality.high,
-          child: child,
+        return Opacity(
+          opacity: _opacityController.value,
+          child: Transform.scale(
+            scale: _scaleController.value,
+            alignment: Alignment.center,
+            filterQuality: FilterQuality.high,
+            child: child,
+          ),
         );
       },
       child: widget.child,

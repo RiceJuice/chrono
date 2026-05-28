@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +14,8 @@ class MainNavigationBar extends ConsumerWidget {
   static const _calendarPath = '/calendar';
   static const _settingsPath = '/settings';
   static const _iconLabelSpacingOffset = 5.0;
+  static const _tabIconSize = 22.0;
+  static const _calendarAssetPath = 'assets/domspatzen.svg';
 
   int _indexFromLocation(String location) {
     if (location.startsWith(_settingsPath)) return 1;
@@ -46,18 +48,15 @@ class MainNavigationBar extends ConsumerWidget {
   Widget _buildCalendarIcon({
     required BuildContext context,
     required bool selected,
-    required bool useCupertinoColors,
   }) {
     return SvgPicture.asset(
-      'assets/domspatzen.svg',
-      height: 22,
-      width: 22,
+      _calendarAssetPath,
+      height: _tabIconSize,
+      width: _tabIconSize,
       colorFilter: selected
           ? null
           : ColorFilter.mode(
-              useCupertinoColors
-                  ? CupertinoColors.inactiveGray.resolveFrom(context)
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+              Theme.of(context).colorScheme.onSurfaceVariant,
               BlendMode.srcIn,
             ),
     );
@@ -98,7 +97,6 @@ class MainNavigationBar extends ConsumerWidget {
                 child: _buildCalendarIcon(
                   context: context,
                   selected: currentIndex == 0,
-                  useCupertinoColors: false,
                 ),
               ),
               label: 'Kalender',
@@ -111,7 +109,7 @@ class MainNavigationBar extends ConsumerWidget {
                   color: currentIndex == 1
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.onSurfaceVariant,
-                  size: 22,
+                  size: _tabIconSize,
                 ),
               ),
               label: 'Dein Chrono',
@@ -122,60 +120,62 @@ class MainNavigationBar extends ConsumerWidget {
     );
   }
 
-  Widget _buildCupertinoNavigationBar({
+  Widget _buildIosNavigationBar({
     required BuildContext context,
     required WidgetRef ref,
     required String location,
     required int currentIndex,
   }) {
-    final borderColor = CupertinoColors.separator.resolveFrom(context);
-    final backgroundColor = CupertinoDynamicColor.withBrightness(
-      color: const Color.fromRGBO(248, 248, 248, 0.76),
-      darkColor: const Color.fromRGBO(30, 30, 30, 0.72),
-    ).resolveFrom(context);
+    final inactiveIconColor =
+        Theme.of(context).colorScheme.onSurfaceVariant;
 
-    return CupertinoTabBar(
-      currentIndex: currentIndex,
-      iconSize: 22,
-      activeColor: CupertinoColors.activeBlue.resolveFrom(context),
-      inactiveColor: CupertinoColors.inactiveGray.resolveFrom(context),
-      backgroundColor: backgroundColor,
-      border: Border(top: BorderSide(color: borderColor, width: 0)),
-      onTap: (index) {
-        _onDestinationSelected(
-          context: context,
-          ref: ref,
-          location: location,
-          index: index,
-        );
-      },
-      items: [
-        BottomNavigationBarItem(
-          icon: _buildCalendarIcon(
+    return SafeArea(
+      top: false,
+      child: CNTabBar(
+        iconSize: _tabIconSize,
+        currentIndex: currentIndex,
+        onTap: (index) {
+          _onDestinationSelected(
             context: context,
-            selected: currentIndex == 0,
-            useCupertinoColors: true,
+            ref: ref,
+            location: location,
+            index: index,
+          );
+        },
+        items: [
+          CNTabBarItem(
+            label: 'Kalender',
+            imageAsset: CNImageAsset(
+              _calendarAssetPath,
+              size: _tabIconSize,
+              color: inactiveIconColor,
+            ),
+            activeImageAsset: const CNImageAsset(
+              _calendarAssetPath,
+              size: _tabIconSize,
+            ),
           ),
-          label: 'Kalender',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(
-            currentIndex == 1
-                ? CupertinoIcons.settings_solid
-                : CupertinoIcons.settings,
+          const CNTabBarItem(
+            label: 'Dein Chrono',
+            icon: CNSymbol('gearshape'),
+            activeIcon: CNSymbol('gearshape.fill'),
           ),
-          label: 'Dein Chrono',
-        ),
-      ],
+        ],
+      ),
     );
+  }
+
+  bool _useNativeIosTabBar() {
+    return defaultTargetPlatform == TargetPlatform.iOS &&
+        PlatformVersion.shouldUseNativeGlass;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.path;
     final currentIndex = _indexFromLocation(location);
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return _buildCupertinoNavigationBar(
+    if (_useNativeIosTabBar()) {
+      return _buildIosNavigationBar(
         context: context,
         ref: ref,
         location: location,

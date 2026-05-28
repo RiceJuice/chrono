@@ -57,6 +57,7 @@ dependencies:
   internet_connection_checker: 3.0.1
   flutter_colorpicker: ^1.1.0
   phosphor_flutter: ^2.1.0
+  cupertino_native_better: ^1.4.6
 
 dev_dependencies:
   flutter_test:

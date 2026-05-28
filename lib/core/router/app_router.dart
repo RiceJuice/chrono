@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -54,6 +55,7 @@ class AppRouter {
   final Listenable _refresh;
 
   late final router = GoRouter(
+    observers: [CNTabBarRouteObserver()],
     refreshListenable: _refresh,
     initialLocation: '/loading',
     redirect: (context, state) {
