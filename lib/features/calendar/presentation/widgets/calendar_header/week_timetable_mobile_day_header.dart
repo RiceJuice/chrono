@@ -209,6 +209,27 @@ class _WeekTimetableMobileDayHeaderState
         itemBuilder: (context, pageIndex) {
           final monday = mondayForPageIndex(pageIndex);
 
+          Widget buildVacationBarRow() {
+            return Row(
+              children: List.generate(7, (columnIndex) {
+                final day = AppDateTime.addLocalCalendarDays(monday, columnIndex);
+                final normalizedDay = normalizeCalendarDay(day);
+                final breakSegment = breakRangeByDate[normalizedDay];
+
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(kCalendarDayCellMargin),
+                    child: CalendarDayVacationShell(
+                      breakRangeSegment: breakSegment,
+                      breakRangeColor: vacationRangeColor,
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                );
+              }),
+            );
+          }
+
           Widget buildDayRow({required bool useSlidingSelectionOverlay}) {
             return Row(
               children: List.generate(7, (columnIndex) {
@@ -220,29 +241,35 @@ class _WeekTimetableMobileDayHeaderState
                 final breakSegment = breakRangeByDate[normalizedDay];
                 final isHoliday = holidayDays.contains(normalizedDay);
 
+                final dayCell = _buildDayCell(
+                  context: context,
+                  day: day,
+                  normalizedDay: normalizedDay,
+                  isSelected: isSelected,
+                  isToday: isToday,
+                  isHoliday: isHoliday,
+                  marker: marker,
+                  markerColorResolver: markerColorResolver,
+                  useSlidingSelectionOverlay: useSlidingSelectionOverlay,
+                );
+
+                final cellContent = useSlidingSelectionOverlay
+                    ? dayCell
+                    : CalendarDayVacationShell(
+                        breakRangeSegment: breakSegment,
+                        breakRangeColor: vacationRangeColor,
+                        child: dayCell,
+                      );
+
                 return Expanded(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _onDayTapped(day),
-                      borderRadius: BorderRadius.circular(10),
-                      child: CalendarDaySpringInteraction(
-                        child: CalendarDayVacationShell(
-                          breakRangeSegment: breakSegment,
-                          breakRangeColor: vacationRangeColor,
-                          child: _buildDayCell(
-                            context: context,
-                            day: day,
-                            normalizedDay: normalizedDay,
-                            isSelected: isSelected,
-                            isToday: isToday,
-                            isHoliday: isHoliday,
-                            marker: marker,
-                            markerColorResolver: markerColorResolver,
-                            useSlidingSelectionOverlay:
-                                useSlidingSelectionOverlay,
-                          ),
-                        ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(kCalendarDayCellMargin),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _onDayTapped(day),
+                        borderRadius: BorderRadius.circular(10),
+                        child: CalendarDaySpringInteraction(child: cellContent),
                       ),
                     ),
                   ),
@@ -261,7 +288,12 @@ class _WeekTimetableMobileDayHeaderState
                     child: SizedBox(
                       height: kCalendarDaysOfWeekHeight,
                       child: Center(
-                        child: Text(
+                        child: Transform.translate(
+                          offset: const Offset(
+                            0,
+                            kCalendarWeekdayLabelOffsetY,
+                          ),
+                          child: Text(
                           weekdayFmt.format(day),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -269,6 +301,7 @@ class _WeekTimetableMobileDayHeaderState
                                 color: scheme.onSurface.withValues(alpha: 0.65),
                                 fontWeight: FontWeight.w600,
                               ),
+                          ),
                         ),
                       ),
                     ),
@@ -278,11 +311,21 @@ class _WeekTimetableMobileDayHeaderState
               SizedBox(
                 height: kCalendarDayRowHeight,
                 child: widget.showSelectedDayIndicator
-                    ? CalendarSlidingDaySelectionLayer(
-                        selectedIndex: _selectedColumnIndex(monday, highlightDay),
-                        itemCount: 7,
-                        animate: scrollPreviewDay == null,
-                        child: buildDayRow(useSlidingSelectionOverlay: true),
+                    ? Stack(
+                        fit: StackFit.expand,
+                        clipBehavior: Clip.none,
+                        children: [
+                          buildVacationBarRow(),
+                          CalendarSlidingDaySelectionLayer(
+                            selectedIndex: _selectedColumnIndex(
+                              monday,
+                              highlightDay,
+                            ),
+                            itemCount: 7,
+                            animate: scrollPreviewDay == null,
+                            child: buildDayRow(useSlidingSelectionOverlay: true),
+                          ),
+                        ],
                       )
                     : buildDayRow(useSlidingSelectionOverlay: false),
               ),
@@ -319,6 +362,7 @@ class _WeekTimetableMobileDayHeaderState
         marker: marker,
         isToday: isToday,
         colorResolver: markerColorResolver,
+        showEmptyPill: showSelected,
         dayNumberColor: showSelected
             ? (holidayColor ?? (isToday ? todayAccent : scheme.onPrimary))
             : holidayColor,

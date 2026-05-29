@@ -13,6 +13,7 @@ import '../../features/settings/presentation/pages/settings_page.dart';
 import '../loading_page.dart';
 import '../network/connectivity_notifier.dart';
 import '../network/no_connection_page.dart';
+import '../widgets/main_shell_scaffold.dart';
 
 /// Löst [GoRouter.refresh] bei Auth-Änderungen aus.
 class AuthSessionNotifier extends ChangeNotifier {
@@ -148,19 +149,33 @@ class AppRouter {
         builder: (context, state) =>
             NoConnectionPage(connectivity: _connectivity),
       ),
-      GoRoute(
-        path: '/calendar',
-        pageBuilder: (context, state) => NoTransitionPage(
-          key: state.pageKey,
-          child: const CalendarPage(),
-        ),
-      ),
-      GoRoute(
-        path: '/settings',
-        pageBuilder: (context, state) => NoTransitionPage(
-          key: state.pageKey,
-          child: const SettingsPage(),
-        ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            MainShellScaffold(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/calendar',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const CalendarPage(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/settings',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const SettingsPage(),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       ...loginRoutes,
     ],

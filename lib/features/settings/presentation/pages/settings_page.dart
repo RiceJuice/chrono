@@ -3,7 +3,6 @@ import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:chronoapp/core/theme/theme_mode_provider.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
-import 'package:chronoapp/core/widgets/main_navigation_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/search/search_filters_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
@@ -111,13 +110,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ),
       ),
-      bottomNavigationBar: const MainNavigationBar(),
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
           SettingsSliverHeader.largeTitleSliver(context),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              24 + MediaQuery.paddingOf(context).bottom,
+            ),
             sliver: SliverList.list(
               children: [
                 const SizedBox(height: 18),

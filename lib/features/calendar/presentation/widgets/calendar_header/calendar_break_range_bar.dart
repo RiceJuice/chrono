@@ -104,7 +104,6 @@ class CalendarBreakRangeBar extends StatelessWidget {
   final CalendarBreakRangeSegment segment;
   final Color color;
 
-  static const _cellMarginOverlap = 2.0;
   static const _selectedIndicatorRadius = Radius.circular(11);
 
   @override
@@ -123,14 +122,14 @@ class CalendarBreakRangeBar extends StatelessWidget {
             // innen weiterziehen, damit mehrtägige Bereiche verbunden bleiben.
             CalendarBreakRangeSegment.start => (
               centeredInset,
-              -_cellMarginOverlap,
+              -kCalendarDayCellMargin,
             ),
             CalendarBreakRangeSegment.middle => (
-              -_cellMarginOverlap,
-              -_cellMarginOverlap,
+              -kCalendarDayCellMargin,
+              -kCalendarDayCellMargin,
             ),
             CalendarBreakRangeSegment.end => (
-              -_cellMarginOverlap,
+              -kCalendarDayCellMargin,
               centeredInset,
             ),
           };

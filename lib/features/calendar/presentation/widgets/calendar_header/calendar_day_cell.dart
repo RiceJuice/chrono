@@ -52,6 +52,7 @@ class CalendarDayNumberCell extends StatelessWidget {
     this.marker,
     this.dayNumberColor,
     this.isToday = false,
+    this.showEmptyPill = false,
     super.key,
   });
 
@@ -60,6 +61,9 @@ class CalendarDayNumberCell extends StatelessWidget {
   final CalendarMarkerColorResolver colorResolver;
   final Color? dayNumberColor;
   final bool isToday;
+
+  /// Leere Pille am ausgewählten Tag (gleiche Regel wie [CalendarSelectedDayCell]).
+  final bool showEmptyPill;
 
   @override
   Widget build(BuildContext context) {
@@ -79,8 +83,57 @@ class CalendarDayNumberCell extends StatelessWidget {
             ),
           ),
         ),
-        CalendarDayMarkerSlot(marker: marker, colorResolver: colorResolver),
+        CalendarDayMarkerSlot(
+          marker: marker,
+          colorResolver: colorResolver,
+          showEmptyPill: showEmptyPill,
+        ),
       ],
+    );
+  }
+}
+
+/// Primäre Auswahl-Pille — ein Layout für [CustomTableCalendar] und
+/// [CalendarSlidingDaySelectionLayer].
+class CalendarSelectedDayIndicatorShell extends StatelessWidget {
+  const CalendarSelectedDayIndicatorShell({
+    required this.child,
+    this.backgroundColor,
+    super.key,
+  });
+
+  final Widget child;
+  final Color? backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Transform.translate(
+        offset: const Offset(0, kCalendarSelectedDayContainerOffsetY),
+        child: SizedBox.square(
+          dimension: kCalendarSelectedDayBoxSize,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: Transform.translate(
+                  offset: const Offset(0, kCalendarSelectedDayFillOffsetY),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: backgroundColor ?? scheme.primary,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(child: child),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -106,41 +159,25 @@ class CalendarSelectedDayCell extends StatelessWidget {
     final todayAccent = CalendarPresentationTheme.todayAccentColor(context);
     final isToday = AppDateTime.isTodayLocal(day);
 
-    return Center(
-      child: Transform.translate(
-        offset: const Offset(0, kCalendarSelectedDayContainerOffsetY),
-        child: SizedBox.square(
-          dimension: kCalendarSelectedDayBoxSize,
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: Transform.translate(
-                  offset: const Offset(0, kCalendarSelectedDayFillOffsetY),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                  ),
-                ),
-              ),
-              Text(
-                '${day.day}',
-                style: TextStyle(
-                  color: dayNumberColor ?? (isToday ? todayAccent : scheme.onPrimary),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              CalendarDayMarkerSlot(
-                marker: marker,
-                colorResolver: colorResolver,
-                showEmptyPill: true,
-              ),
-            ],
+    return CalendarSelectedDayIndicatorShell(
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Text(
+            '${day.day}',
+            style: TextStyle(
+              color:
+                  dayNumberColor ?? (isToday ? todayAccent : scheme.onPrimary),
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
+          CalendarDayMarkerSlot(
+            marker: marker,
+            colorResolver: colorResolver,
+            showEmptyPill: true,
+          ),
+        ],
       ),
     );
   }

@@ -3,7 +3,6 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
-import 'package:chronoapp/core/widgets/main_navigation_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/pages/calendar_search_page.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_view_options.dart';
@@ -11,7 +10,6 @@ import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_view.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,7 +52,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
   }
 
   bool _isSearchOpen = false;
-  bool _isViewModeOverlayOpen = false;
   Timer? _debounceTimer;
   String _debouncedSearchQuery = '';
 
@@ -64,23 +61,19 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
 
   void _openSearch() {
     HapticFeedback.selectionClick();
+    ref.read(calendarViewModeOverlayOpenProvider.notifier).set(isOpen: false);
     setState(() {
       _isSearchOpen = true;
-      _isViewModeOverlayOpen = false;
     });
   }
 
   void _openViewModeOverlay() {
     HapticFeedback.mediumImpact();
-    setState(() {
-      _isViewModeOverlayOpen = true;
-    });
+    ref.read(calendarViewModeOverlayOpenProvider.notifier).set(isOpen: true);
   }
 
   void _closeViewModeOverlay() {
-    setState(() {
-      _isViewModeOverlayOpen = false;
-    });
+    ref.read(calendarViewModeOverlayOpenProvider.notifier).set(isOpen: false);
   }
 
   Future<void> _openCalendarFilters() async {
@@ -172,9 +165,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     }
 
     ref.read(calendarViewModeProvider.notifier).update(nextMode);
-    setState(() {
-      _isViewModeOverlayOpen = false;
-    });
+    ref.read(calendarViewModeOverlayOpenProvider.notifier).set(isOpen: false);
   }
 
   Widget _buildCalendarBody({required CalendarViewMode viewMode}) {
@@ -442,9 +433,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
       _prevIsPhoneLandscape = usePhoneLandscapeChrome;
     }
     final mediaPadding = MediaQuery.paddingOf(context);
-    final navOverlayAlpha = defaultTargetPlatform == TargetPlatform.iOS
-        ? 0.12
-        : 0.18;
     final searchBarBottomInset =
         mediaPadding.top +
         CalendarSearchOverlayMetrics.topPadding +
@@ -456,30 +444,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
         CalendarSearchOverlayMetrics.bottomPadding;
 
     return Scaffold(
-      bottomNavigationBar: usePhoneLandscapeChrome
-          ? null
-          : Stack(
-              children: [
-                MainNavigationBar(),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    ignoring: !_isViewModeOverlayOpen,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 140),
-                      curve: Curves.easeOutCubic,
-                      opacity: _isViewModeOverlayOpen ? 1 : 0,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: _closeViewModeOverlay,
-                        child: ColoredBox(
-                          color: Colors.black.withValues(alpha: navOverlayAlpha),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -502,7 +466,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
             },
           ),
           CalendarViewModeOverlay(
-            isOpen: _isViewModeOverlayOpen,
+            isOpen: ref.watch(calendarViewModeOverlayOpenProvider),
             options: calendarViewOptions,
             selectedMode: viewMode,
             onClose: _closeViewModeOverlay,

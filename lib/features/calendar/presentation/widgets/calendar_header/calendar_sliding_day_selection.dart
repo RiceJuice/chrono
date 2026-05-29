@@ -1,3 +1,4 @@
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_cell.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_spring_interaction.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:flutter/material.dart';
@@ -75,36 +76,28 @@ class _CalendarSlidingDaySelectionLayerState
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final itemWidth = constraints.maxWidth / widget.itemCount;
+        final cellInnerWidth = itemWidth - 2 * kCalendarDayCellMargin;
         final horizontalInset =
-            (itemWidth - kCalendarSelectedDayBoxSize) / 2;
+            kCalendarDayCellMargin +
+            (cellInnerWidth - kCalendarSelectedDayBoxSize) / 2;
 
         return Stack(
           clipBehavior: Clip.none,
-          alignment: Alignment.topCenter,
           children: [
             AnimatedBuilder(
               animation: _indexController,
               builder: (context, _) {
-                final left =
-                    _indexController.value * itemWidth + horizontalInset;
+                final left = _indexController.value * itemWidth + horizontalInset;
                 return Positioned(
                   left: left,
-                  top: kCalendarSelectedDayContainerOffsetY,
+                  top: kCalendarDayCellMargin,
                   width: kCalendarSelectedDayBoxSize,
-                  height: kCalendarSelectedDayBoxSize,
-                  child: Transform.translate(
-                    offset: const Offset(0, kCalendarSelectedDayFillOffsetY),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: scheme.primary,
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                    ),
+                  height: kCalendarDayCellContentHeight,
+                  child: const CalendarSelectedDayIndicatorShell(
+                    child: SizedBox.shrink(),
                   ),
                 );
               },
