@@ -14,6 +14,23 @@ export 'filter/calendar/calendar_filters_state.dart';
 export 'filter/search/search_filters_provider.dart';
 part 'calendar_providers.g.dart';
 
+/// Ob das View-Mode-Overlay des Kalenders offen ist.
+///
+/// Liegt bewusst außerhalb des [CalendarPage]-States, weil das persistente
+/// Shell-Scaffold den Abdunkelungs-Scrim über der [MainNavigationBar] anhand
+/// dieses Werts zeichnet (die Navbar lebt im Shell, nicht mehr in der Page).
+class CalendarViewModeOverlayOpen extends fr.Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set({required bool isOpen}) => state = isOpen;
+}
+
+final calendarViewModeOverlayOpenProvider =
+    fr.NotifierProvider<CalendarViewModeOverlayOpen, bool>(
+      CalendarViewModeOverlayOpen.new,
+    );
+
 typedef CalendarEntryLocalRange = ({
   DateTime startInclusive,
   DateTime endExclusive,

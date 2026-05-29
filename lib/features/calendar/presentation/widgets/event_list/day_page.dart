@@ -207,7 +207,10 @@ class _DayPageState extends ConsumerState<DayPage> {
           context: context,
           child: ListView.builder(
             controller: _scrollController,
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.m),
+            padding: EdgeInsets.only(
+              top: AppSpacing.m,
+              bottom: AppSpacing.m + MediaQuery.paddingOf(context).bottom,
+            ),
             itemCount:
                 regularEntries.length +
                 (hasNowAnchor ? 1 : 0) +

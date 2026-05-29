@@ -215,7 +215,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           : AvailableGestures.horizontalSwipe,
       headerVisible: false,
       calendarStyle: CalendarStyle(
-        cellMargin: const EdgeInsets.all(2),
+        cellMargin: const EdgeInsets.all(kCalendarDayCellMargin),
         selectedDecoration: BoxDecoration(
           color: scheme.primary,
           shape: BoxShape.circle,

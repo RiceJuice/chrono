@@ -22,7 +22,7 @@ abstract final class AppHaptics {
   }
 
   /// Diskrete Auswahl (Datum-Tap, Chip, Dropdown-Eintrag).
-  static void selection({bool playClickSound = true}) {
+  static void selection() {
     final now = DateTime.now();
     final last = _lastSelectionAt;
     if (last != null && now.difference(last) < _selectionDebounce) {
@@ -30,9 +30,6 @@ abstract final class AppHaptics {
     }
     _lastSelectionAt = now;
     unawaited(HapticFeedback.selectionClick());
-    if (playClickSound) {
-      _playClickSound();
-    }
   }
 
   /// Auf-/Zuklappen von eingebetteten Pickern.
@@ -40,7 +37,7 @@ abstract final class AppHaptics {
     if (opening) {
       unawaited(HapticFeedback.lightImpact());
     } else {
-      selection(playClickSound: false);
+      selection();
     }
   }
 
@@ -51,12 +48,4 @@ abstract final class AppHaptics {
   static Future<void> success() => HapticFeedback.successNotification();
 
   static Future<void> error() => HapticFeedback.errorNotification();
-
-  static void _playClickSound() {
-    try {
-      SystemSound.play(SystemSoundType.click);
-    } catch (_) {
-      // Nicht auf allen Plattformen verfügbar; iOS-Cupertino-Rad hat eigenes Feedback.
-    }
-  }
 }

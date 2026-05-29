@@ -129,39 +129,40 @@ class MainNavigationBar extends ConsumerWidget {
     final inactiveIconColor =
         Theme.of(context).colorScheme.onSurfaceVariant;
 
-    return SafeArea(
-      top: false,
-      child: CNTabBar(
-        iconSize: _tabIconSize,
-        currentIndex: currentIndex,
-        onTap: (index) {
-          _onDestinationSelected(
-            context: context,
-            ref: ref,
-            location: location,
-            index: index,
-          );
-        },
-        items: [
-          CNTabBarItem(
-            label: 'Kalender',
-            imageAsset: CNImageAsset(
-              _calendarAssetPath,
-              size: _tabIconSize,
-              color: inactiveIconColor,
-            ),
-            activeImageAsset: const CNImageAsset(
-              _calendarAssetPath,
-              size: _tabIconSize,
-            ),
+    // Kein SafeArea-Wrapper: Die native Glass-TabBar verwaltet den unteren
+    // Safe-Area-Inset selbst und blurrt den dahinter durchscrollenden Inhalt.
+    // Ein zusätzlicher SafeArea würde die Bar nach oben schieben und darunter
+    // eine schwarze Box hinterlassen.
+    return CNTabBar(
+      iconSize: _tabIconSize,
+      currentIndex: currentIndex,
+      onTap: (index) {
+        _onDestinationSelected(
+          context: context,
+          ref: ref,
+          location: location,
+          index: index,
+        );
+      },
+      items: [
+        CNTabBarItem(
+          label: 'Kalender',
+          imageAsset: CNImageAsset(
+            _calendarAssetPath,
+            size: _tabIconSize,
+            color: inactiveIconColor,
           ),
-          const CNTabBarItem(
-            label: 'Dein Chrono',
-            icon: CNSymbol('gearshape'),
-            activeIcon: CNSymbol('gearshape.fill'),
+          activeImageAsset: const CNImageAsset(
+            _calendarAssetPath,
+            size: _tabIconSize,
           ),
-        ],
-      ),
+        ),
+        const CNTabBarItem(
+          label: 'Dein Chrono',
+          icon: CNSymbol('gearshape'),
+          activeIcon: CNSymbol('gearshape.fill'),
+        ),
+      ],
     );
   }
 
