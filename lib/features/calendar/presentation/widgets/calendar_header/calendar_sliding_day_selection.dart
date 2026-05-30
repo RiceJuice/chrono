@@ -6,7 +6,7 @@ import 'package:flutter/physics.dart';
 
 /// Gleitende Auswahl-Pille für eine gleichmäßige Tageszeile (iOS-Kalender-Stil).
 ///
-/// Die Kind-Widgets zeigen nur Zahl + Marker; die Pille bewegt sich federnd
+/// Die Kind-Widgets zeigen nur Zahl + Marker; die Pille gleitet weich
 /// unter dem aktiven Tag.
 class CalendarSlidingDaySelectionLayer extends StatefulWidget {
   const CalendarSlidingDaySelectionLayer({
@@ -52,7 +52,7 @@ class _CalendarSlidingDaySelectionLayerState
     if (next == _committedIndex) return;
 
     if (widget.animate) {
-      final velocity = (next - _indexController.value) * 11;
+      final velocity = (next - _indexController.value) * 5.5;
       _indexController.stop();
       final simulation = SpringSimulation(
         CalendarDaySpringPhysics.slide,

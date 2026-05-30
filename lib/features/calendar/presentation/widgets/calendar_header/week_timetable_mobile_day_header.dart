@@ -56,7 +56,7 @@ class _WeekTimetableMobileDayHeaderState
 
   Duration _durationForPageDelta(int delta) {
     return Duration(
-      milliseconds: (delta.clamp(1, 6) * 40 + 220).clamp(220, 420).round(),
+      milliseconds: (delta.clamp(1, 6) * 55 + 320).clamp(320, 580).round(),
     );
   }
 

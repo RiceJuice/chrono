@@ -42,6 +42,7 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
 
     return AppModalSheetChrome(
       child: SafeArea(
+        bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
           child: SingleChildScrollView(
@@ -250,7 +251,6 @@ class _CalendarSettingsListSectionState
       await AppModalSheet.show<void>(
         context: context,
         isScrollControlled: true,
-        useSafeArea: true,
         builder: (_) => CalendarAppearanceBottomSheet(kind: kind),
       );
     } finally {

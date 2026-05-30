@@ -24,17 +24,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 
 
-const int _kMsPerAnimatedDay = 30;
+const int _kMsPerAnimatedDay = 58;
 
-const int _kMinScrollAnimMs = 300;
+const int _kMinScrollAnimMs = 520;
 
-const int _kMaxScrollAnimMs = 620;
+const int _kMaxScrollAnimMs = 920;
 
 
 
-/// Schneller Start, weiches Auslaufen — kein ease-in am Anfang.
+/// Langes, weiches Auslaufen — langsam starten, sehr langsam zur Ruhe kommen.
 
-const Curve _kExternalScrollCurve = Curves.easeInOutCubic;
+const Curve _kExternalScrollCurve = Cubic(0.16, 1, 0.3, 1);
 
 
 

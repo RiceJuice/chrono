@@ -134,6 +134,10 @@ class MainNavigationBar extends ConsumerWidget {
     // Ein zusätzlicher SafeArea würde die Bar nach oben schieben und darunter
     // eine schwarze Box hinterlassen.
     return CNTabBar(
+      // Nicht auto-hide: sonst wird die native UiKitView bei Modals zerstört und
+      // beim Schließen neu aufgebaut (Theme-Flash, Tab-Sprung). Das Ausblenden
+      // übernimmt [_ModalAwareNavBar] per IndexedStack ohne Platform-View-Recreate.
+      autoHideOnModal: false,
       iconSize: _tabIconSize,
       currentIndex: currentIndex,
       onTap: (index) {

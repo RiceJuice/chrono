@@ -25,22 +25,22 @@ abstract final class CalendarDaySpringPhysics {
     ratio: 0.72,
   );
 
-  /// Einblenden bei programmatischer / Swipe-Auswahl.
+  /// Einblenden bei programmatischer / Swipe-Auswahl — weich, ohne Overshoot.
   static final SpringDescription appear = SpringDescription.withDampingRatio(
     mass: 1,
-    stiffness: 320,
-    ratio: 0.68,
+    stiffness: 260,
+    ratio: 0.96,
   );
 
-  /// Horizontales Gleiten der Auswahl-Pille (Wochenkopf).
+  /// Horizontales Gleiten der Auswahl-Pille — weich, ohne Overshoot.
   static final SpringDescription slide = SpringDescription.withDampingRatio(
     mass: 1,
-    stiffness: 340,
-    ratio: 0.78,
+    stiffness: 260,
+    ratio: 0.96,
   );
 
-  static const double appearStartScale = 0.72;
-  static const double appearStartOpacity = 0.45;
+  static const double appearStartScale = 0.92;
+  static const double appearStartOpacity = 0.78;
 
   static const Tolerance simulationTolerance = Tolerance(
     velocity: 0.015,
@@ -171,7 +171,7 @@ class _CalendarDaySpringInteractionState extends State<CalendarDaySpringInteract
   }
 }
 
-/// Bouncy Appear bei externer Auswahl (Wischen, Scroll-Snap, Programmatik).
+/// Weiches Einblenden bei externer Auswahl (Wischen, Scroll-Snap, Programmatik).
 class CalendarDaySelectionAppear extends ConsumerStatefulWidget {
   const CalendarDaySelectionAppear({
     required this.day,

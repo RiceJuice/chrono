@@ -124,6 +124,7 @@ class _CalendarAppearanceBottomSheetState
       ),
       child: SafeArea(
         top: false,
+        bottom: false,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
