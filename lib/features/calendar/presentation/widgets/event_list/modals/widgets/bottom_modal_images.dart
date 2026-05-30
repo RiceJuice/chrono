@@ -63,6 +63,18 @@ class _BottomModalImagesState extends State<BottomModalImages> {
     return 'calendar-modal-${widget.entry.id}-$index-$sourceKey';
   }
 
+  /// Außen oben abgerundet; innen (zwischen nebeneinander liegenden Bildern) eckig.
+  static BorderRadius _borderRadiusForImage(int index, int itemCount) {
+    const radius = Radius.circular(AppRadius.s);
+    if (itemCount <= 1) {
+      return const BorderRadius.vertical(top: radius);
+    }
+    return BorderRadius.only(
+      topLeft: index == 0 ? radius : Radius.zero,
+      topRight: index == itemCount - 1 ? radius : Radius.zero,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final imagePanelBg = Theme.of(context).colorScheme.surface;
@@ -81,9 +93,9 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemCount: 2,
             itemBuilder: (context, index) {
               return Padding(
-                padding: EdgeInsets.only(right: index == 1 ? 0 : 6),
+                padding: EdgeInsets.only(right: index == 1 ? 0 : 3),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.s + 1),
+                  borderRadius: _borderRadiusForImage(index, 2),
                   child: AspectRatio(
                     aspectRatio: 1.5,
                     child: DecoratedBox(
@@ -112,10 +124,13 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             itemBuilder: (context, index) {
               return Padding(
                 padding: EdgeInsets.only(
-                  right: index == imageUrls.length - 1 ? 0 : 6,
+                  right: index == imageUrls.length - 1 ? 0 : 3,
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.s + 1),
+                  borderRadius: _borderRadiusForImage(
+                    index,
+                    imageUrls.length,
+                  ),
                   child: AspectRatio(
                     aspectRatio: 1.5,
                     child: CachedNetworkImage(

@@ -15,6 +15,8 @@ class MainNavigationBar extends ConsumerWidget {
   static const _settingsPath = '/settings';
   static const _iconLabelSpacingOffset = 5.0;
   static const _tabIconSize = 22.0;
+  /// Material-Icons wirken größer als das Spatz-SVG — optisch angleichen.
+  static const _settingsTabIconSize = 19.5;
   static const _calendarAssetPath = 'assets/domspatzen.svg';
 
   int _indexFromLocation(String location) {
@@ -45,6 +47,17 @@ class MainNavigationBar extends ConsumerWidget {
     }
   }
 
+  Widget _tabIconSlot(Widget icon) {
+    return Transform.translate(
+      offset: const Offset(0, _iconLabelSpacingOffset),
+      child: SizedBox(
+        width: _tabIconSize,
+        height: _tabIconSize,
+        child: icon,
+      ),
+    );
+  }
+
   Widget _buildCalendarIcon({
     required BuildContext context,
     required bool selected,
@@ -53,12 +66,29 @@ class MainNavigationBar extends ConsumerWidget {
       _calendarAssetPath,
       height: _tabIconSize,
       width: _tabIconSize,
+      fit: BoxFit.contain,
+      alignment: Alignment.bottomCenter,
       colorFilter: selected
           ? null
           : ColorFilter.mode(
               Theme.of(context).colorScheme.onSurfaceVariant,
               BlendMode.srcIn,
             ),
+    );
+  }
+
+  Widget _buildSettingsIcon({
+    required BuildContext context,
+    required bool selected,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Icon(
+        selected ? Icons.settings : Icons.settings_outlined,
+        size: _settingsTabIconSize,
+        color: selected ? scheme.primary : scheme.onSurfaceVariant,
+      ),
     );
   }
 
@@ -92,9 +122,8 @@ class MainNavigationBar extends ConsumerWidget {
           },
           destinations: [
             NavigationDestination(
-              icon: Transform.translate(
-                offset: const Offset(0, _iconLabelSpacingOffset),
-                child: _buildCalendarIcon(
+              icon: _tabIconSlot(
+                _buildCalendarIcon(
                   context: context,
                   selected: currentIndex == 0,
                 ),
@@ -102,14 +131,10 @@ class MainNavigationBar extends ConsumerWidget {
               label: 'Kalender',
             ),
             NavigationDestination(
-              icon: Transform.translate(
-                offset: const Offset(0, _iconLabelSpacingOffset),
-                child: Icon(
-                  currentIndex == 1 ? Icons.settings : Icons.settings_outlined,
-                  color: currentIndex == 1
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                  size: _tabIconSize,
+              icon: _tabIconSlot(
+                _buildSettingsIcon(
+                  context: context,
+                  selected: currentIndex == 1,
                 ),
               ),
               label: 'Dein Chrono',
