@@ -43,7 +43,6 @@ class CalendarEventFormPage extends ConsumerStatefulWidget {
     return AppModalSheet.show<void>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
       builder: (sheetContext) => CalendarEventFormPage(
         sourceEntry: sourceEntry,
         mode: mode,

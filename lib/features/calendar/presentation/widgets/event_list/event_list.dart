@@ -33,12 +33,6 @@ class _EventListState extends ConsumerState<EventList>
   double _peakAbsNormVelocity = 0;
   double _latchedNormVelocity = 0;
   DateTime? _latchedVelocityValidUntil;
-  static const SpringDescription _overlaySpring = SpringDescription(
-    mass: 0.85,
-    stiffness: 430,
-    damping: 34,
-  );
-
   bool _onPageViewScrollNotification(ScrollNotification notification) {
     if (notification.metrics.axis != Axis.horizontal) return false;
 
@@ -114,18 +108,19 @@ class _EventListState extends ConsumerState<EventList>
 
     final swipeSpeed = _consumePageViewVelocityForTransition().abs();
     final pageDelta = (toIndex - fromIndex).abs();
-    final simulationVelocity = swipeSpeed > 0
-        ? swipeSpeed.clamp(1.2, 8.0)
-        : (1.1 + pageDelta * 0.22).clamp(1.1, 3.8);
+    final simulationVelocity = DayContentTransitionPhysics.simulationVelocityFor(
+      pageDelta: pageDelta,
+      swipeSpeed: swipeSpeed,
+    );
 
     _transitionController.stop();
     _transitionController.value = 0;
     final simulation = SpringSimulation(
-      _overlaySpring,
+      DayContentTransitionPhysics.spring,
       0,
       1,
       simulationVelocity,
-      tolerance: const Tolerance(velocity: 1 / 1000, distance: 1 / 1000),
+      tolerance: DayContentTransitionPhysics.tolerance,
     );
 
     _transitionController.animateWith(simulation).whenComplete(() {
@@ -239,9 +234,9 @@ class _SnappyPageViewPhysics extends ScrollPhysics {
 
   @override
   SpringDescription get spring => SpringDescription.withDampingRatio(
-    mass: 0.30,
-    stiffness: 270.0,
-    ratio: 1.07,
+    mass: 0.48,
+    stiffness: 175.0,
+    ratio: 0.98,
   );
 }
 

@@ -308,6 +308,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       showDragHandle: true,
       builder: (context) {
         return AppModalSheetChrome(
+          constraints: appModalChoiceSheetConstraints(context),
           child: SettingsChoiceActionSheet(
             title: title,
             options: options,

@@ -1,4 +1,5 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/features/calendar/presentation/theme/calendar_presentation_theme.dart';
 import 'package:flutter/material.dart';
 
 /// Einheitliche Darstellung fuer Ferien-/Feiertags-Termine.
@@ -34,7 +35,7 @@ class CalendarBreakTile extends StatelessWidget {
         style: theme.textTheme.titleSmall?.copyWith(
           fontWeight: fontWeight ?? FontWeight.w600,
           fontSize: fontSize ?? (compact ? 15 : 17),
-          color: theme.colorScheme.onSurface,
+          color: CalendarPresentationTheme.holidayBlue(context),
         ),
       ),
     );

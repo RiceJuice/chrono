@@ -8,6 +8,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_mobile_body.dart';
 import 'package:chronoapp/core/startup/calendar_startup_state.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list_page_transition.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_page_transition.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_timeline.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
@@ -24,12 +25,6 @@ class WeekScheduleView extends ConsumerStatefulWidget {
 
 class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     with SingleTickerProviderStateMixin {
-  static const SpringDescription _overlaySpring = SpringDescription(
-    mass: 0.85,
-    stiffness: 430,
-    damping: 34,
-  );
-
   late final PageController _weekPageController;
   late final ScrollController _phoneSeamlessScroll;
   AnimationController? _transitionController;
@@ -268,14 +263,15 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     final transitionController = _ensureTransitionController();
     transitionController.stop();
     transitionController.value = 0;
-    final simulationVelocity =
-        (1.1 + pageDelta * 0.22).clamp(1.1, 3.8).toDouble();
+    final simulationVelocity = DayContentTransitionPhysics.simulationVelocityFor(
+      pageDelta: pageDelta,
+    );
     final simulation = SpringSimulation(
-      _overlaySpring,
+      DayContentTransitionPhysics.spring,
       0,
       1,
       simulationVelocity,
-      tolerance: const Tolerance(velocity: 1 / 1000, distance: 1 / 1000),
+      tolerance: DayContentTransitionPhysics.tolerance,
     );
 
     transitionController.animateWith(simulation).whenComplete(() {
@@ -368,9 +364,9 @@ class _SnappyPageViewPhysics extends ScrollPhysics {
 
   @override
   SpringDescription get spring => SpringDescription.withDampingRatio(
-    mass: 0.30 + 0.12 * widthFactor,
-    stiffness: 270.0 - 60.0 * widthFactor,
-    ratio: 1.07 - 0.07 * widthFactor,
+    mass: 0.48 + 0.12 * widthFactor,
+    stiffness: 175.0 - 28.0 * widthFactor,
+    ratio: 0.98,
   );
 }
 
