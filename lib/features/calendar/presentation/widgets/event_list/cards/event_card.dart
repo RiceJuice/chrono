@@ -121,6 +121,7 @@ class _EventCardState extends State<EventCard> {
         (entry.imagePaths?.isNotEmpty ?? false);
     final wantTimeRange =
         widget.showInlineTimeRange ?? !widget.showTimeColumn;
+    final trimmedLocation = (entry.location ?? '').trim();
 
     if (widget.weekGridCompact) {
       return Material(
@@ -197,7 +198,9 @@ class _EventCardState extends State<EventCard> {
                         children: [
                           Expanded(
                             child: Padding(
-                              padding: AppInsets.eventCardContent,
+                              padding: hasImageCandidate
+                                  ? AppInsets.eventCardContentBesideImage
+                                  : AppInsets.eventCardContent,
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,31 +231,22 @@ class _EventCardState extends State<EventCard> {
                                           fontWeight: FontWeight.w500,
                                         ),
                                   ),
-                                  if ((entry.description ?? '')
-                                      .trim()
-                                      .isNotEmpty) ...[
+                                  if (trimmedLocation.isNotEmpty) ...[
                                     const SizedBox(
                                       height:
                                           AppDimensions.eventCardDescriptionSpacing,
                                     ),
-                                    Text(
-                                      entry.description!,
-                                      textHeightBehavior:
-                                          _compactTextHeightBehavior,
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: style.secondaryTextColor,
-                                            height: 1,
-                                          ),
+                                    CalendarEntryLocationRow(
+                                      location: trimmedLocation,
+                                      subtitleColor: style.secondaryTextColor,
                                     ),
                                   ],
                                   if (wantTimeRange) ...[
                                     SizedBox(
-                                      height: (entry.description ?? '')
-                                              .trim()
-                                              .isNotEmpty
-                                          ? 6
-                                          : 4,
+                                      height: trimmedLocation.isNotEmpty
+                                          ? 4
+                                          : AppDimensions
+                                              .eventCardDescriptionSpacing,
                                     ),
                                     CalendarEntryTimeRangeRow(
                                       entry: entry,

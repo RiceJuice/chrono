@@ -16,10 +16,10 @@ class EventBottomModal extends StatelessWidget {
       children: [
         BottomModalImages(entry: entry),
         BottomModalText(
-          entry: entry, 
-          // Hier wird die Schriftart korrekt zugewiesen:
+          entry: entry,
+          topSpacing: 14,
           titleStyle: GoogleFonts.libreBaskerville(
-            fontSize: 32, 
+            fontSize: 32,
             fontWeight: FontWeight.bold,
           ),
         ),

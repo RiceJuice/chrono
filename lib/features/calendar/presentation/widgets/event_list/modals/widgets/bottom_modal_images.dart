@@ -8,6 +8,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+const _tileGap = 5.0;
+const _imageAspectRatio = 1.5;
+/// Sichtbarer Streifen des nächsten Bildes — verhindert zwei halbe Kacheln mit Lücke am Rand.
+const _nextImagePeek = 32.0;
+
 class BottomModalImages extends StatefulWidget {
   final CalendarEntry entry;
   final double height;
@@ -28,6 +33,16 @@ class _BottomModalImagesState extends State<BottomModalImages> {
   static final CalendarImageUrlResolver _imageUrlResolver =
       CalendarImageUrlResolver(supabase: Supabase.instance.client);
   late Future<List<String>> _imageUrlsFuture;
+
+  double _tileWidth(double panelWidth, int itemCount) {
+    if (itemCount <= 1) return panelWidth;
+    return panelWidth - _nextImagePeek;
+  }
+
+  double _stripHeight(double panelWidth, int itemCount) {
+    final tileWidth = _tileWidth(panelWidth, itemCount);
+    return tileWidth / _imageAspectRatio;
+  }
 
   @override
   void initState() {
@@ -63,15 +78,53 @@ class _BottomModalImagesState extends State<BottomModalImages> {
     return 'calendar-modal-${widget.entry.id}-$index-$sourceKey';
   }
 
-  /// Außen oben abgerundet; innen (zwischen nebeneinander liegenden Bildern) eckig.
-  static BorderRadius _borderRadiusForImage(int index, int itemCount) {
-    const radius = Radius.circular(AppRadius.s);
+  Widget _imageTile({
+    required double width,
+    required double height,
+    required Widget child,
+  }) {
+    return SizedBox(
+      width: width,
+      height: height,
+      child: child,
+    );
+  }
+
+  Widget _buildImageStrip({
+    required double panelWidth,
+    required int itemCount,
+    required IndexedWidgetBuilder itemBuilder,
+  }) {
+    final stripHeight = _stripHeight(panelWidth, itemCount);
+    final tileWidth = _tileWidth(panelWidth, itemCount);
+
     if (itemCount <= 1) {
-      return const BorderRadius.vertical(top: radius);
+      return _imageTile(
+        width: tileWidth,
+        height: stripHeight,
+        child: itemBuilder(context, 0),
+      );
     }
-    return BorderRadius.only(
-      topLeft: index == 0 ? radius : Radius.zero,
-      topRight: index == itemCount - 1 ? radius : Radius.zero,
+
+    return SizedBox(
+      height: stripHeight,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: EdgeInsets.only(
+              right: index == itemCount - 1 ? 0 : _tileGap,
+            ),
+            child: _imageTile(
+              width: tileWidth,
+              height: stripHeight,
+              child: itemBuilder(context, index),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -85,103 +138,91 @@ class _BottomModalImagesState extends State<BottomModalImages> {
         final imageUrls = snapshot.data ?? const <String>[];
         final hasError = snapshot.hasError;
 
-        Widget content;
-        if (isLoading) {
-          content = ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: 2,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: EdgeInsets.only(right: index == 1 ? 0 : 3),
-                child: ClipRRect(
-                  borderRadius: _borderRadiusForImage(index, 2),
-                  child: AspectRatio(
-                    aspectRatio: 1.5,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(color: imagePanelBg),
-                    ),
-                  ),
-                ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final panelWidth = constraints.maxWidth;
+            final itemCount = isLoading
+                ? 2
+                : hasError || imageUrls.isEmpty
+                ? 1
+                : imageUrls.length;
+            final stripHeight = _stripHeight(panelWidth, itemCount);
+
+            Widget content;
+            if (isLoading) {
+              content = _buildImageStrip(
+                panelWidth: panelWidth,
+                itemCount: 2,
+                itemBuilder: (context, index) {
+                  return ColoredBox(color: imagePanelBg);
+                },
               );
-            },
-          );
-        } else if (hasError) {
-          content = _NoImageState(
-            icon: Icons.error_outline,
-            text: 'Bilder konnten nicht geladen werden.',
-          );
-        } else if (imageUrls.isEmpty) {
-          content = _NoImageState(
-            icon: Icons.image_not_supported_outlined,
-            text: 'Keine Bilder vorhanden.',
-          );
-        } else {
-          content = ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: imageUrls.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  right: index == imageUrls.length - 1 ? 0 : 3,
-                ),
-                child: ClipRRect(
-                  borderRadius: _borderRadiusForImage(
-                    index,
-                    imageUrls.length,
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: 1.5,
-                    child: CachedNetworkImage(
-                      imageUrl: imageUrls[index],
-                      cacheKey: _cacheKeyForImage(index, imageUrls[index]),
-                      fit: BoxFit.cover,
-                      fadeInDuration: Duration.zero,
-                      fadeOutDuration: Duration.zero,
-                      placeholder: (context, _) =>
-                          Container(color: imagePanelBg),
-                      errorWidget: (context, _, _) => Container(
-                        color: imagePanelBg,
-                        child: const Icon(Icons.broken_image, size: 50),
+            } else if (hasError) {
+              content = _NoImageState(
+                icon: Icons.error_outline,
+                text: 'Bilder konnten nicht geladen werden.',
+              );
+            } else if (imageUrls.isEmpty) {
+              content = _NoImageState(
+                icon: Icons.image_not_supported_outlined,
+                text: 'Keine Bilder vorhanden.',
+              );
+            } else {
+              content = _buildImageStrip(
+                panelWidth: panelWidth,
+                itemCount: imageUrls.length,
+                itemBuilder: (context, index) {
+                  return CachedNetworkImage(
+                    imageUrl: imageUrls[index],
+                    cacheKey: _cacheKeyForImage(index, imageUrls[index]),
+                    fit: BoxFit.cover,
+                    fadeInDuration: Duration.zero,
+                    fadeOutDuration: Duration.zero,
+                    placeholder: (context, _) =>
+                        ColoredBox(color: imagePanelBg),
+                    errorWidget: (context, url, error) => ColoredBox(
+                      color: imagePanelBg,
+                      child: const Center(
+                        child: Icon(Icons.broken_image, size: 50),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               );
-            },
-          );
-        }
+            }
 
-        final contentSized = SizedBox(
-          height: widget.height,
-          child: ColoredBox(color: imagePanelBg, child: content),
+            final contentSized = SizedBox(
+              height: stripHeight,
+              width: panelWidth,
+              child: ColoredBox(color: imagePanelBg, child: content),
+            );
+
+            final panel = Stack(
+              children: [
+                if (widget.clipTopCorners)
+                  contentSized
+                else
+                  ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(AppRadius.m + 1),
+                      topRight: Radius.circular(AppRadius.m + 1),
+                    ),
+                    child: contentSized,
+                  ),
+                const BottomModalHandle(),
+              ],
+            );
+
+            return widget.clipTopCorners
+                ? ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(AppRadius.sheet),
+                    ),
+                    child: panel,
+                  )
+                : panel;
+          },
         );
-
-        final panel = Stack(
-          children: [
-            if (widget.clipTopCorners)
-              contentSized
-            else
-              ClipRRect(
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(AppRadius.m + 1),
-                  topRight: Radius.circular(AppRadius.m + 1),
-                ),
-                child: contentSized,
-              ),
-            const BottomModalHandle(),
-          ],
-        );
-
-        return widget.clipTopCorners
-            ? ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadius.sheet),
-                ),
-                child: panel,
-              )
-            : panel;
       },
     );
   }
