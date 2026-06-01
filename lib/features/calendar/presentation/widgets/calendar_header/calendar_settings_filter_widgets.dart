@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/database/backend_enums.dart';
+import '../../../../../core/haptics/app_haptics.dart';
 import '../event_list/modals/base_bottom_modal.dart';
 import '../../../domain/filter/calendar_filters_state.dart';
 import '../../../domain/preview/calendar_settings_kind.dart';
@@ -160,9 +161,9 @@ List<Widget> calendarSettingsFilterSections({
 const int _kChipEntranceStaggerMs = 40;
 
 /// How much choir marker colour is mixed into [chipBackgroundColor] for
-/// selected chips — kept low so filters stay calm, not poster-like.
-const double _choirChipAccentMixExplicit = 0.26;
-const double _choirChipAccentMixImplicit = 0.18;
+/// selected chips — strong enough to read the choir tint at a glance.
+const double _choirChipAccentMixExplicit = 0.42;
+const double _choirChipAccentMixImplicit = 0.30;
 
 class _ChipSectionEntrance extends StatefulWidget {
   const _ChipSectionEntrance({required this.staggerIndex, required this.child});
@@ -338,7 +339,10 @@ class CalendarFilterChipSection extends StatelessWidget {
                 return chipBackgroundColor;
               }),
               side: BorderSide.none,
-              onSelected: (_) => onClear(),
+              onSelected: (_) {
+                AppHaptics.selection();
+                onClear();
+              },
             ),
             for (final option in options)
               ChoiceChip(
@@ -355,7 +359,10 @@ class CalendarFilterChipSection extends StatelessWidget {
                   return optionChipSelectedFill(option);
                 }),
                 side: BorderSide.none,
-                onSelected: (_) => onToggle(option),
+                onSelected: (_) {
+                  AppHaptics.selection();
+                  onToggle(option);
+                },
               ),
           ],
         ),

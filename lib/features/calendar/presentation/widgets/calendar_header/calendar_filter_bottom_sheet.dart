@@ -10,6 +10,7 @@ import '../../providers/calendar_accent_overrides_provider.dart';
 import '../../providers/calendar_providers.dart';
 import 'calendar_appearance_bottom_sheet.dart';
 import 'calendar_settings_filter_widgets.dart';
+import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 
 import '../event_list/modals/base_bottom_modal.dart';
@@ -234,6 +235,7 @@ class _CalendarSettingsListSectionState
   bool _isAppearanceSheetOpen = false;
 
   void _toggleExpanded(CalendarSettingsKind kind) {
+    AppHaptics.selection();
     setState(() {
       if (_expanded.contains(kind)) {
         _expanded.remove(kind);

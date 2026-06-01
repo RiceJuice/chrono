@@ -1,6 +1,7 @@
 import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/settings_profile_display.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 
 import '../../../../core/theme/theme_tokens.dart';
 
@@ -57,6 +58,15 @@ class SettingsProfileHeaderCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            SvgPicture.asset(
+              'assets/domspatzen_compact.svg',
+              height: 20,
+              colorFilter: ColorFilter.mode(
+                scheme.onSurfaceVariant.withValues(alpha: 0.45),
+                BlendMode.srcIn,
               ),
             ),
           ],

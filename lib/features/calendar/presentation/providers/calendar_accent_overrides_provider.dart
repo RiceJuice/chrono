@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:chronoapp/core/database/backend_enums.dart';
+import 'package:chronoapp/core/theme/app_color_schemes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -100,6 +101,21 @@ Color resolveCalendarEntryAccent(WidgetRef ref, CalendarEntry entry) {
   final overrides = ref.watch(calendarAccentOverridesProvider);
   return overrides[entry.type] ?? entry.accentColor;
 }
+
+/// Farbe des linken Streifens in Terminkarten — bei Chor-Beige besser lesbar.
+Color resolveCalendarEntryLeadingIndicatorColor(
+  WidgetRef ref,
+  CalendarEntry entry,
+) {
+  final accent = resolveCalendarEntryAccent(ref, entry);
+  if (_isChoirBeigeAccent(accent)) {
+    return AppColorSchemes.eventCardDark;
+  }
+  return accent;
+}
+
+bool _isChoirBeigeAccent(Color color) =>
+    color.toARGB32() == AppColorSchemes.accent.toARGB32();
 
 bool _entryMatchesUserChoir(BackendChoir choir, List<String> userChoirs) {
   if (choir == BackendChoir.unknown) return true;

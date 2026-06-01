@@ -37,7 +37,7 @@ class ChorCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final accent = resolveCalendarEntryAccent(ref, entry);
+    final leadingColor = resolveCalendarEntryLeadingIndicatorColor(ref, entry);
     return BaseCalendarCard(
       entry: entry,
       applyPastStyling: applyPastStyling,
@@ -54,7 +54,7 @@ class ChorCard extends ConsumerWidget {
       contentPadding: weekGridCompact
           ? CalendarCardLeadingIndicator.contentPadding
           : (contentPadding ?? CalendarCardLeadingIndicator.contentPadding),
-      leadingIndicatorColor: accent,
+      leadingIndicatorColor: leadingColor,
       modalHeaderPreview: modalHeaderPreview,
       neighborGlassBlurSigma: neighborGlassBlurSigma,
       neighborGlassTintAlpha: neighborGlassTintAlpha,

@@ -6,6 +6,7 @@ import 'package:chronoapp/features/calendar/presentation/providers/filter/calend
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/calendar_entry_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart'
     show kBottomModalHeaderHeight;
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/modal_preview_card_chrome.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -280,6 +281,7 @@ class BottomModalHeader extends ConsumerWidget {
 
                   return _ModalHeaderEntryList(
                     viewportHeight: constraints.maxHeight,
+                    headerAccentColor: displayEntry.accentColor,
                     prevHourEntries: prev,
                     beforeSelectedSameHour: beforeSel,
                     selected: selected,
@@ -483,45 +485,27 @@ class BottomModalHeaderPreviewSwiper extends StatelessWidget {
 
 /// Visuelles Karten-Frame inkl. Schatten — gemeinsam genutzt von
 /// [BottomModalHeaderPreview] und [BottomModalHeaderPreviewSwiper].
-class _PreviewCardFrame extends StatelessWidget {
+class _PreviewCardFrame extends ConsumerWidget {
   const _PreviewCardFrame({required this.entry});
 
   final CalendarEntry entry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
       child: IgnorePointer(
-        child: Transform.scale(
-          scale: 1.02,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.s),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 20,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: entry.accentColor.withValues(alpha: 0.5),
-                  blurRadius: 28,
-                  spreadRadius: -4,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: CalendarEntryCard(
-              entry: entry,
-              applyPastStyling: false,
-              showTimeColumn: false,
-              showInlineTimeRange: false,
-              listTileHorizontalPadding: 0,
-              cardContentPadding: _kModalPreviewCardPadding,
-              cardTitleFontSize: _kModalPreviewTitleFontSize,
-            ),
+        child: ModalPreviewCardChrome(
+          entry: entry,
+          headerAccentColor: entry.accentColor,
+          child: CalendarEntryCard(
+            entry: entry,
+            applyPastStyling: false,
+            showTimeColumn: false,
+            showInlineTimeRange: false,
+            listTileHorizontalPadding: 0,
+            cardContentPadding: _kModalPreviewCardPadding,
+            cardTitleFontSize: _kModalPreviewTitleFontSize,
           ),
         ),
       ),
@@ -572,6 +556,7 @@ class _PreviewPageDots extends StatelessWidget {
 /// Rand-Padding = ¼ Viewport-Höhe. Handle liegt über der Liste.
 class _ModalHeaderEntryList extends StatefulWidget {
   final double viewportHeight;
+  final Color headerAccentColor;
   final List<CalendarEntry> prevHourEntries;
   final List<CalendarEntry> beforeSelectedSameHour;
   final CalendarEntry selected;
@@ -584,6 +569,7 @@ class _ModalHeaderEntryList extends StatefulWidget {
 
   const _ModalHeaderEntryList({
     required this.viewportHeight,
+    required this.headerAccentColor,
     required this.prevHourEntries,
     required this.beforeSelectedSameHour,
     required this.selected,
@@ -693,6 +679,7 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
     final distance = _distanceFromSelected(e, ordered);
     final card = _HeaderEntryCard(
       entry: e,
+      headerAccentColor: widget.headerAccentColor,
       applyPastStyling: widget.applyPastStyling,
       modalHeaderPreview: true,
       neighborGlassBlurSigma: isSelected
@@ -816,8 +803,9 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
   }
 }
 
-class _HeaderEntryCard extends StatelessWidget {
+class _HeaderEntryCard extends ConsumerWidget {
   final CalendarEntry entry;
+  final Color headerAccentColor;
   final bool applyPastStyling;
   final bool modalHeaderPreview;
   final double? neighborGlassBlurSigma;
@@ -825,6 +813,7 @@ class _HeaderEntryCard extends StatelessWidget {
 
   const _HeaderEntryCard({
     required this.entry,
+    required this.headerAccentColor,
     required this.applyPastStyling,
     this.modalHeaderPreview = false,
     this.neighborGlassBlurSigma,
@@ -832,18 +821,18 @@ class _HeaderEntryCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return IgnorePointer(
       child: SizedBox(
         width: double.infinity,
-        child: CalendarEntryCard(
+        child: ModalPreviewHeaderEntryRow(
           entry: entry,
+          headerAccentColor: headerAccentColor,
           applyPastStyling: applyPastStyling,
           listTileHorizontalPadding:
               modalHeaderPreview ? AppSpacing.s : 0,
           cardContentPadding: _kModalPreviewCardPadding,
           cardTitleFontSize: _kModalPreviewTitleFontSize,
-          modalHeaderPreview: modalHeaderPreview,
           neighborGlassBlurSigma: neighborGlassBlurSigma,
           neighborGlassTintAlpha: neighborGlassTintAlpha,
         ),

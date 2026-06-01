@@ -99,6 +99,7 @@ flutter:
 
   assets:
     - assets/domspatzen.svg
+    - assets/domspatzen_compact.svg
     - assets/icon/app_icon_foreground.png
     - assets/Carusell/
 
