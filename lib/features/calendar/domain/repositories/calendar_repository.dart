@@ -131,7 +131,8 @@ class CalendarRepository {
               'event' AS source,
               id, event_name, description, location, note, start_time, end_time, type,
               choir, voices, schooltrack, class, diet, image_paths, series_id, recurrence_id,
-              NULL AS rrule, NULL AS series_start, NULL AS series_end
+              NULL AS rrule, NULL AS series_start, NULL AS series_end,
+              NULL AS subject_id, NULL AS subject_name, NULL AS subject_default_color
           FROM $kCalendarEventsTable
           WHERE (
               type = 'break'
@@ -148,15 +149,39 @@ class CalendarRepository {
 
           SELECT
               'series' AS source,
-              id, event_name, NULL AS description, location, NULL AS note, start_time, end_time, type,
-              choir, voices, schooltrack, class, diet, NULL AS image_paths, id AS series_id,
-              NULL AS recurrence_id, rrule, series_start, series_end
-          FROM $kCalendarSeriesTable
-          WHERE date(series_start) <= date(?)
-            AND (series_end IS NULL OR date(series_end) >= date(?))
+              cs.id,
+              cs.event_name,
+              NULL AS description,
+              cs.location,
+              NULL AS note,
+              cs.start_time,
+              cs.end_time,
+              cs.type,
+              cs.choir,
+              cs.voices,
+              cs.schooltrack,
+              cs.class,
+              NULL AS diet,
+              NULL AS image_paths,
+              cs.id AS series_id,
+              NULL AS recurrence_id,
+              cs.rrule,
+              cs.series_start,
+              cs.series_end,
+              cs.subject_id,
+              s.name AS subject_name,
+              s.default_color AS subject_default_color
+          FROM $kCalendarSeriesTable cs
+          LEFT JOIN $kSubjectsTable s ON s.id = cs.subject_id
+          WHERE date(cs.series_start) <= date(?)
+            AND (cs.series_end IS NULL OR date(cs.series_end) >= date(?))
           ''',
           parameters: [hi, lo, lo, hi, hiDate, loDate],
-          triggerOnTables: const {kCalendarEventsTable, kCalendarSeriesTable},
+          triggerOnTables: const {
+            kCalendarEventsTable,
+            kCalendarSeriesTable,
+            kSubjectsTable,
+          },
         )
         .map(
           (rows) => _mapMergedRows(
@@ -328,6 +353,7 @@ class CalendarRepository {
                 formatCalendarRecurrenceId(instance),
               ),
               isRecurringInstance: true,
+              subjectId: seriesTemplate.subjectId,
             ),
           );
         }
@@ -403,6 +429,7 @@ class CalendarRepository {
             formatCalendarRecurrenceId(dayStartUtc),
           ),
           isRecurringInstance: true,
+          subjectId: seriesTemplate.subjectId,
         ),
       );
       day = AppDateTime.addLocalCalendarDays(day, 1);

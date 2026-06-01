@@ -23,6 +23,7 @@ import '../widgets/sections/event_basic_section.dart';
 import '../widgets/sections/event_datetime_section.dart';
 import '../widgets/sections/event_extra_section.dart';
 import '../widgets/sections/event_recurrence_section.dart';
+import '../widgets/sections/event_subject_section.dart';
 
 class CalendarEventFormPage extends ConsumerStatefulWidget {
   const CalendarEventFormPage({
@@ -43,10 +44,18 @@ class CalendarEventFormPage extends ConsumerStatefulWidget {
     return AppModalSheet.show<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => CalendarEventFormPage(
-        sourceEntry: sourceEntry,
-        mode: mode,
-      ),
+      builder: (sheetContext) {
+        final view = View.of(sheetContext);
+        final screenHeight =
+            view.physicalSize.height / view.devicePixelRatio;
+        return SizedBox(
+          height: screenHeight * 0.9,
+          child: CalendarEventFormPage(
+            sourceEntry: sourceEntry,
+            mode: mode,
+          ),
+        );
+      },
     );
   }
 
@@ -91,7 +100,10 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
           await ref.read(calendarEventSeriesReaderProvider).read(seriesId);
       if (!mounted || snapshot == null) return;
       setState(() {
-        _formState = _formState.copyWith(seriesEdit: snapshot.series);
+        _formState = _formState.copyWith(
+          seriesEdit: snapshot.series,
+          subjectId: snapshot.subjectId ?? _formState.subjectId,
+        );
         _initialFormState = _formState;
       });
     } finally {
@@ -234,68 +246,82 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
         if (didPop) return;
         await _onClose();
       },
-      child: AppModalSheetChrome(
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-              EventFormModalHeader(
-                title: title,
-                saving: _saving,
-                onClose: _onClose,
-                onSave: _onSave,
-              ),
-              Flexible(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.l,
-                    AppSpacing.m,
-                    AppSpacing.l,
-                    AppSpacing.xl,
-                  ),
-                  children: [
-                    EventBasicSection(
-                      state: _formState,
-                      onChanged: _applyFormState,
-                      eventNameController: _eventNameController,
-                      descriptionController: _descriptionController,
-                      locationController: _locationController,
-                    ),
-                    const SizedBox(height: AppSpacing.m),
-                    EventDatetimeSection(
-                      state: _formState,
-                      onChanged: _applyFormState,
-                    ),
-                    if (_formState.isRecurringEntry) ...[
-                      const SizedBox(height: AppSpacing.m),
-                      if (_loadingSeries)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: AppSpacing.m),
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else
-                        EventRecurrenceSection(
-                          state: _formState,
-                          onChanged: _applyFormState,
-                        ),
-                    ],
-                    const SizedBox(height: AppSpacing.m),
-                    EventAudienceSection(
-                      state: _formState,
-                      onChanged: _applyFormState,
-                      classOptions: classOptions,
-                    ),
-                    const SizedBox(height: AppSpacing.m),
-                    EventExtraSection(
-                      state: _formState,
-                      onChanged: _applyFormState,
-                      noteController: _noteController,
-                    ),
-                  ],
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: AppModalSheetChrome(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          child: SafeArea(
+            top: false,
+            bottom: false,
+            child: Column(
+              children: [
+                EventFormModalHeader(
+                  title: title,
+                  saving: _saving,
+                  onClose: _onClose,
+                  onSave: _onSave,
                 ),
-              ),
-            ],
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.l,
+                      AppSpacing.m,
+                      AppSpacing.l,
+                      AppSpacing.xl,
+                    ),
+                    children: [
+                      EventBasicSection(
+                        state: _formState,
+                        onChanged: _applyFormState,
+                        eventNameController: _eventNameController,
+                        descriptionController: _descriptionController,
+                        locationController: _locationController,
+                      ),
+                      EventSubjectSection(
+                        state: _formState,
+                        onChanged: _applyFormState,
+                      ),
+                      const SizedBox(height: AppSpacing.m),
+                      EventDatetimeSection(
+                        state: _formState,
+                        onChanged: _applyFormState,
+                      ),
+                      if (_formState.isRecurringEntry) ...[
+                        const SizedBox(height: AppSpacing.m),
+                        if (_loadingSeries)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                              vertical: AppSpacing.m,
+                            ),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else
+                          EventRecurrenceSection(
+                            state: _formState,
+                            onChanged: _applyFormState,
+                          ),
+                      ],
+                      const SizedBox(height: AppSpacing.m),
+                      EventAudienceSection(
+                        state: _formState,
+                        onChanged: _applyFormState,
+                        classOptions: classOptions,
+                      ),
+                      const SizedBox(height: AppSpacing.m),
+                      EventExtraSection(
+                        state: _formState,
+                        onChanged: _applyFormState,
+                        noteController: _noteController,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
       ),
     );
   }
@@ -314,6 +340,7 @@ bool _formStatesEqual(CalendarEventFormState a, CalendarEventFormState b) {
       a.schoolTrack == b.schoolTrack &&
       a.className == b.className &&
       a.diet == b.diet &&
+      a.subjectId == b.subjectId &&
       _seriesEditEquals(a.seriesEdit, b.seriesEdit);
 }
 

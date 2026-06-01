@@ -34,6 +34,9 @@ class BaseCalendarCard extends StatelessWidget {
   /// Sheet-Header: Uhrzeiten nicht am Rand abschneiden.
   final bool modalHeaderPreview;
 
+  /// 1 = volle Zeit-Spalte, 0 = eingeklappt (Inhalt wächst in den freien Platz).
+  final double timeColumnCollapse;
+
   /// Wenn gesetzt: Backdrop-Blur nur auf der Kartenfläche (nicht Uhrzeit).
   final double? neighborGlassBlurSigma;
 
@@ -55,6 +58,7 @@ class BaseCalendarCard extends StatelessWidget {
     this.listTileHorizontalPadding,
     this.showInlineTimeRange,
     this.modalHeaderPreview = false,
+    this.timeColumnCollapse = 1,
     this.neighborGlassBlurSigma,
     this.neighborGlassTintAlpha,
   });
@@ -123,12 +127,50 @@ class BaseCalendarCard extends StatelessWidget {
 
     final rowHorizontalPadding =
         listTileHorizontalPadding ?? AppSpacing.l;
-    final contentInsets = contentPadding.resolve(Directionality.of(context));
 
     void onCardTap() {
       HapticFeedback.heavyImpact();
       BaseBottomModal.show(context, entry: entry);
     }
+
+    final collapse = timeColumnCollapse.clamp(0.0, 1.0);
+    final timeColumnMorphing =
+        modalHeaderPreview && showTimeColumn && collapse > 0 && collapse < 1;
+
+    final row = Row(
+      crossAxisAlignment: timeColumnMorphing
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.stretch,
+      children: [
+        if (showTimeColumn && collapse > 0)
+          Padding(
+            padding: EdgeInsets.only(
+              right: AppSpacing.s * collapse,
+            ),
+            child: ClipRect(
+              child: Align(
+                alignment: Alignment.centerRight,
+                widthFactor: collapse,
+                child: Opacity(
+                  opacity: collapse,
+                  child: TimeColumn(
+                    entry: entry,
+                    textColor: style.timeTextColor,
+                    alignToContentHeight: !timeColumnMorphing,
+                    suppressEdgeNudge: modalHeaderPreview,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        Expanded(
+          child: _buildCardBody(
+            style: style,
+            inlineTime: inlineTime,
+          ),
+        ),
+      ],
+    );
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: rowHorizontalPadding),
@@ -137,33 +179,7 @@ class BaseCalendarCard extends StatelessWidget {
         child: InkWell(
           onTap: onCardTap,
           customBorder: AppSquircle.shape(AppRadius.s),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (showTimeColumn)
-                  Padding(
-                    padding: EdgeInsets.only(
-                      top: contentInsets.top,
-                      bottom: contentInsets.bottom,
-                      right: AppSpacing.s,
-                    ),
-                    child: TimeColumn(
-                      entry: entry,
-                      textColor: style.timeTextColor,
-                      alignToContentHeight: true,
-                      suppressEdgeNudge: modalHeaderPreview,
-                    ),
-                  ),
-                Expanded(
-                  child: _buildCardBody(
-                    style: style,
-                    inlineTime: inlineTime,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          child: timeColumnMorphing ? row : IntrinsicHeight(child: row),
         ),
       ),
     );

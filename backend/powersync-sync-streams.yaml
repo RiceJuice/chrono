@@ -23,8 +23,13 @@ streams:
         class,
         NULL::text AS diet,
         series_start,
-        series_end
+        series_end,
+        subject_id
       FROM calendar_series
+
+  reference_subjects:
+    auto_subscribe: true
+    query: SELECT id, name, default_color FROM subjects
 
   profile_self:
     auto_subscribe: true

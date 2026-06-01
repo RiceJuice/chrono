@@ -5,15 +5,21 @@ import 'package:flutter/material.dart';
 
 class LessonBottomModal extends StatelessWidget {
   final CalendarEntry entry;
-  const LessonBottomModal({super.key, required this.entry});
+  final bool includeHeader;
+
+  const LessonBottomModal({
+    super.key,
+    required this.entry,
+    this.includeHeader = true,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        BottomModalHeader(entry: entry),
-        BottomModalText(entry: entry)
+        if (includeHeader) BottomModalHeader(entry: entry),
+        BottomModalText(entry: entry),
       ],
     );
   }

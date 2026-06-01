@@ -26,6 +26,7 @@ class CalendarEntry {
   final String? seriesId;
   final DateTime? recurrenceId;
   final bool isRecurringInstance;
+  final String? subjectId;
 
   CalendarEntry({
     required this.id,
@@ -50,6 +51,7 @@ class CalendarEntry {
     this.seriesId,
     this.recurrenceId,
     this.isRecurringInstance = false,
+    this.subjectId,
   });
 
   CalendarEntry copyWith({
@@ -59,6 +61,8 @@ class CalendarEntry {
     DateTime? recurrenceId,
     bool? isRecurringInstance,
     Color? accentColor,
+    String? subjectId,
+    bool clearSubjectId = false,
   }) {
     return CalendarEntry(
       id: id,
@@ -83,6 +87,7 @@ class CalendarEntry {
       seriesId: seriesId ?? this.seriesId,
       recurrenceId: recurrenceId ?? this.recurrenceId,
       isRecurringInstance: isRecurringInstance ?? this.isRecurringInstance,
+      subjectId: clearSubjectId ? null : (subjectId ?? this.subjectId),
     );
   }
 }

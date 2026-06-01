@@ -17,6 +17,7 @@ class CalendarEventFormState {
     this.className,
     this.diet = BackendDiet.unknown,
     this.seriesEdit,
+    this.subjectId,
   });
 
   String eventName;
@@ -35,6 +36,9 @@ class CalendarEventFormState {
   /// Nur bei Serienterminen: RRULE und Serienzeitraum.
   final CalendarSeriesEditState? seriesEdit;
 
+  /// Referenz auf [subjects] — nur für Serien-Stunden relevant.
+  String? subjectId;
+
   bool get isRecurringEntry => seriesEdit != null;
 
   CalendarEventFormState copyWith({
@@ -51,8 +55,10 @@ class CalendarEventFormState {
     String? className,
     BackendDiet? diet,
     CalendarSeriesEditState? seriesEdit,
+    String? subjectId,
     bool clearClassName = false,
     bool clearSeriesEdit = false,
+    bool clearSubjectId = false,
   }) {
     return CalendarEventFormState(
       eventName: eventName ?? this.eventName,
@@ -68,6 +74,7 @@ class CalendarEventFormState {
       className: clearClassName ? null : (className ?? this.className),
       diet: diet ?? this.diet,
       seriesEdit: clearSeriesEdit ? null : (seriesEdit ?? this.seriesEdit),
+      subjectId: clearSubjectId ? null : (subjectId ?? this.subjectId),
     );
   }
 }

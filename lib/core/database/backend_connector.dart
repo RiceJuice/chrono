@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:chronoapp/core/widgets/app_toast.dart';
 
 import 'package:flutter/foundation.dart';
@@ -166,11 +168,15 @@ class BackendConnector extends PowerSyncBackendConnector {
 
     } on PostgrestException catch (e) {
 
-      final isCalendarTable = transaction.crud.any(
+      final mustNotDropUpload = transaction.crud.any(
 
         (op) =>
 
-            op.table == 'calendar_events' || op.table == 'calendar_series',
+            op.table == kCalendarEventsTable ||
+
+            op.table == kCalendarSeriesTable ||
+
+            op.table == kProfilesTable,
 
       );
 
@@ -186,7 +192,7 @@ class BackendConnector extends PowerSyncBackendConnector {
 
       );
 
-      if (isCalendarTable) {
+      if (mustNotDropUpload) {
 
         rethrow;
 
@@ -263,13 +269,12 @@ class BackendConnector extends PowerSyncBackendConnector {
         logCalendarEventUploadOp(op.op, op.table, op.id, patch);
 
         if (patch.isEmpty) {
-
-          throw CalendarUploadException(
-
-            'Leeres Patch für ${op.table} (${op.id}) — nichts hochgeladen.',
-
-          );
-
+          if (kDebugMode) {
+            debugPrint(
+              '[CalendarSync] skip empty patch ${op.table} id=${op.id}',
+            );
+          }
+          return;
         }
 
         final updated = await table.update(patch).eq('id', op.id).select('id');
@@ -328,6 +333,24 @@ class BackendConnector extends PowerSyncBackendConnector {
       }
       if (data.containsKey('voices')) {
         data['voices'] = PostgresEnumArrayCodec.toSupabaseArray(data['voices']);
+      }
+      return;
+    }
+
+    if (table == kProfilesTable && data.containsKey('calendar_preferences')) {
+      final raw = data['calendar_preferences'];
+      if (raw is String) {
+        final trimmed = raw.trim();
+        if (trimmed.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(trimmed);
+            if (decoded is Map<String, dynamic>) {
+              data['calendar_preferences'] = decoded;
+            }
+          } catch (_) {
+            // Unverändert lassen — Server antwortet mit Fehler.
+          }
+        }
       }
     }
   }

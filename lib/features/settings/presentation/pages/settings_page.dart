@@ -280,7 +280,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   void _openEditPersonalData(ProfileSnapshot? profile) {
     HapticFeedback.heavyImpact();
-    Navigator.of(context).push<void>(
+    Navigator.of(context, rootNavigator: true).push<void>(
       MaterialPageRoute(
         builder: (context) => SettingsEditPersonalDataPage(
           initialFirstName: profile?.firstName,

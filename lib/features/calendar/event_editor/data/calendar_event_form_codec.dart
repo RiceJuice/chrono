@@ -36,6 +36,9 @@ class CalendarEventFormCodec {
       'voices': _encodeVoices(state.voices),
       'schooltrack': state.schoolTrack.toBackend(),
       'class': _nullableTrim(state.className),
+      'subject_id': state.type == CalendarEntryType.lesson
+          ? _nullableTrim(state.subjectId)
+          : null,
     };
   }
 

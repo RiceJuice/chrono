@@ -70,8 +70,12 @@ class EventBasicSection extends StatelessWidget {
             chipBackgroundColor: scheme.surfaceContainerHighest,
           onSelected: (value) {
             if (value == null) return;
+            final nextType = CalendarEntryType.values.byName(value);
             onChanged(
-              state.copyWith(type: CalendarEntryType.values.byName(value)),
+              state.copyWith(
+                type: nextType,
+                clearSubjectId: nextType != CalendarEntryType.lesson,
+              ),
             );
           },
         ),

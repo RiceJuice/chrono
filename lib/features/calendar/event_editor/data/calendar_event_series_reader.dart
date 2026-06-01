@@ -11,10 +11,12 @@ class CalendarEventSeriesSnapshot {
   CalendarEventSeriesSnapshot({
     required this.seriesId,
     required this.series,
+    this.subjectId,
   });
 
   final String seriesId;
   final CalendarSeriesEditState series;
+  final String? subjectId;
 }
 
 class CalendarEventSeriesReader {
@@ -25,7 +27,7 @@ class CalendarEventSeriesReader {
   Future<CalendarEventSeriesSnapshot?> read(String seriesId) async {
     final rows = await _db.getAll(
       '''
-      SELECT rrule, series_start, series_end
+      SELECT rrule, series_start, series_end, subject_id
       FROM $kCalendarSeriesTable
       WHERE id = ?
       LIMIT 1
@@ -57,6 +59,11 @@ class CalendarEventSeriesReader {
       seriesEnd: seriesEnd,
     );
 
-    return CalendarEventSeriesSnapshot(seriesId: seriesId, series: series);
+    final subjectId = row['subject_id']?.toString().trim();
+    return CalendarEventSeriesSnapshot(
+      seriesId: seriesId,
+      series: series,
+      subjectId: subjectId == null || subjectId.isEmpty ? null : subjectId,
+    );
   }
 }

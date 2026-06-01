@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
 import 'package:chronoapp/features/login/domain/models/login_flow_step.dart';
@@ -39,6 +40,7 @@ class _SettingsEditPersonalDataPageState
   @override
   void initState() {
     super.initState();
+    AppModalSheetTracker.retainMainNavigationHidden();
     _firstNameController = TextEditingController(
       text: (widget.initialFirstName ?? '').trim(),
     );
@@ -49,6 +51,7 @@ class _SettingsEditPersonalDataPageState
 
   @override
   void dispose() {
+    AppModalSheetTracker.releaseMainNavigationHidden();
     _firstNameController.dispose();
     _lastNameController.dispose();
     super.dispose();
