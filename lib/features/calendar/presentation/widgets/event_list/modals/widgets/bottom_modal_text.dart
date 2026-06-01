@@ -4,10 +4,18 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:flutter/material.dart';
 
 class BottomModalText extends StatelessWidget {
-  const BottomModalText({super.key, required this.entry, this.titleStyle});
+  const BottomModalText({
+    super.key,
+    required this.entry,
+    this.titleStyle,
+    this.topSpacing = 30,
+  });
 
   final CalendarEntry entry;
   final TextStyle? titleStyle;
+
+  /// Abstand oberhalb des Titels (z. B. kleiner direkt unter Bildern).
+  final double topSpacing;
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +28,7 @@ class BottomModalText extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 30),
+          SizedBox(height: topSpacing),
 
           Text(
             entry.eventName,
@@ -34,15 +42,50 @@ class BottomModalText extends StatelessWidget {
 
           const SizedBox(height: 4),
 
-          Text(
-            '${AppDateTime.formatLocalHourMinute(entry.startTime)} - '
-            '${AppDateTime.formatLocalHourMinute(entry.endTime)} Uhr',
-            style: theme.textTheme.bodyMedium,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.schedule_outlined,
+                  size: 18,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${AppDateTime.formatLocalHourMinute(entry.startTime)} – '
+                  '${AppDateTime.formatLocalHourMinute(entry.endTime)} Uhr',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ],
           ),
 
           if ((entry.location ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text('Ort: ${entry.location!}', style: theme.textTheme.bodyMedium),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.place_outlined,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    entry.location!.trim(),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
           ],
 
           if (noteText.isNotEmpty) ...[
