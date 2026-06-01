@@ -1,12 +1,14 @@
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/data/calendar_entry_mapper.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
-import 'package:chronoapp/features/calendar/domain/preview/calendar_settings_kind.dart';
+import 'package:chronoapp/features/calendar/domain/preview/calendar_appearance_config.dart';
 import 'package:chronoapp/features/calendar/domain/preview/calendar_settings_preview_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_settings_preview_entry_provider.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/subjects_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/accent_picker_colors.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_appearance_subject_panel.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_settings_filter_widgets.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
 import 'package:flutter/material.dart';
@@ -15,9 +17,20 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class CalendarAppearanceBottomSheet extends ConsumerStatefulWidget {
-  const CalendarAppearanceBottomSheet({required this.kind, super.key});
+  const CalendarAppearanceBottomSheet({required this.config, super.key});
 
-  final CalendarSettingsKind kind;
+  final CalendarAppearanceConfig config;
+
+  static Future<void> show(
+    BuildContext context, {
+    required CalendarAppearanceConfig config,
+  }) {
+    return AppModalSheet.show<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => CalendarAppearanceBottomSheet(config: config),
+    );
+  }
 
   @override
   ConsumerState<CalendarAppearanceBottomSheet> createState() =>
@@ -26,37 +39,54 @@ class CalendarAppearanceBottomSheet extends ConsumerStatefulWidget {
 
 class _CalendarAppearanceBottomSheetState
     extends ConsumerState<CalendarAppearanceBottomSheet> {
-  late final CalendarFiltersState _snapshotAtOpen;
-  late final Map<CalendarEntryType, Color> _accentOverridesAtOpen;
+  CalendarFiltersState? _filtersSnapshotAtOpen;
+  Map<CalendarEntryType, Color>? _accentOverridesAtOpen;
+
   late final List<CalendarEntryType> _accentTypes;
   late final PageController _pageController;
   double _pageValue = 0;
   int _activeIndex = 0;
 
+  bool get _isSubjectMode => widget.config is CalendarAppearanceBySubject;
+
+  CalendarAppearanceByKind get _kindConfig =>
+      widget.config as CalendarAppearanceByKind;
+
+  CalendarAppearanceBySubject get _subjectConfig =>
+      widget.config as CalendarAppearanceBySubject;
+
+  final GlobalKey<CalendarAppearanceSubjectPanelState> _subjectPanelKey =
+      GlobalKey();
+
   @override
   void initState() {
     super.initState();
-    _snapshotAtOpen = ref.read(calendarFiltersProvider).deepClone();
-    _accentOverridesAtOpen = Map<CalendarEntryType, Color>.from(
-      ref.read(calendarAccentOverridesProvider),
-    );
-    _accentTypes = accentTypesForSettingsKind(widget.kind);
-    _pageController = PageController()..addListener(_onPageChanged);
+    if (_isSubjectMode) {
+      _accentTypes = const [];
+      _pageController = PageController();
+    } else {
+      _filtersSnapshotAtOpen = ref.read(calendarFiltersProvider).deepClone();
+      _accentOverridesAtOpen = Map<CalendarEntryType, Color>.from(
+        ref.read(calendarAccentOverridesProvider),
+      );
+      _accentTypes = accentTypesForSettingsKind(_kindConfig.kind);
+      _pageController = PageController()..addListener(_onPageChanged);
+    }
   }
 
   @override
   void dispose() {
-    _pageController
-      ..removeListener(_onPageChanged)
-      ..dispose();
+    if (!_isSubjectMode) {
+      _pageController.removeListener(_onPageChanged);
+    }
+    _pageController.dispose();
     super.dispose();
   }
 
   void _onPageChanged() {
     if (!_pageController.hasClients) return;
     final page = _pageController.page ?? 0;
-    final maxIdx =
-        _accentTypes.isEmpty ? 0 : _accentTypes.length - 1;
+    final maxIdx = _accentTypes.isEmpty ? 0 : _accentTypes.length - 1;
     final nextRounded = page.round().clamp(0, maxIdx);
     final prevRounded = _pageValue.round().clamp(0, maxIdx);
 
@@ -72,13 +102,20 @@ class _CalendarAppearanceBottomSheetState
     }
   }
 
-  void _discardAndClose() {
-    HapticFeedback.mediumImpact();
-    ref.read(calendarFiltersProvider.notifier).replaceState(_snapshotAtOpen);
-    ref
-        .read(calendarAccentOverridesProvider.notifier)
-        .replaceState(_accentOverridesAtOpen);
-    if (context.mounted) Navigator.of(context).maybePop();
+  Future<void> _discardAndClose() async {
+    if (_isSubjectMode) {
+      await _subjectPanelKey.currentState?.discardChanges();
+    } else {
+      HapticFeedback.mediumImpact();
+      ref
+          .read(calendarFiltersProvider.notifier)
+          .replaceState(_filtersSnapshotAtOpen!);
+      ref
+          .read(calendarAccentOverridesProvider.notifier)
+          .replaceState(_accentOverridesAtOpen!);
+    }
+    if (!mounted) return;
+    Navigator.of(context).maybePop();
   }
 
   void _confirmAndClose() {
@@ -88,6 +125,78 @@ class _CalendarAppearanceBottomSheetState
 
   @override
   Widget build(BuildContext context) {
+    if (_isSubjectMode) {
+      return _buildSubjectMode(context);
+    }
+    return _buildKindMode(context);
+  }
+
+  Widget _buildSubjectMode(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final subjectOverrides =
+        ref.watch(subjectAccentOverridesProvider).value ??
+        const <String, Color>{};
+    final baseEntry = _subjectConfig.previewEntry;
+    final currentColor =
+        subjectOverrides[_subjectConfig.subjectId] ?? baseEntry.accentColor;
+    final previewEntry = baseEntry.copyWith(accentColor: currentColor);
+
+    return AppModalSheetChrome(
+      color: scheme.surfaceContainerHigh,
+      constraints: BoxConstraints(
+        minHeight: screenHeight * 0.7,
+        maxHeight: screenHeight * 0.9,
+      ),
+      child: SafeArea(
+        top: false,
+        bottom: false,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  BottomModalHeaderPreview(
+                    entry: previewEntry,
+                    clipTopCorners: false,
+                  ),
+                  Positioned(
+                    top: MediaQuery.viewPaddingOf(context).top + 6,
+                    left: 6,
+                    child: CalendarAppearanceSheetHeaderButton(
+                      icon: Icons.close,
+                      tooltip: 'Verwerfen',
+                      onPressed: _discardAndClose,
+                      scheme: scheme,
+                    ),
+                  ),
+                  Positioned(
+                    top: MediaQuery.viewPaddingOf(context).top + 6,
+                    right: 6,
+                    child: CalendarAppearanceSheetHeaderButton(
+                      icon: Icons.check,
+                      tooltip: 'Fertig',
+                      onPressed: _confirmAndClose,
+                      scheme: scheme,
+                    ),
+                  ),
+                ],
+              ),
+              CalendarAppearanceSubjectPanel(
+                key: _subjectPanelKey,
+                config: _subjectConfig,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKindMode(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final screenHeight = MediaQuery.sizeOf(context).height;
@@ -129,61 +238,61 @@ class _CalendarAppearanceBottomSheetState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        BottomModalHeaderPreviewSwiper(
-                          entries: previewEntries,
-                          pageController: _pageController,
-                          pageValue: _pageValue,
-                          activeIndex: _activeIndex,
-                          clipTopCorners: false,
-                        ),
-                        Positioned(
-                          top: MediaQuery.viewPaddingOf(context).top + 6,
-                          left: 6,
-                          child: _SheetHeaderIconButton(
-                            icon: Icons.close,
-                            tooltip: 'Verwerfen',
-                            onPressed: _discardAndClose,
-                            scheme: scheme,
-                          ),
-                        ),
-                        Positioned(
-                          top: MediaQuery.viewPaddingOf(context).top + 6,
-                          right: 6,
-                          child: _SheetHeaderIconButton(
-                            icon: Icons.check,
-                            tooltip: 'Fertig',
-                            onPressed: _confirmAndClose,
-                            scheme: scheme,
-                          ),
-                        ),
-                      ],
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  BottomModalHeaderPreviewSwiper(
+                    entries: previewEntries,
+                    pageController: _pageController,
+                    pageValue: _pageValue,
+                    activeIndex: _activeIndex,
+                    clipTopCorners: false,
+                  ),
+                  Positioned(
+                    top: MediaQuery.viewPaddingOf(context).top + 6,
+                    left: 6,
+                    child: CalendarAppearanceSheetHeaderButton(
+                      icon: Icons.close,
+                      tooltip: 'Verwerfen',
+                      onPressed: _discardAndClose,
+                      scheme: scheme,
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _AccentColorPickerSection(accentType: activeAccentType),
-                          const SizedBox(height: 16),
-                          ...calendarSettingsFilterSections(
-                            calendarKind: widget.kind,
-                            filters: filters,
-                            colorScheme: scheme,
-                            choirOptions: choirOptions,
-                            voiceOptions: voiceOptions,
-                            classOptions: classOptions,
-                            schoolTrackOptions: schoolTrackOptions,
-                            dietOptions: dietOptions,
-                            actions: CalendarFilterSectionActions.fromNotifier(
-                              notifier,
-                            ),
-                          ),
-                        ],
+                  ),
+                  Positioned(
+                    top: MediaQuery.viewPaddingOf(context).top + 6,
+                    right: 6,
+                    child: CalendarAppearanceSheetHeaderButton(
+                      icon: Icons.check,
+                      tooltip: 'Fertig',
+                      onPressed: _confirmAndClose,
+                      scheme: scheme,
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _AccentColorPickerSection(accentType: activeAccentType),
+                    const SizedBox(height: 16),
+                    ...calendarSettingsFilterSections(
+                      calendarKind: _kindConfig.kind,
+                      filters: filters,
+                      colorScheme: scheme,
+                      choirOptions: choirOptions,
+                      voiceOptions: voiceOptions,
+                      classOptions: classOptions,
+                      schoolTrackOptions: schoolTrackOptions,
+                      dietOptions: dietOptions,
+                      actions: CalendarFilterSectionActions.fromNotifier(
+                        notifier,
                       ),
                     ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -209,8 +318,8 @@ class _AccentColorPickerSection extends ConsumerWidget {
         key: ValueKey('${accentType.name}-${currentColor.toARGB32()}'),
         pickerColor: currentColor,
         availableColors: kCalendarAccentPickerColors,
-        layoutBuilder: _blockPickerLayout,
-        itemBuilder: _blockPickerItemBuilder,
+        layoutBuilder: calendarAccentBlockPickerLayout,
+        itemBuilder: calendarAccentBlockPickerItem,
         onColorChanged: (color) {
           HapticFeedback.selectionClick();
           ref
@@ -222,64 +331,9 @@ class _AccentColorPickerSection extends ConsumerWidget {
   }
 }
 
-Widget _blockPickerLayout(
-  BuildContext context,
-  List<Color> colors,
-  PickerItem child,
-) {
-  return SizedBox(
-    width: double.infinity,
-    child: Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 6,
-      runSpacing: 6,
-      children: [for (final color in colors) child(color)],
-    ),
-  );
-}
-
-Widget _blockPickerItemBuilder(
-  Color color,
-  bool isCurrentColor,
-  void Function() changeColor,
-) {
-  return Container(
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(6),
-      boxShadow: [
-        BoxShadow(
-          color: color.withValues(alpha: 0.4),
-          offset: const Offset(0, 1),
-          blurRadius: 4,
-        ),
-      ],
-    ),
-    child: Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(6),
-        onTap: changeColor,
-        child: SizedBox(
-          width: 32,
-          height: 32,
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 160),
-            opacity: isCurrentColor ? 1 : 0,
-            child: const Icon(
-              Icons.check,
-              color: Colors.white,
-              size: 18,
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-class _SheetHeaderIconButton extends StatelessWidget {
-  const _SheetHeaderIconButton({
+class CalendarAppearanceSheetHeaderButton extends StatelessWidget {
+  const CalendarAppearanceSheetHeaderButton({
+    super.key,
     required this.icon,
     required this.tooltip,
     required this.onPressed,

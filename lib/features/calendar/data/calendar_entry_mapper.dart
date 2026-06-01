@@ -7,6 +7,7 @@ import '../../../core/database/backend_enums.dart';
 import '../../../core/database/postgres_enum_array_codec.dart';
 import '../../../core/time/app_date_time.dart';
 import '../domain/models/calendar_entry.dart';
+import 'subject_color_codec.dart';
 
 class CalendarEntryMapper {
   CalendarEntryMapper._();
@@ -46,6 +47,9 @@ class CalendarEntryMapper {
       _asString(_rowValue(row, 'diet')),
     );
 
+    final domainType = _toDomainType(backendType);
+    final subjectId = _asSubjectId(_rowValue(row, 'subject_id'));
+
     return CalendarEntry(
       id: rowId,
       eventName: _asString(_rowValue(row, 'event_name')) ?? '',
@@ -57,8 +61,12 @@ class CalendarEntryMapper {
           ? endDateTimeUtc.add(const Duration(days: 1))
           : endDateTimeUtc,
       imageUrls: null,
-      accentColor: _defaultAccentColorForType(_toDomainType(backendType)),
-      type: _toDomainType(backendType),
+      accentColor: _resolveAccentColor(
+        domainType: domainType,
+        subjectDefaultColor: _rowValue(row, 'subject_default_color'),
+      ),
+      type: domainType,
+      subjectId: subjectId,
       choir: choir,
       voice: voice,
       voices: voices,
@@ -96,6 +104,7 @@ class CalendarEntryMapper {
     final schoolTrack = BackendSchoolTrackCodec.fromBackend(schoolTrackRaw);
     final diet = BackendDietCodec.fromBackend(dietRaw);
     final domainType = _toDomainType(backendType);
+    final subjectId = _asSubjectId(_rowValue(row, 'subject_id'));
     final imagePaths = _decodeStringList(_rowValue(row, 'image_paths'));
 
     final rowId = _rowValue(row, 'id').toString();
@@ -118,8 +127,12 @@ class CalendarEntryMapper {
       startTime: startTime,
       endTime: endTime,
       imageUrls: null,
-      accentColor: _defaultAccentColorForType(domainType),
+      accentColor: _resolveAccentColor(
+        domainType: domainType,
+        subjectDefaultColor: _rowValue(row, 'subject_default_color'),
+      ),
       type: domainType,
+      subjectId: subjectId,
       choir: choir,
       voice: voice,
       voices: voices,
@@ -280,6 +293,25 @@ class CalendarEntryMapper {
 
   static Color defaultAccentColorForType(CalendarEntryType type) {
     return _defaultAccentColorForType(type);
+  }
+
+  static Color? parseSubjectAccentColor(Object? value) {
+    return SubjectColorCodec.parseHex(value);
+  }
+
+  static String? _asSubjectId(Object? value) {
+    final s = _asString(value);
+    if (s == null || s.trim().isEmpty) return null;
+    return s.trim();
+  }
+
+  static Color _resolveAccentColor({
+    required CalendarEntryType domainType,
+    Object? subjectDefaultColor,
+  }) {
+    final fromSubject = parseSubjectAccentColor(subjectDefaultColor);
+    if (fromSubject != null) return fromSubject;
+    return _defaultAccentColorForType(domainType);
   }
 
   static Color _defaultAccentColorForType(CalendarEntryType type) {

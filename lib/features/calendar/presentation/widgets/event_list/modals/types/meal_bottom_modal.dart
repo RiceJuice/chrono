@@ -14,7 +14,7 @@ class MealBottomModal extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         BottomModalImages(entry: entry),
-        BottomModalText(entry: entry, topSpacing: 14),
+        BottomModalText(entry: entry),
       ],
     );
   }

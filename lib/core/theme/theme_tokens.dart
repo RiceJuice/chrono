@@ -81,14 +81,6 @@ class AppInsets {
     bottom: AppSpacing.s,
   );
 
-  /// Text neben Vorschaubild — weniger Abstand zur Bildkante.
-  static const EdgeInsets eventCardContentBesideImage = EdgeInsets.only(
-    left: 14,
-    right: 6,
-    top: AppSpacing.s,
-    bottom: AppSpacing.s,
-  );
-
   /// Wie [eventCardContent], für die kompakte Wochen-Raster-Karte.
   static const EdgeInsets eventCardContentCompact = EdgeInsets.only(
     left: AppSpacing.s,

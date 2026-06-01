@@ -19,6 +19,7 @@ class CalendarEventFormFactory {
       schoolTrack: entry.schoolTrack,
       className: entry.className,
       diet: entry.diet,
+      subjectId: entry.subjectId,
     );
   }
 }

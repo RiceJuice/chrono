@@ -108,10 +108,14 @@ class BottomModalHeader extends ConsumerWidget {
     required this.entry,
     this.height = kBottomModalHeaderHeight,
     this.clipTopCorners = false,
+    this.morph = 0,
   });
 
   /// Wenn false, übernimmt ein äußeres [ClipRRect] (z. B. [BaseBottomModal]) die oberen Ecken.
   final bool clipTopCorners;
+
+  /// 0 = Detail-Liste, 1 = zentrierte Akzent-Vorschau (siehe [BottomModalHeaderMorph]).
+  final double morph;
 
   static DateTime _localDayStart(CalendarEntry anchor) {
     final local = anchor.startTime.toLocal();
@@ -281,7 +285,6 @@ class BottomModalHeader extends ConsumerWidget {
 
                   return _ModalHeaderEntryList(
                     viewportHeight: constraints.maxHeight,
-                    headerAccentColor: displayEntry.accentColor,
                     prevHourEntries: prev,
                     beforeSelectedSameHour: beforeSel,
                     selected: selected,
@@ -293,6 +296,7 @@ class BottomModalHeader extends ConsumerWidget {
                     applyPastStyling: AppDateTime.isTodayLocal(
                       curr.first.startTime,
                     ),
+                    morph: morph,
                   );
                 },
                 loading: () => const SizedBox.shrink(),
@@ -317,6 +321,42 @@ class BottomModalHeader extends ConsumerWidget {
               child: stack,
             )
           : stack,
+    );
+  }
+}
+
+/// Morph zwischen Detail-Ansicht und zentrierter Akzent-Vorschau.
+///
+/// Nutzt dieselbe Liste wie [BottomModalHeader] (identische Geometrie, kein
+/// Layout-Sprung). Mit steigendem [morph] fliegen die Nachbar-Karten nach
+/// oben/unten weg und die Uhrzeit-Spalte des ausgewählten Termins klappt ein —
+/// der ausgewählte Termin bleibt dabei exakt zentriert.
+class BottomModalHeaderMorph extends StatelessWidget {
+  const BottomModalHeaderMorph({
+    super.key,
+    required this.entry,
+    required this.morph,
+    this.height = kBottomModalHeaderHeight,
+    this.clipTopCorners = false,
+  });
+
+  final CalendarEntry entry;
+  final Animation<double> morph;
+  final double height;
+  final bool clipTopCorners;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: morph,
+      builder: (context, _) {
+        return BottomModalHeader(
+          entry: entry,
+          height: height,
+          clipTopCorners: clipTopCorners,
+          morph: morph.value.clamp(0.0, 1.0),
+        );
+      },
     );
   }
 }
@@ -492,12 +532,13 @@ class _PreviewCardFrame extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final headerAccent = resolveCalendarEntryAccent(ref, entry);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
       child: IgnorePointer(
         child: ModalPreviewCardChrome(
           entry: entry,
-          headerAccentColor: entry.accentColor,
+          headerAccentColor: headerAccent,
           child: CalendarEntryCard(
             entry: entry,
             applyPastStyling: false,
@@ -556,7 +597,6 @@ class _PreviewPageDots extends StatelessWidget {
 /// Rand-Padding = ¼ Viewport-Höhe. Handle liegt über der Liste.
 class _ModalHeaderEntryList extends StatefulWidget {
   final double viewportHeight;
-  final Color headerAccentColor;
   final List<CalendarEntry> prevHourEntries;
   final List<CalendarEntry> beforeSelectedSameHour;
   final CalendarEntry selected;
@@ -567,9 +607,11 @@ class _ModalHeaderEntryList extends StatefulWidget {
   final bool hasNeighborAfter;
   final bool applyPastStyling;
 
+  /// 0 = Detail, 1 = Akzent-Vorschau. Treibt das In-Place-Morph.
+  final double morph;
+
   const _ModalHeaderEntryList({
     required this.viewportHeight,
-    required this.headerAccentColor,
     required this.prevHourEntries,
     required this.beforeSelectedSameHour,
     required this.selected,
@@ -579,6 +621,7 @@ class _ModalHeaderEntryList extends StatefulWidget {
     required this.hasNeighborBefore,
     required this.hasNeighborAfter,
     required this.applyPastStyling,
+    this.morph = 0,
   });
 
   @override
@@ -588,10 +631,14 @@ class _ModalHeaderEntryList extends StatefulWidget {
 class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
   final GlobalKey _selectedKey = GlobalKey();
 
+  /// Höhe der Auswahl-Karte bei morph=0 — verhindert vertikales „Wachsen“ beim Morph.
+  double? _selectedCardHeight;
+
   @override
   void initState() {
     super.initState();
     _scheduleCenterSelected();
+    _scheduleMeasureSelectedHeight();
   }
 
   @override
@@ -603,7 +650,12 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
         oldWidget.hasNeighborBefore != widget.hasNeighborBefore ||
         oldWidget.hasNeighborAfter != widget.hasNeighborAfter ||
         !_sameEntryIds(_ordered(oldWidget), _ordered(widget))) {
+      _selectedCardHeight = null;
       _scheduleCenterSelected();
+      _scheduleMeasureSelectedHeight();
+    } else if (widget.morph <= 0 && oldWidget.morph > 0) {
+      _selectedCardHeight = null;
+      _scheduleMeasureSelectedHeight();
     }
   }
 
@@ -677,23 +729,50 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
   Widget _entrySlot(CalendarEntry e, List<CalendarEntry> ordered) {
     final isSelected = e.id == widget.selected.id;
     final distance = _distanceFromSelected(e, ordered);
-    final card = _HeaderEntryCard(
-      entry: e,
-      headerAccentColor: widget.headerAccentColor,
-      applyPastStyling: widget.applyPastStyling,
-      modalHeaderPreview: true,
-      neighborGlassBlurSigma: isSelected
-          ? null
-          : modalPreviewBlurSigmaForDistance(distance),
-      neighborGlassTintAlpha: isSelected
-          ? null
-          : modalPreviewGlassTintForDistance(distance),
-    );
+    final m = widget.morph.clamp(0.0, 1.0);
 
     if (isSelected) {
+      // Uhrzeit-Spalte klappt horizontal ein; Höhe bleibt fix (kein Wachstum nach unten).
+      final collapse = (1 - Curves.easeInOut.transform(m)).clamp(0.0, 1.0);
+      Widget card = _HeaderEntryCard(
+        entry: e,
+        applyPastStyling: widget.applyPastStyling,
+        modalHeaderPreview: true,
+        timeColumnCollapse: collapse,
+      );
+      final lockedH = _selectedCardHeight;
+      if (lockedH != null && m > 0) {
+        card = SizedBox(
+          height: lockedH,
+          child: Align(alignment: Alignment.center, child: card),
+        );
+      }
       return KeyedSubtree(key: _selectedKey, child: card);
     }
-    return card;
+
+    final card = _HeaderEntryCard(
+      entry: e,
+      applyPastStyling: widget.applyPastStyling,
+      modalHeaderPreview: true,
+      neighborGlassBlurSigma: modalPreviewBlurSigmaForDistance(distance),
+      neighborGlassTintAlpha: modalPreviewGlassTintForDistance(distance),
+    );
+
+    if (m <= 0) return card;
+
+    // Nachbarn fliegen weg (oben/unten) und blenden aus — ohne den Layout-Platz
+    // zu verändern, damit der ausgewählte Termin exakt zentriert bleibt.
+    final selIx = ordered.indexWhere((x) => x.id == widget.selected.id);
+    final ix = ordered.indexWhere((x) => x.id == e.id);
+    final above = ix < selIx;
+    final fly = Curves.easeInCubic.transform(m);
+    final dy = (above ? -1.0 : 1.0) * widget.viewportHeight * 0.6 * fly;
+    final opacity = (1 - Curves.easeOutCubic.transform(m)).clamp(0.0, 1.0);
+
+    return Opacity(
+      opacity: opacity,
+      child: Transform.translate(offset: Offset(0, dy), child: card),
+    );
   }
 
   void _scheduleCenterSelected() {
@@ -708,6 +787,18 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
         curve: Curves.linear,
         alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
       );
+    });
+  }
+
+  void _scheduleMeasureSelectedHeight() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.morph > 0.01) return;
+      final box = _selectedKey.currentContext?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return;
+      final h = box.size.height;
+      if (_selectedCardHeight != h) {
+        setState(() => _selectedCardHeight = h);
+      }
     });
   }
 
@@ -756,7 +847,7 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
         ).createShader(bounds);
       },
       child: Padding(
-        padding: const EdgeInsets.only(right: AppSpacing.m),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
         child: ListView.separated(
           physics: const NeverScrollableScrollPhysics(),
           clipBehavior: Clip.hardEdge,
@@ -805,34 +896,47 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
 
 class _HeaderEntryCard extends ConsumerWidget {
   final CalendarEntry entry;
-  final Color headerAccentColor;
   final bool applyPastStyling;
   final bool modalHeaderPreview;
+  final double timeColumnCollapse;
   final double? neighborGlassBlurSigma;
   final double? neighborGlassTintAlpha;
 
   const _HeaderEntryCard({
     required this.entry,
-    required this.headerAccentColor,
     required this.applyPastStyling,
     this.modalHeaderPreview = false,
+    this.timeColumnCollapse = 1,
     this.neighborGlassBlurSigma,
     this.neighborGlassTintAlpha,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (modalHeaderPreview && timeColumnCollapse >= 0.99) {
+      return IgnorePointer(
+        child: ModalPreviewHeaderEntryRow(
+          entry: entry,
+          headerAccentColor: resolveCalendarEntryAccent(ref, entry),
+          applyPastStyling: applyPastStyling,
+          neighborGlassBlurSigma: neighborGlassBlurSigma,
+          neighborGlassTintAlpha: neighborGlassTintAlpha,
+        ),
+      );
+    }
+
     return IgnorePointer(
       child: SizedBox(
         width: double.infinity,
-        child: ModalPreviewHeaderEntryRow(
+        child: CalendarEntryCard(
           entry: entry,
-          headerAccentColor: headerAccentColor,
           applyPastStyling: applyPastStyling,
           listTileHorizontalPadding:
               modalHeaderPreview ? AppSpacing.s : 0,
           cardContentPadding: _kModalPreviewCardPadding,
           cardTitleFontSize: _kModalPreviewTitleFontSize,
+          modalHeaderPreview: modalHeaderPreview,
+          timeColumnCollapse: timeColumnCollapse,
           neighborGlassBlurSigma: neighborGlassBlurSigma,
           neighborGlassTintAlpha: neighborGlassTintAlpha,
         ),

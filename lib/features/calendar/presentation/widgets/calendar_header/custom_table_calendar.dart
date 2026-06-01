@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
@@ -90,21 +89,6 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
         );
       case CalendarFormat.twoWeeks:
         return normalizedFocusedDay;
-    }
-  }
-
-  Future<void> _playWeekSwipeTicks(DateTime fromDay, DateTime toDay) async {
-    final from = DateTime(fromDay.year, fromDay.month, fromDay.day);
-    final to = DateTime(toDay.year, toDay.month, toDay.day);
-    final tickCount = to.difference(from).inDays.abs();
-
-    if (tickCount <= 0) return;
-
-    for (var i = 0; i < tickCount; i++) {
-      HapticFeedback.selectionClick();
-      if (i < tickCount - 1) {
-        await Future<void>.delayed(const Duration(milliseconds: 18));
-      }
     }
   }
 
@@ -371,7 +355,7 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
             .update(newSelectedDay, origin: CalendarDaySelectionOrigin.tap);
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },
-      onPageChanged: (newFocusedDay) async {
+      onPageChanged: (newFocusedDay) {
         final pendingProgrammaticFocusedDay = _pendingProgrammaticFocusedDay;
         if (widget.weekTimetableMode) {
           if (pendingProgrammaticFocusedDay != null &&
@@ -410,9 +394,6 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
           newFocusedDay,
           currentSelectedDay,
         );
-        if (widget.calendarFormat == CalendarFormat.week) {
-          await _playWeekSwipeTicks(currentSelectedDay, nextSelectedDay);
-        }
         ref.read(selectedDayProvider.notifier).update(nextSelectedDay);
         ref.read(focusedDayProvider.notifier).update(nextSelectedDay);
       },

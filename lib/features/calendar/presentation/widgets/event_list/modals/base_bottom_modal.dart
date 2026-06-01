@@ -1,18 +1,26 @@
+import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/domain/preview/calendar_appearance_config.dart';
+import 'package:chronoapp/features/calendar/domain/preview/calendar_settings_kind.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/subjects_providers.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_appearance_bottom_sheet.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_appearance_subject_panel.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/chor_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/event_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/lesson_bottom_modal.dart';
-import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/admin_edit_button.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/meal_bottom_modal.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/lesson_accent_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 export 'package:chronoapp/core/widgets/app_modal_sheet.dart' show kAppModalSheetMotion;
 
 /// Alias für bestehende Importe im Kalender-Feature.
 const AnimationStyle kCalendarBottomSheetMotion = kAppModalSheetMotion;
 
-class BaseBottomModal extends StatelessWidget {
+class BaseBottomModal extends ConsumerStatefulWidget {
   final CalendarEntry entry;
   final double? minHeight;
 
@@ -31,10 +39,108 @@ class BaseBottomModal extends StatelessWidget {
   }
 
   @override
+  ConsumerState<BaseBottomModal> createState() => _BaseBottomModalState();
+}
+
+class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
+    with SingleTickerProviderStateMixin {
+  static const Duration _morphDuration = Duration(milliseconds: 540);
+
+  late final AnimationController _morphController;
+  late final Animation<double> _morph;
+  bool _appearanceActive = false;
+  CalendarAppearanceBySubject? _subjectAppearance;
+  final GlobalKey<CalendarAppearanceSubjectPanelState> _subjectPanelKey =
+      GlobalKey();
+
+  bool get _supportsAccentMorph =>
+      widget.entry.type == CalendarEntryType.lesson &&
+      widget.entry.subjectId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _morphController = AnimationController(
+      vsync: this,
+      duration: _morphDuration,
+    );
+    _morph = CurvedAnimation(
+      parent: _morphController,
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _morphController.dispose();
+    super.dispose();
+  }
+
+  CalendarEntry get _displayEntry {
+    final entry = widget.entry;
+    final subjectId = entry.subjectId;
+    if (subjectId == null) return entry;
+    final overrides =
+        ref.watch(subjectAccentOverridesProvider).value ??
+        const <String, Color>{};
+    final accent = overrides[subjectId] ?? entry.accentColor;
+    return entry.copyWith(accentColor: accent);
+  }
+
+  void _onAccentPressed() {
+    AppHaptics.light();
+    final subjectId = widget.entry.subjectId;
+    final config = subjectId != null
+        ? CalendarAppearanceBySubject(
+            subjectId: subjectId,
+            previewEntry: widget.entry,
+          )
+        : const CalendarAppearanceByKind(CalendarSettingsKind.school);
+
+    if (!_supportsAccentMorph) {
+      CalendarAppearanceBottomSheet.show(context, config: config);
+      return;
+    }
+
+    setState(() {
+      _appearanceActive = true;
+      _subjectAppearance = config as CalendarAppearanceBySubject;
+    });
+    _morphController.forward();
+  }
+
+  Future<void> _closeAppearance({required bool discard}) async {
+    if (discard) {
+      await _subjectPanelKey.currentState?.discardChanges();
+    } else {
+      _subjectPanelKey.currentState?.confirmChanges();
+    }
+    await _morphController.reverse();
+    if (!mounted) return;
+    setState(() {
+      _appearanceActive = false;
+      _subjectAppearance = null;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _morph,
+      builder: (context, _) => _buildSheet(context),
+    );
+  }
+
+  Widget _buildSheet(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
-    final double effectiveMinHeight = minHeight ?? (screenHeight * 0.7);
-    final sheetSurface = Theme.of(context).colorScheme.surface;
+    final double effectiveMinHeight = widget.minHeight ?? (screenHeight * 0.7);
+    final scheme = Theme.of(context).colorScheme;
+    final t = _morph.value;
+    final sheetSurface = Color.lerp(
+      scheme.surface,
+      scheme.surfaceContainerHigh,
+      t,
+    )!;
 
     return AppModalSheetChrome(
       color: sheetSurface,
@@ -45,20 +151,135 @@ class BaseBottomModal extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          SingleChildScrollView(child: _buildModalContent()),
-          AdminEditButton(entry: entry),
+          SingleChildScrollView(child: _buildModalContent(t)),
+          if (_supportsAccentMorph) ..._buildAccentChrome(context, t),
+          if (!_supportsAccentMorph &&
+              widget.entry.type == CalendarEntryType.lesson)
+            Positioned(
+              top: 6,
+              right: 6,
+              child: LessonAccentButton(
+                entry: widget.entry,
+                onAccentPressed: _onAccentPressed,
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildModalContent() {
-    return switch (entry.type) {
-      CalendarEntryType.lesson => LessonBottomModal(entry: entry),
-      CalendarEntryType.meal => MealBottomModal(entry: entry),
-      CalendarEntryType.event => EventBottomModal(entry: entry),
-      CalendarEntryType.breakType => EventBottomModal(entry: entry),
-      CalendarEntryType.choir => ChorBottomModal(entry: entry),
+  List<Widget> _buildAccentChrome(BuildContext context, double t) {
+    final scheme = Theme.of(context).colorScheme;
+    final top = MediaQuery.viewPaddingOf(context).top + 6;
+    final chromeOpacity = t.clamp(0.0, 1.0);
+    final paletteOpacity = (1 - t).clamp(0.0, 1.0);
+
+    return [
+      Positioned(
+        top: top,
+        left: 6,
+        child: IgnorePointer(
+          ignoring: chromeOpacity < 0.5,
+          child: Opacity(
+            opacity: chromeOpacity,
+            child: CalendarAppearanceSheetHeaderButton(
+              icon: Icons.close,
+              tooltip: 'Verwerfen',
+              onPressed: () => _closeAppearance(discard: true),
+              scheme: scheme,
+            ),
+          ),
+        ),
+      ),
+      Positioned(
+        top: top,
+        right: 6,
+        child: IgnorePointer(
+          ignoring: chromeOpacity < 0.5,
+          child: Opacity(
+            opacity: chromeOpacity,
+            child: CalendarAppearanceSheetHeaderButton(
+              icon: Icons.check,
+              tooltip: 'Fertig',
+              onPressed: () => _closeAppearance(discard: false),
+              scheme: scheme,
+            ),
+          ),
+        ),
+      ),
+      Positioned(
+        top: 6,
+        right: 6,
+        child: IgnorePointer(
+          ignoring: paletteOpacity < 0.5,
+          child: Opacity(
+            opacity: paletteOpacity,
+            child: LessonAccentButton(
+              entry: widget.entry,
+              onAccentPressed: _onAccentPressed,
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildModalContent(double t) {
+    if (_supportsAccentMorph) {
+      return _buildLessonMorphContent(t);
+    }
+    return _buildModalContentByType();
+  }
+
+  Widget _buildLessonMorphContent(double t) {
+    final textOpacity = (1 - Curves.easeOut.transform(t)).clamp(0.0, 1.0);
+    final pickerOpacity = Curves.easeIn.transform(t).clamp(0.0, 1.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        BottomModalHeaderMorph(
+          entry: _displayEntry,
+          morph: _morph,
+          clipTopCorners: false,
+        ),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IgnorePointer(
+              ignoring: textOpacity < 0.05,
+              child: Opacity(
+                opacity: textOpacity,
+                child: LessonBottomModal(
+                  entry: widget.entry,
+                  includeHeader: false,
+                ),
+              ),
+            ),
+            if (_appearanceActive && _subjectAppearance != null)
+              IgnorePointer(
+                ignoring: pickerOpacity < 0.05,
+                child: Opacity(
+                  opacity: pickerOpacity,
+                  child: CalendarAppearanceSubjectPanel(
+                    key: _subjectPanelKey,
+                    config: _subjectAppearance!,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModalContentByType() {
+    return switch (widget.entry.type) {
+      CalendarEntryType.lesson => LessonBottomModal(entry: widget.entry),
+      CalendarEntryType.meal => MealBottomModal(entry: widget.entry),
+      CalendarEntryType.event => EventBottomModal(entry: widget.entry),
+      CalendarEntryType.breakType => EventBottomModal(entry: widget.entry),
+      CalendarEntryType.choir => ChorBottomModal(entry: widget.entry),
     };
   }
 }

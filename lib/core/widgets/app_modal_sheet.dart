@@ -26,6 +26,13 @@ final class AppModalSheetTracker {
     final next = depth.value - 1;
     depth.value = next < 0 ? 0 : next;
   }
+
+  /// Blendet die Main-Navigation auf iOS Glass aus (wie bei [AppModalSheet.show]).
+  ///
+  /// Für Vollbild-Routen über der Shell, die kein Bottom-Sheet nutzen.
+  static void retainMainNavigationHidden() => _acquire();
+
+  static void releaseMainNavigationHidden() => _release();
 }
 
 /// Entfernt das Scaffold-Insets der Main-Navigation (und sonstiges Bottom-Padding),

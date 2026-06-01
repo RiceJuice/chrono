@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/theme/theme_tokens.dart';
 import '../../../data/calendar_entry_mapper.dart';
 import '../../../domain/models/calendar_entry.dart';
+import '../../../domain/preview/calendar_appearance_config.dart';
 import '../../../domain/preview/calendar_settings_kind.dart';
 import '../../providers/calendar_accent_overrides_provider.dart';
 import '../../providers/calendar_providers.dart';
@@ -253,7 +254,9 @@ class _CalendarSettingsListSectionState
       await AppModalSheet.show<void>(
         context: context,
         isScrollControlled: true,
-        builder: (_) => CalendarAppearanceBottomSheet(kind: kind),
+        builder: (_) => CalendarAppearanceBottomSheet(
+          config: CalendarAppearanceByKind(kind),
+        ),
       );
     } finally {
       _isAppearanceSheetOpen = false;
@@ -422,11 +425,12 @@ class _CalendarSettingsRow extends ConsumerWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            IconButton(
-              onPressed: onOpenAppearance,
-              icon: Icon(Icons.settings_rounded, color: scheme.primary),
-              tooltip: 'Erscheinungsbild: ${data.title}',
-            ),
+            if (data.settingsKind != CalendarSettingsKind.school)
+              IconButton(
+                onPressed: onOpenAppearance,
+                icon: Icon(Icons.settings_rounded, color: scheme.primary),
+                tooltip: 'Erscheinungsbild: ${data.title}',
+              ),
             IconButton(
               onPressed: onToggleExpand,
               icon: Icon(

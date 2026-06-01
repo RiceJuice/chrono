@@ -16,6 +16,7 @@ class LessionCard extends ConsumerWidget {
   final EdgeInsetsGeometry? contentPadding;
   final double? titleFontSize;
   final bool modalHeaderPreview;
+  final double timeColumnCollapse;
   final double? neighborGlassBlurSigma;
   final double? neighborGlassTintAlpha;
 
@@ -30,6 +31,7 @@ class LessionCard extends ConsumerWidget {
     this.contentPadding,
     this.titleFontSize,
     this.modalHeaderPreview = false,
+    this.timeColumnCollapse = 1,
     this.neighborGlassBlurSigma,
     this.neighborGlassTintAlpha,
   });
@@ -52,6 +54,7 @@ class LessionCard extends ConsumerWidget {
           CalendarPresentationTheme.lessonCardBackgroundColor(context, accent),
       leadingIndicatorColor: accent,
       modalHeaderPreview: modalHeaderPreview,
+      timeColumnCollapse: timeColumnCollapse,
       neighborGlassBlurSigma: neighborGlassBlurSigma,
       neighborGlassTintAlpha: neighborGlassTintAlpha,
     );

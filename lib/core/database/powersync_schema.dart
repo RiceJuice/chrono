@@ -6,6 +6,7 @@ const String kCalendarEventsTable = 'calendar_events';
 const String kCalendarSeriesTable = 'calendar_series';
 const String kProfilesTable = 'profiles';
 const String kKlassenTable = 'klassen';
+const String kSubjectsTable = 'subjects';
 
 /// Client-Schema für [kCalendarEventsTable] — Spalten wie in Supabase/Postgres
 /// und [CalendarEntry]/[CalendarEntryMapper].
@@ -58,9 +59,11 @@ const powersyncSchema = Schema([
       Column.text('diet'),
       Column.text('series_start'),
       Column.text('series_end'),
+      Column.text('subject_id'),
     ],
     indexes: [
       Index('calendar_series_series_start', [IndexedColumn('series_start')]),
+      Index('calendar_series_subject_id', [IndexedColumn('subject_id')]),
     ],
   ),
   Table(
@@ -77,6 +80,7 @@ const powersyncSchema = Schema([
       Column.text('created_at'),
       Column.text('updated_at'),
       Column.text('onboarding_completed_at'),
+      Column.text('calendar_preferences'),
     ],
     indexes: [
       Index('profiles_class_name', [IndexedColumn('class_name')]),
@@ -88,6 +92,16 @@ const powersyncSchema = Schema([
     [Column.text('class_name')],
     indexes: [
       Index('klassen_class_name', [IndexedColumn('class_name')]),
+    ],
+  ),
+  Table(
+    kSubjectsTable,
+    [
+      Column.text('name'),
+      Column.text('default_color'),
+    ],
+    indexes: [
+      Index('subjects_name', [IndexedColumn('name')]),
     ],
   ),
 ]);

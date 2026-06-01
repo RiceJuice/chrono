@@ -47,7 +47,7 @@ bool shouldShowCalendarEntryTimeRangeRow({
   required bool wantTimeRange,
   required bool compact,
   required bool hasChoirLine,
-  required bool hasLocation,
+  required bool hasDescription,
 }) {
   if (!wantTimeRange) return false;
   if (!constraints.hasBoundedHeight || !constraints.maxHeight.isFinite) {
@@ -63,7 +63,8 @@ bool shouldShowCalendarEntryTimeRangeRow({
   var minH = 0.0;
   if (hasChoirLine) minH += 16;
   minH += 26;
-  if (hasLocation) minH += 22;
+  // Nicht-kompakt: immer Beschreibungs-Zeile (auch leer), siehe [TextContent].
+  minH += 36;
   minH += 22;
   return constraints.maxHeight >= minH;
 }
@@ -123,7 +124,7 @@ class CalendarCompactCardText extends StatelessWidget {
   }
 }
 
-/// Uhrzeit „HH:mm – HH:mm“ (für Karten ohne [TimeColumn], z. B. Wochenraster).
+/// Zeile mit Uhrzeit-Icon und „HH:mm – HH:mm“ (für Karten ohne [TimeColumn]).
 class CalendarEntryTimeRangeRow extends StatelessWidget {
   const CalendarEntryTimeRangeRow({
     super.key,
@@ -139,62 +140,70 @@ class CalendarEntryTimeRangeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final iconSize = compact ? 13.0 : 15.0;
     final range =
         '${AppDateTime.formatLocalHourMinute(entry.startTime)} – ${AppDateTime.formatLocalHourMinute(entry.endTime)}';
 
-    return Text(
-      range,
-      maxLines: compact ? 1 : null,
-      overflow: compact ? TextOverflow.ellipsis : null,
-      textHeightBehavior: _cardTextHeightTight,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: mutedColor,
-        fontWeight: FontWeight.w300,
-        height: 1.15,
-        fontSize: compact ? 11 : 14,
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.schedule_rounded, size: iconSize, color: mutedColor),
+
+        SizedBox(width: compact ? 4 : 6),
+        Expanded(
+          child: Text(
+            range,
+            maxLines: compact ? 1 : null,
+            overflow: compact ? TextOverflow.ellipsis : null,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: mutedColor,
+              fontWeight: FontWeight.w400,
+              height: 1.15,
+              fontSize: compact ? 11 : 13,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// Ort mit Icon.
+/// Ort mit Icon (Ersatz für die Beschreibungszeile bei Schulstunden ohne Text).
 class CalendarEntryLocationRow extends StatelessWidget {
   const CalendarEntryLocationRow({
     super.key,
     required this.location,
     required this.subtitleColor,
-    this.compact = false,
   });
 
   final String location;
   final Color subtitleColor;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final iconColor = subtitleColor.withValues(alpha: 0.6);
-    final iconSize = compact ? 13.0 : 15.0;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.only(top: compact ? 0 : 1),
-          child: Icon(Icons.place_outlined, size: iconSize, color: iconColor),
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(Icons.place_outlined, size: 15, color: iconColor),
         ),
-        SizedBox(width: compact ? 4 : 6),
+        const SizedBox(width: 6),
         Expanded(
           child: Text(
             location,
-            maxLines: compact ? 1 : 2,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textHeightBehavior: _cardTextHeightTight,
             style: theme.textTheme.bodySmall?.copyWith(
               color: subtitleColor,
               fontWeight: FontWeight.w300,
               height: 1.15,
-              fontSize: compact ? 11 : 14,
+              fontSize: 14,
             ),
           ),
         ),
@@ -215,6 +224,7 @@ class TextContent extends StatelessWidget {
     this.compact = false,
     this.compactTitleMaxLines,
     this.showInlineTimeRange = false,
+    this.descriptionMaxLines,
   });
 
   final CalendarEntry entry;
@@ -228,8 +238,11 @@ class TextContent extends StatelessWidget {
   /// Nur im Kompaktmodus: 1 oder 2 Titelzeilen je nach verfügbarer Höhe.
   final int? compactTitleMaxLines;
 
-  /// Wenn true: Zeitspanne unter Titel/Ort (z. B. Wochenraster ohne Zeitleiste).
+  /// Wenn true: Zeitspanne unter Titel/Beschreibung (z. B. Wochenraster ohne Zeitleiste).
   final bool showInlineTimeRange;
+
+  /// Optional: Begrenzung der Beschreibungszeilen (nur nicht-kompakt).
+  final int? descriptionMaxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -237,8 +250,13 @@ class TextContent extends StatelessWidget {
     final effectiveTitleFontSize = (titleFontSize ?? 16) - (compact ? 1 : 0);
     final mutedTimeColor = (secondaryTextColor ?? theme.colorScheme.onSurface)
         .withValues(alpha: 0.58);
+    final hasDescription =
+        !compact && (entry.description ?? '').trim().isNotEmpty;
     final trimmedLocation = (entry.location ?? '').trim();
-    final hasLocation = trimmedLocation.isNotEmpty;
+    final showLessonLocation = !compact &&
+        entry.type == CalendarEntryType.lesson &&
+        !hasDescription &&
+        trimmedLocation.isNotEmpty;
     final subtitleColor =
         secondaryTextColor ?? theme.colorScheme.onSurface;
 
@@ -273,12 +291,39 @@ class TextContent extends StatelessWidget {
             fontSize: effectiveTitleFontSize,
           ),
         ),
-        if (!compact && hasLocation) ...[
-          const SizedBox(height: 2),
-          CalendarEntryLocationRow(
-            location: trimmedLocation,
-            subtitleColor: subtitleColor,
-          ),
+        if (!compact) const SizedBox(height: 2),
+        if (!compact) ...[
+          if (hasDescription)
+            Text(
+              entry.description!,
+              maxLines: descriptionMaxLines,
+              overflow: descriptionMaxLines != null
+                  ? TextOverflow.ellipsis
+                  : null,
+              textHeightBehavior: _cardTextHeightTight,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: secondaryTextColor,
+                fontWeight: FontWeight.w300,
+                height: 1,
+                fontSize: 14,
+              ),
+            )
+          else if (showLessonLocation)
+            CalendarEntryLocationRow(
+              location: trimmedLocation,
+              subtitleColor: subtitleColor,
+            )
+          else
+            Text(
+              '\u200b',
+              textHeightBehavior: _cardTextHeightTight,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: subtitleColor.withValues(alpha: 0),
+                fontWeight: FontWeight.w300,
+                height: 1,
+                fontSize: 14,
+              ),
+            ),
         ],
         if (showInlineTimeRange) ...[
           SizedBox(height: compact ? 3 : 6),
@@ -286,14 +331,6 @@ class TextContent extends StatelessWidget {
             entry: entry,
             mutedColor: mutedTimeColor,
             compact: compact,
-          ),
-        ],
-        if (compact && hasLocation) ...[
-          const SizedBox(height: 2),
-          CalendarEntryLocationRow(
-            location: trimmedLocation,
-            subtitleColor: subtitleColor,
-            compact: true,
           ),
         ],
       ],

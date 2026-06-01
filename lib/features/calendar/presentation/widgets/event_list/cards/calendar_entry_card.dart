@@ -17,6 +17,7 @@ class CalendarEntryCard extends StatelessWidget {
     this.cardContentPadding,
     this.cardTitleFontSize,
     this.modalHeaderPreview = false,
+    this.timeColumnCollapse = 1,
     this.neighborGlassBlurSigma,
     this.neighborGlassTintAlpha,
     super.key,
@@ -40,6 +41,7 @@ class CalendarEntryCard extends StatelessWidget {
   final double? cardTitleFontSize;
 
   final bool modalHeaderPreview;
+  final double timeColumnCollapse;
   final double? neighborGlassBlurSigma;
   final double? neighborGlassTintAlpha;
 
@@ -57,6 +59,7 @@ class CalendarEntryCard extends StatelessWidget {
           contentPadding: cardContentPadding,
           titleFontSize: cardTitleFontSize,
           modalHeaderPreview: modalHeaderPreview,
+          timeColumnCollapse: timeColumnCollapse,
           neighborGlassBlurSigma: neighborGlassBlurSigma,
           neighborGlassTintAlpha: neighborGlassTintAlpha,
         );

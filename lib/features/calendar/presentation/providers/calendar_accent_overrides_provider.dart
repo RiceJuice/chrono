@@ -11,6 +11,7 @@ import '../../domain/filter/calendar_filter_text.dart';
 import '../../domain/models/calendar_entry.dart';
 import 'filter/calendar/calendar_filters_provider.dart';
 import '../widgets/calendar_header/calendar_marker_color_palette.dart';
+import 'subjects_providers.dart';
 
 const _prefsKey = 'calendar_accent_overrides';
 
@@ -96,6 +97,14 @@ Color resolveCalendarEntryAccent(WidgetRef ref, CalendarEntry entry) {
     if (ownChoirs.isNotEmpty && !_entryMatchesUserChoir(entry.choir, ownChoirs)) {
       return _choirMarkerAccent(entry.choir);
     }
+  }
+
+  if (type == CalendarEntryType.lesson && entry.subjectId != null) {
+    final subjectOverrides = ref.watch(subjectAccentOverridesProvider).value ??
+        const <String, Color>{};
+    final subjectOverride = subjectOverrides[entry.subjectId!];
+    if (subjectOverride != null) return subjectOverride;
+    return entry.accentColor;
   }
 
   final overrides = ref.watch(calendarAccentOverridesProvider);

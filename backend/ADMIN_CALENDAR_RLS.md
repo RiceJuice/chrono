@@ -55,6 +55,23 @@ CREATE POLICY admin_calendar_series_write ON calendar_series
 - `42501` (insufficient privilege): RLS blockiert den Upload — Transaction wird in der App als „fatal“ abgeschlossen, Änderung geht verloren.
 - Prüfen mit Supabase Logs / `get_advisors` nach Policy-Anpassung.
 
+## Profil: `calendar_preferences` (Fachfarben)
+
+Fachfarben werden in `profiles.calendar_preferences` (JSON/JSONB) gespeichert und per PowerSync hochgeladen (`BackendConnector` → `PATCH profiles`).
+
+Ohne Schreib-Policy auf die **eigene** Profilzeile schlägt der Upload fehl oder wird still verworfen (Symptom: Farbe kurz lokal, nach Sync wieder weg).
+
+Beispiel — Nutzer darf das eigene Profil aktualisieren:
+
+```sql
+CREATE POLICY profiles_update_own ON profiles
+  FOR UPDATE
+  USING (id = auth.uid())
+  WITH CHECK (id = auth.uid());
+```
+
+`calendar_preferences` muss in der Spalten-Whitelist der Policy erlaubt sein (bei `FOR UPDATE` ohne Spaltenlimit: alle Spalten).
+
 ## Admin-Profil anlegen
 
 Rolle **nicht** im Login-UI wählbar — nur manuell:
