@@ -12,20 +12,50 @@ class MainNavigationBar extends ConsumerWidget {
   const MainNavigationBar({super.key});
 
   static const _calendarPath = '/calendar';
+  static const _homeworkPath = '/homework';
   static const _settingsPath = '/settings';
   static const _iconLabelSpacingOffset = 5.0;
   static const _tabIconSize = 22.0;
-  /// Material-Icons wirken größer als das Spatz-SVG — optisch angleichen.
-  static const _settingsTabIconSize = 19.5;
   static const _calendarAssetPath = 'assets/domspatzen.svg';
 
+  /// Sichtbare Motivgrenzen im Spatz-SVG (viewBox 0…1024).
+  static const _sparrowViewBoxHeight = 1024.0;
+  static const _sparrowVisualTopY = 139.0;
+  static const _sparrowVisualBottomY = 889.5;
+
+  static double get _sparrowVisualTopInset =>
+      _tabIconSize * (_sparrowVisualTopY / _sparrowViewBoxHeight);
+
+  /// Sichtbare Höhe des Zahnrad-Icons (Referenz für Hausaufgaben).
+  static double get _settingsTabIconSize =>
+      _tabIconSize *
+      ((_sparrowVisualBottomY - _sparrowVisualTopY) / _sparrowViewBoxHeight);
+
+  /// Material-[Icons.menu_book] wirkt bei gleicher pt-Größe größer als das Zahnrad.
+  static const _homeworkIconOpticalScale = 0.86;
+
+  static double get _homeworkTabIconSize =>
+      _settingsTabIconSize * _homeworkIconOpticalScale;
+
+  Widget _buildTopAlignedTabIcon(Widget icon) {
+    return Padding(
+      padding: EdgeInsets.only(top: _sparrowVisualTopInset),
+      child: icon,
+    );
+  }
+
   int _indexFromLocation(String location) {
-    if (location.startsWith(_settingsPath)) return 1;
+    if (location.startsWith(_homeworkPath)) return 1;
+    if (location.startsWith(_settingsPath)) return 2;
     return 0;
   }
 
   String _targetFromIndex(int index) {
-    return index == 0 ? _calendarPath : _settingsPath;
+    return switch (index) {
+      0 => _calendarPath,
+      1 => _homeworkPath,
+      _ => _settingsPath,
+    };
   }
 
   void _onDestinationSelected({
@@ -62,18 +92,35 @@ class MainNavigationBar extends ConsumerWidget {
     required BuildContext context,
     required bool selected,
   }) {
-    return SvgPicture.asset(
-      _calendarAssetPath,
-      height: _tabIconSize,
-      width: _tabIconSize,
-      fit: BoxFit.contain,
+    return Align(
       alignment: Alignment.bottomCenter,
-      colorFilter: selected
-          ? null
-          : ColorFilter.mode(
-              Theme.of(context).colorScheme.onSurfaceVariant,
-              BlendMode.srcIn,
-            ),
+      child: SvgPicture.asset(
+        _calendarAssetPath,
+        height: _tabIconSize,
+        width: _tabIconSize,
+        fit: BoxFit.contain,
+        alignment: Alignment.bottomCenter,
+        colorFilter: selected
+            ? null
+            : ColorFilter.mode(
+                Theme.of(context).colorScheme.onSurfaceVariant,
+                BlendMode.srcIn,
+              ),
+      ),
+    );
+  }
+
+  Widget _buildHomeworkIcon({
+    required BuildContext context,
+    required bool selected,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return _buildTopAlignedTabIcon(
+      Icon(
+        selected ? Icons.menu_book : Icons.menu_book_outlined,
+        size: _homeworkTabIconSize,
+        color: selected ? scheme.primary : scheme.onSurfaceVariant,
+      ),
     );
   }
 
@@ -82,9 +129,8 @@ class MainNavigationBar extends ConsumerWidget {
     required bool selected,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Icon(
+    return _buildTopAlignedTabIcon(
+      Icon(
         selected ? Icons.settings : Icons.settings_outlined,
         size: _settingsTabIconSize,
         color: selected ? scheme.primary : scheme.onSurfaceVariant,
@@ -132,9 +178,18 @@ class MainNavigationBar extends ConsumerWidget {
             ),
             NavigationDestination(
               icon: _tabIconSlot(
-                _buildSettingsIcon(
+                _buildHomeworkIcon(
                   context: context,
                   selected: currentIndex == 1,
+                ),
+              ),
+              label: 'Hausaufgaben',
+            ),
+            NavigationDestination(
+              icon: _tabIconSlot(
+                _buildSettingsIcon(
+                  context: context,
+                  selected: currentIndex == 2,
                 ),
               ),
               label: 'Dein Chrono',
@@ -163,7 +218,7 @@ class MainNavigationBar extends ConsumerWidget {
       // beim Schließen neu aufgebaut (Theme-Flash, Tab-Sprung). Das Ausblenden
       // übernimmt [_ModalAwareNavBar] per IndexedStack ohne Platform-View-Recreate.
       autoHideOnModal: false,
-      iconSize: _tabIconSize,
+      // Kein globales iconSize: Größen pro Item (Spatz größer, Hausaufgaben optisch am Zahnrad).
       currentIndex: currentIndex,
       onTap: (index) {
         _onDestinationSelected(
@@ -181,15 +236,20 @@ class MainNavigationBar extends ConsumerWidget {
             size: _tabIconSize,
             color: inactiveIconColor,
           ),
-          activeImageAsset: const CNImageAsset(
+          activeImageAsset: CNImageAsset(
             _calendarAssetPath,
             size: _tabIconSize,
           ),
         ),
-        const CNTabBarItem(
+        CNTabBarItem(
+          label: 'Hausaufgaben',
+          icon: CNSymbol('text.book.closed', size: _homeworkTabIconSize),
+          activeIcon: CNSymbol('text.book.closed.fill', size: _homeworkTabIconSize),
+        ),
+        CNTabBarItem(
           label: 'Dein Chrono',
-          icon: CNSymbol('gearshape'),
-          activeIcon: CNSymbol('gearshape.fill'),
+          icon: CNSymbol('gearshape', size: _settingsTabIconSize),
+          activeIcon: CNSymbol('gearshape.fill', size: _settingsTabIconSize),
         ),
       ],
     );

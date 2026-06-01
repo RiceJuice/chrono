@@ -9,7 +9,7 @@ import '../../features/calendar/presentation/widgets/calendar_week_layout_tokens
 import 'app_modal_sheet.dart';
 import 'main_navigation_bar.dart';
 
-/// Persistentes Gerüst für die Hauptbereiche (Kalender, Einstellungen).///
+/// Persistentes Gerüst für die Hauptbereiche (Kalender, Hausaufgaben, Einstellungen).///
 /// Die [MainNavigationBar] lebt hier im Shell und überlebt damit den
 /// Tab-Wechsel (kein Neuaufbau der nativen Glass-TabBar mehr). Der Body wird
 /// von der [StatefulNavigationShell] als `IndexedStack` gehalten, sodass der

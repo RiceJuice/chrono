@@ -5,6 +5,7 @@ InputDecoration loginInputDecoration(
   BuildContext context,
   String hintText, {
   IconData? prefixIcon,
+  Widget? suffixIcon,
   EdgeInsetsGeometry? contentPadding,
 }) {
   final colorScheme = Theme.of(context).colorScheme;
@@ -49,6 +50,7 @@ InputDecoration loginInputDecoration(
     prefixIcon: prefixIcon == null
         ? null
         : Icon(prefixIcon, color: colorScheme.onSurfaceVariant),
+    suffixIcon: suffixIcon,
     border: enabledBorder,
     enabledBorder: enabledBorder,
     focusedBorder: focusedBorder,

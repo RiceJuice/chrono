@@ -9,6 +9,7 @@ import '../../features/calendar/presentation/pages/calendar_page.dart';
 import '../../features/login/presentation/providers/profile_gate_notifier.dart';
 import '../../features/login/presentation/routes/login_flow_specs.dart';
 import '../../features/login/presentation/routes/login_routes.dart';
+import '../../features/homework/presentation/pages/homework_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../loading_page.dart';
 import '../network/connectivity_notifier.dart';
@@ -92,7 +93,9 @@ class AppRouter {
           LoginRouteTransitionTracker.reset();
           return LoginPaths.login;
         }
-        if (loc == '/calendar' || loc == '/settings') {
+        if (loc == '/calendar' ||
+            loc == '/homework' ||
+            loc == '/settings') {
           LoginRouteTransitionTracker.reset();
           return LoginPaths.login;
         }
@@ -122,7 +125,10 @@ class AppRouter {
       // Onboarding noch offen: geschützte App-Bereiche und /loading auf den
       // richtigen Schritt umleiten. Vorherige Schritte bleiben erreichbar
       // (z. B. zum Korrigieren), überspringen per Deep-Link wird verhindert.
-      if (isLoadingRoute || loc == '/calendar' || loc == '/settings') {
+      if (isLoadingRoute ||
+          loc == '/calendar' ||
+          loc == '/homework' ||
+          loc == '/settings') {
         return requiredPath;
       }
 
@@ -160,6 +166,17 @@ class AppRouter {
                 pageBuilder: (context, state) => NoTransitionPage(
                   key: state.pageKey,
                   child: const CalendarPage(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/homework',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const HomeworkPage(),
                 ),
               ),
             ],

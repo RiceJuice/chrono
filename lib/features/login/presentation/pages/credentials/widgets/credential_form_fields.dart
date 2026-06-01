@@ -75,6 +75,7 @@ class CredentialFormFields extends StatelessWidget {
           controller: passwordController,
           hintText: 'Passwort eingeben',
           obscureText: true,
+          showPasswordVisibilityToggle: true,
           prefixIcon: Icons.lock_outline_rounded,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
           validator: (value) {
@@ -103,6 +104,7 @@ class CredentialFormFields extends StatelessWidget {
             controller: passwordConfirmController,
             hintText: 'Passwort bestätigen',
             obscureText: true,
+            showPasswordVisibilityToggle: true,
             prefixIcon: Icons.lock_reset_rounded,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
