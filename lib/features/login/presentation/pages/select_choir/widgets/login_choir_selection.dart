@@ -29,7 +29,7 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
     'assets/Carusell/Heiß.jpg',
     'assets/Carusell/Giehl.jpg',
     'assets/Carusell/Rädlinger.jpg',
-    null,
+    'assets/Carusell/Juric.png',
     'assets/Carusell/Szuczies.jpg',
   ];
 

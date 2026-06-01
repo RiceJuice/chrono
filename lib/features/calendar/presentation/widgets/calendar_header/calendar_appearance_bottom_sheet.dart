@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/widgets/app_glass_icon_button.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/data/calendar_entry_mapper.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
@@ -347,20 +348,11 @@ class CalendarAppearanceSheetHeaderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: scheme.surface.withValues(alpha: 0.92),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: IconButton(
-        tooltip: tooltip,
-        visualDensity: VisualDensity.compact,
-        style: IconButton.styleFrom(
-          foregroundColor: scheme.onSurface,
-          padding: const EdgeInsets.all(12),
-        ),
-        onPressed: onPressed,
-        icon: Icon(icon, size: 18),
-      ),
+    return AppGlassIconButton(
+      icon: icon,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      materialBackgroundColor: scheme.surface.withValues(alpha: 0.92),
     );
   }
 }

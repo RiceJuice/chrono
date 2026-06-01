@@ -1,5 +1,6 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/core/widgets/app_glass_icon_button.dart';
 import 'package:flutter/material.dart';
 
 class EventFormModalHeader extends StatelessWidget {
@@ -29,9 +30,12 @@ class EventFormModalHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _HeaderIconButton(
+          AppGlassIconButton(
             icon: Icons.close,
             tooltip: 'Schließen',
+            iconSize: 22,
+            materialBackgroundColor:
+                theme.colorScheme.surfaceContainerHighest,
             onPressed: () {
               AppHaptics.selection();
               onClose();
@@ -44,9 +48,13 @@ class EventFormModalHeader extends StatelessWidget {
               style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
             ),
           ),
-          _HeaderIconButton(
+          AppGlassIconButton(
             icon: Icons.check,
             tooltip: 'Speichern',
+            iconSize: 22,
+            enabled: !saving,
+            materialBackgroundColor:
+                theme.colorScheme.surfaceContainerHighest,
             onPressed: saving
                 ? null
                 : () {
@@ -58,40 +66,9 @@ class EventFormModalHeader extends StatelessWidget {
                     dimension: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.check),
+                : null,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.child,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onPressed;
-  final Widget? child;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Material(
-      color: scheme.surfaceContainerHighest,
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: IconButton(
-        tooltip: tooltip,
-        visualDensity: VisualDensity.compact,
-        onPressed: onPressed,
-        icon: child ?? Icon(icon, size: 22),
       ),
     );
   }

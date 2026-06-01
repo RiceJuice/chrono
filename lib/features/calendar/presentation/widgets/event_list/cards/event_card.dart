@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/calendar_card_image_strip.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
@@ -121,6 +122,8 @@ class _EventCardState extends State<EventCard> {
         (entry.imagePaths?.isNotEmpty ?? false);
     final wantTimeRange =
         widget.showInlineTimeRange ?? !widget.showTimeColumn;
+    final trimmedLocation = (entry.location ?? '').trim();
+    final hasDescription = (entry.description ?? '').trim().isNotEmpty;
 
     if (widget.weekGridCompact) {
       return Material(
@@ -228,9 +231,16 @@ class _EventCardState extends State<EventCard> {
                                           fontWeight: FontWeight.w500,
                                         ),
                                   ),
-                                  if ((entry.description ?? '')
-                                      .trim()
-                                      .isNotEmpty) ...[
+                                  if (trimmedLocation.isNotEmpty) ...[
+                                    const SizedBox(
+                                      height:
+                                          AppDimensions.eventCardDescriptionSpacing,
+                                    ),
+                                    CalendarEntryLocationRow(
+                                      location: trimmedLocation,
+                                      subtitleColor: style.secondaryTextColor,
+                                    ),
+                                  ] else if (hasDescription) ...[
                                     const SizedBox(
                                       height:
                                           AppDimensions.eventCardDescriptionSpacing,
@@ -248,9 +258,8 @@ class _EventCardState extends State<EventCard> {
                                   ],
                                   if (wantTimeRange) ...[
                                     SizedBox(
-                                      height: (entry.description ?? '')
-                                              .trim()
-                                              .isNotEmpty
+                                      height: trimmedLocation.isNotEmpty ||
+                                              hasDescription
                                           ? 6
                                           : 4,
                                     ),
@@ -266,71 +275,53 @@ class _EventCardState extends State<EventCard> {
                             ),
                           ),
                           if (hasImageCandidate)
-                            SizedBox(
-                              width: AppDimensions.eventCardImageWidth,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius:
-                                        const BorderRadiusGeometry.only(
-                                          topRight: Radius.circular(AppRadius.s),
-                                          bottomRight: Radius.circular(
-                                            AppRadius.s,
-                                          ),
-                                        ),
-                                    child: FutureBuilder<String?>(
-                                      future: _firstImageUrlFuture,
-                                      builder: (context, snapshot) {
-                                        final url = snapshot.data;
+                            CalendarCardImageStrip(
+                              overlayColor: style.imageOverlayOpacity > 0
+                                  ? scheme.surface.withValues(
+                                      alpha: style.imageOverlayOpacity,
+                                    )
+                                  : null,
+                              image: FutureBuilder<String?>(
+                                future: _firstImageUrlFuture,
+                                builder: (context, snapshot) {
+                                  final url = snapshot.data;
 
-                                        if (url == null &&
-                                            snapshot.connectionState ==
-                                                ConnectionState.done) {
-                                          return Container(
-                                            color: scheme.surfaceContainerHighest,
-                                            alignment: Alignment.center,
-                                            child: const Icon(Icons.broken_image),
-                                          );
-                                        }
-
-                                        if (url == null) {
-                                          return Container(
-                                            color: scheme.surfaceContainerHighest,
-                                          );
-                                        }
-
-                                        return CachedNetworkImage(
-                                          imageUrl: url,
-                                          cacheKey: _thumbnailCacheKey(entry),
-                                          fit: BoxFit.cover,
-                                          fadeInDuration: Duration.zero,
-                                          fadeOutDuration: Duration.zero,
-                                          placeholder: (context, _) => Container(
-                                            color: scheme.surfaceContainerHighest,
-                                          ),
-                                          errorWidget: (context, _, error) {
-                                            return Container(
-                                              color: scheme.surfaceContainerHighest,
-                                              alignment: Alignment.center,
-                                              child: const Icon(
-                                                Icons.broken_image,
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  if (style.imageOverlayOpacity > 0)
-                                    Positioned.fill(
-                                      child: ColoredBox(
-                                        color: scheme.surface.withValues(
-                                          alpha: style.imageOverlayOpacity,
-                                        ),
+                                  if (url == null &&
+                                      snapshot.connectionState ==
+                                          ConnectionState.done) {
+                                    return ColoredBox(
+                                      color: scheme.surfaceContainerHighest,
+                                      child: const Center(
+                                        child: Icon(Icons.broken_image),
                                       ),
+                                    );
+                                  }
+
+                                  if (url == null) {
+                                    return ColoredBox(
+                                      color: scheme.surfaceContainerHighest,
+                                    );
+                                  }
+
+                                  return CachedNetworkImage(
+                                    imageUrl: url,
+                                    cacheKey: _thumbnailCacheKey(entry),
+                                    fit: BoxFit.cover,
+                                    fadeInDuration: Duration.zero,
+                                    fadeOutDuration: Duration.zero,
+                                    placeholder: (context, _) => ColoredBox(
+                                      color: scheme.surfaceContainerHighest,
                                     ),
-                                ],
+                                    errorWidget: (context, _, error) {
+                                      return ColoredBox(
+                                        color: scheme.surfaceContainerHighest,
+                                        child: const Center(
+                                          child: Icon(Icons.broken_image),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
                               ),
                             ),
                         ],

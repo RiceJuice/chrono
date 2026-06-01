@@ -131,37 +131,56 @@ class CalendarEntryTimeRangeRow extends StatelessWidget {
     required this.entry,
     required this.mutedColor,
     this.compact = false,
+    this.rangeSeparator = ' – ',
+    this.rangeSuffix,
+    this.textStyle,
+    this.iconSize,
   });
 
   final CalendarEntry entry;
   final Color mutedColor;
   final bool compact;
 
+  /// Trennzeichen zwischen Start- und Endzeit (z. B. „ - “ im Sheet).
+  final String rangeSeparator;
+
+  /// Optionaler Text nach der Endzeit (z. B. „ Uhr“).
+  final String? rangeSuffix;
+
+  final TextStyle? textStyle;
+  final double? iconSize;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final iconSize = compact ? 13.0 : 15.0;
+    final effectiveIconSize = iconSize ?? (compact ? 13.0 : 15.0);
     final range =
-        '${AppDateTime.formatLocalHourMinute(entry.startTime)} – ${AppDateTime.formatLocalHourMinute(entry.endTime)}';
+        '${AppDateTime.formatLocalHourMinute(entry.startTime)}'
+        '$rangeSeparator'
+        '${AppDateTime.formatLocalHourMinute(entry.endTime)}'
+        '${rangeSuffix ?? ''}';
+    final defaultTextStyle = theme.textTheme.bodySmall?.copyWith(
+      color: mutedColor,
+      fontWeight: FontWeight.w400,
+      height: 1.15,
+      fontSize: compact ? 11 : 13,
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.schedule_rounded, size: iconSize, color: mutedColor),
-
+        Icon(
+          Icons.schedule_rounded,
+          size: effectiveIconSize,
+          color: mutedColor,
+        ),
         SizedBox(width: compact ? 4 : 6),
         Expanded(
           child: Text(
             range,
             maxLines: compact ? 1 : null,
             overflow: compact ? TextOverflow.ellipsis : null,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: mutedColor,
-              fontWeight: FontWeight.w400,
-              height: 1.15,
-              fontSize: compact ? 11 : 13,
-            ),
+            style: textStyle ?? defaultTextStyle,
           ),
         ),
       ],
@@ -175,22 +194,31 @@ class CalendarEntryLocationRow extends StatelessWidget {
     super.key,
     required this.location,
     required this.subtitleColor,
+    this.textStyle,
+    this.iconSize,
   });
 
   final String location;
   final Color subtitleColor;
+  final TextStyle? textStyle;
+  final double? iconSize;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final iconColor = subtitleColor.withValues(alpha: 0.6);
+    final effectiveIconSize = iconSize ?? 15.0;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 1),
-          child: Icon(Icons.place_outlined, size: 15, color: iconColor),
+          child: Icon(
+            Icons.place_outlined,
+            size: effectiveIconSize,
+            color: iconColor,
+          ),
         ),
         const SizedBox(width: 6),
         Expanded(
@@ -199,12 +227,13 @@ class CalendarEntryLocationRow extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textHeightBehavior: _cardTextHeightTight,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: subtitleColor,
-              fontWeight: FontWeight.w300,
-              height: 1.15,
-              fontSize: 14,
-            ),
+            style: textStyle ??
+                theme.textTheme.bodySmall?.copyWith(
+                  color: subtitleColor,
+                  fontWeight: FontWeight.w300,
+                  height: 1.15,
+                  fontSize: 14,
+                ),
           ),
         ),
       ],
@@ -250,13 +279,16 @@ class TextContent extends StatelessWidget {
     final effectiveTitleFontSize = (titleFontSize ?? 16) - (compact ? 1 : 0);
     final mutedTimeColor = (secondaryTextColor ?? theme.colorScheme.onSurface)
         .withValues(alpha: 0.58);
-    final hasDescription =
-        !compact && (entry.description ?? '').trim().isNotEmpty;
+    final trimmedDescription = (entry.description ?? '').trim();
+    final hasDescription = !compact && trimmedDescription.isNotEmpty;
     final trimmedLocation = (entry.location ?? '').trim();
-    final showLessonLocation = !compact &&
-        entry.type == CalendarEntryType.lesson &&
-        !hasDescription &&
-        trimmedLocation.isNotEmpty;
+    final preferLocationOnCard = entry.type == CalendarEntryType.event;
+    final showLocationSubtitle = !compact &&
+        trimmedLocation.isNotEmpty &&
+        (preferLocationOnCard || !hasDescription);
+    final showDescriptionSubtitle = !compact &&
+        hasDescription &&
+        !(preferLocationOnCard && trimmedLocation.isNotEmpty);
     final subtitleColor =
         secondaryTextColor ?? theme.colorScheme.onSurface;
 
@@ -293,9 +325,14 @@ class TextContent extends StatelessWidget {
         ),
         if (!compact) const SizedBox(height: 2),
         if (!compact) ...[
-          if (hasDescription)
+          if (showLocationSubtitle)
+            CalendarEntryLocationRow(
+              location: trimmedLocation,
+              subtitleColor: subtitleColor,
+            )
+          else if (showDescriptionSubtitle)
             Text(
-              entry.description!,
+              trimmedDescription,
               maxLines: descriptionMaxLines,
               overflow: descriptionMaxLines != null
                   ? TextOverflow.ellipsis
@@ -307,11 +344,6 @@ class TextContent extends StatelessWidget {
                 height: 1,
                 fontSize: 14,
               ),
-            )
-          else if (showLessonLocation)
-            CalendarEntryLocationRow(
-              location: trimmedLocation,
-              subtitleColor: subtitleColor,
             )
           else
             Text(

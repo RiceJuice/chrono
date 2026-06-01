@@ -233,11 +233,7 @@ class _SnappyPageViewPhysics extends ScrollPhysics {
       _SnappyPageViewPhysics(parent: buildParent(ancestor));
 
   @override
-  SpringDescription get spring => SpringDescription.withDampingRatio(
-    mass: 0.48,
-    stiffness: 175.0,
-    ratio: 0.98,
-  );
+  SpringDescription get spring => DayContentTransitionPhysics.spring;
 }
 
 class _TransitionData {

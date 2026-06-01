@@ -1,27 +1,22 @@
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_day_spring_interaction.dart';
 import 'package:flutter/material.dart';
 import 'day_page.dart';
 
-/// Feder und Geschwindigkeit für Tageswechsel-Overlays (UIKit-artig: lang, weich, ohne Snap).
+/// Feder und Geschwindigkeit für Tageswechsel — abgestimmt auf die
+/// Kalenderkopf-Auswahl ([CalendarDaySpringPhysics.slide]).
 abstract final class DayContentTransitionPhysics {
-  static final SpringDescription spring = SpringDescription.withDampingRatio(
-    mass: 1.15,
-    stiffness: 155,
-    ratio: 0.98,
-  );
+  static final SpringDescription spring = CalendarDaySpringPhysics.slide;
 
-  static const Tolerance tolerance = Tolerance(
-    velocity: 0.008,
-    distance: 0.0008,
-  );
+  static const Tolerance tolerance = CalendarDaySpringPhysics.simulationTolerance;
 
   static double simulationVelocityFor({
     required int pageDelta,
     double swipeSpeed = 0,
   }) {
     if (swipeSpeed > 0) {
-      return swipeSpeed.clamp(0.15, 1.0);
+      return (swipeSpeed * 0.35).clamp(0.3, 3.5);
     }
-    return (0.08 + pageDelta * 0.035).clamp(0.08, 0.45);
+    return (pageDelta * 5.5).clamp(1.0, 16.0);
   }
 }
 
@@ -47,10 +42,8 @@ class DayContentSlideTransition extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final direction = isForward ? 1.0 : -1.0;
-    final motion = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeInOutCubic,
-    );
+    // Federgetriebener Fortschritt — kein zusätzliches Easing (sonst weicher als Kopf).
+    final motion = animation;
 
     final outgoingSlide = Tween<Offset>(
       begin: Offset.zero,

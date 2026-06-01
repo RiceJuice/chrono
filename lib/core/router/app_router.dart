@@ -149,11 +149,19 @@ class AppRouter {
       return null;
     },
     routes: [
-      GoRoute(path: '/loading', builder: (context, state) => const LoadingPage()),
+      GoRoute(
+        path: '/loading',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const LoadingPage(),
+        ),
+      ),
       GoRoute(
         path: kNoConnectionPath,
-        builder: (context, state) =>
-            NoConnectionPage(connectivity: _connectivity),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: NoConnectionPage(connectivity: _connectivity),
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

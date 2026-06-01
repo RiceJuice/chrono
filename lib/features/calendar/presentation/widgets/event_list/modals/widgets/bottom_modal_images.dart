@@ -24,6 +24,20 @@ class BottomModalImages extends StatefulWidget {
   State<BottomModalImages> createState() => _BottomModalImagesState();
 }
 
+/// Abstand zwischen nebeneinander liegenden Bildern im Detail-Sheet.
+const double _kModalDetailImageGap = AppSpacing.xs;
+
+BorderRadius _modalDetailImageBorderRadius({
+  required int index,
+  required int count,
+}) {
+  final radius = Radius.circular(AppRadius.s);
+  return BorderRadius.only(
+    topLeft: index == 0 ? radius : Radius.zero,
+    topRight: index == count - 1 ? radius : Radius.zero,
+  );
+}
+
 class _BottomModalImagesState extends State<BottomModalImages> {
   static final CalendarImageUrlResolver _imageUrlResolver =
       CalendarImageUrlResolver(supabase: Supabase.instance.client);
@@ -80,11 +94,15 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             physics: const BouncingScrollPhysics(),
             itemCount: 2,
             itemBuilder: (context, index) {
+              const itemCount = 2;
               return Padding(
-                padding: const EdgeInsets.only(right: 6.0),
+                padding: EdgeInsets.only(
+                  right: index < itemCount - 1 ? _kModalDetailImageGap : 0,
+                ),
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(AppRadius.s),
+                  borderRadius: _modalDetailImageBorderRadius(
+                    index: index,
+                    count: itemCount,
                   ),
                   child: AspectRatio(
                     aspectRatio: 1.5,
@@ -112,11 +130,15 @@ class _BottomModalImagesState extends State<BottomModalImages> {
             physics: const BouncingScrollPhysics(),
             itemCount: imageUrls.length,
             itemBuilder: (context, index) {
+              final count = imageUrls.length;
               return Padding(
-                padding: const EdgeInsets.only(right: 6.0),
+                padding: EdgeInsets.only(
+                  right: index < count - 1 ? _kModalDetailImageGap : 0,
+                ),
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(AppRadius.s),
+                  borderRadius: _modalDetailImageBorderRadius(
+                    index: index,
+                    count: count,
                   ),
                   child: AspectRatio(
                     aspectRatio: 1.5,

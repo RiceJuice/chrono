@@ -730,7 +730,6 @@ class _ModalHeaderEntryListState extends State<_ModalHeaderEntryList> {
     final isSelected = e.id == widget.selected.id;
     final distance = _distanceFromSelected(e, ordered);
     final m = widget.morph.clamp(0.0, 1.0);
-
     if (isSelected) {
       // Uhrzeit-Spalte klappt horizontal ein; Höhe bleibt fix (kein Wachstum nach unten).
       final collapse = (1 - Curves.easeInOut.transform(m)).clamp(0.0, 1.0);

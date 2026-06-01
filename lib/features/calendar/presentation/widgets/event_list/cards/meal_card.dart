@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/calendar_card_image_strip.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
@@ -132,30 +133,17 @@ class MealCard extends ConsumerWidget {
                           ),
                           if (entry.imageUrls != null &&
                               entry.imageUrls!.isNotEmpty)
-                            Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: const BorderRadius.only(
-                                    topRight: Radius.circular(AppRadius.s),
-                                    bottomRight: Radius.circular(AppRadius.s),
-                                  ),
-                                  child: Image.network(
-                                    entry.imageUrls![0],
-                                    width: 140,
-                                    height: 120,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                if (style.imageOverlayOpacity > 0)
-                                  Positioned.fill(
-                                    child: ColoredBox(
-                                      color: Theme.of(context).colorScheme.surface
-                                          .withValues(
-                                            alpha: style.imageOverlayOpacity,
-                                          ),
-                                    ),
-                                  ),
-                              ],
+                            CalendarCardImageStrip(
+                              overlayColor: style.imageOverlayOpacity > 0
+                                  ? Theme.of(context).colorScheme.surface
+                                      .withValues(
+                                        alpha: style.imageOverlayOpacity,
+                                      )
+                                  : null,
+                              image: Image.network(
+                                entry.imageUrls![0],
+                                fit: BoxFit.cover,
+                              ),
                             ),
                         ],
                       ),

@@ -106,6 +106,6 @@ class AppDimensions {
   AppDimensions._();
 
   static const double eventCardImageWidth = 120;
-  static const double eventCardImageHeight = 130;
+  static const double eventCardImageHeight = 96;
   static const double eventCardDescriptionSpacing = 12;
 }

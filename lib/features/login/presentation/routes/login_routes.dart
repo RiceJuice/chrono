@@ -20,23 +20,38 @@ export 'login_paths.dart';
 abstract final class LoginRouteTransitionTracker {
   static String? _lastLocation;
   static bool _transitionForward = true;
+  static bool _enterWithoutTransition = false;
 
   static void reset() {
     _lastLocation = null;
     _transitionForward = true;
+    _enterWithoutTransition = false;
   }
 
   static bool get transitionForward => _transitionForward;
 
+  /// Einmalig nach App-Start oder Wechsel von außerhalb des Login-Flows.
+  static bool consumeEnterWithoutTransition() {
+    if (!_enterWithoutTransition) return false;
+    _enterWithoutTransition = false;
+    return true;
+  }
+
   static void syncShellLocation(String location) {
-    if (_lastLocation == location) {
+    final previous = _lastLocation;
+    if (location.startsWith(LoginPaths.login) &&
+        (previous == null || !previous.startsWith(LoginPaths.login))) {
+      _enterWithoutTransition = true;
+    }
+
+    if (previous == location) {
       return;
     }
 
-    if (_lastLocation != null &&
+    if (previous != null &&
         location.startsWith(LoginPaths.login) &&
-        _lastLocation!.startsWith(LoginPaths.login)) {
-      final prevIdx = loginFlowOrderIndex(_lastLocation!);
+        previous.startsWith(LoginPaths.login)) {
+      final prevIdx = loginFlowOrderIndex(previous);
       final nextIdx = loginFlowOrderIndex(location);
       if (prevIdx >= 0 && nextIdx >= 0) {
         _transitionForward = nextIdx > prevIdx;
@@ -52,10 +67,14 @@ abstract final class LoginRouteTransitionTracker {
 
 const Duration _loginSlideDuration = Duration(milliseconds: 300);
 
-CustomTransitionPage<void> loginSlidePage({
+Page<void> loginSlidePage({
   required GoRouterState state,
   required Widget child,
 }) {
+  if (LoginRouteTransitionTracker.consumeEnterWithoutTransition()) {
+    return NoTransitionPage<void>(key: state.pageKey, child: child);
+  }
+
   final forward = LoginRouteTransitionTracker.transitionForward;
 
   return CustomTransitionPage<void>(

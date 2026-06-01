@@ -127,6 +127,7 @@ class BaseCalendarCard extends StatelessWidget {
 
     final rowHorizontalPadding =
         listTileHorizontalPadding ?? AppSpacing.l;
+    final contentInsets = contentPadding.resolve(Directionality.of(context));
 
     void onCardTap() {
       HapticFeedback.heavyImpact();
@@ -136,6 +137,7 @@ class BaseCalendarCard extends StatelessWidget {
     final collapse = timeColumnCollapse.clamp(0.0, 1.0);
     final timeColumnMorphing =
         modalHeaderPreview && showTimeColumn && collapse > 0 && collapse < 1;
+    final timeColumnCollapsing = collapse < 1;
 
     final row = Row(
       crossAxisAlignment: timeColumnMorphing
@@ -145,23 +147,32 @@ class BaseCalendarCard extends StatelessWidget {
         if (showTimeColumn && collapse > 0)
           Padding(
             padding: EdgeInsets.only(
+              top: timeColumnMorphing ? 0 : contentInsets.top,
+              bottom: timeColumnMorphing ? 0 : contentInsets.bottom,
               right: AppSpacing.s * collapse,
             ),
-            child: ClipRect(
-              child: Align(
-                alignment: Alignment.centerRight,
-                widthFactor: collapse,
-                child: Opacity(
-                  opacity: collapse,
-                  child: TimeColumn(
+            child: timeColumnCollapsing
+                ? ClipRect(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      widthFactor: collapse,
+                      child: Opacity(
+                        opacity: collapse,
+                        child: TimeColumn(
+                          entry: entry,
+                          textColor: style.timeTextColor,
+                          alignToContentHeight: !timeColumnMorphing,
+                          suppressEdgeNudge: modalHeaderPreview,
+                        ),
+                      ),
+                    ),
+                  )
+                : TimeColumn(
                     entry: entry,
                     textColor: style.timeTextColor,
-                    alignToContentHeight: !timeColumnMorphing,
+                    alignToContentHeight: true,
                     suppressEdgeNudge: modalHeaderPreview,
                   ),
-                ),
-              ),
-            ),
           ),
         Expanded(
           child: _buildCardBody(

@@ -1,8 +1,8 @@
-import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/event_editor/presentation/providers/is_admin_provider.dart';
 import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/admin_edit_button.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -67,14 +67,22 @@ class BottomModalText extends ConsumerWidget {
         Text(entry.description!, style: theme.textTheme.bodyMedium),
       ],
       const SizedBox(height: 4),
-      Text(
-        '${AppDateTime.formatLocalHourMinute(entry.startTime)} - '
-        '${AppDateTime.formatLocalHourMinute(entry.endTime)} Uhr',
-        style: theme.textTheme.bodyMedium,
+      CalendarEntryTimeRangeRow(
+        entry: entry,
+        mutedColor: scheme.onSurface,
+        rangeSeparator: ' - ',
+        rangeSuffix: ' Uhr',
+        textStyle: theme.textTheme.bodyMedium,
+        iconSize: 18,
       ),
       if ((entry.location ?? '').trim().isNotEmpty) ...[
         const SizedBox(height: 6),
-        Text('Ort: ${entry.location!}', style: theme.textTheme.bodyMedium),
+        CalendarEntryLocationRow(
+          location: entry.location!.trim(),
+          subtitleColor: scheme.onSurface,
+          textStyle: theme.textTheme.bodyMedium,
+          iconSize: 18,
+        ),
       ],
       if (noteText.isNotEmpty) ...[
         const SizedBox(height: AppSpacing.l),

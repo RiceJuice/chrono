@@ -1,4 +1,5 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
+import 'package:chronoapp/core/widgets/app_glass_icon_button.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/domain/preview/calendar_appearance_config.dart';
 import 'package:chronoapp/features/calendar/domain/preview/calendar_settings_kind.dart';
@@ -28,33 +29,24 @@ class LessonAccentButton extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final subjectId = entry.subjectId;
 
-    return Material(
-      color: scheme.surface.withValues(alpha: 0.92),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: IconButton(
-        tooltip: 'Farbe anpassen',
-        visualDensity: VisualDensity.compact,
-        style: IconButton.styleFrom(
-          foregroundColor: scheme.onSurface,
-          padding: const EdgeInsets.all(12),
-        ),
-        onPressed: () {
-          if (onAccentPressed != null) {
-            onAccentPressed!();
-            return;
-          }
-          AppHaptics.light();
-          final config = subjectId != null
-              ? CalendarAppearanceBySubject(
-                  subjectId: subjectId,
-                  previewEntry: entry,
-                )
-              : const CalendarAppearanceByKind(CalendarSettingsKind.school);
-          CalendarAppearanceBottomSheet.show(context, config: config);
-        },
-        icon: const Icon(Icons.palette_outlined, size: 18),
-      ),
+    return AppGlassIconButton(
+      icon: Icons.palette_outlined,
+      tooltip: 'Farbe anpassen',
+      materialBackgroundColor: scheme.surface.withValues(alpha: 0.92),
+      onPressed: () {
+        if (onAccentPressed != null) {
+          onAccentPressed!();
+          return;
+        }
+        AppHaptics.light();
+        final config = subjectId != null
+            ? CalendarAppearanceBySubject(
+                subjectId: subjectId,
+                previewEntry: entry,
+              )
+            : const CalendarAppearanceByKind(CalendarSettingsKind.school);
+        CalendarAppearanceBottomSheet.show(context, config: config);
+      },
     );
   }
 }
