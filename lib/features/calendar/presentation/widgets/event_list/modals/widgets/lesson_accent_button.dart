@@ -30,7 +30,7 @@ class LessonAccentButton extends ConsumerWidget {
     final subjectId = entry.subjectId;
 
     return AppGlassIconButton(
-      icon: Icons.palette_outlined,
+      icon: AppGlassIconButton.accentColorIcon,
       tooltip: 'Farbe anpassen',
       materialBackgroundColor: scheme.surface.withValues(alpha: 0.92),
       onPressed: () {

@@ -8,10 +8,12 @@ class CalendarCardImageStrip extends StatelessWidget {
     super.key,
     required this.image,
     this.overlayColor,
+    this.minHeight = AppDimensions.eventCardImageHeight,
   });
 
   final Widget image;
   final Color? overlayColor;
+  final double minHeight;
 
   static final BorderRadius _borderRadius = BorderRadius.only(
     topRight: Radius.circular(AppRadius.s),
@@ -21,10 +23,10 @@ class CalendarCardImageStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(
+      constraints: BoxConstraints(
         minWidth: AppDimensions.eventCardImageWidth,
         maxWidth: AppDimensions.eventCardImageWidth,
-        minHeight: AppDimensions.eventCardImageHeight,
+        minHeight: minHeight,
       ),
       child: ClipRRect(
         borderRadius: _borderRadius,

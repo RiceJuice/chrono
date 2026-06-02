@@ -25,26 +25,26 @@ abstract final class CalendarDaySpringPhysics {
     ratio: 0.72,
   );
 
-  /// Einblenden bei programmatischer / Swipe-Auswahl — weich, ohne Overshoot.
+  /// Einblenden bei programmatischer / Swipe-Auswahl — straff, ohne Overshoot.
   static final SpringDescription appear = SpringDescription.withDampingRatio(
     mass: 1,
-    stiffness: 260,
-    ratio: 0.96,
+    stiffness: 400,
+    ratio: 1.06,
   );
 
-  /// Horizontales Gleiten der Auswahl-Pille — weich, ohne Overshoot.
+  /// Horizontales Gleiten der Auswahl-Pille und Tagesinhalt — straff, ohne Overshoot.
   static final SpringDescription slide = SpringDescription.withDampingRatio(
     mass: 1,
-    stiffness: 260,
-    ratio: 0.96,
+    stiffness: 400,
+    ratio: 1.06,
   );
 
   static const double appearStartScale = 0.92;
   static const double appearStartOpacity = 0.78;
 
   static const Tolerance simulationTolerance = Tolerance(
-    velocity: 0.015,
-    distance: 0.0015,
+    velocity: 0.028,
+    distance: 0.002,
   );
 
   static double opacityForScale(double scale) {

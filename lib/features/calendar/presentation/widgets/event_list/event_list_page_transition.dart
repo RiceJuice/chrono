@@ -57,13 +57,13 @@ class DayContentSlideTransition extends StatelessWidget {
     final outgoingFade = Tween<double>(begin: 1, end: 0).animate(
       CurvedAnimation(
         parent: animation,
-        curve: const Interval(0.0, 0.88, curve: Curves.easeInOut),
+        curve: const Interval(0.0, 0.72, curve: Curves.easeOutCubic),
       ),
     );
     final incomingFade = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
         parent: animation,
-        curve: const Interval(0.08, 1.0, curve: Curves.easeInOut),
+        curve: const Interval(0.12, 0.88, curve: Curves.easeOutCubic),
       ),
     );
 

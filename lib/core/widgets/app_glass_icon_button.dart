@@ -2,6 +2,10 @@ import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+/// Skaliert die Glyphen leicht hoch, damit Striche auf dem Glass-Kreis
+/// kräftiger wirken (SF Symbols nutzen sonst nur Regular-Gewicht).
+const double _kGlassIconInkScale = 1.12;
+
 /// Runder Icon-Button mit nativem Liquid Glass (iOS/macOS 26+) oder
 /// Material-Kreis-Fallback auf anderen Plattformen.
 class AppGlassIconButton extends StatelessWidget {
@@ -43,15 +47,21 @@ class AppGlassIconButton extends StatelessWidget {
     return isApple && PlatformVersion.shouldUseNativeGlass;
   }
 
+  static double _visualIconSize(double iconSize) => iconSize * _kGlassIconInkScale;
+
+  /// Icon für Akzent-/Farbeinstellungen auf Glass-Buttons.
+  static const IconData accentColorIcon = Icons.brush_outlined;
+
   static CNSymbol? _sfSymbolFor(IconData icon, double size, Color color) {
+    final visualSize = _visualIconSize(size);
     if (icon == Icons.close) {
-      return CNSymbol('xmark', size: size, color: color);
+      return CNSymbol('xmark', size: visualSize, color: color);
     }
     if (icon == Icons.check) {
-      return CNSymbol('checkmark', size: size, color: color);
+      return CNSymbol('checkmark', size: visualSize, color: color);
     }
-    if (icon == Icons.palette_outlined || icon == Icons.palette) {
-      return CNSymbol('paintpalette', size: size, color: color);
+    if (icon == accentColorIcon || icon == Icons.brush) {
+      return CNSymbol('paintbrush', size: visualSize, color: color);
     }
     return null;
   }
@@ -118,7 +128,7 @@ class _NativeGlassIconButton extends StatelessWidget {
         tint: tint,
         config: CNButtonConfig(
           style: CNButtonStyle.glass,
-          customIconSize: iconSize,
+          customIconSize: AppGlassIconButton._visualIconSize(iconSize),
           glassEffectUnionId: glassEffectUnionId,
           glassEffectId: glassEffectId,
         ),
@@ -126,14 +136,14 @@ class _NativeGlassIconButton extends StatelessWidget {
     }
 
     return CNButton.icon(
-      icon: CNSymbol('xmark', size: iconSize, color: tint),
+      icon: CNSymbol('xmark', size: AppGlassIconButton._visualIconSize(iconSize), color: tint),
       customIcon: icon,
       onPressed: onPressed,
       enabled: enabled,
       tint: tint,
       config: CNButtonConfig(
         style: CNButtonStyle.glass,
-        customIconSize: iconSize,
+        customIconSize: AppGlassIconButton._visualIconSize(iconSize),
         glassEffectUnionId: glassEffectUnionId,
         glassEffectId: glassEffectId,
       ),
@@ -171,7 +181,11 @@ class _MaterialCircleIconButton extends StatelessWidget {
           padding: const EdgeInsets.all(12),
         ),
         onPressed: onPressed,
-        icon: child ?? Icon(icon, size: iconSize),
+        icon: child ??
+            Icon(
+              icon,
+              size: AppGlassIconButton._visualIconSize(iconSize),
+            ),
       ),
     );
   }

@@ -4,7 +4,7 @@ import 'package:chronoapp/features/calendar/presentation/providers/calendar_prov
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_grid.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_layout.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_day_columns.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_all_day_section_metrics.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_mobile_body.dart';
 import 'package:chronoapp/core/startup/calendar_startup_state.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_navigation.dart';
@@ -119,10 +119,22 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
                       itemCount: kWeekPageCount,
                       onPageChanged: _handlePageChanged,
                       itemBuilder: (context, pageIndex) {
+                        final pageMonday = mondayForPageIndex(pageIndex);
+                        final transition = _activeTransition;
+                        final allDaySectionHeight = resolveWeekAllDaySectionHeight(
+                          ref,
+                          focusMonday: AppDateTime.localMondayOfWeek(
+                            ref.watch(focusedDayProvider),
+                          ),
+                          transitionFromMonday: transition?.fromMonday,
+                          transitionToMonday: transition?.toMonday,
+                          extraMondays: [pageMonday],
+                        );
                         return WeekScheduleGrid(
-                          monday: mondayForPageIndex(pageIndex),
+                          monday: pageMonday,
                           showTimelineColumn: false,
                           hourHeight: hourHeight,
+                          allDaySectionHeight: allDaySectionHeight,
                         );
                       },
                     ),
@@ -183,13 +195,13 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
         .toList(growable: false);
     final bounds = computeWeekScheduleBoundsOrDefault(regularEntriesByDay);
 
-    final maxAllDayBreaks = entriesByDay.fold<int>(
-      0,
-      (max, entries) => max < distinctBreakNames(entries).length
-          ? distinctBreakNames(entries).length
-          : max,
+    final transition = _activeTransition;
+    final allDayRowHeight = resolveWeekAllDaySectionHeight(
+      ref,
+      focusMonday: monday,
+      transitionFromMonday: transition?.fromMonday,
+      transitionToMonday: transition?.toMonday,
     );
-    final allDayRowHeight = weekAllDayRowHeight(maxAllDayBreaks);
     final hourHeight = weekScheduleHourHeightFor(context);
     final totalHeight = bounds.heightForHourHeight(hourHeight);
     final showCurrentTime = weekDays.any(AppDateTime.isTodayLocal);
@@ -197,14 +209,13 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (allDayRowHeight > 0)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: allDayRowHeight,
-            child: const ColoredBox(color: Colors.transparent),
-          ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: allDayRowHeight,
+          child: const ColoredBox(color: Colors.transparent),
+        ),
         Positioned(
           left: 0,
           right: 0,

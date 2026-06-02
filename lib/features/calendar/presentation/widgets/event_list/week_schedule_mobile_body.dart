@@ -6,6 +6,9 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_all_day_break_layout.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_all_day_day_label.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_all_day_section_metrics.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_day_columns.dart';
 
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_day_snap_physics.dart';
@@ -732,15 +735,6 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
       regularFocusEntries,
     );
 
-    final maxAllDayBreaks = focusEntries.fold<int>(
-      0,
-      (max, entries) => math.max(max, distinctBreakNames(entries).length),
-    );
-    final hasAnyAllDayBreakInFocusWeek = maxAllDayBreaks > 0;
-    final allDayRowHeight = hasAnyAllDayBreakInFocusWeek
-        ? weekAllDayRowHeight(maxAllDayBreaks)
-        : 0.0;
-
     if (allWeekDataReady) {
 
       _cachedAnchorBounds = computedBounds;
@@ -809,7 +803,15 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
 
         ).applyTo(ScrollConfiguration.of(context).getScrollPhysics(context));
 
-
+        final allDayRowHeight = resolveMobileAllDayStripSectionHeight(
+          ref,
+          focusMonday: focusMonday,
+          horizontalController: widget.horizontalController,
+          dayWidth: dayWidth,
+          viewportWidth: innerWidth,
+        );
+        final allDayBarAreaHeight =
+            allDayRowHeight - kWeekAllDayDayLabelHeight;
 
         // Die [ListView] muss auch vor dem Initial-Scroll im Tree sein, damit
         // der [ScrollController] eine Position bekommt; sonst kann
@@ -874,18 +876,18 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (hasAnyAllDayBreakInFocusWeek)
-              _WeekScheduleMobileAllDayHeaderStrip(
-                horizontalController: widget.horizontalController,
-                dayWidth: dayWidth,
-                viewportWidth: innerWidth,
-                rowHeight: allDayRowHeight,
-                onUserScrollEnd: _handleHorizontalScrollEnd,
-                onUserScrollUpdate: (offset) {
-                  final idx = _globalDayIndexFromOffset(offset, dayWidth);
-                  _setScrollPreviewIndex(idx, stride);
-                },
-              ),
+            _WeekScheduleMobileAllDayHeaderStrip(
+              horizontalController: widget.horizontalController,
+              dayWidth: dayWidth,
+              viewportWidth: innerWidth,
+              rowHeight: allDayRowHeight,
+              barAreaHeight: allDayBarAreaHeight,
+              onUserScrollEnd: _handleHorizontalScrollEnd,
+              onUserScrollUpdate: (offset) {
+                final idx = _globalDayIndexFromOffset(offset, dayWidth);
+                _setScrollPreviewIndex(idx, stride);
+              },
+            ),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -926,6 +928,7 @@ class _WeekScheduleMobileAllDayHeaderStrip extends StatelessWidget {
     required this.dayWidth,
     required this.viewportWidth,
     required this.rowHeight,
+    required this.barAreaHeight,
     required this.onUserScrollEnd,
     required this.onUserScrollUpdate,
   });
@@ -934,6 +937,7 @@ class _WeekScheduleMobileAllDayHeaderStrip extends StatelessWidget {
   final double dayWidth;
   final double viewportWidth;
   final double rowHeight;
+  final double barAreaHeight;
   final Future<void> Function() onUserScrollEnd;
   final void Function(double offset) onUserScrollUpdate;
 
@@ -984,6 +988,9 @@ class _WeekScheduleMobileAllDayHeaderStrip extends StatelessWidget {
                       bottom: 0,
                       child: _WeekScheduleStickyAllDayHeaderTile(
                         globalDayIndex: firstIndex + i,
+                        barAreaHeight: barAreaHeight,
+                        stripFirstGlobalIndex: firstIndex,
+                        stripVisibleCount: visibleCount,
                       ),
                     ),
                 ],
@@ -997,24 +1004,59 @@ class _WeekScheduleMobileAllDayHeaderStrip extends StatelessWidget {
 }
 
 class _WeekScheduleStickyAllDayHeaderTile extends ConsumerWidget {
-  const _WeekScheduleStickyAllDayHeaderTile({required this.globalDayIndex});
+  const _WeekScheduleStickyAllDayHeaderTile({
+    required this.globalDayIndex,
+    required this.barAreaHeight,
+    required this.stripFirstGlobalIndex,
+    required this.stripVisibleCount,
+  });
 
   final int globalDayIndex;
+  final double barAreaHeight;
+  final int stripFirstGlobalIndex;
+  final int stripVisibleCount;
+
+  int? _firstVisibleColumnInWeek(DateTime monday) {
+    int? minColumn;
+    for (var i = 0; i < stripVisibleCount; i++) {
+      final visibleDay = weekScheduleDayFromGlobalIndex(
+        stripFirstGlobalIndex + i,
+      );
+      if (AppDateTime.localMondayOfWeek(visibleDay) != monday) continue;
+      final column = AppDateTime.weekdayOffsetFromMonday(visibleDay).clamp(0, 6);
+      minColumn = minColumn == null ? column : math.min(minColumn, column);
+    }
+    return minColumn;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final day = weekScheduleDayFromGlobalIndex(globalDayIndex);
-    final asyncEntries = ref.watch(filteredCalendarEntriesForDayProvider(day));
-    final entries = asyncEntries.value ?? const <CalendarEntry>[];
-    final labels = distinctBreakNames(entries);
+    final monday = AppDateTime.localMondayOfWeek(day);
+    final columnIndex = AppDateTime.weekdayOffsetFromMonday(day).clamp(0, 6);
+    final weekDays = List<DateTime>.generate(
+      7,
+      (index) => AppDateTime.addLocalCalendarDays(monday, index),
+    );
+    final entriesByDay = weekDays
+        .map(
+          (weekDay) =>
+              ref.watch(filteredCalendarEntriesForDayProvider(weekDay)).value ??
+              const <CalendarEntry>[],
+        )
+        .toList(growable: false);
+    final layout = layoutWeekAllDayBreaks(entriesByDay: entriesByDay);
     final borderColor = Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFFFFFFFF).withValues(alpha: 0.15)
         : Theme.of(context).colorScheme.outline.withValues(alpha: 0.20);
     return WeekAllDayBreakCell(
-      labels: labels,
-      columnIndex: 0,
+      day: day,
+      layout: layout,
+      columnIndex: columnIndex,
       columnCount: 1,
       borderColor: borderColor,
+      sectionHeight: barAreaHeight,
+      firstVisibleColumnInWeek: _firstVisibleColumnInWeek(monday),
     );
   }
 }
@@ -1091,7 +1133,6 @@ class WeekScheduleSeamlessDayTile extends ConsumerWidget {
     final totalHeight = bounds.heightForHourHeight(hourHeight);
 
     final safeColumnIndex = columnIndex.clamp(0, 6);
-    final allDayLabels = distinctBreakNames(entries);
     final targetAllDayRowHeight = showAllDayRow
         ? allDayRowHeight.clamp(0.0, listCrossExtent)
         : 0.0;
@@ -1114,12 +1155,6 @@ class WeekScheduleSeamlessDayTile extends ConsumerWidget {
               0.0,
               listCrossExtent - animatedAllDayRowHeight,
             );
-            final maxVisibleLabels = weekAllDayVisibleLabelLimit(
-              animatedAllDayRowHeight,
-            );
-            final borderColor = Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xFFFFFFFF).withValues(alpha: 0.15)
-                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.20);
             return Stack(
               fit: StackFit.expand,
               children: [
@@ -1167,13 +1202,7 @@ class WeekScheduleSeamlessDayTile extends ConsumerWidget {
                             ? 0
                             : (animatedAllDayRowHeight / targetAllDayRowHeight)
                                   .clamp(0, 1),
-                        child: WeekAllDayBreakCell(
-                          labels: allDayLabels,
-                          maxVisibleLabels: maxVisibleLabels,
-                          columnIndex: 0,
-                          columnCount: 1,
-                          borderColor: borderColor,
-                        ),
+                        child: const SizedBox.shrink(),
                       ),
                     ),
                   ),

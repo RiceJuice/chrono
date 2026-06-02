@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
+import '../../../data/calendar_image_prefetch.dart';
 import '../../../domain/models/calendar_entry.dart';
 import '../../providers/calendar_providers.dart';
 import 'calendar_break_tile.dart';
@@ -189,6 +190,8 @@ class _DayPageState extends ConsumerState<DayPage> {
             ],
           );
         }
+        CalendarImagePrefetch.prefetchEntries(regularEntries);
+
         final isToday = AppDateTime.isTodayLocal(widget.date);
         final nowAnchorEntryIndex = isToday
             ? _entryIndexForNowAnchor(regularEntries)

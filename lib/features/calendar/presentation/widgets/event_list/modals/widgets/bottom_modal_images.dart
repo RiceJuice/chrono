@@ -1,12 +1,13 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/features/calendar/data/calendar_image_cache_key.dart';
+import 'package:chronoapp/features/calendar/data/calendar_image_cache_manager.dart';
+import 'package:chronoapp/features/calendar/data/calendar_images.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
-import 'package:chronoapp/features/calendar/data/calendar_image_url_resolver.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart'
     show BottomModalHandle;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Layout der Bildleiste im Detail-Sheet.
 enum BottomModalImagesLayout {
@@ -58,16 +59,15 @@ int _knownImageCount(CalendarEntry entry) {
 }
 
 class _BottomModalImagesState extends State<BottomModalImages> {
-  static final CalendarImageUrlResolver _imageUrlResolver =
-      CalendarImageUrlResolver(supabase: Supabase.instance.client);
-  late Future<List<String>> _imageUrlsFuture;
+  List<String>? _immediateImageUrls;
+  Future<List<String>>? _imageUrlsFuture;
 
   bool get _singleLayout => widget.layout == BottomModalImagesLayout.single;
 
   @override
   void initState() {
     super.initState();
-    _imageUrlsFuture = _resolveImageUrls(widget.entry);
+    _syncImageUrls();
   }
 
   @override
@@ -76,8 +76,35 @@ class _BottomModalImagesState extends State<BottomModalImages> {
     if (oldWidget.entry.id != widget.entry.id ||
         !listEquals(oldWidget.entry.imageUrls, widget.entry.imageUrls) ||
         !listEquals(oldWidget.entry.imagePaths, widget.entry.imagePaths)) {
-      _imageUrlsFuture = _resolveImageUrls(widget.entry);
+      _syncImageUrls();
     }
+  }
+
+  void _syncImageUrls() {
+    final entry = widget.entry;
+    final existingUrls = entry.imageUrls;
+    if (existingUrls != null && existingUrls.isNotEmpty) {
+      _immediateImageUrls = existingUrls;
+      _imageUrlsFuture = null;
+      return;
+    }
+
+    final imagePaths = entry.imagePaths;
+    if (imagePaths == null || imagePaths.isEmpty) {
+      _immediateImageUrls = const <String>[];
+      _imageUrlsFuture = null;
+      return;
+    }
+
+    final peeked = CalendarImages.urlResolver.peekResolvedUrls(imagePaths);
+    if (peeked != null) {
+      _immediateImageUrls = peeked;
+      _imageUrlsFuture = null;
+      return;
+    }
+
+    _immediateImageUrls = null;
+    _imageUrlsFuture = _resolveImageUrls(entry);
   }
 
   Future<List<String>> _resolveImageUrls(CalendarEntry entry) async {
@@ -86,16 +113,8 @@ class _BottomModalImagesState extends State<BottomModalImages> {
 
     final imagePaths = entry.imagePaths;
     if (imagePaths == null || imagePaths.isEmpty) return const <String>[];
-    return await _imageUrlResolver.resolveSignedUrls(imagePaths) ??
+    return await CalendarImages.urlResolver.resolveSignedUrls(imagePaths) ??
         const <String>[];
-  }
-
-  String _cacheKeyForImage(int index, String imageUrl) {
-    final paths = widget.entry.imagePaths;
-    final sourceKey = (paths != null && paths.length > index)
-        ? paths[index]
-        : imageUrl;
-    return 'calendar-modal-${widget.entry.id}-$index-$sourceKey';
   }
 
   int _carouselLoadingPlaceholderCount() {
@@ -168,7 +187,12 @@ class _BottomModalImagesState extends State<BottomModalImages> {
               aspectRatio: 1.5,
               child: CachedNetworkImage(
                 imageUrl: imageUrls[index],
-                cacheKey: _cacheKeyForImage(index, imageUrls[index]),
+                cacheKey: calendarEventImageCacheKey(
+                  entryId: widget.entry.id,
+                  imageIndex: index,
+                  entry: widget.entry,
+                ),
+                cacheManager: CalendarImageCacheManager.instance,
                 fit: BoxFit.cover,
                 fadeInDuration: Duration.zero,
                 fadeOutDuration: Duration.zero,
@@ -220,7 +244,12 @@ class _BottomModalImagesState extends State<BottomModalImages> {
       backgroundColor: imagePanelBg,
       child: CachedNetworkImage(
         imageUrl: imageUrl,
-        cacheKey: _cacheKeyForImage(0, imageUrl),
+        cacheKey: calendarEventImageCacheKey(
+          entryId: widget.entry.id,
+          imageIndex: 0,
+          entry: widget.entry,
+        ),
+        cacheManager: CalendarImageCacheManager.instance,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
@@ -238,48 +267,68 @@ class _BottomModalImagesState extends State<BottomModalImages> {
   @override
   Widget build(BuildContext context) {
     final imagePanelBg = Theme.of(context).colorScheme.surface;
+    final immediateUrls = _immediateImageUrls;
+    if (immediateUrls != null) {
+      return _buildPanel(
+        imagePanelBg: imagePanelBg,
+        isLoading: false,
+        hasError: false,
+        imageUrls: immediateUrls,
+      );
+    }
+
     return FutureBuilder<List<String>>(
       future: _imageUrlsFuture,
       builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState != ConnectionState.done;
-        final imageUrls = snapshot.data ?? const <String>[];
-        final hasError = snapshot.hasError;
-
-        final content = _singleLayout
-            ? _buildSingleImageContent(
-                isLoading: isLoading,
-                hasError: hasError,
-                imageUrls: imageUrls,
-                imagePanelBg: imagePanelBg,
-              )
-            : _buildCarouselContent(
-                isLoading: isLoading,
-                hasError: hasError,
-                imageUrls: imageUrls,
-                imagePanelBg: imagePanelBg,
-              );
-
-        final panel = Stack(
-          children: [
-            SizedBox(
-              height: _kModalDetailPanelHeight,
-              width: double.infinity,
-              child: ColoredBox(color: imagePanelBg, child: content),
-            ),
-            const BottomModalHandle(),
-          ],
+        return _buildPanel(
+          imagePanelBg: imagePanelBg,
+          isLoading: snapshot.connectionState != ConnectionState.done,
+          hasError: snapshot.hasError,
+          imageUrls: snapshot.data ?? const <String>[],
         );
-
-        return widget.clipTopCorners
-            ? ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadius.sheet),
-                ),
-                child: panel,
-              )
-            : panel;
       },
     );
+  }
+
+  Widget _buildPanel({
+    required Color imagePanelBg,
+    required bool isLoading,
+    required bool hasError,
+    required List<String> imageUrls,
+  }) {
+    final content = _singleLayout
+        ? _buildSingleImageContent(
+            isLoading: isLoading,
+            hasError: hasError,
+            imageUrls: imageUrls,
+            imagePanelBg: imagePanelBg,
+          )
+        : _buildCarouselContent(
+            isLoading: isLoading,
+            hasError: hasError,
+            imageUrls: imageUrls,
+            imagePanelBg: imagePanelBg,
+          );
+
+    final panel = Stack(
+      children: [
+        SizedBox(
+          height: _kModalDetailPanelHeight,
+          width: double.infinity,
+          child: ColoredBox(color: imagePanelBg, child: content),
+        ),
+        const BottomModalHandle(),
+      ],
+    );
+
+    return widget.clipTopCorners
+        ? ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadius.sheet),
+            ),
+            child: panel,
+          )
+        : panel;
   }
 }
 

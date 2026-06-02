@@ -3,6 +3,8 @@ import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
 import 'package:chronoapp/features/login/domain/models/login_flow_step.dart';
 import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
+import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
+import 'package:chronoapp/features/settings/presentation/providers/settings_profile_providers.dart';
 import 'package:chronoapp/features/login/presentation/providers/login_step_scaffold.dart';
 import 'package:chronoapp/features/login/presentation/utils/login_form_validation.dart';
 import 'package:chronoapp/features/login/presentation/widgets/buttons.dart';
@@ -73,6 +75,8 @@ class _SettingsEditPersonalDataPageState
             firstName: _firstNameController.text.trim(),
             lastName: _lastNameController.text.trim(),
           );
+      await ref.read(profileGateProvider).refresh();
+      ref.invalidate(syncedProfileProvider);
       if (!mounted) return;
       Navigator.of(context).pop();
     } on AuthRepositoryException catch (e) {

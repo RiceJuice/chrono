@@ -1,17 +1,14 @@
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/calendar_card_image_strip.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/calendar_entry_cached_image.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
-import '../../../../data/calendar_image_url_resolver.dart';
 import '../../../../domain/models/calendar_entry.dart';
 import 'calendar_card_style_resolver.dart';
 import 'calendar_entry_temporal_state.dart';
@@ -49,47 +46,6 @@ class _EventCardState extends State<EventCard> {
     applyHeightToFirstAscent: false,
     applyHeightToLastDescent: false,
   );
-
-  static final CalendarImageUrlResolver _imageUrlResolver =
-      CalendarImageUrlResolver(supabase: Supabase.instance.client);
-  late Future<String?> _firstImageUrlFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _firstImageUrlFuture = _resolveFirstImageUrl(widget.entry);
-  }
-
-  @override
-  void didUpdateWidget(covariant EventCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.entry.id != widget.entry.id ||
-        !listEquals(oldWidget.entry.imageUrls, widget.entry.imageUrls) ||
-        !listEquals(oldWidget.entry.imagePaths, widget.entry.imagePaths)) {
-      _firstImageUrlFuture = _resolveFirstImageUrl(widget.entry);
-    }
-  }
-
-  Future<String?> _resolveFirstImageUrl(CalendarEntry entry) async {
-    final existingUrls = entry.imageUrls;
-    if (existingUrls != null && existingUrls.isNotEmpty) {
-      return existingUrls.first;
-    }
-    final imagePaths = entry.imagePaths;
-    if (imagePaths == null || imagePaths.isEmpty) return null;
-    final resolvedUrls = await _imageUrlResolver.resolveSignedUrls(imagePaths);
-    if (resolvedUrls == null || resolvedUrls.isEmpty) return null;
-    return resolvedUrls.first;
-  }
-
-  String _thumbnailCacheKey(CalendarEntry entry) {
-    final sourceKey = (entry.imagePaths != null && entry.imagePaths!.isNotEmpty)
-        ? entry.imagePaths!.first
-        : (entry.imageUrls != null && entry.imageUrls!.isNotEmpty)
-        ? entry.imageUrls!.first
-        : 'no-image';
-    return 'calendar-thumb-${entry.id}-$sourceKey';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -281,47 +237,10 @@ class _EventCardState extends State<EventCard> {
                                       alpha: style.imageOverlayOpacity,
                                     )
                                   : null,
-                              image: FutureBuilder<String?>(
-                                future: _firstImageUrlFuture,
-                                builder: (context, snapshot) {
-                                  final url = snapshot.data;
-
-                                  if (url == null &&
-                                      snapshot.connectionState ==
-                                          ConnectionState.done) {
-                                    return ColoredBox(
-                                      color: scheme.surfaceContainerHighest,
-                                      child: const Center(
-                                        child: Icon(Icons.broken_image),
-                                      ),
-                                    );
-                                  }
-
-                                  if (url == null) {
-                                    return ColoredBox(
-                                      color: scheme.surfaceContainerHighest,
-                                    );
-                                  }
-
-                                  return CachedNetworkImage(
-                                    imageUrl: url,
-                                    cacheKey: _thumbnailCacheKey(entry),
-                                    fit: BoxFit.cover,
-                                    fadeInDuration: Duration.zero,
-                                    fadeOutDuration: Duration.zero,
-                                    placeholder: (context, _) => ColoredBox(
-                                      color: scheme.surfaceContainerHighest,
-                                    ),
-                                    errorWidget: (context, _, error) {
-                                      return ColoredBox(
-                                        color: scheme.surfaceContainerHighest,
-                                        child: const Center(
-                                          child: Icon(Icons.broken_image),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
+                              image: CalendarEntryCachedImage(
+                                entry: entry,
+                                placeholderColor:
+                                    scheme.surfaceContainerHighest,
                               ),
                             ),
                         ],

@@ -4,7 +4,9 @@ import 'dart:math' as math;
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/calendar_break_tile.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_all_day_break_bar.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_all_day_break_layout.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_all_day_day_label.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/calendar_entry_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_layout.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_timeline.dart';
@@ -199,93 +201,251 @@ class WeekEntriesLayer extends StatelessWidget {
 
 class WeekAllDayBreakRow extends StatelessWidget {
   const WeekAllDayBreakRow({
+    required this.weekDays,
     required this.entriesByDay,
     required this.showTimelineColumn,
+    required this.sectionHeight,
     super.key,
   });
 
+  final List<DateTime> weekDays;
   final List<List<CalendarEntry>> entriesByDay;
   final bool showTimelineColumn;
+  final double sectionHeight;
 
   @override
   Widget build(BuildContext context) {
-    final breakNamesByDay = entriesByDay
-        .map(distinctBreakNames)
-        .toList(growable: false);
-    final hasAnyBreaks = breakNamesByDay.any((names) => names.isNotEmpty);
-    if (!hasAnyBreaks) {
-      return const SizedBox.shrink();
-    }
-
-    final maxLines = breakNamesByDay.fold<int>(
-      0,
-      (max, names) => math.max(max, names.length),
+    final layout = layoutWeekAllDayBreaks(entriesByDay: entriesByDay);
+    final barHeight = math.max(
+      0.0,
+      sectionHeight - kWeekAllDayDayLabelHeight,
     );
-    final rowHeight = weekAllDayRowHeight(maxLines);
     final scheme = Theme.of(context).colorScheme;
     final borderColor = Theme.of(context).brightness == Brightness.dark
         ? const Color(0xFFFFFFFF).withValues(alpha: 0.15)
         : scheme.outline.withValues(alpha: 0.20);
 
     return SizedBox(
-      height: rowHeight,
-      child: Row(
+      height: sectionHeight,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (showTimelineColumn)
-            SizedBox(
-              width: kCalendarTimelineGutterWidth,
-              child: Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 4, right: 8),
-                  child: Text(
-                    'Ganztägig',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurface.withValues(alpha: 0.65),
-                      height: 1.1,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showTimelineColumn)
+                const SizedBox(width: kCalendarTimelineGutterWidth),
+              Expanded(
+                child: WeekAllDayDayLabelsRow(weekDays: weekDays),
+              ),
+            ],
+          ),
+          SizedBox(
+            height: barHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showTimelineColumn)
+                  SizedBox(
+                    width: kCalendarTimelineGutterWidth,
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4, right: 8),
+                        child: Text(
+                          'Ganztägig',
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: scheme.onSurface.withValues(
+                                      alpha: 0.65,
+                                    ),
+                                    height: 1.1,
+                                  ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-          Expanded(
-            child: Row(
-              children: List.generate(7, (columnIndex) {
-                final breakNames = breakNamesByDay[columnIndex];
-                return Expanded(
-                  child: WeekAllDayBreakCell(
-                    labels: breakNames,
-                    columnIndex: columnIndex,
+                Expanded(
+                  child: WeekAllDayBreakSpanLayer(
+                    layout: layout,
                     columnCount: 7,
                     borderColor: borderColor,
+                    sectionHeight: barHeight,
                   ),
-                );
-              }),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
-
 }
 
-class WeekAllDayBreakCell extends StatelessWidget {
-  const WeekAllDayBreakCell({
-    required this.labels,
-    required this.columnIndex,
+/// Raster-Hintergrund (Spaltentrenner) plus mehrtägige Ganztags-Balken.
+class WeekAllDayBreakSpanLayer extends StatelessWidget {
+  const WeekAllDayBreakSpanLayer({
+    required this.layout,
     required this.columnCount,
     required this.borderColor,
-    this.maxVisibleLabels,
+    this.maxVisibleLanes,
+    this.sectionHeight,
     super.key,
   });
 
-  final List<String> labels;
+  final WeekAllDayBreakLayout layout;
+  final int columnCount;
+  final Color borderColor;
+  final int? maxVisibleLanes;
+  final double? sectionHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final barHeight = sectionHeight ?? constraints.maxHeight;
+        final laneLimit = maxVisibleLanes ??
+            weekAllDayVisibleLaneLimit(barHeight + kWeekAllDayDayLabelHeight);
+        final visibleSpans = layout.spans
+            .where((span) => span.lane < laneLimit)
+            .toList(growable: false);
+        final columnWidth = constraints.maxWidth / columnCount;
+        const horizontalInset = 1.5;
+
+        return Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: List.generate(columnCount, (columnIndex) {
+                return Expanded(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        left: AppHairlineDivider.borderSide(
+                          context,
+                          borderColor,
+                        ),
+                        right: columnIndex == columnCount - 1
+                            ? AppHairlineDivider.borderSide(
+                                context,
+                                borderColor,
+                              )
+                            : BorderSide.none,
+                        bottom: AppHairlineDivider.borderSide(
+                          context,
+                          borderColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            for (final span in visibleSpans) ...[
+              Positioned(
+                left: span.startColumn * columnWidth + horizontalInset,
+                width:
+                    (span.endColumn - span.startColumn + 1) * columnWidth -
+                    horizontalInset * 2,
+                top:
+                    kWeekAllDayRowVerticalPadding / 2 +
+                    span.lane * (kWeekAllDayLaneHeight + kWeekAllDayLaneGap),
+                height: kWeekAllDayLaneHeight,
+                child: WeekAllDayBreakBar(
+                  label: span.label,
+                  segment: WeekAllDayBreakBarSegment.single,
+                  showLabel: false,
+                ),
+              ),
+              Positioned(
+                left: span.startColumn * columnWidth + horizontalInset,
+                width: columnWidth - horizontalInset * 2,
+                top:
+                    kWeekAllDayRowVerticalPadding / 2 +
+                    span.lane * (kWeekAllDayLaneHeight + kWeekAllDayLaneGap),
+                height: kWeekAllDayLaneHeight,
+                child: WeekAllDayBreakBar(
+                  label: span.label,
+                  segment: WeekAllDayBreakBarSegment.start,
+                  showLabel: true,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Ganztags-Zelle für eine einzelne Tages-Spalte (Handy-Streifen).
+class WeekAllDayBreakCell extends StatelessWidget {
+  const WeekAllDayBreakCell({
+    required this.day,
+    required this.layout,
+    required this.columnIndex,
+    required this.columnCount,
+    required this.borderColor,
+    this.maxVisibleLanes,
+    this.sectionHeight,
+    this.firstVisibleColumnInWeek,
+    super.key,
+  });
+
+  final DateTime day;
+  final WeekAllDayBreakLayout layout;
   final int columnIndex;
   final int columnCount;
   final Color borderColor;
-  final int? maxVisibleLabels;
+  final int? maxVisibleLanes;
+  final double? sectionHeight;
+  final int? firstVisibleColumnInWeek;
+
+  @override
+  Widget build(BuildContext context) {
+    final spans = layout.spansForColumn(columnIndex);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        WeekAllDayDayLabel(day: day, compact: columnCount == 1),
+        Expanded(
+          child: _WeekAllDayBreakCellBody(
+            layout: layout,
+            columnIndex: columnIndex,
+            columnCount: columnCount,
+            borderColor: borderColor,
+            spans: spans,
+            maxVisibleLanes: maxVisibleLanes,
+            sectionHeight: sectionHeight,
+            firstVisibleColumnInWeek: firstVisibleColumnInWeek,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WeekAllDayBreakCellBody extends StatelessWidget {
+  const _WeekAllDayBreakCellBody({
+    required this.layout,
+    required this.columnIndex,
+    required this.columnCount,
+    required this.borderColor,
+    required this.spans,
+    this.maxVisibleLanes,
+    this.sectionHeight,
+    this.firstVisibleColumnInWeek,
+  });
+
+  final WeekAllDayBreakLayout layout;
+  final int columnIndex;
+  final int columnCount;
+  final Color borderColor;
+  final List<WeekAllDayBreakSpan> spans;
+  final int? maxVisibleLanes;
+  final double? sectionHeight;
+  final int? firstVisibleColumnInWeek;
 
   @override
   Widget build(BuildContext context) {
@@ -301,57 +461,57 @@ class WeekAllDayBreakCell extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final heightBasedLimit = weekAllDayVisibleLabelLimit(
-            constraints.maxHeight,
-          );
-          final effectiveLimit = maxVisibleLabels == null
-              ? heightBasedLimit
-              : math.min(maxVisibleLabels!, heightBasedLimit);
-          final visibleLabels = labels
-              .take(effectiveLimit.clamp(0, labels.length))
+          final barHeight = sectionHeight ?? constraints.maxHeight;
+          final laneLimit = maxVisibleLanes ??
+              weekAllDayVisibleLaneLimit(barHeight + kWeekAllDayDayLabelHeight);
+          final visibleSpans = spans
+              .where((span) => span.lane < laneLimit)
               .toList(growable: false);
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(2, 4, 2, 2),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final label in visibleLabels)
-                  CalendarBreakTile(
-                    label: label,
-                    compact: true,
-                    centered: true,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
+
+          return Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              for (final span in visibleSpans) ...[
+                Positioned(
+                  left: 2,
+                  right: 2,
+                  top:
+                      kWeekAllDayRowVerticalPadding / 2 +
+                      span.lane * (kWeekAllDayLaneHeight + kWeekAllDayLaneGap),
+                  height: kWeekAllDayLaneHeight,
+                  child: WeekAllDayBreakBar(
+                    label: span.label,
+                    segment: columnCount == 1
+                        ? WeekAllDayBreakBarSegment.single
+                        : span.segmentAt(columnIndex),
+                    showLabel: false,
+                  ),
+                ),
+                if (span.shouldShowLabelAtColumn(
+                  columnIndex,
+                  firstVisibleColumnInWeek: firstVisibleColumnInWeek,
+                ))
+                  Positioned(
+                    left: 2,
+                    right: 2,
+                    top:
+                        kWeekAllDayRowVerticalPadding / 2 +
+                        span.lane *
+                            (kWeekAllDayLaneHeight + kWeekAllDayLaneGap),
+                    height: kWeekAllDayLaneHeight,
+                    child: WeekAllDayBreakBar(
+                      label: span.label,
+                      segment: WeekAllDayBreakBarSegment.single,
+                      showLabel: true,
+                    ),
                   ),
               ],
-            ),
+            ],
           );
         },
       ),
     );
   }
-}
-
-List<String> distinctBreakNames(List<CalendarEntry> entries) {
-  final names = <String>[];
-  for (final entry in entries) {
-    if (entry.type != CalendarEntryType.breakType) continue;
-    final trimmed = entry.eventName.trim();
-    if (trimmed.isEmpty || names.contains(trimmed)) continue;
-    names.add(trimmed);
-  }
-  return names;
-}
-
-double weekAllDayRowHeight(int maxLineCount) {
-  if (maxLineCount <= 0) return 0;
-  final safeLines = math.max(1, maxLineCount);
-  return (18.0 + safeLines * 20.0).clamp(0.0, 86.0);
-}
-
-int weekAllDayVisibleLabelLimit(double rowHeight) {
-  if (rowHeight <= 18.0) return 0;
-  return ((rowHeight - 18.0) / 20.0).floor().clamp(0, 99);
 }
 
 class _WeekEntryCardFrame extends StatelessWidget {

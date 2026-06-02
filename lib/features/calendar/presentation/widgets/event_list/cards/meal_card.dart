@@ -1,5 +1,5 @@
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/calendar_card_image_strip.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/calendar_meal_card_image_strip.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
@@ -113,7 +113,7 @@ class MealCard extends ConsumerWidget {
                     ),
                     child: IntrinsicHeight(
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Padding(
@@ -131,19 +131,19 @@ class MealCard extends ConsumerWidget {
                               ),
                             ),
                           ),
-                          if (entry.imageUrls != null &&
-                              entry.imageUrls!.isNotEmpty)
-                            CalendarCardImageStrip(
+                          if ((entry.imageUrls?.isNotEmpty ?? false) ||
+                              (entry.imagePaths?.isNotEmpty ?? false))
+                            CalendarMealCardImageStrip(
+                              entry: entry,
+                              placeholderColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
                               overlayColor: style.imageOverlayOpacity > 0
                                   ? Theme.of(context).colorScheme.surface
                                       .withValues(
                                         alpha: style.imageOverlayOpacity,
                                       )
                                   : null,
-                              image: Image.network(
-                                entry.imageUrls![0],
-                                fit: BoxFit.cover,
-                              ),
                             ),
                         ],
                       ),

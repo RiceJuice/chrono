@@ -1,19 +1,49 @@
 import 'package:powersync/powersync.dart';
 import 'package:sqlite3/common.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/database/powersync_schema.dart';
 import 'models/profile_snapshot.dart';
 
+class _ProfileRowBundle {
+  const _ProfileRowBundle({required this.snapshot, this.updatedAt});
+
+  final ProfileSnapshot snapshot;
+  final DateTime? updatedAt;
+}
+
+/// Liest das Profil aus PowerSync und ergänzt bei Bedarf per Supabase, solange
+/// der lokale Sync nach Onboarding/Profil-Updates noch hinterherhinkt.
 class SettingsProfileRepository {
-  SettingsProfileRepository(this._db);
+  SettingsProfileRepository(
+    this._db, {
+    SupabaseClient? supabase,
+  }) : _supabase = supabase ?? Supabase.instance.client;
+
+  static const Duration _remoteFetchTimeout = Duration(seconds: 2);
 
   final PowerSyncDatabase _db;
+  final SupabaseClient _supabase;
 
-  Stream<ProfileSnapshot?> watchProfileByUserId(String userId) {
+  _ProfileRowBundle? _cachedRemote;
+
+  Stream<ProfileSnapshot?> watchProfileByUserId(String userId) async* {
+    _cachedRemote = null;
+
+    await for (final local in _watchLocalBundles(userId)) {
+      if (_shouldFetchRemote(local?.snapshot)) {
+        _cachedRemote = await _fetchRemoteBundle(userId);
+      }
+      yield _mergeBundles(local, _cachedRemote)?.snapshot;
+    }
+  }
+
+  Stream<_ProfileRowBundle?> _watchLocalBundles(String userId) {
     return _db
         .watch(
           '''
-          SELECT first_name, last_name, class_name, schooltrack, voice, role, choir, diet
+          SELECT first_name, last_name, class_name, schooltrack, voice, role, choir, diet,
+                 updated_at
           FROM $kProfilesTable
           WHERE id = ?
           LIMIT 1
@@ -21,13 +51,39 @@ class SettingsProfileRepository {
           parameters: [userId],
           triggerOnTables: const {kProfilesTable},
         )
-        .map(_mapFirstRowOrNull);
+        .map(_mapFirstRowBundleOrNull);
   }
 
-  ProfileSnapshot? _mapFirstRowOrNull(ResultSet rows) {
+  bool _shouldFetchRemote(ProfileSnapshot? local) {
+    if (_cachedRemote == null) return true;
+    if (local == null) return true;
+    return _isProfileEmpty(local);
+  }
+
+  Future<_ProfileRowBundle?> _fetchRemoteBundle(String userId) async {
+    try {
+      final row = await _supabase
+          .from('profiles')
+          .select(
+            'first_name, last_name, class_name, schooltrack, voice, role, choir, diet, updated_at',
+          )
+          .eq('id', userId)
+          .maybeSingle()
+          .timeout(_remoteFetchTimeout);
+      if (row == null) return null;
+      return _mapRowBundle(Map<String, dynamic>.from(row));
+    } catch (_) {
+      return _cachedRemote;
+    }
+  }
+
+  _ProfileRowBundle? _mapFirstRowBundleOrNull(ResultSet rows) {
     if (rows.isEmpty) return null;
-    final row = rows.first;
-    return ProfileSnapshot(
+    return _mapRowBundle(Map<String, dynamic>.from(rows.first));
+  }
+
+  _ProfileRowBundle? _mapRowBundle(Map<String, dynamic> row) {
+    final snapshot = ProfileSnapshot(
       firstName: _asString(row['first_name']),
       lastName: _asString(row['last_name']),
       className: _asString(row['class_name']),
@@ -37,11 +93,79 @@ class SettingsProfileRepository {
       choir: _asString(row['choir']),
       diet: _asString(row['diet']),
     );
+    if (_isProfileEmpty(snapshot)) return null;
+    return _ProfileRowBundle(
+      snapshot: snapshot,
+      updatedAt: _asDateTime(row['updated_at']),
+    );
+  }
+
+  _ProfileRowBundle? _mergeBundles(
+    _ProfileRowBundle? local,
+    _ProfileRowBundle? remote,
+  ) {
+    if (local == null) return remote;
+    if (remote == null) return local;
+
+    final localUpdated = local.updatedAt;
+    final remoteUpdated = remote.updatedAt;
+    if (remoteUpdated != null &&
+        (localUpdated == null || remoteUpdated.isAfter(localUpdated))) {
+      return remote;
+    }
+    if (_isProfileEmpty(local.snapshot)) {
+      return _ProfileRowBundle(
+        snapshot: _coalesceSnapshots(local.snapshot, remote.snapshot),
+        updatedAt: remoteUpdated ?? localUpdated,
+      );
+    }
+    return local;
+  }
+
+  ProfileSnapshot _coalesceSnapshots(
+    ProfileSnapshot local,
+    ProfileSnapshot remote,
+  ) {
+    return ProfileSnapshot(
+      firstName: _coalesceField(local.firstName, remote.firstName),
+      lastName: _coalesceField(local.lastName, remote.lastName),
+      className: _coalesceField(local.className, remote.className),
+      schoolTrack: _coalesceField(local.schoolTrack, remote.schoolTrack),
+      voice: _coalesceField(local.voice, remote.voice),
+      role: _coalesceField(local.role, remote.role),
+      choir: _coalesceField(local.choir, remote.choir),
+      diet: _coalesceField(local.diet, remote.diet),
+    );
+  }
+
+  String? _coalesceField(String? local, String? remote) {
+    if ((local ?? '').trim().isNotEmpty) return local!.trim();
+    if ((remote ?? '').trim().isNotEmpty) return remote!.trim();
+    return null;
+  }
+
+  bool _isProfileEmpty(ProfileSnapshot profile) {
+    return [
+      profile.firstName,
+      profile.lastName,
+      profile.className,
+      profile.schoolTrack,
+      profile.voice,
+      profile.role,
+      profile.choir,
+      profile.diet,
+    ].every((value) => (value ?? '').trim().isEmpty);
   }
 
   String? _asString(Object? value) {
     if (value == null) return null;
     final text = value.toString().trim();
     return text.isEmpty ? null : text;
+  }
+
+  DateTime? _asDateTime(Object? value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
   }
 }

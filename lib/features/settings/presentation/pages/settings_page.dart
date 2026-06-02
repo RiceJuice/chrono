@@ -6,6 +6,7 @@ import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/search/search_filters_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
+import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
 import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
@@ -348,6 +349,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             role: role,
             choir: choir,
           );
+      await ref.read(profileGateProvider).refresh();
+      ref.invalidate(syncedProfileProvider);
       ref
           .read(calendarFiltersProvider.notifier)
           .applyProfileFilterChanges(

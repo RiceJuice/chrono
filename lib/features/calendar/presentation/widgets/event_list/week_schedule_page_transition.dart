@@ -1,9 +1,11 @@
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_all_day_section_metrics.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_grid.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list_page_transition.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class WeekSchedulePageTransition extends StatelessWidget {
+class WeekSchedulePageTransition extends ConsumerWidget {
   const WeekSchedulePageTransition({
     super.key,
     required this.fromMonday,
@@ -18,8 +20,14 @@ class WeekSchedulePageTransition extends StatelessWidget {
   final Animation<double> animation;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final hourHeight = weekScheduleHourHeightFor(context);
+    final allDaySectionHeight = resolveWeekAllDaySectionHeight(
+      ref,
+      focusMonday: fromMonday,
+      transitionFromMonday: fromMonday,
+      transitionToMonday: toMonday,
+    );
 
     return DayContentSlideTransition(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -30,12 +38,14 @@ class WeekSchedulePageTransition extends StatelessWidget {
         monday: fromMonday,
         showTimelineColumn: false,
         hourHeight: hourHeight,
+        allDaySectionHeight: allDaySectionHeight,
       ),
       incoming: WeekScheduleGrid(
         key: ValueKey<String>('to-$toMonday'),
         monday: toMonday,
         showTimelineColumn: false,
         hourHeight: hourHeight,
+        allDaySectionHeight: allDaySectionHeight,
       ),
     );
   }

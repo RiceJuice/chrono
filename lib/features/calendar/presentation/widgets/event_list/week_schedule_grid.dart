@@ -1,6 +1,7 @@
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_all_day_break_layout.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_day_columns.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_layout.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_timeline.dart';
@@ -13,12 +14,14 @@ class WeekScheduleGrid extends ConsumerWidget {
     required this.monday,
     this.showTimelineColumn = true,
     this.hourHeight,
+    this.allDaySectionHeight,
     super.key,
   });
 
   final DateTime monday;
   final bool showTimelineColumn;
   final double? hourHeight;
+  final double? allDaySectionHeight;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,16 +60,18 @@ class WeekScheduleGrid extends ConsumerWidget {
 
     final totalHeight = bounds.heightForHourHeight(resolvedHourHeight);
 
+    final resolvedAllDayHeight = allDaySectionHeight ??
+        weekAllDaySectionHeight(
+          layoutWeekAllDayBreaks(entriesByDay: entriesByDay).laneCount,
+        );
+
     return Column(
       children: [
-        AnimatedSize(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: WeekAllDayBreakRow(
-            entriesByDay: entriesByDay,
-            showTimelineColumn: showTimelineColumn,
-          ),
+        WeekAllDayBreakRow(
+          weekDays: weekDays,
+          entriesByDay: entriesByDay,
+          showTimelineColumn: showTimelineColumn,
+          sectionHeight: resolvedAllDayHeight,
         ),
         Expanded(
           child: SingleChildScrollView(
