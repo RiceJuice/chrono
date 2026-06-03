@@ -1,4 +1,5 @@
 import 'package:cupertino_native_better/cupertino_native_better.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -20,6 +21,7 @@ class AppGlassIconButton extends StatelessWidget {
     this.materialBackgroundColor,
     this.glassEffectUnionId,
     this.glassEffectId,
+    this.preferMaterial = false,
   });
 
   final IconData icon;
@@ -40,6 +42,9 @@ class AppGlassIconButton extends StatelessWidget {
   /// Optional: Glass-Morph-ID (iOS 26+).
   final String? glassEffectId;
 
+  /// Material-Kreis statt nativem Glass — zuverlässigere Taps in Modals.
+  final bool preferMaterial;
+
   static bool _useNativeGlass() {
     final isApple =
         defaultTargetPlatform == TargetPlatform.iOS ||
@@ -52,6 +57,14 @@ class AppGlassIconButton extends StatelessWidget {
   /// Icon für Akzent-/Farbeinstellungen auf Glass-Buttons.
   static const IconData accentColorIcon = Icons.brush_outlined;
 
+  /// Anhang / Foto (SF Symbol [photo.badge.plus], Cupertino-Fallback).
+  static const IconData attachMediaIcon = Icons.photo_outlined;
+
+  static bool _isAttachMediaIcon(IconData icon) =>
+      icon == attachMediaIcon ||
+      icon == Icons.add_photo_alternate_outlined ||
+      icon == Icons.add_photo_alternate;
+
   static CNSymbol? _sfSymbolFor(IconData icon, double size, Color color) {
     final visualSize = _visualIconSize(size);
     if (icon == Icons.close) {
@@ -63,7 +76,26 @@ class AppGlassIconButton extends StatelessWidget {
     if (icon == accentColorIcon || icon == Icons.brush) {
       return CNSymbol('paintbrush', size: visualSize, color: color);
     }
+    if (_isAttachMediaIcon(icon)) {
+      return CNSymbol('photo.badge.plus', size: visualSize, color: color);
+    }
     return null;
+  }
+
+  static Widget _materialIconWidget({
+    required IconData icon,
+    required double iconSize,
+    required Color color,
+  }) {
+    final visualSize = _visualIconSize(iconSize);
+    if (_isAttachMediaIcon(icon)) {
+      return Icon(
+        CupertinoIcons.photo_on_rectangle,
+        size: visualSize,
+        color: color,
+      );
+    }
+    return Icon(icon, size: visualSize, color: color);
   }
 
   @override
@@ -72,7 +104,7 @@ class AppGlassIconButton extends StatelessWidget {
     final foreground = scheme.onSurface;
     final effectiveEnabled = enabled && onPressed != null;
 
-    final button = child != null || !_useNativeGlass()
+    final button = child != null || preferMaterial || !_useNativeGlass()
         ? _MaterialCircleIconButton(
             icon: icon,
             iconSize: iconSize,
@@ -118,13 +150,14 @@ class _NativeGlassIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canPress = enabled && onPressed != null;
     final sfSymbol = AppGlassIconButton._sfSymbolFor(icon, iconSize, tint);
 
     if (sfSymbol != null) {
       return CNButton.icon(
         icon: sfSymbol,
-        onPressed: onPressed,
-        enabled: enabled,
+        onPressed: canPress ? onPressed : null,
+        enabled: canPress,
         tint: tint,
         config: CNButtonConfig(
           style: CNButtonStyle.glass,
@@ -138,8 +171,8 @@ class _NativeGlassIconButton extends StatelessWidget {
     return CNButton.icon(
       icon: CNSymbol('xmark', size: AppGlassIconButton._visualIconSize(iconSize), color: tint),
       customIcon: icon,
-      onPressed: onPressed,
-      enabled: enabled,
+      onPressed: canPress ? onPressed : null,
+      enabled: canPress,
       tint: tint,
       config: CNButtonConfig(
         style: CNButtonStyle.glass,
@@ -182,9 +215,10 @@ class _MaterialCircleIconButton extends StatelessWidget {
         ),
         onPressed: onPressed,
         icon: child ??
-            Icon(
-              icon,
-              size: AppGlassIconButton._visualIconSize(iconSize),
+            AppGlassIconButton._materialIconWidget(
+              icon: icon,
+              iconSize: iconSize,
+              color: foregroundColor,
             ),
       ),
     );

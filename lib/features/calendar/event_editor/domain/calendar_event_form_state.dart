@@ -18,6 +18,7 @@ class CalendarEventFormState {
     this.diet = BackendDiet.unknown,
     this.seriesEdit,
     this.subjectId,
+    this.imagePaths = const <String>[],
   });
 
   String eventName;
@@ -39,7 +40,31 @@ class CalendarEventFormState {
   /// Referenz auf [subjects] — nur für Serien-Stunden relevant.
   String? subjectId;
 
+  /// Supabase-Storage-Pfade im Bucket [calendar_images].
+  final List<String> imagePaths;
+
   bool get isRecurringEntry => seriesEdit != null;
+
+  /// Mindestens eine Zielgruppe für den Termin (Chor, Stimmen, Schulzweig oder Klasse).
+  bool get hasAudienceSelection => audienceIsSet(
+        choir: choir,
+        voices: voices,
+        schoolTrack: schoolTrack,
+        className: className,
+      );
+
+  static bool audienceIsSet({
+    required BackendChoir choir,
+    required List<BackendVoice> voices,
+    required BackendSchoolTrack schoolTrack,
+    required String? className,
+  }) {
+    if (choir != BackendChoir.unknown) return true;
+    if (voices.any((v) => v != BackendVoice.unknown)) return true;
+    if (schoolTrack != BackendSchoolTrack.unknown) return true;
+    final cls = className?.trim();
+    return cls != null && cls.isNotEmpty;
+  }
 
   CalendarEventFormState copyWith({
     String? eventName,
@@ -56,6 +81,7 @@ class CalendarEventFormState {
     BackendDiet? diet,
     CalendarSeriesEditState? seriesEdit,
     String? subjectId,
+    List<String>? imagePaths,
     bool clearClassName = false,
     bool clearSeriesEdit = false,
     bool clearSubjectId = false,
@@ -75,6 +101,7 @@ class CalendarEventFormState {
       diet: diet ?? this.diet,
       seriesEdit: clearSeriesEdit ? null : (seriesEdit ?? this.seriesEdit),
       subjectId: clearSubjectId ? null : (subjectId ?? this.subjectId),
+      imagePaths: imagePaths ?? this.imagePaths,
     );
   }
 }

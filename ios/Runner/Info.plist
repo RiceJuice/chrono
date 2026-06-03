@@ -82,6 +82,10 @@
 				</array>
 			</dict>
 		</array>
+		<key>NSCameraUsageDescription</key>
+		<string>Chrono benötigt die Kamera, um Fotos für die Termin-Verarbeitung aufzunehmen.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Chrono benötigt Zugriff auf deine Fotos, um Bilder für die Termin-Verarbeitung auszuwählen.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

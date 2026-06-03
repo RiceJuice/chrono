@@ -8,6 +8,7 @@ import '../../../../core/database/powersync_schema.dart';
 import '../../../../core/time/app_date_time.dart';
 import '../../data/calendar_entry_mapper.dart';
 import '../../event_editor/data/calendar_event_recurrence_id.dart';
+import '../calendar_series_instance_cancellation.dart';
 import '../models/calendar_entry.dart';
 
 class CalendarRepository {
@@ -442,10 +443,17 @@ class CalendarRepository {
     List<CalendarEntry> expandedSeries,
   ) {
     final overrides = <String>{};
+    final visibleEvents = <CalendarEntry>[];
+
     for (final event in events) {
       final key = _seriesOverrideKey(event.seriesId, event.recurrenceId);
       if (key != null) {
         overrides.add(key);
+        if (!isCalendarSeriesInstanceCancellation(event)) {
+          visibleEvents.add(event);
+        }
+      } else {
+        visibleEvents.add(event);
       }
     }
 
@@ -457,7 +465,7 @@ class CalendarRepository {
       return key == null || !overrides.contains(key);
     });
 
-    return <CalendarEntry>[...events, ...remainingSeries];
+    return <CalendarEntry>[...visibleEvents, ...remainingSeries];
   }
 
   String? _seriesOverrideKey(String? seriesId, DateTime? recurrenceId) {

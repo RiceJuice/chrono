@@ -1,0 +1,1 @@
+-- Siehe backend/UPLOADS_STORAGE_RLS.sql (flache Uploads im Bucket-Root).

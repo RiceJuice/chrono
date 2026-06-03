@@ -23,6 +23,7 @@ class EventBasicSection extends StatelessWidget {
     required this.eventNameController,
     required this.descriptionController,
     required this.locationController,
+    this.showRequiredHints = false,
   });
 
   final CalendarEventFormState state;
@@ -30,6 +31,7 @@ class EventBasicSection extends StatelessWidget {
   final TextEditingController eventNameController;
   final TextEditingController descriptionController;
   final TextEditingController locationController;
+  final bool showRequiredHints;
 
   static List<CalendarEntryType> get typeOptions => CalendarEntryType.values;
 
@@ -43,7 +45,7 @@ class EventBasicSection extends StatelessWidget {
         EventFormIsland(
           children: [
             EventFormTextField(
-              hint: 'Terminname',
+              hint: showRequiredHints ? 'Terminname (Pflicht)' : 'Terminname',
               controller: eventNameController,
               textInputAction: TextInputAction.next,
             ),

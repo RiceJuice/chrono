@@ -195,6 +195,8 @@ class _EventCardState extends State<EventCard> {
                                     CalendarEntryLocationRow(
                                       location: trimmedLocation,
                                       subtitleColor: style.secondaryTextColor,
+                                      mutedColor: style.secondaryTextColor
+                                          .withValues(alpha: 0.58),
                                     ),
                                   ] else if (hasDescription) ...[
                                     const SizedBox(

@@ -322,6 +322,10 @@ class BackendConnector extends PowerSyncBackendConnector {
       if (data.containsKey('voices')) {
         data['voices'] = PostgresEnumArrayCodec.toSupabaseArray(data['voices']);
       }
+      if (data.containsKey('image_paths')) {
+        data['image_paths'] =
+            PostgresEnumArrayCodec.toSupabaseArray(data['image_paths']);
+      }
       return;
     }
 

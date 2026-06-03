@@ -59,6 +59,9 @@ dependencies:
   flutter_colorpicker: ^1.1.0
   phosphor_flutter: ^2.1.0
   cupertino_native_better: ^1.4.6
+  image_picker: ^1.2.2
+  file_picker: ^3.0.4
+  mime: ^2.0.0
 
 dev_dependencies:
   flutter_test:

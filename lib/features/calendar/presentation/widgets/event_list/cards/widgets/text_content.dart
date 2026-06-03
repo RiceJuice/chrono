@@ -194,33 +194,36 @@ class CalendarEntryLocationRow extends StatelessWidget {
     super.key,
     required this.location,
     required this.subtitleColor,
+    this.mutedColor,
+    this.compact = false,
     this.textStyle,
     this.iconSize,
   });
 
   final String location;
   final Color subtitleColor;
+
+  /// Icon-Farbe wie bei [CalendarEntryTimeRangeRow]; sonst [subtitleColor].
+  final Color? mutedColor;
+  final bool compact;
   final TextStyle? textStyle;
   final double? iconSize;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final iconColor = subtitleColor.withValues(alpha: 0.6);
-    final effectiveIconSize = iconSize ?? 15.0;
+    final effectiveIconColor = mutedColor ?? subtitleColor;
+    final effectiveIconSize = iconSize ?? (compact ? 13.0 : 15.0);
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 1),
-          child: Icon(
-            Icons.place_outlined,
-            size: effectiveIconSize,
-            color: iconColor,
-          ),
+        Icon(
+          Icons.place_outlined,
+          size: effectiveIconSize,
+          color: effectiveIconColor,
         ),
-        const SizedBox(width: 6),
+        SizedBox(width: compact ? 4 : 6),
         Expanded(
           child: Text(
             location,
@@ -329,6 +332,7 @@ class TextContent extends StatelessWidget {
             CalendarEntryLocationRow(
               location: trimmedLocation,
               subtitleColor: subtitleColor,
+              mutedColor: mutedTimeColor,
             )
           else if (showDescriptionSubtitle)
             Text(

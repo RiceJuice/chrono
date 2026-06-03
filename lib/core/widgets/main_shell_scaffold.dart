@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/calendar/event_editor/presentation/providers/is_admin_provider.dart';
 import '../../features/calendar/presentation/providers/calendar_providers.dart';
 import '../../features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'app_modal_sheet.dart';
@@ -85,14 +86,14 @@ class _NavBarWithOverlay extends ConsumerWidget {
 /// Blendet die Main-Navigation bei offenen App-Modals auf iOS Glass aus
 /// ([IndexedStack], UiKitView bleibt gemountet). Auf Android/Material bleibt
 /// die Bar sichtbar — Modals liegen per Root-Navigator darüber.
-class _ModalAwareNavBar extends StatefulWidget {
+class _ModalAwareNavBar extends ConsumerStatefulWidget {
   const _ModalAwareNavBar();
 
   @override
-  State<_ModalAwareNavBar> createState() => _ModalAwareNavBarState();
+  ConsumerState<_ModalAwareNavBar> createState() => _ModalAwareNavBarState();
 }
 
-class _ModalAwareNavBarState extends State<_ModalAwareNavBar> {
+class _ModalAwareNavBarState extends ConsumerState<_ModalAwareNavBar> {
   bool _modalOpen = false;
 
   bool get _useNativeIosTabBar =>
@@ -121,7 +122,10 @@ class _ModalAwareNavBarState extends State<_ModalAwareNavBar> {
 
   @override
   Widget build(BuildContext context) {
-    const bar = MainNavigationBar(key: ValueKey('main-navigation-bar'));
+    final isAdmin = ref.watch(isAdminProvider);
+    final bar = MainNavigationBar(
+      key: ValueKey('main-navigation-bar-$isAdmin'),
+    );
 
     // Nur iOS Glass: native UiKitView kann Flutter-Modals überdecken (Issue #31).
     if (!_modalOpen || !_useNativeIosTabBar) {
@@ -131,8 +135,8 @@ class _ModalAwareNavBarState extends State<_ModalAwareNavBar> {
     return IndexedStack(
       index: 0,
       sizing: StackFit.passthrough,
-      children: const [
-        SizedBox.shrink(),
+      children: [
+        const SizedBox.shrink(),
         bar,
       ],
     );

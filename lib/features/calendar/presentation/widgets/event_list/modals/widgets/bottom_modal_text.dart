@@ -80,6 +80,7 @@ class BottomModalText extends ConsumerWidget {
         CalendarEntryLocationRow(
           location: entry.location!.trim(),
           subtitleColor: scheme.onSurface,
+          mutedColor: scheme.onSurface,
           textStyle: theme.textTheme.bodyMedium,
           iconSize: 18,
         ),

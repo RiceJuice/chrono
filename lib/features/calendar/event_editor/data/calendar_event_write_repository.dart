@@ -25,6 +25,84 @@ class CalendarEventWriteRepository {
 
   final PowerSyncDatabase _db;
 
+  Future<String> createStandalone({
+    required CalendarEventFormState state,
+  }) async {
+    final id = generateCalendarEventId();
+    final row = CalendarEventFormCodec.toEventRow(state);
+
+    await _db.writeTransaction((tx) async {
+      await _insertRow(tx, kCalendarEventsTable, id, row);
+    });
+
+    if (kDebugMode) {
+      final queue = await _db.getUploadQueueStats();
+      logCalendarEventWriteResult(
+        action: 'created',
+        table: kCalendarEventsTable,
+        id: id,
+        uploadQueueCount: queue.count,
+      );
+    }
+
+    return id;
+  }
+
+  Future<void> updateImagePaths({
+    required String eventId,
+    required List<String> imagePaths,
+  }) async {
+    final encoded = CalendarEventFormCodec.encodeImagePaths(imagePaths);
+    await _db.writeTransaction((tx) async {
+      await _requireLocalRow(
+        tx,
+        table: kCalendarEventsTable,
+        id: eventId,
+        hint: 'Einzeltermin',
+      );
+      await _patchTable(tx, kCalendarEventsTable, eventId, {
+        'image_paths': encoded,
+      });
+    });
+  }
+
+  Future<void> delete({
+    required CalendarEventEditTarget target,
+    required CalendarEventSaveScope? scope,
+  }) async {
+    if (target.isRecurring && scope == null) {
+      throw CalendarEventWriteException('Löschumfang für Serientermin fehlt.');
+    }
+
+    await _db.writeTransaction((tx) async {
+      if (!target.isRecurring) {
+        await _deleteStandaloneEvent(tx, target.existingEventRowId!);
+        return;
+      }
+
+      switch (scope!) {
+        case CalendarEventSaveScope.singleInstance:
+          await _cancelSeriesInstance(tx, target);
+        case CalendarEventSaveScope.entireSeries:
+          await _deleteEntireSeries(tx, target.seriesId!);
+      }
+    });
+
+    if (kDebugMode) {
+      final queue = await _db.getUploadQueueStats();
+      logCalendarEventWriteResult(
+        action: 'deleted',
+        table: target.isRecurring
+            ? (scope == CalendarEventSaveScope.entireSeries
+                ? kCalendarSeriesTable
+                : kCalendarEventsTable)
+            : kCalendarEventsTable,
+        id: target.existingEventRowId ?? target.seriesId ?? '?',
+        uploadQueueCount: queue.count,
+      );
+    }
+  }
+
   Future<void> save({
     required CalendarEventEditTarget target,
     required CalendarEventFormState state,
@@ -171,6 +249,88 @@ class CalendarEventWriteRepository {
     await tx.execute(
       'UPDATE $table SET $assignments WHERE id = ?',
       values,
+    );
+  }
+
+  Future<void> _deleteStandaloneEvent(dynamic tx, String eventId) async {
+    if (eventId.startsWith('series:')) {
+      throw CalendarEventWriteException(
+        'Dieser Termin ist eine Serien-Instanz — bitte Löschumfang wählen.',
+      );
+    }
+
+    await _requireLocalRow(
+      tx,
+      table: kCalendarEventsTable,
+      id: eventId,
+      hint: 'Einzeltermin',
+    );
+    await tx.execute(
+      'DELETE FROM $kCalendarEventsTable WHERE id = ?',
+      [eventId],
+    );
+  }
+
+  Future<void> _cancelSeriesInstance(
+    dynamic tx,
+    CalendarEventEditTarget target,
+  ) async {
+    final seriesId = target.seriesId;
+    final recurrenceId = target.recurrenceId;
+    if (seriesId == null || recurrenceId == null) {
+      throw CalendarEventWriteException(
+        'Serien-Instanz ohne series_id oder recurrence_id.',
+      );
+    }
+
+    await _requireLocalRow(
+      tx,
+      table: kCalendarSeriesTable,
+      id: seriesId,
+      hint: 'Serie',
+    );
+
+    final recurrenceIso = formatCalendarRecurrenceId(recurrenceId);
+    final typeBackend = CalendarEventFormCodec.toEventRow(
+      CalendarEventFormState(
+        eventName: target.sourceEntry.eventName,
+        type: target.sourceEntry.type,
+        startTime: recurrenceId,
+        endTime: recurrenceId,
+      ),
+    )['type'];
+    final cancellation = <String, Object?>{
+      'event_name': '',
+      'start_time': recurrenceIso,
+      'end_time': recurrenceIso,
+      'type': typeBackend,
+      'series_id': seriesId,
+      'recurrence_id': recurrenceIso,
+    };
+
+    final existingId = target.existingEventRowId;
+    if (existingId != null && existingId.isNotEmpty) {
+      await _patchTable(tx, kCalendarEventsTable, existingId, cancellation);
+    } else {
+      final id = generateCalendarEventId();
+      await _insertRow(tx, kCalendarEventsTable, id, cancellation);
+    }
+  }
+
+  Future<void> _deleteEntireSeries(dynamic tx, String seriesId) async {
+    await _requireLocalRow(
+      tx,
+      table: kCalendarSeriesTable,
+      id: seriesId,
+      hint: 'Serie',
+    );
+    await tx.execute(
+      'DELETE FROM $kCalendarEventsTable WHERE series_id = ?',
+      [seriesId],
+    );
+    await tx.execute(
+      'DELETE FROM $kCalendarSeriesTable WHERE id = ?',
+      [seriesId],
     );
   }
 

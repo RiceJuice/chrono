@@ -38,6 +38,7 @@ class EventDatetimeSection extends StatefulWidget {
     required this.state,
     required this.onChanged,
     this.timeOnly = false,
+    this.showRequiredHint = false,
   });
 
   final CalendarEventFormState state;
@@ -45,6 +46,7 @@ class EventDatetimeSection extends StatefulWidget {
 
   /// Bei Serienterminen: nur Uhrzeit (Datum kommt aus der Serie / Instanz).
   final bool timeOnly;
+  final bool showRequiredHint;
 
   @override
   State<EventDatetimeSection> createState() => _EventDatetimeSectionState();
@@ -74,7 +76,7 @@ class _EventDatetimeSectionState extends State<EventDatetimeSection> {
     final scheme = Theme.of(context).colorScheme;
     final dividerColor = scheme.outlineVariant.withValues(alpha: 0.22);
 
-    return EventFormIsland(
+    final island = EventFormIsland(
       children: [
         Column(
           mainAxisSize: MainAxisSize.min,
@@ -172,6 +174,24 @@ class _EventDatetimeSectionState extends State<EventDatetimeSection> {
             ),
           ],
         ),
+      ],
+    );
+
+    if (!widget.showRequiredHint) return island;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.s),
+          child: Text(
+            'Uhrzeiten (Pflicht)',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+          ),
+        ),
+        island,
       ],
     );
   }

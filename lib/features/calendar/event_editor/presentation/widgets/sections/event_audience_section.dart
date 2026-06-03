@@ -14,11 +14,13 @@ class EventAudienceSection extends ConsumerWidget {
     required this.state,
     required this.onChanged,
     required this.classOptions,
+    this.showRequiredHint = false,
   });
 
   final CalendarEventFormState state;
   final ValueChanged<CalendarEventFormState> onChanged;
   final List<String> classOptions;
+  final bool showRequiredHint;
 
   static List<String> get _choirOptions => BackendChoir.values
       .where((v) => v != BackendChoir.unknown)
@@ -61,6 +63,16 @@ class EventAudienceSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (showRequiredHint)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.s),
+            child: Text(
+              'Zuordnung (Pflicht)',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
         EventSingleSelectChipSection(
           title: 'Chor',
           options: _choirOptions,

@@ -23,8 +23,13 @@ class CalendarEventFormCodec {
       'schooltrack': state.schoolTrack.toBackend(),
       'class': _nullableTrim(state.className),
       'diet': state.diet.toBackend(),
+      'image_paths': encodeImagePaths(state.imagePaths),
     };
   }
+
+  /// JSON-Array für SQLite / PowerSync ([image_paths]).
+  static String? encodeImagePaths(List<String> paths) =>
+      _encodeStringList(paths);
 
   /// Gemeinsame Serien-Felder ohne Zeit/RRULE (siehe [CalendarEventSeriesCodec]).
   static Map<String, Object?> toSeriesSharedFields(CalendarEventFormState state) {
@@ -62,6 +67,12 @@ class CalendarEventFormCodec {
   /// `calendar_events.choir` ist in Postgres ein Enum-Array (`{Giehl}`).
   static String? _encodeChoirForEvent(BackendChoir choir) {
     return PostgresEnumArrayCodec.encodeLocalSingle(choir.toBackend());
+  }
+
+  static String? _encodeStringList(List<String> values) {
+    final trimmed = values.map((v) => v.trim()).where((v) => v.isNotEmpty).toList();
+    if (trimmed.isEmpty) return null;
+    return jsonEncode(trimmed);
   }
 
   static String? _encodeVoices(List<BackendVoice> voices) {

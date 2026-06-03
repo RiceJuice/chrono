@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -5,8 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/calendar/event_editor/presentation/pages/calendar_event_form_page.dart';
+import '../../features/calendar/event_editor/presentation/providers/is_admin_provider.dart';
 import '../../features/calendar/presentation/providers/calendar_providers.dart';
+import '../haptics/app_haptics.dart';
 import 'app_hairline_divider.dart';
+import 'app_modal_sheet.dart';
 
 class MainNavigationBar extends ConsumerWidget {
   const MainNavigationBar({super.key});
@@ -14,6 +20,10 @@ class MainNavigationBar extends ConsumerWidget {
   static const _calendarPath = '/calendar';
   static const _homeworkPath = '/homework';
   static const _settingsPath = '/settings';
+
+  /// Admin: Index des „Neuer Termin“-Tabs (öffnet Erstellen-Sheet).
+  static const int _adminCreateTabIndex = 1;
+
   static const _iconLabelSpacingOffset = 5.0;
   static const _tabIconSize = 22.0;
   static const _calendarAssetPath = 'assets/domspatzen.svg';
@@ -37,6 +47,9 @@ class MainNavigationBar extends ConsumerWidget {
   static double get _homeworkTabIconSize =>
       _settingsTabIconSize * _homeworkIconOpticalScale;
 
+  /// Optisch an Hausaufgaben/Zahnrad angeglichen (nicht am Spatz).
+  static double get _createEventTabIconSize => _homeworkTabIconSize;
+
   Widget _buildTopAlignedTabIcon(Widget icon) {
     return Padding(
       padding: EdgeInsets.only(top: _sparrowVisualTopInset),
@@ -44,18 +57,47 @@ class MainNavigationBar extends ConsumerWidget {
     );
   }
 
-  int _indexFromLocation(String location) {
-    if (location.startsWith(_homeworkPath)) return 1;
-    if (location.startsWith(_settingsPath)) return 2;
+  int _tabIndexFromLocation(String location, {required bool isAdmin}) {
+    if (location.startsWith(_homeworkPath)) return isAdmin ? 2 : 1;
+    if (location.startsWith(_settingsPath)) return isAdmin ? 3 : 2;
     return 0;
   }
 
-  String _targetFromIndex(int index) {
+  String? _routeTargetFromIndex(int index, {required bool isAdmin}) {
+    if (!isAdmin) {
+      return switch (index) {
+        0 => _calendarPath,
+        1 => _homeworkPath,
+        _ => _settingsPath,
+      };
+    }
     return switch (index) {
       0 => _calendarPath,
-      1 => _homeworkPath,
+      _adminCreateTabIndex => null,
+      2 => _homeworkPath,
       _ => _settingsPath,
     };
+  }
+
+  void _openCreateEventSheet(BuildContext context, WidgetRef ref, String location) {
+    if (AppModalSheetTracker.depth.value > 0) return;
+
+    AppHaptics.light();
+
+    void present() {
+      if (!context.mounted) return;
+      final day = ref.read(selectedDayProvider);
+      unawaited(
+        CalendarEventFormPage.showCreate(context, initialDay: day),
+      );
+    }
+
+    if (location != _calendarPath) {
+      context.go(_calendarPath);
+      WidgetsBinding.instance.addPostFrameCallback((_) => present());
+      return;
+    }
+    present();
   }
 
   void _onDestinationSelected({
@@ -63,8 +105,16 @@ class MainNavigationBar extends ConsumerWidget {
     required WidgetRef ref,
     required String location,
     required int index,
+    required bool isAdmin,
   }) {
-    final target = _targetFromIndex(index);
+    if (isAdmin && index == _adminCreateTabIndex) {
+      _openCreateEventSheet(context, ref, location);
+      return;
+    }
+
+    final target = _routeTargetFromIndex(index, isAdmin: isAdmin);
+    if (target == null) return;
+
     if (target == _calendarPath && location == _calendarPath) {
       final now = DateTime.now().toLocal();
       final today = DateTime(now.year, now.month, now.day);
@@ -73,6 +123,7 @@ class MainNavigationBar extends ConsumerWidget {
       return;
     }
     if (target != location) {
+      AppHaptics.light();
       context.go(target);
     }
   }
@@ -124,6 +175,20 @@ class MainNavigationBar extends ConsumerWidget {
     );
   }
 
+  Widget _buildCreateEventIcon({
+    required BuildContext context,
+    required bool selected,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return _buildTopAlignedTabIcon(
+      Icon(
+        selected ? Icons.event_available : Icons.event_available_outlined,
+        size: _createEventTabIconSize,
+        color: selected ? scheme.primary : scheme.onSurfaceVariant,
+      ),
+    );
+  }
+
   Widget _buildSettingsIcon({
     required BuildContext context,
     required bool selected,
@@ -143,13 +208,57 @@ class MainNavigationBar extends ConsumerWidget {
     required WidgetRef ref,
     required String location,
     required int currentIndex,
+    required bool isAdmin,
   }) {
+    final destinations = <NavigationDestination>[
+      NavigationDestination(
+        icon: _tabIconSlot(
+          _buildCalendarIcon(
+            context: context,
+            selected: currentIndex == 0,
+          ),
+        ),
+        label: 'Kalender',
+      ),
+      if (isAdmin)
+        NavigationDestination(
+          icon: _tabIconSlot(
+            _buildCreateEventIcon(
+              context: context,
+              selected: currentIndex == _adminCreateTabIndex,
+            ),
+          ),
+          label: 'Termin',
+          tooltip: 'Neuer Termin',
+        ),
+      NavigationDestination(
+        icon: _tabIconSlot(
+          _buildHomeworkIcon(
+            context: context,
+            selected: currentIndex == (isAdmin ? 2 : 1),
+          ),
+        ),
+        label: 'Aufgaben',
+      ),
+      NavigationDestination(
+        icon: _tabIconSlot(
+          _buildSettingsIcon(
+            context: context,
+            selected: currentIndex == (isAdmin ? 3 : 2),
+          ),
+        ),
+        label: 'Dein Chrono',
+      ),
+    ];
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const AppHairlineDivider.horizontal(),
         NavigationBar(
+          height: isAdmin ? 56 : null,
           selectedIndex: currentIndex,
+          labelPadding: const EdgeInsets.only(top: 2),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             return const TextStyle(
               fontSize: 10,
@@ -164,37 +273,10 @@ class MainNavigationBar extends ConsumerWidget {
               ref: ref,
               location: location,
               index: index,
+              isAdmin: isAdmin,
             );
           },
-          destinations: [
-            NavigationDestination(
-              icon: _tabIconSlot(
-                _buildCalendarIcon(
-                  context: context,
-                  selected: currentIndex == 0,
-                ),
-              ),
-              label: 'Kalender',
-            ),
-            NavigationDestination(
-              icon: _tabIconSlot(
-                _buildHomeworkIcon(
-                  context: context,
-                  selected: currentIndex == 1,
-                ),
-              ),
-              label: 'Hausaufgaben',
-            ),
-            NavigationDestination(
-              icon: _tabIconSlot(
-                _buildSettingsIcon(
-                  context: context,
-                  selected: currentIndex == 2,
-                ),
-              ),
-              label: 'Dein Chrono',
-            ),
-          ],
+          destinations: destinations,
         ),
       ],
     );
@@ -205,20 +287,53 @@ class MainNavigationBar extends ConsumerWidget {
     required WidgetRef ref,
     required String location,
     required int currentIndex,
+    required bool isAdmin,
   }) {
     final inactiveIconColor =
         Theme.of(context).colorScheme.onSurfaceVariant;
+
+    final items = <CNTabBarItem>[
+      CNTabBarItem(
+        label: 'Kalender',
+        imageAsset: CNImageAsset(
+          _calendarAssetPath,
+          size: _tabIconSize,
+          color: inactiveIconColor,
+        ),
+        activeImageAsset: CNImageAsset(
+          _calendarAssetPath,
+          size: _tabIconSize,
+        ),
+      ),
+      if (isAdmin)
+        CNTabBarItem(
+          label: 'Termin',
+          icon: CNSymbol('calendar.badge.plus', size: _createEventTabIconSize),
+          activeIcon: CNSymbol(
+            'calendar.badge.plus',
+            size: _createEventTabIconSize,
+          ),
+        ),
+      CNTabBarItem(
+        label: 'Aufgaben',
+        icon: CNSymbol('text.book.closed', size: _homeworkTabIconSize),
+        activeIcon:
+            CNSymbol('text.book.closed.fill', size: _homeworkTabIconSize),
+      ),
+      CNTabBarItem(
+        label: 'Dein Chrono',
+        icon: CNSymbol('gearshape', size: _settingsTabIconSize),
+        activeIcon: CNSymbol('gearshape.fill', size: _settingsTabIconSize),
+      ),
+    ];
 
     // Kein SafeArea-Wrapper: Die native Glass-TabBar verwaltet den unteren
     // Safe-Area-Inset selbst und blurrt den dahinter durchscrollenden Inhalt.
     // Ein zusätzlicher SafeArea würde die Bar nach oben schieben und darunter
     // eine schwarze Box hinterlassen.
     return CNTabBar(
-      // Nicht auto-hide: sonst wird die native UiKitView bei Modals zerstört und
-      // beim Schließen neu aufgebaut (Theme-Flash, Tab-Sprung). Das Ausblenden
-      // übernimmt [_ModalAwareNavBar] per IndexedStack ohne Platform-View-Recreate.
       autoHideOnModal: false,
-      // Kein globales iconSize: Größen pro Item (Spatz größer, Hausaufgaben optisch am Zahnrad).
+      labelFontSize: 10,
       currentIndex: currentIndex,
       onTap: (index) {
         _onDestinationSelected(
@@ -226,32 +341,10 @@ class MainNavigationBar extends ConsumerWidget {
           ref: ref,
           location: location,
           index: index,
+          isAdmin: isAdmin,
         );
       },
-      items: [
-        CNTabBarItem(
-          label: 'Kalender',
-          imageAsset: CNImageAsset(
-            _calendarAssetPath,
-            size: _tabIconSize,
-            color: inactiveIconColor,
-          ),
-          activeImageAsset: CNImageAsset(
-            _calendarAssetPath,
-            size: _tabIconSize,
-          ),
-        ),
-        CNTabBarItem(
-          label: 'Hausaufgaben',
-          icon: CNSymbol('text.book.closed', size: _homeworkTabIconSize),
-          activeIcon: CNSymbol('text.book.closed.fill', size: _homeworkTabIconSize),
-        ),
-        CNTabBarItem(
-          label: 'Dein Chrono',
-          icon: CNSymbol('gearshape', size: _settingsTabIconSize),
-          activeIcon: CNSymbol('gearshape.fill', size: _settingsTabIconSize),
-        ),
-      ],
+      items: items,
     );
   }
 
@@ -262,14 +355,16 @@ class MainNavigationBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isAdmin = ref.watch(isAdminProvider);
     final location = GoRouterState.of(context).uri.path;
-    final currentIndex = _indexFromLocation(location);
+    final currentIndex = _tabIndexFromLocation(location, isAdmin: isAdmin);
     if (_useNativeIosTabBar()) {
       return _buildIosNavigationBar(
         context: context,
         ref: ref,
         location: location,
         currentIndex: currentIndex,
+        isAdmin: isAdmin,
       );
     }
     return _buildMaterialNavigationBar(
@@ -277,6 +372,7 @@ class MainNavigationBar extends ConsumerWidget {
       ref: ref,
       location: location,
       currentIndex: currentIndex,
+      isAdmin: isAdmin,
     );
   }
 }
