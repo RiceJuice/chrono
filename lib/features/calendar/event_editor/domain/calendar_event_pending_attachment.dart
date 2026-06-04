@@ -6,6 +6,8 @@ class CalendarEventPendingAttachment {
     required this.displayName,
     required this.isImage,
     required this.isPdf,
+    this.pixelWidth,
+    this.pixelHeight,
   });
 
   final String id;
@@ -13,4 +15,15 @@ class CalendarEventPendingAttachment {
   final String displayName;
   final bool isImage;
   final bool isPdf;
+
+  /// Abmessungen nach Normalisierung — für Vorschau in natürlichem Seitenverhältnis.
+  final int? pixelWidth;
+  final int? pixelHeight;
+
+  double? get aspectRatio {
+    final w = pixelWidth;
+    final h = pixelHeight;
+    if (w == null || h == null || h <= 0) return null;
+    return w / h;
+  }
 }

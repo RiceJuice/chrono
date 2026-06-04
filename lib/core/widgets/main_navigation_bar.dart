@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cupertino_native_better/cupertino_native_better.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,7 +26,11 @@ class MainNavigationBar extends ConsumerWidget {
   static const int _adminCreateTabIndex = 1;
 
   static const _iconLabelSpacingOffset = 5.0;
-  static const _tabIconSize = 22.0;
+  static const _tabIconSlotSize = 28.0;
+
+  /// Einheitliche optische Größe (Spatz-Silhouette, Material, SF Symbols).
+  static const _tabGlyphSize = 22.0;
+
   static const _calendarAssetPath = 'assets/domspatzen.svg';
 
   /// Sichtbare Motivgrenzen im Spatz-SVG (viewBox 0…1024).
@@ -33,29 +38,12 @@ class MainNavigationBar extends ConsumerWidget {
   static const _sparrowVisualTopY = 139.0;
   static const _sparrowVisualBottomY = 889.5;
 
-  static double get _sparrowVisualTopInset =>
-      _tabIconSize * (_sparrowVisualTopY / _sparrowViewBoxHeight);
+  static const _sparrowVisibleHeightFraction =
+      (_sparrowVisualBottomY - _sparrowVisualTopY) / _sparrowViewBoxHeight;
 
-  /// Sichtbare Höhe des Zahnrad-Icons (Referenz für Hausaufgaben).
-  static double get _settingsTabIconSize =>
-      _tabIconSize *
-      ((_sparrowVisualBottomY - _sparrowVisualTopY) / _sparrowViewBoxHeight);
-
-  /// Material-[Icons.menu_book] wirkt bei gleicher pt-Größe größer als das Zahnrad.
-  static const _homeworkIconOpticalScale = 0.86;
-
-  static double get _homeworkTabIconSize =>
-      _settingsTabIconSize * _homeworkIconOpticalScale;
-
-  /// Optisch an Hausaufgaben/Zahnrad angeglichen (nicht am Spatz).
-  static double get _createEventTabIconSize => _homeworkTabIconSize;
-
-  Widget _buildTopAlignedTabIcon(Widget icon) {
-    return Padding(
-      padding: EdgeInsets.only(top: _sparrowVisualTopInset),
-      child: icon,
-    );
-  }
+  /// SVG-Kantenlänge, damit die sichtbare Spatz-Silhouette [_tabGlyphSize] hat.
+  static double get _sparrowAssetSize =>
+      _tabGlyphSize / _sparrowVisibleHeightFraction;
 
   int _tabIndexFromLocation(String location, {required bool isAdmin}) {
     if (location.startsWith(_homeworkPath)) return isAdmin ? 2 : 1;
@@ -132,9 +120,9 @@ class MainNavigationBar extends ConsumerWidget {
     return Transform.translate(
       offset: const Offset(0, _iconLabelSpacingOffset),
       child: SizedBox(
-        width: _tabIconSize,
-        height: _tabIconSize,
-        child: icon,
+        width: _tabIconSlotSize,
+        height: _tabIconSlotSize,
+        child: Center(child: icon),
       ),
     );
   }
@@ -143,21 +131,17 @@ class MainNavigationBar extends ConsumerWidget {
     required BuildContext context,
     required bool selected,
   }) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: SvgPicture.asset(
+    return SvgPicture.asset(
         _calendarAssetPath,
-        height: _tabIconSize,
-        width: _tabIconSize,
+        height: _sparrowAssetSize,
+        width: _sparrowAssetSize,
         fit: BoxFit.contain,
-        alignment: Alignment.bottomCenter,
         colorFilter: selected
             ? null
             : ColorFilter.mode(
                 Theme.of(context).colorScheme.onSurfaceVariant,
                 BlendMode.srcIn,
               ),
-      ),
     );
   }
 
@@ -166,12 +150,10 @@ class MainNavigationBar extends ConsumerWidget {
     required bool selected,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    return _buildTopAlignedTabIcon(
-      Icon(
-        selected ? Icons.menu_book : Icons.menu_book_outlined,
-        size: _homeworkTabIconSize,
-        color: selected ? scheme.primary : scheme.onSurfaceVariant,
-      ),
+    return Icon(
+      selected ? Icons.menu_book : Icons.menu_book_outlined,
+      size: _tabGlyphSize,
+      color: selected ? scheme.primary : scheme.onSurfaceVariant,
     );
   }
 
@@ -180,12 +162,10 @@ class MainNavigationBar extends ConsumerWidget {
     required bool selected,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    return _buildTopAlignedTabIcon(
-      Icon(
-        selected ? Icons.event_available : Icons.event_available_outlined,
-        size: _createEventTabIconSize,
-        color: selected ? scheme.primary : scheme.onSurfaceVariant,
-      ),
+    return Icon(
+      CupertinoIcons.calendar_badge_plus,
+      size: _tabGlyphSize,
+      color: selected ? scheme.primary : scheme.onSurfaceVariant,
     );
   }
 
@@ -194,12 +174,10 @@ class MainNavigationBar extends ConsumerWidget {
     required bool selected,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    return _buildTopAlignedTabIcon(
-      Icon(
-        selected ? Icons.settings : Icons.settings_outlined,
-        size: _settingsTabIconSize,
-        color: selected ? scheme.primary : scheme.onSurfaceVariant,
-      ),
+    return Icon(
+      selected ? Icons.settings : Icons.settings_outlined,
+      size: _tabGlyphSize,
+      color: selected ? scheme.primary : scheme.onSurfaceVariant,
     );
   }
 
@@ -256,7 +234,7 @@ class MainNavigationBar extends ConsumerWidget {
       children: [
         const AppHairlineDivider.horizontal(),
         NavigationBar(
-          height: isAdmin ? 56 : null,
+          height: 56,
           selectedIndex: currentIndex,
           labelPadding: const EdgeInsets.only(top: 2),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -297,33 +275,33 @@ class MainNavigationBar extends ConsumerWidget {
         label: 'Kalender',
         imageAsset: CNImageAsset(
           _calendarAssetPath,
-          size: _tabIconSize,
+          size: _sparrowAssetSize,
           color: inactiveIconColor,
         ),
         activeImageAsset: CNImageAsset(
           _calendarAssetPath,
-          size: _tabIconSize,
+          size: _sparrowAssetSize,
         ),
       ),
       if (isAdmin)
         CNTabBarItem(
           label: 'Termin',
-          icon: CNSymbol('calendar.badge.plus', size: _createEventTabIconSize),
+          icon: CNSymbol('calendar.badge.plus', size: _tabGlyphSize),
           activeIcon: CNSymbol(
             'calendar.badge.plus',
-            size: _createEventTabIconSize,
+            size: _tabGlyphSize,
           ),
         ),
       CNTabBarItem(
         label: 'Aufgaben',
-        icon: CNSymbol('text.book.closed', size: _homeworkTabIconSize),
+        icon: CNSymbol('text.book.closed', size: _tabGlyphSize),
         activeIcon:
-            CNSymbol('text.book.closed.fill', size: _homeworkTabIconSize),
+            CNSymbol('text.book.closed.fill', size: _tabGlyphSize),
       ),
       CNTabBarItem(
         label: 'Dein Chrono',
-        icon: CNSymbol('gearshape', size: _settingsTabIconSize),
-        activeIcon: CNSymbol('gearshape.fill', size: _settingsTabIconSize),
+        icon: CNSymbol('gearshape', size: _tabGlyphSize),
+        activeIcon: CNSymbol('gearshape.fill', size: _tabGlyphSize),
       ),
     ];
 

@@ -3,18 +3,18 @@ import 'dart:io' show Platform;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-import 'fcm_token_repository.dart';
+import 'push_device_repository.dart';
 
 /// FCM-Token holen und in Supabase persistieren (nur mobile Plattformen).
 class PushNotificationService {
   PushNotificationService({
     FirebaseMessaging? messaging,
-    FcmTokenRepository? tokenRepository,
+    PushDeviceRepository? tokenRepository,
   })  : _messaging = messaging ?? FirebaseMessaging.instance,
-        _tokenRepository = tokenRepository ?? FcmTokenRepository();
+        _tokenRepository = tokenRepository ?? PushDeviceRepository();
 
   final FirebaseMessaging _messaging;
-  final FcmTokenRepository _tokenRepository;
+  final PushDeviceRepository _tokenRepository;
 
   static bool get supportsPush =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
@@ -68,7 +68,8 @@ class PushNotificationService {
     await _persistToken(token);
   }
 
-  Future<void> clearTokenOnLogout() => _tokenRepository.clearToken();
+  Future<void> clearTokenOnLogout() =>
+      _tokenRepository.clearTokenForCurrentDevice();
 
   Future<void> _persistToken(String token) async {
     try {

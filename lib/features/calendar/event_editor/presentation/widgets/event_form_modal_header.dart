@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/app_glass_icon_button.dart';
+import 'package:chronoapp/features/calendar/event_editor/presentation/utils/event_attachment_image_normalizer.dart';
 import 'package:flutter/material.dart';
 
 class EventFormModalHeader extends StatelessWidget {
@@ -16,6 +18,7 @@ class EventFormModalHeader extends StatelessWidget {
     this.onAttachMedia,
     this.attachingMedia = false,
     this.saveTooltip = 'Speichern',
+    this.contrastImagePath,
   });
 
   final String title;
@@ -29,9 +32,13 @@ class EventFormModalHeader extends StatelessWidget {
   final bool attachingMedia;
   final String saveTooltip;
 
+  /// Liegt der Titel über einem Foto: Kontrastfarbe aus oberem Bildbereich.
+  final String? contrastImagePath;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final showAttach = onAttachMedia != null;
 
     return Padding(
@@ -58,11 +65,24 @@ class EventFormModalHeader extends StatelessWidget {
                 left: titleAlign == TextAlign.start ? AppSpacing.s : 0,
                 right: showAttach ? AppSpacing.xs : 0,
               ),
-              child: Text(
-                title,
-                textAlign: titleAlign,
-                style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
-              ),
+              child: contrastImagePath != null
+                  ? _AdaptiveTitleText(
+                      title: title,
+                      imagePath: contrastImagePath!,
+                      textAlign: titleAlign,
+                      baseStyle: theme.textTheme.titleMedium?.copyWith(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  : Text(
+                      title,
+                      textAlign: titleAlign,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontSize: 18,
+                        color: scheme.onSurface,
+                      ),
+                    ),
             ),
           ),
           if (showAttach) ...[
@@ -104,6 +124,63 @@ class EventFormModalHeader extends StatelessWidget {
                 : null,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AdaptiveTitleText extends StatefulWidget {
+  const _AdaptiveTitleText({
+    required this.title,
+    required this.imagePath,
+    required this.textAlign,
+    this.baseStyle,
+  });
+
+  final String title;
+  final String imagePath;
+  final TextAlign textAlign;
+  final TextStyle? baseStyle;
+
+  @override
+  State<_AdaptiveTitleText> createState() => _AdaptiveTitleTextState();
+}
+
+class _AdaptiveTitleTextState extends State<_AdaptiveTitleText> {
+  Color? _color;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveColor();
+  }
+
+  @override
+  void didUpdateWidget(_AdaptiveTitleText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imagePath != widget.imagePath) {
+      _resolveColor();
+    }
+  }
+
+  Future<void> _resolveColor() async {
+    final color = await EventAttachmentImageNormalizer.titleColorForImageHeader(
+      File(widget.imagePath),
+    );
+    if (!mounted) return;
+    setState(() => _color = color);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fallback = scheme.onSurface;
+
+    return Text(
+      widget.title,
+      textAlign: widget.textAlign,
+      style: (widget.baseStyle ?? const TextStyle(fontSize: 18)).copyWith(
+        color: _color ?? fallback,
       ),
     );
   }

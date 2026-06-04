@@ -3,9 +3,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+/// Innenabstand zwischen Glass-Kreis und Icon (Material + natives CNButton).
+const double _kGlassIconPadding = 14.0;
+
+/// Mindest-Touchfläche (Apple HIG / Material).
+const double _kGlassButtonMinSize = 44.0;
+
 /// Skaliert die Glyphen leicht hoch, damit Striche auf dem Glass-Kreis
 /// kräftiger wirken (SF Symbols nutzen sonst nur Regular-Gewicht).
-const double _kGlassIconInkScale = 1.12;
+const double _kGlassIconInkScale = 1.0;
 
 /// Runder Icon-Button mit nativem Liquid Glass (iOS/macOS 26+) oder
 /// Material-Kreis-Fallback auf anderen Plattformen.
@@ -53,6 +59,28 @@ class AppGlassIconButton extends StatelessWidget {
   }
 
   static double _visualIconSize(double iconSize) => iconSize * _kGlassIconInkScale;
+
+  static double _glassButtonSide(double iconSize) {
+    final side = _visualIconSize(iconSize) + _kGlassIconPadding * 2;
+    return side < _kGlassButtonMinSize ? _kGlassButtonMinSize : side;
+  }
+
+  static CNButtonConfig _nativeGlassButtonConfig({
+    required double iconSize,
+    String? glassEffectUnionId,
+    String? glassEffectId,
+  }) {
+    final side = _glassButtonSide(iconSize);
+    return CNButtonConfig(
+      style: CNButtonStyle.glass,
+      padding: const EdgeInsets.all(_kGlassIconPadding),
+      minHeight: side,
+      width: side,
+      customIconSize: _visualIconSize(iconSize),
+      glassEffectUnionId: glassEffectUnionId,
+      glassEffectId: glassEffectId,
+    );
+  }
 
   /// Icon für Akzent-/Farbeinstellungen auf Glass-Buttons.
   static const IconData accentColorIcon = Icons.brush_outlined;
@@ -159,9 +187,8 @@ class _NativeGlassIconButton extends StatelessWidget {
         onPressed: canPress ? onPressed : null,
         enabled: canPress,
         tint: tint,
-        config: CNButtonConfig(
-          style: CNButtonStyle.glass,
-          customIconSize: AppGlassIconButton._visualIconSize(iconSize),
+        config: AppGlassIconButton._nativeGlassButtonConfig(
+          iconSize: iconSize,
           glassEffectUnionId: glassEffectUnionId,
           glassEffectId: glassEffectId,
         ),
@@ -174,9 +201,8 @@ class _NativeGlassIconButton extends StatelessWidget {
       onPressed: canPress ? onPressed : null,
       enabled: canPress,
       tint: tint,
-      config: CNButtonConfig(
-        style: CNButtonStyle.glass,
-        customIconSize: AppGlassIconButton._visualIconSize(iconSize),
+      config: AppGlassIconButton._nativeGlassButtonConfig(
+        iconSize: iconSize,
         glassEffectUnionId: glassEffectUnionId,
         glassEffectId: glassEffectId,
       ),
@@ -203,23 +229,30 @@ class _MaterialCircleIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final side = AppGlassIconButton._glassButtonSide(iconSize);
     return Material(
       color: backgroundColor,
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
-      child: IconButton(
-        visualDensity: VisualDensity.compact,
-        style: IconButton.styleFrom(
-          foregroundColor: foregroundColor,
-          padding: const EdgeInsets.all(12),
+      child: SizedBox(
+        width: side,
+        height: side,
+        child: IconButton(
+          visualDensity: VisualDensity.compact,
+          style: IconButton.styleFrom(
+            foregroundColor: foregroundColor,
+            padding: const EdgeInsets.all(_kGlassIconPadding),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          onPressed: onPressed,
+          icon: child ??
+              AppGlassIconButton._materialIconWidget(
+                icon: icon,
+                iconSize: iconSize,
+                color: foregroundColor,
+              ),
         ),
-        onPressed: onPressed,
-        icon: child ??
-            AppGlassIconButton._materialIconWidget(
-              icon: icon,
-              iconSize: iconSize,
-              color: foregroundColor,
-            ),
       ),
     );
   }

@@ -78,6 +78,35 @@ BoxConstraints appModalSheetHeightConstraints(
   );
 }
 
+/// Kleiner Abstand zwischen System-UI (Statusleiste/Notch) und Sheet-Oberkante.
+const double kAppSheetGapBelowSystemUi = AppSpacing.s;
+
+/// MediaQuery der physischen [View] — unabhängig vom Bottom-Sheet-[MediaQuery.padding].
+MediaQueryData appSheetViewMediaQuery(BuildContext context) {
+  return MediaQueryData.fromView(View.of(context));
+}
+
+/// Y-Position der Sheet-Oberkante: knapp unter Statusleiste/Notch.
+///
+/// Liegt damit über dem Kalender-[AppBar]-Titel (z. B. Monatsname).
+double appSheetTopOffset(BuildContext context) {
+  final view = appSheetViewMediaQuery(context);
+  return view.viewPadding.top + kAppSheetGapBelowSystemUi;
+}
+
+/// Höhe eines Sheets, das von [appSheetTopOffset] bis zum unteren Bildschirmrand reicht.
+double appSheetHeightBelowSystemUi(BuildContext context) {
+  final view = appSheetViewMediaQuery(context);
+  return view.size.height - appSheetTopOffset(context);
+}
+
+/// Termin-Formular (Erstellen & Bearbeiten).
+BoxConstraints appModalEventFormSheetConstraints(BuildContext context) {
+  return BoxConstraints.tightFor(
+    height: appSheetHeightBelowSystemUi(context),
+  );
+}
+
 /// Einheitliche Konfiguration für alle App-Modals / Bottom-Sheets.
 abstract final class AppModalSheet {
   static Future<T?> show<T>({

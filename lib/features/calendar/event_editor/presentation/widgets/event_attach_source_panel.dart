@@ -13,9 +13,13 @@ class EventAttachSourcePanel extends StatelessWidget {
   const EventAttachSourcePanel({
     super.key,
     required this.onSelected,
+    this.revealAnimation,
   });
 
   final ValueChanged<EventImageAttachSource> onSelected;
+
+  /// Gestaffeltes Einblenden der Zeilen (von [EventAttachSourceReveal]).
+  final Animation<double>? revealAnimation;
 
   static bool get isIosSimulator {
     if (kIsWeb || !Platform.isIOS) return false;
@@ -33,27 +37,39 @@ class EventAttachSourcePanel extends StatelessWidget {
       ),
       child: EventFormIsland(
         children: [
-          _OptionTile(
-            icon: Icons.camera_alt_outlined,
-            label: 'Foto aufnehmen',
-            subtitle: isIosSimulator
-                ? 'Im Simulator nicht verfügbar'
-                : null,
-            enabled: !isIosSimulator,
-            onTap: () => _select(context, EventImageAttachSource.camera),
+          _StaggeredRevealTile(
+            index: 0,
+            animation: revealAnimation,
+            child: _OptionTile(
+              icon: Icons.camera_alt_outlined,
+              label: 'Foto aufnehmen',
+              subtitle: isIosSimulator
+                  ? 'Im Simulator nicht verfügbar'
+                  : null,
+              enabled: !isIosSimulator,
+              onTap: () => _select(context, EventImageAttachSource.camera),
+            ),
           ),
-          _OptionTile(
-            icon: Icons.photo_library_outlined,
-            label: 'Mediathek',
-            subtitle: isIosSimulator
-                ? 'Fotos per Drag & Drop in die Mediathek legen'
-                : null,
-            onTap: () => _select(context, EventImageAttachSource.gallery),
+          _StaggeredRevealTile(
+            index: 1,
+            animation: revealAnimation,
+            child: _OptionTile(
+              icon: Icons.photo_library_outlined,
+              label: 'Mediathek',
+              subtitle: isIosSimulator
+                  ? 'Fotos per Drag & Drop in die Mediathek legen'
+                  : null,
+              onTap: () => _select(context, EventImageAttachSource.gallery),
+            ),
           ),
-          _OptionTile(
-            icon: Icons.folder_open_outlined,
-            label: 'Datei',
-            onTap: () => _select(context, EventImageAttachSource.file),
+          _StaggeredRevealTile(
+            index: 2,
+            animation: revealAnimation,
+            child: _OptionTile(
+              icon: Icons.folder_open_outlined,
+              label: 'Datei',
+              onTap: () => _select(context, EventImageAttachSource.file),
+            ),
           ),
         ],
       ),
@@ -63,6 +79,43 @@ class EventAttachSourcePanel extends StatelessWidget {
   void _select(BuildContext context, EventImageAttachSource source) {
     AppHaptics.selection();
     onSelected(source);
+  }
+}
+
+class _StaggeredRevealTile extends StatelessWidget {
+  const _StaggeredRevealTile({
+    required this.index,
+    required this.child,
+    this.animation,
+  });
+
+  final int index;
+  final Widget child;
+  final Animation<double>? animation;
+
+  @override
+  Widget build(BuildContext context) {
+    final master = animation;
+    if (master == null) return child;
+
+    final start = 0.06 + index * 0.11;
+    final end = (start + 0.52).clamp(0.0, 1.0);
+    return AnimatedBuilder(
+      animation: master,
+      builder: (context, child) {
+        final t = master.value;
+        final progress = ((t - start) / (end - start)).clamp(0.0, 1.0);
+        final curved = Curves.easeOutCubic.transform(progress);
+        return Opacity(
+          opacity: curved,
+          child: Transform.translate(
+            offset: Offset(0, 8 * (1 - curved)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
   }
 }
 

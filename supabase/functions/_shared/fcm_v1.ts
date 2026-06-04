@@ -77,6 +77,18 @@ export async function sendFcmToToken(
   const message: Record<string, unknown> = {
     token,
     notification: { title, body },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default",
+        },
+      },
+    },
+    android: {
+      notification: {
+        sound: "default",
+      },
+    },
   };
   if (data && Object.keys(data).length > 0) {
     message.data = data;

@@ -47,6 +47,17 @@ class AppSquircle {
         ),
       );
 
+  static SmoothBorderRadius bottomSheet(double r) => SmoothBorderRadius.only(
+        bottomLeft: SmoothRadius(
+          cornerRadius: r,
+          cornerSmoothing: cornerSmoothing,
+        ),
+        bottomRight: SmoothRadius(
+          cornerRadius: r,
+          cornerSmoothing: cornerSmoothing,
+        ),
+      );
+
   static SmoothRectangleBorder shape(double r, {BorderSide side = BorderSide.none}) {
     return SmoothRectangleBorder(
       side: side,

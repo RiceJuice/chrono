@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filter_options_providers.dart';
@@ -12,9 +11,6 @@ import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-
 import '../../data/calendar_event_write_repository.dart';
 import '../../domain/calendar_event_form_factory.dart';
 import '../../domain/calendar_event_pending_attachment.dart';
@@ -30,6 +26,7 @@ import '../widgets/dialogs/event_delete_scope_dialog.dart';
 import '../widgets/dialogs/event_image_attach_sheet.dart';
 import '../widgets/dialogs/event_save_scope_dialog.dart';
 import '../widgets/event_attach_source_panel.dart';
+import '../widgets/event_attach_source_reveal.dart';
 import '../widgets/event_form_attachment_focus_view.dart';
 import '../widgets/event_form_modal_header.dart';
 import '../../data/calendar_event_target_resolver.dart';
@@ -38,6 +35,8 @@ import '../widgets/sections/event_basic_section.dart';
 import '../widgets/sections/event_datetime_section.dart';
 import '../widgets/sections/event_extra_section.dart';
 import '../widgets/sections/event_recurrence_section.dart';
+import '../utils/event_attachment_image_normalizer.dart';
+import '../utils/event_attachment_picker.dart';
 import '../widgets/sections/event_subject_section.dart';
 
 class CalendarEventFormPage extends ConsumerStatefulWidget {
@@ -46,6 +45,8 @@ class CalendarEventFormPage extends ConsumerStatefulWidget {
     this.sourceEntry,
     this.mode = CalendarEventFormMode.edit,
     this.initialDay,
+    this.initialFormState,
+    this.initialPendingAttachments,
   }) : assert(
           mode == CalendarEventFormMode.create || sourceEntry != null,
           'sourceEntry is required in edit mode',
@@ -56,6 +57,10 @@ class CalendarEventFormPage extends ConsumerStatefulWidget {
 
   /// Kalendertag für Standard-Uhrzeiten beim Erstellen.
   final DateTime? initialDay;
+
+  /// Wiederherstellung nach iOS-Dateiauswahl (Sheet wurde kurz geschlossen).
+  final CalendarEventFormState? initialFormState;
+  final List<CalendarEventPendingAttachment>? initialPendingAttachments;
 
   /// Bottom-Sheet mit App-Hintergrund und abgerundeten oberen Ecken.
   static Future<void> show(
@@ -80,6 +85,8 @@ class CalendarEventFormPage extends ConsumerStatefulWidget {
   static Future<void> showCreate(
     BuildContext context, {
     required DateTime initialDay,
+    CalendarEventFormState? initialFormState,
+    List<CalendarEventPendingAttachment>? initialPendingAttachments,
   }) {
     return AppModalSheet.show<void>(
       context: context,
@@ -89,6 +96,8 @@ class CalendarEventFormPage extends ConsumerStatefulWidget {
         return CalendarEventFormPage(
           mode: CalendarEventFormMode.create,
           initialDay: initialDay,
+          initialFormState: initialFormState,
+          initialPendingAttachments: initialPendingAttachments,
         );
       },
     );
@@ -129,9 +138,10 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
 
   void _resetFormState() {
     _formState = _isCreateMode
-        ? CalendarEventFormFactory.forCreate(
-            day: widget.initialDay ?? DateTime.now(),
-          )
+        ? (widget.initialFormState ??
+            CalendarEventFormFactory.forCreate(
+              day: widget.initialDay ?? DateTime.now(),
+            ))
         : CalendarEventFormFactory.fromEntry(widget.sourceEntry!);
     _initialFormState = _formState;
     _eventNameController = TextEditingController(text: _formState.eventName);
@@ -139,6 +149,12 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
         TextEditingController(text: _formState.description);
     _locationController = TextEditingController(text: _formState.location);
     _noteController = TextEditingController(text: _formState.note);
+    final restored = widget.initialPendingAttachments;
+    if (restored != null && restored.isNotEmpty) {
+      _pendingAttachments
+        ..clear()
+        ..addAll(restored);
+    }
   }
 
   Future<void> _loadSeriesMetadata() async {
@@ -330,15 +346,64 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     }
   }
 
+  EventAttachmentCaptureMetrics _captureMetrics([BuildContext? ctx]) {
+    return EventAttachmentCaptureMetrics.fromContext(ctx ?? context);
+  }
+
   void _toggleAttachMenu() {
     if (_saving || _attachingMedia) return;
     setState(() => _attachMenuOpen = !_attachMenuOpen);
+  }
+
+  Future<CalendarEventPendingAttachment?> _attachmentFromPickedFile(
+    File file, {
+    EventAttachmentCaptureMetrics? metrics,
+  }) async {
+    final isImage = EventAttachmentPicker.isImagePath(file.path);
+    final isPdf = EventAttachmentPicker.isPdfPath(file.path);
+
+    if (isImage) {
+      final normalized =
+          await EventAttachmentImageNormalizer.normalizeForEventModal(
+        file,
+        metrics: metrics ?? _captureMetrics(),
+      );
+      if (normalized != null) {
+        final path = normalized.file.path;
+        return CalendarEventPendingAttachment(
+          id: '${DateTime.now().microsecondsSinceEpoch}',
+          localPath: path,
+          displayName: EventAttachmentPicker.displayNameForFile(path),
+          isImage: true,
+          isPdf: false,
+          pixelWidth: normalized.width,
+          pixelHeight: normalized.height,
+        );
+      }
+    }
+
+    final persisted = await EventAttachmentPicker.persistPickedFile(file);
+    final path = persisted.path;
+    return CalendarEventPendingAttachment(
+      id: '${DateTime.now().microsecondsSinceEpoch}',
+      localPath: path,
+      displayName: EventAttachmentPicker.displayNameForFile(path),
+      isImage: isImage,
+      isPdf: isPdf,
+    );
   }
 
   Future<void> _onAttachSourceSelected(EventImageAttachSource source) async {
     if (_saving || _attachingMedia) return;
 
     setState(() => _attachMenuOpen = false);
+
+    if (_isCreateMode &&
+        source == EventImageAttachSource.file &&
+        EventAttachmentPicker.mustDismissParentSheetBeforePick) {
+      await _pickDocumentWithIosSheetDismissed();
+      return;
+    }
 
     if (source == EventImageAttachSource.camera &&
         EventAttachSourcePanel.isIosSimulator) {
@@ -355,31 +420,27 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     if (!mounted) return;
 
     setState(() => _attachingMedia = true);
+    final captureMetrics = _captureMetrics();
     try {
       final file = await _pickFileForSource(source);
       if (file == null || !mounted) return;
 
-      final persisted = await _persistPickedFile(file);
-      if (!mounted) return;
+      final attachment = await _attachmentFromPickedFile(
+        file,
+        metrics: captureMetrics,
+      );
+      if (attachment == null || !mounted) return;
 
-      final path = persisted.path;
-      final name = _displayNameForFile(path);
       setState(() {
         _attachMenuOpen = false;
-        _pendingAttachments.add(
-          CalendarEventPendingAttachment(
-            id: '${DateTime.now().microsecondsSinceEpoch}',
-            localPath: path,
-            displayName: name,
-            isImage: _isImagePath(path),
-            isPdf: _isPdfPath(path),
-          ),
-        );
+        _pendingAttachments.add(attachment);
       });
-      final fileSize = await persisted.length();
+      final fileSize = await File(attachment.localPath).length();
       await AppHaptics.success();
       if (!mounted) return;
-      _logUpload('picked file path=$path size=$fileSize');
+      _logUpload(
+        'picked file path=${attachment.localPath} size=$fileSize',
+      );
     } catch (e, stack) {
       await AppHaptics.error();
       if (!mounted) return;
@@ -397,26 +458,67 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
   bool get _attachmentFocusMode =>
       _isCreateMode && _pendingAttachments.isNotEmpty;
 
-  static bool _isImagePath(String path) {
-    final ext = path.split('.').last.toLowerCase();
-    return <String>{
-      'jpg',
-      'jpeg',
-      'png',
-      'gif',
-      'webp',
-      'heic',
-      'heif',
-    }.contains(ext);
-  }
+  /// iOS: Modal-Sheet schließen, damit der UIDocumentPicker Touch-Events erhält.
+  Future<void> _pickDocumentWithIosSheetDismissed() async {
+    final hostContext = Navigator.of(context, rootNavigator: true).context;
+    final initialDay = widget.initialDay ?? DateTime.now();
+    final formSnapshot = _snapshotFromControllers();
+    final pendingSnapshot =
+        List<CalendarEventPendingAttachment>.from(_pendingAttachments);
 
-  static bool _isPdfPath(String path) {
-    return path.split('.').last.toLowerCase() == 'pdf';
-  }
+    Navigator.of(context, rootNavigator: true).pop();
 
-  static String _displayNameForFile(String path) {
-    final parts = path.split(RegExp(r'[/\\]'));
-    return parts.isNotEmpty ? parts.last : path;
+    await Future<void>.delayed(EventAttachmentPicker.iosSheetDismissDelay);
+    if (!hostContext.mounted) return;
+
+    Future<void> reopenForm({
+      List<CalendarEventPendingAttachment>? pending,
+    }) {
+      return CalendarEventFormPage.showCreate(
+        hostContext,
+        initialDay: initialDay,
+        initialFormState: formSnapshot,
+        initialPendingAttachments: pending ?? pendingSnapshot,
+      );
+    }
+
+    final captureMetrics = EventAttachmentCaptureMetrics.fromContext(hostContext);
+
+    try {
+      final file = await EventAttachmentPicker.pickDocument();
+      if (file == null) {
+        await reopenForm();
+        return;
+      }
+
+      final attachment = await _attachmentFromPickedFile(
+        file,
+        metrics: captureMetrics,
+      );
+      if (attachment == null) {
+        await reopenForm();
+        return;
+      }
+      await AppHaptics.success();
+      if (!hostContext.mounted) return;
+      await reopenForm(
+        pending: [...pendingSnapshot, attachment],
+      );
+      _logUpload(
+        'picked file path=${attachment.localPath} (ios sheet dismiss)',
+      );
+    } catch (e, stack) {
+      await AppHaptics.error();
+      _logUpload('pick failed (ios sheet dismiss): $e\n$stack');
+      if (hostContext.mounted) {
+        showAppToast(
+          hostContext,
+          'Auswahl fehlgeschlagen. Bitte erneut versuchen.',
+          kind: AppToastKind.error,
+        );
+        await reopenForm();
+      }
+    }
   }
 
   Future<File?> _pickFileForSource(EventImageAttachSource source) async {
@@ -425,26 +527,19 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
         case EventImageAttachSource.camera:
           final photo = await _imagePicker.pickImage(
             source: ImageSource.camera,
-            imageQuality: 85,
-            requestFullMetadata: false,
+            imageQuality: 90,
+            requestFullMetadata: true,
           );
           return _fileFromXFile(photo);
         case EventImageAttachSource.gallery:
           final image = await _imagePicker.pickImage(
             source: ImageSource.gallery,
-            imageQuality: 85,
-            requestFullMetadata: false,
+            imageQuality: 90,
+            requestFullMetadata: true,
           );
           return _fileFromXFile(image);
         case EventImageAttachSource.file:
-          final result = await FilePicker.platform.pickFiles(
-            withData: false,
-            allowMultiple: false,
-          );
-          if (result == null || result.files.isEmpty) return null;
-          final path = result.files.single.path;
-          if (path == null || path.isEmpty) return null;
-          return File(path);
+          return EventAttachmentPicker.pickDocument();
       }
     } catch (e, stack) {
       debugPrint('[EventAttach] picker failed: $e\n$stack');
@@ -471,19 +566,6 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
       _pendingAttachments.removeWhere((a) => a.id == id);
     });
     AppHaptics.selection();
-  }
-
-  /// Kopiert Picker-Dateien ins App-Temp — iOS löscht sonst Pfade vor dem Upload.
-  Future<File> _persistPickedFile(File source) async {
-    final dir = await getTemporaryDirectory();
-    final ext = p.extension(source.path);
-    final destPath = p.join(
-      dir.path,
-      'chrono_source_${DateTime.now().microsecondsSinceEpoch}$ext',
-    );
-    final dest = File(destPath);
-    await dest.writeAsBytes(await source.readAsBytes(), flush: true);
-    return dest;
   }
 
   Future<void> _onConfirmSourceUpload() async {
@@ -624,38 +706,53 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
             ? 'Anhang'
             : 'Termin erstellen';
 
-    final formBody = Column(
-      children: [
-        EventFormModalHeader(
-          title: title,
-          saving: _saving,
-          titleAlign: _isCreateMode ? TextAlign.start : TextAlign.center,
-          onAttachMedia:
-              _isCreateMode && !_attachmentFocusMode ? _toggleAttachMenu : null,
-          attachingMedia: _attachingMedia,
-          onClose: _onClose,
-          onSave: _onHeaderSave,
-          saveTooltip: _attachmentFocusMode ? 'Hochladen' : 'Speichern',
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: _isCreateMode && _attachMenuOpen && !_attachmentFocusMode
-              ? EventAttachSourcePanel(onSelected: _onAttachSourceSelected)
-              : const SizedBox.shrink(),
-        ),
-        if (_attachmentFocusMode)
-          Expanded(
-            child: EventFormAttachmentFocusView(
-              attachments: _pendingAttachments,
-              uploading: _saving,
-              onRemove: _saving ? null : _removePendingAttachment,
-            ),
+    final header = EventFormModalHeader(
+      title: title,
+      saving: _saving,
+      titleAlign: _isCreateMode ? TextAlign.start : TextAlign.center,
+      onAttachMedia:
+          _isCreateMode && !_attachmentFocusMode ? _toggleAttachMenu : null,
+      attachingMedia: _attachingMedia,
+      onClose: _onClose,
+      onSave: _onHeaderSave,
+      saveTooltip: _attachmentFocusMode ? 'Hochladen' : 'Speichern',
+      contrastImagePath: _attachmentFocusMode && _pendingAttachments.isNotEmpty
+          ? _pendingAttachments.first.localPath
+          : null,
+    );
+
+    final formBody = _attachmentFocusMode
+        ? Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    EventFormAttachmentFocusView(
+                      attachments: _pendingAttachments,
+                      uploading: _saving,
+                      onRemove: _saving ? null : _removePendingAttachment,
+                    ),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: header,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           )
-        else
-          Expanded(
-            child: ListView(
+        : Column(
+            children: [
+              header,
+              EventAttachSourceReveal(
+                visible: _isCreateMode && _attachMenuOpen,
+                onSelected: _onAttachSourceSelected,
+              ),
+              Expanded(
+                child: ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.l,
                 AppSpacing.m,
@@ -731,8 +828,8 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
               ],
             ),
           ),
-      ],
-    );
+            ],
+          );
 
     return PopScope(
       canPop: false,
@@ -745,7 +842,7 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
           bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: AppModalSheetChrome(
-          constraints: appModalSheetHeightConstraints(context),
+          constraints: appModalEventFormSheetConstraints(context),
           child: SafeArea(
             top: false,
             bottom: false,

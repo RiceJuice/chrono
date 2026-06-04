@@ -9,7 +9,7 @@ import '../../domain/calendar_event_pending_attachment.dart';
 
 const _domspatzenAssetPath = 'assets/domspatzen.svg';
 
-/// Vollflächige Anhang-Vorschau — ersetzt das Formular bis zum Bestätigen (Haken).
+/// Vorschau: bündig oben im Modal, volle Breite, Hochformat — Metadaten unten.
 class EventFormAttachmentFocusView extends StatefulWidget {
   const EventFormAttachmentFocusView({
     super.key,
@@ -53,17 +53,133 @@ class _EventFormAttachmentFocusViewState
 
     final current = items[_pageIndex.clamp(0, items.length - 1)];
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: _FullWidthImageCarousel(
+            items: items,
+            pageController: _pageController,
+            uploading: widget.uploading,
+            pageIndex: _pageIndex,
+            onPageChanged: (index) => setState(() => _pageIndex = index),
+            scheme: scheme,
+          ),
+        ),
+        _PreviewMetaSection(
+          attachment: current,
+          showWatermark: current.isImage,
+          uploading: widget.uploading,
+          onRemove: widget.onRemove,
+          theme: theme,
+          scheme: scheme,
+        ),
+      ],
+    );
+  }
+}
+
+class _FullWidthImageCarousel extends StatelessWidget {
+  const _FullWidthImageCarousel({
+    required this.items,
+    required this.pageController,
+    required this.uploading,
+    required this.pageIndex,
+    required this.onPageChanged,
+    required this.scheme,
+  });
+
+  final List<CalendarEventPendingAttachment> items;
+  final PageController pageController;
+  final bool uploading;
+  final int pageIndex;
+  final ValueChanged<int> onPageChanged;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final index = pageIndex.clamp(0, items.length - 1);
+
+    final pager = items.length == 1
+        ? _AttachmentPreviewContent(attachment: items.first)
+        : PageView.builder(
+            controller: pageController,
+            itemCount: items.length,
+            onPageChanged: onPageChanged,
+            itemBuilder: (context, i) =>
+                _AttachmentPreviewContent(attachment: items[i]),
+          );
+
+    return ClipSmoothRect(
+      radius: AppSquircle.bottomSheet(AppRadius.sheet),
+      child: ColoredBox(
+        color: scheme.surfaceContainerHigh,
+        child: Stack(
+          fit: StackFit.expand,
+          alignment: Alignment.topCenter,
+          children: [
+            pager,
+            if (uploading)
+              ColoredBox(
+                color: scheme.scrim.withValues(alpha: 0.18),
+                child: Center(
+                  child: SizedBox.square(
+                    dimension: 32,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ),
+              ),
+            if (items.length > 1)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: AppSpacing.m,
+                child: _PageIndicator(
+                  count: items.length,
+                  index: index,
+                  color: scheme.onSurface,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewMetaSection extends StatelessWidget {
+  const _PreviewMetaSection({
+    required this.attachment,
+    required this.showWatermark,
+    required this.uploading,
+    required this.onRemove,
+    required this.theme,
+    required this.scheme,
+  });
+
+  final CalendarEventPendingAttachment attachment;
+  final bool showWatermark;
+  final bool uploading;
+  final ValueChanged<String>? onRemove;
+  final ThemeData theme;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.l,
-        AppSpacing.s,
+        AppSpacing.m,
         AppSpacing.l,
         AppSpacing.l,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (widget.uploading)
+          if (uploading)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.m),
               child: Text(
@@ -72,65 +188,15 @@ class _EventFormAttachmentFocusViewState
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: scheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
-                  letterSpacing: -0.1,
                 ),
               ),
             ),
-          Expanded(
-            child: ClipSmoothRect(
-              radius: AppSquircle.borderRadius(AppRadius.xl),
-              child: ColoredBox(
-                color: scheme.surfaceContainerHigh,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    PageView.builder(
-                      controller: _pageController,
-                      itemCount: items.length,
-                      onPageChanged: (index) =>
-                          setState(() => _pageIndex = index),
-                      itemBuilder: (context, index) {
-                        return _AttachmentPreviewContent(
-                          attachment: items[index],
-                        );
-                      },
-                    ),
-                    if (widget.uploading)
-                      ColoredBox(
-                        color: scheme.scrim.withValues(alpha: 0.12),
-                        child: Center(
-                          child: SizedBox.square(
-                            dimension: 28,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: scheme.onSurface,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (items.length > 1)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: AppSpacing.m,
-                        child: _PageIndicator(
-                          count: items.length,
-                          index: _pageIndex,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (current.isImage) ...[
-            const SizedBox(height: AppSpacing.s),
+          if (showWatermark) ...[
             _DomspatzenWatermark(color: scheme.onSurfaceVariant),
+            const SizedBox(height: AppSpacing.s),
           ],
-          const SizedBox(height: AppSpacing.m),
           Text(
-            current.displayName,
+            attachment.displayName,
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -139,22 +205,20 @@ class _EventFormAttachmentFocusViewState
               letterSpacing: -0.1,
             ),
           ),
-          if (!widget.uploading && widget.onRemove != null) ...[
+          if (!uploading && onRemove != null) ...[
             const SizedBox(height: AppSpacing.s),
-            Center(
-              child: TextButton(
-                onPressed: () => widget.onRemove!(current.id),
-                style: TextButton.styleFrom(
-                  foregroundColor: scheme.error.withValues(alpha: 0.88),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.l,
-                    vertical: AppSpacing.s,
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            TextButton(
+              onPressed: () => onRemove!(attachment.id),
+              style: TextButton.styleFrom(
+                foregroundColor: scheme.error.withValues(alpha: 0.88),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.l,
+                  vertical: AppSpacing.s,
                 ),
-                child: const Text('Entfernen'),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
+              child: const Text('Entfernen'),
             ),
           ],
         ],
@@ -171,20 +235,14 @@ class _AttachmentPreviewContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (attachment.isImage) {
-      return InteractiveViewer(
-        minScale: 0.9,
-        maxScale: 3,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.m),
-          child: Center(
-            child: Image.file(
-              File(attachment.localPath),
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) =>
-                  _DocumentPreview(attachment: attachment),
-            ),
-          ),
-        ),
+      return Image.file(
+        File(attachment.localPath),
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
+        errorBuilder: (context, error, stackTrace) =>
+            _DocumentPreview(attachment: attachment),
       );
     }
 

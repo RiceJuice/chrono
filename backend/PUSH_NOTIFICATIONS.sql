@@ -1,9 +1,15 @@
--- Referenz-SQL für FCM-Token auf profiles.
--- Kanonische Migration: supabase/migrations/*_profiles_fcm_token.sql
+-- Referenz: Push-Geräte (mehrere pro Admin)
+-- Migration: supabase/migrations/*_profile_push_devices.sql
 
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS fcm_token text,
-  ADD COLUMN IF NOT EXISTS fcm_token_updated_at timestamptz;
+CREATE TABLE IF NOT EXISTS public.profile_push_devices (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  device_id text NOT NULL,
+  fcm_token text NOT NULL,
+  platform text NOT NULL CHECK (platform IN ('ios', 'android')),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, device_id)
+);
 
-COMMENT ON COLUMN public.profiles.fcm_token IS
-  'FCM device token; nur vom Gerät des Users gesetzt. Edge Function liest mit service_role.';
+-- Legacy (nicht mehr von der App beschrieben):
+-- profiles.fcm_token, profiles.fcm_token_updated_at

@@ -1,12 +1,12 @@
 # Admin Push-Benachrichtigungen
 
-n8n-Workflow → Supabase Edge Function `notify-admins` → FCM → alle Admins mit gespeichertem `profiles.fcm_token`.
+n8n-Workflow → Supabase Edge Function `notify-admins` → FCM → alle Admin-Geräte in `profile_push_devices`.
 
 ## Architektur
 
-1. **Flutter (nur Admin):** Nach Login Berechtigung anfragen, FCM-Token holen, in `profiles` speichern.
-2. **n8n:** Am Ende des Workflows HTTP-POST an `notify-admins` mit Webhook-Secret.
-3. **Edge Function:** Lädt alle `profiles` mit `role = 'Admin'` und gültigem Token, sendet FCM HTTP v1.
+1. **Flutter (nur Admin):** FCM-Token pro Gerät/Installation in `profile_push_devices` (Upsert).
+2. **n8n:** HTTP-POST an `notify-admins` mit Webhook-Secret.
+3. **Edge Function:** Alle Zeilen für Admins (`profiles.role = Admin`), **jedes Gerät** bekommt eine FCM-Nachricht.
 
 SQL-Referenz: [`PUSH_NOTIFICATIONS.sql`](PUSH_NOTIFICATIONS.sql)  
 Migration: [`supabase/migrations/`](../supabase/migrations/)
@@ -31,10 +31,22 @@ Im Repo bereits eingerichtet:
 Zusätzlich **ohne Xcode am Mac**:
 
 1. [Apple Developer](https://developer.apple.com/account) → Identifiers → `com.domspatzen.chronoapp` → **Push Notifications** aktivieren.
-2. APNs-Key (.p8) in Firebase → Cloud Messaging → Apple hochladen.
-3. Xcode Cloud Build installieren (TestFlight/Ad-hoc) — [`ios/ci_scripts/ci_post_clone.sh`](../ios/ci_scripts/ci_post_clone.sh) bleibt unverändert; Entitlements kommen aus `project.pbxproj`.
+2. APNs-**Authentifizierungsschlüssel** (.p8) in Firebase → Cloud Messaging → Apple hochladen (nicht nur „Development Certificate“).
+3. Xcode Cloud / **TestFlight**-Build installieren — [`ios/ci_scripts/ci_post_clone.sh`](../ios/ci_scripts/ci_post_clone.sh) unverändert.
 
 `Info.plist` enthält bereits `UIBackgroundModes` → `remote-notification`.
+
+#### TestFlight vs. „Development“-APNs-Key
+
+| Begriff | Bedeutung |
+|---------|-----------|
+| **APNs Auth Key (.p8)** in Apple Developer | Ein Schlüssel gilt für **Sandbox und Production** — in Firebase unter „APNs Authentication Key“ hochladen. |
+| **TestFlight / App Store Build** | App braucht `aps-environment` = **`production`** → [`RunnerRelease.entitlements`](../ios/Runner/RunnerRelease.entitlements) (Xcode Cloud Archive = Release). |
+| **Nur Xcode-Debug direkt aufs Gerät** | `development` → [`RunnerDebug.entitlements`](../ios/Runner/RunnerDebug.entitlements) |
+
+**Wichtig:** TestFlight nutzt **production**-Entitlements in der App, auch wenn du in Apple einen Key „für Development“ erstellt hast. Der .p8-Key in Firebase muss trotzdem hinterlegt sein.
+
+`THIRD_PARTY_AUTH_ERROR` auf iOS = APNs in Firebase fehlt/falsch oder .p8/Key-ID/Team-ID stimmen nicht.
 
 ### FlutterFire
 
@@ -52,7 +64,7 @@ supabase db push
 # oder Migration aus supabase/migrations manuell im Dashboard ausführen
 ```
 
-Spalten: `profiles.fcm_token`, `profiles.fcm_token_updated_at`.
+Tabelle: `profile_push_devices` (Migration `*_profile_push_devices.sql`). Legacy-Spalten `profiles.fcm_token` werden von der App nicht mehr beschrieben.
 
 Admin-Rolle setzen (falls noch nicht):
 
@@ -136,12 +148,12 @@ curl -X POST "https://chrbvfaknykaycwumuba.supabase.co/functions/v1/notify-admin
   -d '{"title":"Test","body":"Push-Test von curl"}'
 ```
 
-Erwartete Antwort: `{"sent":1,"failed":0,"skipped":0,...}` (Zahlen je nach Admins).
+Erwartete Antwort: `{"sent":1,"failed":0,"device_count":1,"admin_count":1,...}` (`sent` = erfolgreiche FCM-Sends, kann > Admins sein bei mehreren Geräten).
 
 ## 7. App-Verifikation
 
 1. Als Admin anmelden, App auf **physischem Gerät** (Emulator oft ohne Push).
-2. In Supabase Table Editor: `profiles.fcm_token` für deine User-ID gesetzt?
+2. In Supabase: Tabelle `profile_push_devices` — mindestens eine Zeile für deine User-ID?
 3. n8n/curl-Test → Push auf dem Gerät.
 
 ## 8. Troubleshooting
@@ -153,7 +165,9 @@ Erwartete Antwort: `{"sent":1,"failed":0,"skipped":0,...}` (Zahlen je nach Admin
 | FCM 401 / 403 | `FIREBASE_SERVICE_ACCOUNT_JSON` ungültig oder falsches Firebase-Projekt |
 | `PERMISSION_DENIED` + `cloudmessaging.messages.create` | FCM API in Google Cloud aktivieren + Rolle **Firebase Cloud Messaging Admin** |
 | `failures` + Emulator | Push nur auf **physischem** iPhone/Android testen |
-| iOS keine Push | APNs-Key in Firebase; App-ID Push aktiv; Release-Build = `production`-Entitlements |
+| `THIRD_PARTY_AUTH_ERROR` (iOS) | APNs **Authentication Key** (.p8) in Firebase; TestFlight = `production`-Entitlements |
+| iOS keine Push | App-ID Push aktiv; neuer Build nach Entitlements; kein Simulator |
+| Push ohne Ton | iPhone: Stumm-Schalter/Fokus; Einstellungen → Chrono → Töne; FCM sendet `sound: default` (Edge Function) |
 | Android API 33+ | `POST_NOTIFICATIONS` in Manifest; Nutzer muss erlauben |
 | Token verschwindet | Edge Function löscht ungültige Tokens (`UNREGISTERED`) — App neu öffnen |
 
@@ -161,8 +175,12 @@ Erwartete Antwort: `{"sent":1,"failed":0,"skipped":0,...}` (Zahlen je nach Admin
 
 - `service_role` und Firebase-JSON nur in Supabase Secrets.
 - Webhook nur über `x-webhook-secret` absichern (`verify_jwt = false` für n8n).
-- Andere Nutzer können fremde `fcm_token` nicht lesen (RLS `profiles_select_own`).
+- RLS auf `profile_push_devices`: Nutzer sehen/ändern nur eigene Geräte (`user_id = auth.uid()`).
 
-## Hinweis Mehrgeräte
+## Mehrere Geräte pro Admin
 
-Aktuell ein Token pro Profil (`profiles.fcm_token`). Letztes angemeldetes Gerät gewinnt. Für mehrere Geräte pro Admin später Tabelle `profile_push_devices` erwägen.
+Tabelle `profile_push_devices`: ein Eintrag pro **Installation** (`device_id` in SharedPreferences).
+
+- iPhone + iPad = zwei Zeilen → beide erhalten Push.
+- Logout löscht nur das **aktuelle** Gerät.
+- Ungültige FCM-Tokens: Edge Function löscht die betroffene Zeile (`UNREGISTERED`).
