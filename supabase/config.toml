@@ -1,0 +1,5 @@
+# Supabase CLI – https://supabase.com/docs/guides/cli/config
+project_id = "chrbvfaknykaycwumuba"
+
+[functions.notify-admins]
+verify_jwt = false

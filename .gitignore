@@ -46,6 +46,7 @@ app.*.map.json
 
 # Local Supabase / dart-define secrets (do not commit)
 config/dart_defines.local.json
+config/push_secrets.local.env
 
 # Android release signing (do not commit)
 android/key.properties

@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -8,6 +11,10 @@ import 'package:powersync/powersync.dart' hide Column;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/auth/supabase_apple_auth_deep_links.dart';
+import 'core/push/firebase_messaging_background.dart';
+import 'core/push/push_notification_bootstrap.dart';
+import 'core/push/push_notification_service.dart';
+import 'firebase_options.dart';
 import 'core/database/calendar_events_debug_log.dart';
 import 'core/database/database_provider.dart';
 import 'core/database/powersync_auth_binding.dart';
@@ -24,8 +31,27 @@ const String kSupabaseUrl = 'https://chrbvfaknykaycwumuba.supabase.co';
 const String kSupabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNocmJ2ZmFrbnlrYXljd3VtdWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ0MjEsImV4cCI6MjA5MDQ3MDQyMX0.K7ChUbeWNd_-wCWCswo0b-dVpe50x57qK-dsBkN9NrE';
 
+Future<void> _initializeFirebase() async {
+  if (!DefaultFirebaseOptions.isConfigured) return;
+  if (!PushNotificationService.supportsPush) return;
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await PushNotificationService().registerListeners();
+  } catch (e, st) {
+    if (kDebugMode) {
+      debugPrint('[FCM] Firebase init failed: $e\n$st');
+    }
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await _initializeFirebase();
 
   final results = await Future.wait<Object>([
     Supabase.initialize(url: kSupabaseUrl, anonKey: kSupabaseAnonKey),
@@ -87,6 +113,8 @@ Future<void> _finishStartup({
     profileGateNotifier.waitUntilReady(),
   ]);
 
+  PushNotificationBootstrap.start(profileGate: profileGateNotifier);
+
   startupNotifier.setReady();
 }
 
@@ -118,6 +146,7 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   @override
   void dispose() {
+    unawaited(PushNotificationBootstrap.disposeInstance());
     PowerSyncAuthBinding.dispose();
     widget.authSessionNotifier.dispose();
     widget.profileGateNotifier.dispose();

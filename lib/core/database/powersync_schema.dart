@@ -81,6 +81,8 @@ const powersyncSchema = Schema([
       Column.text('updated_at'),
       Column.text('onboarding_completed_at'),
       Column.text('calendar_preferences'),
+      Column.text('fcm_token'),
+      Column.text('fcm_token_updated_at'),
     ],
     indexes: [
       Index('profiles_class_name', [IndexedColumn('class_name')]),

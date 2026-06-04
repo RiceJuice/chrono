@@ -53,15 +53,17 @@ dependencies:
   scrollable_positioned_list: ^0.3.8
   open_mail: ^1.2.1
   blur: ^4.0.2
-  package_info_plus: ^10.1.0
+  package_info_plus: ^9.0.1
   shared_preferences: ^2.5.5
   internet_connection_checker: 3.0.1
   flutter_colorpicker: ^1.1.0
   phosphor_flutter: ^2.1.0
   cupertino_native_better: ^1.4.6
   image_picker: ^1.2.2
-  file_picker: ^3.0.4
+  file_picker: ^8.1.7
   mime: ^2.0.0
+  firebase_core: ^4.10.0
+  firebase_messaging: ^16.3.0
 
 dev_dependencies:
   flutter_test:

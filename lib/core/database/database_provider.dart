@@ -15,8 +15,8 @@ final dbProvider = Provider<PowerSyncDatabase>((ref) {
 
 Future<PowerSyncDatabase> initializeDatabase() async {
   final dir = await getApplicationDocumentsDirectory();
-  // v13: subjects reference table, calendar_series.subject_id, profiles.calendar_preferences.
-  final path = p.join(dir.path, 'chrono_powersync_v13.db');
+  // v14: profiles.fcm_token, profiles.fcm_token_updated_at (admin push).
+  final path = p.join(dir.path, 'chrono_powersync_v14.db');
   final db = PowerSyncDatabase(schema: powersyncSchema, path: path);
   await db.initialize();
   return db;

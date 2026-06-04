@@ -64,3 +64,8 @@ android {
 flutter {
     source = "../.."
 }
+
+// google-services.json nach Firebase-Setup (siehe backend/PUSH_NOTIFICATIONS.md)
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}

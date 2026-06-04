@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:chronoapp/core/push/push_notification_service.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 
 import 'package:flutter/foundation.dart';
@@ -388,6 +389,8 @@ class BackendConnector extends PowerSyncBackendConnector {
   static Future<void> logout(BuildContext context) async {
 
     try {
+
+      await PushNotificationService().clearTokenOnLogout();
 
       await Supabase.instance.client.auth.signOut();
 

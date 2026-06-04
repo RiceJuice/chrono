@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "304796088073",
+    "project_id": "chronoapp-e0ccf",
+    "storage_bucket": "chronoapp-e0ccf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:304796088073:android:bb3df035d42db284dd05d8",
+        "android_client_info": {
+          "package_name": "com.domspatzen.chronoapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYvK_XhCq2PqBbEqDegH447GayJHawsqk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

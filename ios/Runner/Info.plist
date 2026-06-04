@@ -88,5 +88,9 @@
 		<string>Chrono benötigt Zugriff auf deine Fotos, um Bilder für die Termin-Verarbeitung auszuwählen.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 	</dict>
 </plist>

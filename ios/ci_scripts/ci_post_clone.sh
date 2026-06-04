@@ -42,4 +42,7 @@ pod install
 
 cd ..
 
+# Push: RunnerDebug/RunnerRelease.entitlements + CODE_SIGN_ENTITLEMENTS in project.pbxproj
+# (siehe backend/PUSH_NOTIFICATIONS.md). Apple Developer: Push an App-ID aktivieren.
+
 echo "--- Setup & Tests successful. Starting Xcode Cloud build ---"

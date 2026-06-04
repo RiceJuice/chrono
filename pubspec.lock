@@ -9,6 +9,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "92.0.0"
+  _flutterfire_internals:
+    dependency: transitive
+    description:
+      name: _flutterfire_internals
+      sha256: "0d1f0adfabbab9f46a1a80ce84a4d8b852b6e4dbf53ce413b30e0cf7d3631b71"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.72"
   analyzer:
     dependency: transitive
     description:
@@ -361,14 +369,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
-  ffi_leak_tracker:
-    dependency: transitive
-    description:
-      name: ffi_leak_tracker
-      sha256: "4093d4ef9ca06ffe2786e73bfb25e22aa92112b9bb4ec941f11e3e6b61489a97"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.2"
   figma_squircle:
     dependency: "direct main"
     description:
@@ -389,10 +389,10 @@ packages:
     dependency: "direct main"
     description:
       name: file_picker
-      sha256: f9245fc33aeba9e0b938d7f3785f10b7a7230e05b8fc40f5a6a8342d7899e391
+      sha256: ab13ae8ef5580a411c458d6207b6774a6c237d77ac37011b13994879f68a8810
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.4"
+    version: "8.3.7"
   file_selector_linux:
     dependency: transitive
     description:
@@ -425,6 +425,54 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.9.3+5"
+  firebase_core:
+    dependency: "direct main"
+    description:
+      name: firebase_core
+      sha256: ec46a100a560d3bd5f97f2d89ba7492cb09b6dd0a4a28753d1258f360d6bd9f9
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.10.0"
+  firebase_core_platform_interface:
+    dependency: transitive
+    description:
+      name: firebase_core_platform_interface
+      sha256: "4a120366dbf7d5a8ee9438978530b664b855728fb8dcc3a201017660817e555b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.0.1"
+  firebase_core_web:
+    dependency: transitive
+    description:
+      name: firebase_core_web
+      sha256: "5ad1be848692ec148f2d6a8ad2a3838cb852ea5f3c9e6479a7afce479e1854f8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.8.0"
+  firebase_messaging:
+    dependency: "direct main"
+    description:
+      name: firebase_messaging
+      sha256: "9651e833454156b9f0927eaedccffba0f7f6a6e20ceddef82517211e7017e9c4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "16.3.0"
+  firebase_messaging_platform_interface:
+    dependency: transitive
+    description:
+      name: firebase_messaging_platform_interface
+      sha256: "292bb5dc9c4a429078895406c347d7c7690deb858c1adeed8f4b4346f769dfa3"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.8.0"
+  firebase_messaging_web:
+    dependency: transitive
+    description:
+      name: firebase_messaging_web
+      sha256: "08c565bc83729439f5de2dfea77b4832002b705eb2f840366cefa80e4e5c3c66"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.2.0"
   fixnum:
     dependency: transitive
     description:
@@ -876,18 +924,18 @@ packages:
     dependency: "direct main"
     description:
       name: package_info_plus
-      sha256: "4bf625947f6c7713ee242296a682e23e44823c09cf9d79e4f1238923c92db852"
+      sha256: "468c26b4254ab01979fa5e4a98cb343ea3631b9acee6f21028997419a80e1a20"
       url: "https://pub.dev"
     source: hosted
-    version: "10.1.0"
+    version: "9.0.1"
   package_info_plus_platform_interface:
     dependency: transitive
     description:
       name: package_info_plus_platform_interface
-      sha256: db762cb2f4f25ee60fb6359773861b0f199e00b90d237bd85a76a1e806b46ef4
+      sha256: "202a487f08836a592a6bd4f901ac69b3a8f146af552bbd14407b6b41e1c3f086"
       url: "https://pub.dev"
     source: hosted
-    version: "4.1.0"
+    version: "3.2.1"
   path:
     dependency: "direct main"
     description:
@@ -1633,10 +1681,10 @@ packages:
     dependency: transitive
     description:
       name: win32
-      sha256: a1fc9eb9248baa05dfc12ed5b66e377b3e23f095eec078e0371622b9033810d9
+      sha256: d7cb55e04cd34096cd3a79b3330245f54cb96a370a1c27adb3c84b917de8b08e
       url: "https://pub.dev"
     source: hosted
-    version: "6.2.0"
+    version: "5.15.0"
   xdg_directories:
     dependency: transitive
     description:
