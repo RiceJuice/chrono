@@ -26,10 +26,15 @@ class MainNavigationBar extends ConsumerWidget {
   static const int _adminCreateTabIndex = 1;
 
   static const _iconLabelSpacingOffset = 5.0;
-  static const _tabIconSlotSize = 28.0;
 
-  /// Einheitliche optische Größe (Spatz-Silhouette, Material, SF Symbols).
-  static const _tabGlyphSize = 22.0;
+  /// Material NavigationBar (Android): größere Glyphen im 28-pt-Slot.
+  static const _materialTabIconSlotSize = 28.0;
+  static const _materialTabGlyphSize = 22.0;
+
+  /// Liquid-Glass-TabBar (iOS): Apple-Tab-Bar-Raster (~25 pt), kompakte Glyphen.
+  /// SF Symbols ohne explizite Größe nutzen ~25 pt; hier bewusst kleiner für
+  /// einheitliche Silhouettenhöhe (vgl. Apple Design Resources, Tab-Bar-Vorlagen).
+  static const _iosTabGlyphSize = 17.0;
 
   static const _calendarAssetPath = 'assets/domspatzen.svg';
 
@@ -41,9 +46,9 @@ class MainNavigationBar extends ConsumerWidget {
   static const _sparrowVisibleHeightFraction =
       (_sparrowVisualBottomY - _sparrowVisualTopY) / _sparrowViewBoxHeight;
 
-  /// SVG-Kantenlänge, damit die sichtbare Spatz-Silhouette [_tabGlyphSize] hat.
-  static double get _sparrowAssetSize =>
-      _tabGlyphSize / _sparrowVisibleHeightFraction;
+  /// SVG-Kantenlänge, damit die sichtbare Spatz-Silhouette [glyphSize] hat.
+  static double _sparrowAssetSizeFor(double glyphSize) =>
+      glyphSize / _sparrowVisibleHeightFraction;
 
   int _tabIndexFromLocation(String location, {required bool isAdmin}) {
     if (location.startsWith(_homeworkPath)) return isAdmin ? 2 : 1;
@@ -120,8 +125,8 @@ class MainNavigationBar extends ConsumerWidget {
     return Transform.translate(
       offset: const Offset(0, _iconLabelSpacingOffset),
       child: SizedBox(
-        width: _tabIconSlotSize,
-        height: _tabIconSlotSize,
+        width: _materialTabIconSlotSize,
+        height: _materialTabIconSlotSize,
         child: Center(child: icon),
       ),
     );
@@ -130,11 +135,13 @@ class MainNavigationBar extends ConsumerWidget {
   Widget _buildCalendarIcon({
     required BuildContext context,
     required bool selected,
+    required double glyphSize,
   }) {
+    final assetSize = _sparrowAssetSizeFor(glyphSize);
     return SvgPicture.asset(
         _calendarAssetPath,
-        height: _sparrowAssetSize,
-        width: _sparrowAssetSize,
+        height: assetSize,
+        width: assetSize,
         fit: BoxFit.contain,
         colorFilter: selected
             ? null
@@ -148,11 +155,12 @@ class MainNavigationBar extends ConsumerWidget {
   Widget _buildHomeworkIcon({
     required BuildContext context,
     required bool selected,
+    required double glyphSize,
   }) {
     final scheme = Theme.of(context).colorScheme;
     return Icon(
       selected ? Icons.menu_book : Icons.menu_book_outlined,
-      size: _tabGlyphSize,
+      size: glyphSize,
       color: selected ? scheme.primary : scheme.onSurfaceVariant,
     );
   }
@@ -160,11 +168,12 @@ class MainNavigationBar extends ConsumerWidget {
   Widget _buildCreateEventIcon({
     required BuildContext context,
     required bool selected,
+    required double glyphSize,
   }) {
     final scheme = Theme.of(context).colorScheme;
     return Icon(
       CupertinoIcons.calendar_badge_plus,
-      size: _tabGlyphSize,
+      size: glyphSize,
       color: selected ? scheme.primary : scheme.onSurfaceVariant,
     );
   }
@@ -172,11 +181,12 @@ class MainNavigationBar extends ConsumerWidget {
   Widget _buildSettingsIcon({
     required BuildContext context,
     required bool selected,
+    required double glyphSize,
   }) {
     final scheme = Theme.of(context).colorScheme;
     return Icon(
       selected ? Icons.settings : Icons.settings_outlined,
-      size: _tabGlyphSize,
+      size: glyphSize,
       color: selected ? scheme.primary : scheme.onSurfaceVariant,
     );
   }
@@ -194,6 +204,7 @@ class MainNavigationBar extends ConsumerWidget {
           _buildCalendarIcon(
             context: context,
             selected: currentIndex == 0,
+            glyphSize: _materialTabGlyphSize,
           ),
         ),
         label: 'Kalender',
@@ -204,6 +215,7 @@ class MainNavigationBar extends ConsumerWidget {
             _buildCreateEventIcon(
               context: context,
               selected: currentIndex == _adminCreateTabIndex,
+              glyphSize: _materialTabGlyphSize,
             ),
           ),
           label: 'Termin',
@@ -214,6 +226,7 @@ class MainNavigationBar extends ConsumerWidget {
           _buildHomeworkIcon(
             context: context,
             selected: currentIndex == (isAdmin ? 2 : 1),
+            glyphSize: _materialTabGlyphSize,
           ),
         ),
         label: 'Aufgaben',
@@ -223,6 +236,7 @@ class MainNavigationBar extends ConsumerWidget {
           _buildSettingsIcon(
             context: context,
             selected: currentIndex == (isAdmin ? 3 : 2),
+            glyphSize: _materialTabGlyphSize,
           ),
         ),
         label: 'Dein Chrono',
@@ -269,39 +283,41 @@ class MainNavigationBar extends ConsumerWidget {
   }) {
     final inactiveIconColor =
         Theme.of(context).colorScheme.onSurfaceVariant;
+    final iosSparrowAssetSize =
+        _sparrowAssetSizeFor(_iosTabGlyphSize);
 
     final items = <CNTabBarItem>[
       CNTabBarItem(
         label: 'Kalender',
         imageAsset: CNImageAsset(
           _calendarAssetPath,
-          size: _sparrowAssetSize,
+          size: iosSparrowAssetSize,
           color: inactiveIconColor,
         ),
         activeImageAsset: CNImageAsset(
           _calendarAssetPath,
-          size: _sparrowAssetSize,
+          size: iosSparrowAssetSize,
         ),
       ),
       if (isAdmin)
         CNTabBarItem(
           label: 'Termin',
-          icon: CNSymbol('calendar.badge.plus', size: _tabGlyphSize),
+          icon: CNSymbol('calendar.badge.plus', size: _iosTabGlyphSize),
           activeIcon: CNSymbol(
             'calendar.badge.plus',
-            size: _tabGlyphSize,
+            size: _iosTabGlyphSize,
           ),
         ),
       CNTabBarItem(
         label: 'Aufgaben',
-        icon: CNSymbol('text.book.closed', size: _tabGlyphSize),
+        icon: CNSymbol('text.book.closed', size: _iosTabGlyphSize),
         activeIcon:
-            CNSymbol('text.book.closed.fill', size: _tabGlyphSize),
+            CNSymbol('text.book.closed.fill', size: _iosTabGlyphSize),
       ),
       CNTabBarItem(
         label: 'Dein Chrono',
-        icon: CNSymbol('gearshape', size: _tabGlyphSize),
-        activeIcon: CNSymbol('gearshape.fill', size: _tabGlyphSize),
+        icon: CNSymbol('gearshape', size: _iosTabGlyphSize),
+        activeIcon: CNSymbol('gearshape.fill', size: _iosTabGlyphSize),
       ),
     ];
 

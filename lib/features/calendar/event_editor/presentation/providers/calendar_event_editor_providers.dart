@@ -6,6 +6,7 @@ import '../../data/calendar_event_source_upload_service.dart';
 import '../../data/calendar_event_series_reader.dart';
 import '../../data/calendar_event_target_resolver.dart';
 import '../../data/calendar_event_write_repository.dart';
+import '../../data/event_broadcast_service.dart';
 
 final calendarEventWriteRepositoryProvider =
     Provider<CalendarEventWriteRepository>((ref) {
@@ -31,3 +32,7 @@ final calendarEventSourceUploadServiceProvider =
     Provider<CalendarEventSourceUploadService>((ref) {
       return CalendarEventSourceUploadService();
     });
+
+final eventBroadcastServiceProvider = Provider<EventBroadcastService>((ref) {
+  return EventBroadcastService();
+});

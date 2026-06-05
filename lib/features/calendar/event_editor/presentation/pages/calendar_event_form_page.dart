@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/core/widgets/app_dialog.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
@@ -13,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/calendar_event_write_repository.dart';
 import '../../domain/calendar_event_form_factory.dart';
+import '../../domain/calendar_event_change_summary.dart';
 import '../../domain/calendar_event_pending_attachment.dart';
 import '../../domain/calendar_event_form_mode.dart';
 import '../../domain/calendar_event_form_state.dart';
@@ -22,6 +24,8 @@ import '../providers/calendar_event_editor_providers.dart';
 import '../providers/calendar_event_form_controller.dart';
 import '../providers/is_admin_provider.dart';
 import '../../data/calendar_event_source_upload_service.dart';
+import '../../data/event_broadcast_service.dart';
+import '../widgets/dialogs/event_broadcast_dialog.dart';
 import '../widgets/dialogs/event_delete_scope_dialog.dart';
 import '../widgets/dialogs/event_image_attach_sheet.dart';
 import '../widgets/dialogs/event_save_scope_dialog.dart';
@@ -232,30 +236,14 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
 
   Future<bool> _confirmDiscard() async {
     if (!_isDirty) return true;
-    final result = await showDialog<bool>(
+    return showAppConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Änderungen verwerfen?'),
-        content: const Text('Nicht gespeicherte Änderungen gehen verloren.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              AppHaptics.selection();
-              Navigator.of(context).pop(false);
-            },
-            child: const Text('Weiter bearbeiten'),
-          ),
-          FilledButton(
-            onPressed: () {
-              AppHaptics.medium();
-              Navigator.of(context).pop(true);
-            },
-            child: const Text('Verwerfen'),
-          ),
-        ],
-      ),
+      title: 'Änderungen verwerfen?',
+      message:
+          'Deine Anpassungen an diesem Termin wurden noch nicht gespeichert.',
+      cancelLabel: 'Weiter bearbeiten',
+      confirmLabel: 'Verwerfen',
     );
-    return result ?? false;
   }
 
   Future<void> _onClose() async {
@@ -270,41 +258,15 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     final fallback = widget.sourceEntry?.eventName.trim() ?? '';
     final label = name.isNotEmpty ? name : fallback;
 
-    final result = await showDialog<bool>(
+    return showAppConfirmDialog(
       context: context,
-      builder: (context) {
-        final theme = Theme.of(context);
-        return AlertDialog(
-          title: const Text('Termin löschen?'),
-          content: Text(
-            label.isNotEmpty
-                ? '„$label“ wird dauerhaft entfernt. Das lässt sich nicht rückgängig machen.'
-                : 'Dieser Termin wird dauerhaft entfernt. Das lässt sich nicht rückgängig machen.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                AppHaptics.selection();
-                Navigator.of(context).pop(false);
-              },
-              child: const Text('Abbrechen'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: theme.colorScheme.error,
-                foregroundColor: theme.colorScheme.onError,
-              ),
-              onPressed: () {
-                AppHaptics.medium();
-                Navigator.of(context).pop(true);
-              },
-              child: const Text('Löschen'),
-            ),
-          ],
-        );
-      },
+      title: 'Termin löschen?',
+      message: label.isNotEmpty
+          ? '„$label“ wird unwiderruflich entfernt.'
+          : 'Dieser Termin wird unwiderruflich entfernt.',
+      confirmLabel: 'Löschen',
+      confirmRole: AppDialogActionRole.destructive,
     );
-    return result ?? false;
   }
 
   Future<void> _onDelete() async {
@@ -356,9 +318,11 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
   }
 
   Future<CalendarEventPendingAttachment?> _attachmentFromPickedFile(
-    File file, {
+    EventPickedFile picked, {
     EventAttachmentCaptureMetrics? metrics,
   }) async {
+    final file = picked.file;
+    final displayName = picked.displayName;
     final isImage = EventAttachmentPicker.isImagePath(file.path);
     final isPdf = EventAttachmentPicker.isPdfPath(file.path);
 
@@ -369,11 +333,10 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
         metrics: metrics ?? _captureMetrics(),
       );
       if (normalized != null) {
-        final path = normalized.file.path;
         return CalendarEventPendingAttachment(
           id: '${DateTime.now().microsecondsSinceEpoch}',
-          localPath: path,
-          displayName: EventAttachmentPicker.displayNameForFile(path),
+          localPath: normalized.file.path,
+          displayName: displayName,
           isImage: true,
           isPdf: false,
           pixelWidth: normalized.width,
@@ -382,12 +345,14 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
       }
     }
 
-    final persisted = await EventAttachmentPicker.persistPickedFile(file);
-    final path = persisted.path;
+    final persisted = await EventAttachmentPicker.persistPickedFile(
+      file,
+      displayName: displayName,
+    );
     return CalendarEventPendingAttachment(
       id: '${DateTime.now().microsecondsSinceEpoch}',
-      localPath: path,
-      displayName: EventAttachmentPicker.displayNameForFile(path),
+      localPath: persisted.path,
+      displayName: EventAttachmentPicker.displayNameForFile(persisted.path),
       isImage: isImage,
       isPdf: isPdf,
     );
@@ -422,11 +387,11 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     setState(() => _attachingMedia = true);
     final captureMetrics = _captureMetrics();
     try {
-      final file = await _pickFileForSource(source);
-      if (file == null || !mounted) return;
+      final picked = await _pickFileForSource(source);
+      if (picked == null || !mounted) return;
 
       final attachment = await _attachmentFromPickedFile(
-        file,
+        picked,
         metrics: captureMetrics,
       );
       if (attachment == null || !mounted) return;
@@ -485,14 +450,14 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     final captureMetrics = EventAttachmentCaptureMetrics.fromContext(hostContext);
 
     try {
-      final file = await EventAttachmentPicker.pickDocument();
-      if (file == null) {
+      final picked = await EventAttachmentPicker.pickDocument();
+      if (picked == null) {
         await reopenForm();
         return;
       }
 
       final attachment = await _attachmentFromPickedFile(
-        file,
+        picked,
         metrics: captureMetrics,
       );
       if (attachment == null) {
@@ -521,7 +486,7 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     }
   }
 
-  Future<File?> _pickFileForSource(EventImageAttachSource source) async {
+  Future<EventPickedFile?> _pickFileForSource(EventImageAttachSource source) async {
     try {
       switch (source) {
         case EventImageAttachSource.camera:
@@ -530,14 +495,14 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
             imageQuality: 90,
             requestFullMetadata: true,
           );
-          return _fileFromXFile(photo);
+          return EventAttachmentPicker.fromXFile(photo);
         case EventImageAttachSource.gallery:
           final image = await _imagePicker.pickImage(
             source: ImageSource.gallery,
             imageQuality: 90,
             requestFullMetadata: true,
           );
-          return _fileFromXFile(image);
+          return EventAttachmentPicker.fromXFile(image);
         case EventImageAttachSource.file:
           return EventAttachmentPicker.pickDocument();
       }
@@ -552,13 +517,6 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
       }
       return null;
     }
-  }
-
-  File? _fileFromXFile(XFile? file) {
-    if (file == null) return null;
-    final path = file.path;
-    if (path.isEmpty) return null;
-    return File(path);
   }
 
   void _removePendingAttachment(String id) {
@@ -659,6 +617,7 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
       }
 
       final sourceEntry = widget.sourceEntry!;
+      final beforeSave = _initialFormState;
       CalendarEventSaveScope? scope;
       if (ctrl.needsSaveScopeDialog(sourceEntry)) {
         if (!mounted) return;
@@ -671,6 +630,43 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
         state: snapshot,
         scope: scope,
       );
+
+      final changeSummary = CalendarEventChangeSummary.fromStates(
+        before: beforeSave,
+        after: snapshot,
+      );
+      if (changeSummary.hasChanges && mounted) {
+        final broadcast = await showEventBroadcastDialog(
+          context,
+          summary: changeSummary,
+        );
+        if (broadcast == true && mounted) {
+          try {
+            await ref.read(eventBroadcastServiceProvider).notifyChange(
+                  eventId: sourceEntry.id,
+                  summary: changeSummary,
+                );
+          } on EventBroadcastException catch (e) {
+            if (mounted) {
+              showAppToast(
+                context,
+                e.message,
+                kind: AppToastKind.error,
+              );
+            }
+          } catch (e, stack) {
+            debugPrint('[EventForm] broadcast failed: $e\n$stack');
+            if (mounted) {
+              showAppToast(
+                context,
+                'Benachrichtigung fehlgeschlagen.',
+                kind: AppToastKind.error,
+              );
+            }
+          }
+        }
+      }
+
       await AppHaptics.success();
       if (!mounted) return;
       showAppToast(context, 'Termin gespeichert.', kind: AppToastKind.success);

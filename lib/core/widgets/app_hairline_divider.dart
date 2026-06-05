@@ -36,7 +36,7 @@ class AppHairlineDivider extends StatelessWidget {
     if (theme.brightness == Brightness.dark) {
       return const Color(0xFFFFFFFF).withValues(alpha: 0.15);
     }
-    return theme.colorScheme.outlineVariant.withValues(alpha: 0.60);
+    return theme.colorScheme.onSurface.withValues(alpha: 0.10);
   }
 
   static double physicalPixel(BuildContext context) {

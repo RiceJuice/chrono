@@ -20,30 +20,9 @@ class SettingsIsland extends StatelessWidget {
         radius: AppSquircle.borderRadius(AppRadius.l),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: _withDividers(context),
+          children: children,
         ),
       ),
     );
-  }
-
-  List<Widget> _withDividers(BuildContext context) {
-    final dividerColor = Theme.of(
-      context,
-    ).colorScheme.outlineVariant.withValues(alpha: 0.22);
-    final dividedChildren = <Widget>[];
-
-    for (var index = 0; index < children.length; index++) {
-      if (index > 0) {
-        dividedChildren.add(
-          Padding(
-            padding: const EdgeInsets.only(left: 58, right: 16),
-            child: SizedBox(height: 1, child: ColoredBox(color: dividerColor)),
-          ),
-        );
-      }
-      dividedChildren.add(children[index]);
-    }
-
-    return dividedChildren;
   }
 }

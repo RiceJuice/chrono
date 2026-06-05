@@ -41,9 +41,11 @@ class AppComponentThemes {
   }
 
   static DividerThemeData dividerTheme(ColorScheme scheme) {
-    final alpha = scheme.brightness == Brightness.dark ? 0.15 : 0.15;
+    final isDark = scheme.brightness == Brightness.dark;
     return DividerThemeData(
-      color: scheme.onSurface.withValues(alpha: alpha),
+      color: isDark
+          ? const Color(0xFFFFFFFF).withValues(alpha: 0.15)
+          : scheme.onSurface.withValues(alpha: 0.10),
       // Note: logical thickness can't guarantee a 1-physical-pixel hairline
       // across devices. Prefer `AppHairlineDivider` in critical places.
       thickness: 1,
@@ -164,9 +166,22 @@ class AppComponentThemes {
 
   static DialogThemeData dialogTheme(ColorScheme scheme) {
     return DialogThemeData(
-      backgroundColor: scheme.surfaceContainer,
+      backgroundColor: scheme.surfaceContainerHigh,
       surfaceTintColor: Colors.transparent,
-      shape: AppSquircle.shape(AppRadius.sheet),
+      elevation: 0,
+      shape: AppSquircle.shape(AppRadius.dialog),
+      titleTextStyle: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.5,
+        height: 1.2,
+        color: scheme.onSurface,
+      ),
+      contentTextStyle: TextStyle(
+        fontSize: 15,
+        height: 1.4,
+        color: scheme.onSurfaceVariant,
+      ),
     );
   }
 

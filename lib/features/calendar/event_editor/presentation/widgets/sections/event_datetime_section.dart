@@ -1,5 +1,6 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/core/widgets/app_hairline_divider.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:flutter/material.dart';
 
@@ -74,8 +75,6 @@ class _EventDatetimeSectionState extends State<EventDatetimeSection> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final dividerColor = scheme.outlineVariant.withValues(alpha: 0.22);
-
     final island = EventFormIsland(
       children: [
         Column(
@@ -133,12 +132,9 @@ class _EventDatetimeSectionState extends State<EventDatetimeSection> {
                 },
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-              child: SizedBox(
-                height: 1,
-                child: ColoredBox(color: dividerColor),
-              ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.l),
+              child: AppHairlineDivider.horizontal(),
             ),
             _ExpandableDatetimeBlock(
               label: widget.timeOnly ? 'Ende (Uhrzeit)' : 'Ende',

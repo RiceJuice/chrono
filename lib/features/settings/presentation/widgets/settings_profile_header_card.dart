@@ -67,8 +67,8 @@ class SettingsProfileHeaderCard extends StatelessWidget {
               opacity: 0.3,
               child: SvgPicture.asset(
                 _domspatzenAssetPath,
-                height: 36,
-                width: 36,
+                height: 24,
+                width: 24,
                 fit: BoxFit.contain,
                 colorFilter: ColorFilter.mode(
                   scheme.onSurfaceVariant,

@@ -1,4 +1,5 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/core/widgets/app_hairline_divider.dart';
 import 'package:flutter/material.dart';
 
 /// Gruppierte Formular-Zeilen mit [surfaceContainerHigh] (Event-Editor).
@@ -27,17 +28,14 @@ class EventFormIsland extends StatelessWidget {
   }
 
   List<Widget> _withDividers(BuildContext context) {
-    final dividerColor = Theme.of(
-      context,
-    ).colorScheme.outlineVariant.withValues(alpha: 0.22);
     final dividedChildren = <Widget>[];
 
     for (var index = 0; index < children.length; index++) {
       if (index > 0) {
         dividedChildren.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-            child: SizedBox(height: 1, child: ColoredBox(color: dividerColor)),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.l),
+            child: AppHairlineDivider.horizontal(),
           ),
         );
       }

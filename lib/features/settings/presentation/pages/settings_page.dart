@@ -10,6 +10,7 @@ import 'package:chronoapp/features/login/presentation/providers/profile_gate_pro
 import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
 import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/settings_icons.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/settings_profile_display.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_choice_action_sheet.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_footer.dart';
@@ -21,6 +22,7 @@ import 'package:chronoapp/features/settings/presentation/pages/settings_edit_per
 import 'package:chronoapp/features/settings/presentation/widgets/settings_sliver_header.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_tile.dart';
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -144,7 +146,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         SettingsTile(
                           title: 'Name',
                           subtitle: settingsProfileName(profile),
-                          icon: Icons.person_outline_rounded,
+                          icon: SettingsIcons.name,
                           enabled: !_saving,
                           onTap: () => _openEditPersonalData(profile),
                         ),
@@ -156,7 +158,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         SettingsTile(
                           title: 'Rolle',
                           subtitle: settingsValueOrFallback(profile?.role),
-                          icon: Icons.groups_outlined,
+                          icon: SettingsIcons.role,
                           enabled: !_saving,
                           onTap: () => _editChoiceField(
                             title: 'Rolle auswählen',
@@ -168,7 +170,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         SettingsTile(
                           title: 'Klasse',
                           subtitle: settingsValueOrFallback(profile?.className),
-                          icon: Icons.school_outlined,
+                          icon: SettingsIcons.schoolClass,
                           enabled: !_saving,
                           onTap: () => _editChoiceField(
                             title: 'Klasse auswählen',
@@ -185,7 +187,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           subtitle: settingsValueOrFallback(
                             schoolTrackDisplayLabel(profile?.schoolTrack),
                           ),
-                          icon: Icons.account_tree_outlined,
+                          icon: SettingsIcons.schoolTrack,
                           enabled: !_saving,
                           onTap: () => _editChoiceField(
                             title: 'Schulzweig auswählen',
@@ -207,7 +209,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           subtitle: settingsValueOrFallback(
                             choirDisplayLabel(profile?.choir),
                           ),
-                          icon: Icons.church_outlined,
+                          icon: SettingsIcons.choir,
                           enabled: !_saving,
                           onTap: () => _editChoiceField(
                             title: 'Chor auswählen',
@@ -222,7 +224,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         SettingsTile(
                           title: 'Stimme',
                           subtitle: settingsValueOrFallback(profile?.voice),
-                          icon: Icons.record_voice_over_outlined,
+                          icon: SettingsIcons.voice,
                           enabled: !_saving,
                           onTap: () => _editChoiceField(
                             title: 'Stimme auswählen',
@@ -241,7 +243,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           subtitle: settingsValueOrFallback(
                             dietDisplayLabel(profile?.diet),
                           ),
-                          icon: Icons.restaurant_outlined,
+                          icon: SettingsIcons.diet,
                           enabled: !_saving,
                           onTap: () => _editChoiceField(
                             title: 'Ernährung auswählen',
@@ -260,7 +262,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   children: [
                     SettingsTile(
                       title: 'Design',
-                      icon: Icons.dark_mode_outlined,
+                      icon: SettingsIcons.appearance,
                       subtitle: _themeModeLabel(themeMode),
                       onTap: () => _editThemeMode(themeMode),
                     ),
@@ -450,7 +452,7 @@ class _SettingsErrorIsland extends StatelessWidget {
     return SettingsIsland(
       children: [
         ListTile(
-          leading: const Icon(Icons.error_outline_rounded),
+          leading: PhosphorIcon(SettingsIcons.error, size: 22),
           title: Text(message),
           subtitle: Text(detail, maxLines: 2, overflow: TextOverflow.ellipsis),
         ),

@@ -18,6 +18,7 @@ class ProfileGateNotifier extends ChangeNotifier {
   })  : _client = client ?? Supabase.instance.client,
         _localDb = localDb {
     _authSub = _client.auth.onAuthStateChange.listen(_handleAuthEvent);
+    _attachSyncListener();
 
     if (_client.auth.currentSession == null) {
       _data = const ProfileGateData.signedOut();
@@ -32,8 +33,10 @@ class ProfileGateNotifier extends ChangeNotifier {
   final SupabaseClient _client;
   final PowerSyncDatabase? _localDb;
   StreamSubscription<AuthState>? _authSub;
+  StreamSubscription<SyncStatus>? _syncSub;
+  DateTime? _lastHandledSyncAt;
   bool _ready = false;
-  bool _refreshing = false;
+  Future<void>? _inFlightRefresh;
   ProfileGateData _data = const ProfileGateData.signedOut();
 
   bool get isReady => _ready;
@@ -64,7 +67,7 @@ class ProfileGateNotifier extends ChangeNotifier {
           _ready = false;
           notifyListeners();
         }
-        unawaited(_refresh());
+        unawaited(refresh());
       case AuthChangeEvent.signedOut:
         _data = const ProfileGateData.signedOut();
         _ready = true;
@@ -75,8 +78,25 @@ class ProfileGateNotifier extends ChangeNotifier {
   }
 
   /// Erzwingt einen Refresh des Gate-Zustands, z. B. nach einem erfolgreichen
-  /// `updateProfile`. Doppelte Aufrufe werden zusammengefasst.
-  Future<void> refresh() => _refresh();
+  /// `updateProfile`. Parallele Aufrufe warten auf denselben Lauf.
+  Future<void> refresh() {
+    return _inFlightRefresh ??= _runRefresh().whenComplete(() {
+      _inFlightRefresh = null;
+    });
+  }
+
+  void _attachSyncListener() {
+    final db = _localDb;
+    if (db == null) return;
+
+    _syncSub = db.statusStream.listen((status) {
+      if (_client.auth.currentSession == null) return;
+      final syncedAt = status.lastSyncedAt;
+      if (syncedAt == null || syncedAt == _lastHandledSyncAt) return;
+      _lastHandledSyncAt = syncedAt;
+      unawaited(refresh());
+    });
+  }
 
   /// Lokales Profil sofort laden, damit Offline-Start nicht aufs Netz wartet.
   Future<void> _bootstrapWithSession() async {
@@ -87,34 +107,28 @@ class ProfileGateNotifier extends ChangeNotifier {
         _setData(_profileDataFromRow(user, localRow));
       }
     }
-    await _refresh();
+    await refresh();
   }
 
-  Future<void> _refresh() async {
-    if (_refreshing) return;
-    _refreshing = true;
-    try {
-      final user = _client.auth.currentUser;
-      if (user == null) {
-        _setData(const ProfileGateData.signedOut());
-        return;
-      }
-
-      final localFuture = _loadLocalProfileRow(user.id);
-      Map<String, dynamic>? row;
-      try {
-        row = await _fetchRemoteProfileRow(user.id)
-            .timeout(_remoteProfileTimeout);
-      } catch (_) {
-        row = null;
-      }
-
-      row ??= await localFuture;
-
-      _setData(_profileDataFromRow(user, row));
-    } finally {
-      _refreshing = false;
+  Future<void> _runRefresh() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      _setData(const ProfileGateData.signedOut());
+      return;
     }
+
+    final localFuture = _loadLocalProfileRow(user.id);
+    Map<String, dynamic>? row;
+    try {
+      row = await _fetchRemoteProfileRow(user.id)
+          .timeout(_remoteProfileTimeout);
+    } catch (_) {
+      row = null;
+    }
+
+    row ??= await localFuture;
+
+    _setData(_profileDataFromRow(user, row));
   }
 
   Future<Map<String, dynamic>?> _fetchRemoteProfileRow(String userId) async {
@@ -188,7 +202,9 @@ class ProfileGateNotifier extends ChangeNotifier {
   @override
   void dispose() {
     unawaited(_authSub?.cancel());
+    unawaited(_syncSub?.cancel());
     _authSub = null;
+    _syncSub = null;
     super.dispose();
   }
 }

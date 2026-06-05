@@ -1,12 +1,16 @@
-# Admin Push-Benachrichtigungen
+# Push-Benachrichtigungen
 
-n8n-Workflow → Supabase Edge Function `notify-admins` → FCM → alle Admin-Geräte in `profile_push_devices`.
+Zwei Kanäle:
+
+1. **Admin (n8n):** n8n-Workflow → `notify-admins` → FCM → alle Admin-Geräte
+2. **Termin-Bearbeitung (App):** Admin speichert Termin → optional Broadcast-Dialog → `notify-event-change` → FCM → betroffene Nutzer
 
 ## Architektur
 
-1. **Flutter (nur Admin):** FCM-Token pro Gerät/Installation in `profile_push_devices` (Upsert).
+1. **Flutter (alle Nutzer):** FCM-Token pro Gerät/Installation in `profile_push_devices` (Upsert).
 2. **n8n:** HTTP-POST an `notify-admins` mit Webhook-Secret.
-3. **Edge Function:** Alle Zeilen für Admins (`profiles.role = Admin`), **jedes Gerät** bekommt eine FCM-Nachricht.
+3. **Edge Function `notify-admins`:** Alle Zeilen für Admins (`profiles.role = Admin`), **jedes Gerät** bekommt eine FCM-Nachricht.
+4. **Edge Function `notify-event-change`:** Authentifizierter Admin ruft nach Termin-Bearbeitung auf; Zielgruppe wird serverseitig aus Profil-Daten gematcht.
 
 SQL-Referenz: [`PUSH_NOTIFICATIONS.sql`](PUSH_NOTIFICATIONS.sql)  
 Migration: [`supabase/migrations/`](../supabase/migrations/)
@@ -103,6 +107,7 @@ supabase secrets set N8N_WEBHOOK_SECRET="<derselbe-wert-wie-in-push_secrets.loca
 supabase secrets set FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
 
 supabase functions deploy notify-admins --no-verify-jwt
+supabase functions deploy notify-event-change
 ```
 
 `SUPABASE_SERVICE_ROLE_KEY` wird von Supabase in Edge Functions automatisch injiziert.
@@ -152,15 +157,34 @@ Erwartete Antwort: `{"sent":1,"failed":0,"device_count":1,"admin_count":1,...}` 
 
 ## 7. App-Verifikation
 
-1. Als Admin anmelden, App auf **physischem Gerät** (Emulator oft ohne Push).
-2. In Supabase: Tabelle `profile_push_devices` — mindestens eine Zeile für deine User-ID?
-3. n8n/curl-Test → Push auf dem Gerät.
+1. Als **beliebiger Nutzer** anmelden, App auf **physischem Gerät** (Emulator oft ohne Push) — Token in `profile_push_devices`?
+2. Als **Admin** Termin bearbeiten → Dialog „Änderung mitteilen?“ → „Ja, benachrichtigen“ → Push auf betroffenen Geräten.
+3. n8n/curl-Test für `notify-admins` → Push auf Admin-Geräten.
+
+### Termin-Broadcast (`notify-event-change`)
+
+- **Aufruf:** Flutter `EventBroadcastService` nach Speichern im Termin-Editor (JWT des Admins).
+- **Zielgruppe:** Chor, Stimmen, Schulzweig, Klasse, Ernährung (bei Essen) — Matching gegen `profiles`.
+- **Zwei Nachrichten bei Zielgruppen-Wechsel:**
+  - Alte Zielgruppe (nur noch alt, nicht neu): „Termin entfernt: …“
+  - Neue Zielgruppe: „Termin geändert: …“ mit Feldänderungen
+- **FCM data:** `{ "type": "event_change", "event_id": "…" }`
+
+Deploy (zusätzlich zu Abschnitt 4):
+
+```bash
+supabase functions deploy notify-event-change
+```
+
+`verify_jwt = true` — nur authentifizierte Admins.
 
 ## 8. Troubleshooting
 
 | Symptom | Ursache / Fix |
 |---------|----------------|
-| `sent: 0`, `skipped: N` | Keine Admins mit Token — App als Admin öffnen, Berechtigung erlauben |
+| `sent: 0`, `skipped: N` (notify-admins) | Keine Admins mit Token — App als Admin öffnen, Berechtigung erlauben |
+| `sent: 0` (notify-event-change) | Keine betroffenen Nutzer mit Token oder Zielgruppe leer — Profil-Zuordnung prüfen |
+| 403 Forbidden (notify-event-change) | Aufrufer ist kein Admin |
 | 401 Unauthorized | `x-webhook-secret` falsch oder Secret nicht gesetzt |
 | FCM 401 / 403 | `FIREBASE_SERVICE_ACCOUNT_JSON` ungültig oder falsches Firebase-Projekt |
 | `PERMISSION_DENIED` + `cloudmessaging.messages.create` | FCM API in Google Cloud aktivieren + Rolle **Firebase Cloud Messaging Admin** |
@@ -174,10 +198,11 @@ Erwartete Antwort: `{"sent":1,"failed":0,"device_count":1,"admin_count":1,...}` 
 ## 9. Sicherheit
 
 - `service_role` und Firebase-JSON nur in Supabase Secrets.
-- Webhook nur über `x-webhook-secret` absichern (`verify_jwt = false` für n8n).
+- `notify-admins`: Webhook nur über `x-webhook-secret` (`verify_jwt = false` für n8n).
+- `notify-event-change`: JWT-Pflicht + Admin-Rollen-Check in der Function.
 - RLS auf `profile_push_devices`: Nutzer sehen/ändern nur eigene Geräte (`user_id = auth.uid()`).
 
-## Mehrere Geräte pro Admin
+## Mehrere Geräte pro Nutzer
 
 Tabelle `profile_push_devices`: ein Eintrag pro **Installation** (`device_id` in SharedPreferences).
 

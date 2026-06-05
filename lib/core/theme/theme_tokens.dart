@@ -22,6 +22,9 @@ class AppRadius {
   /// Bottom-Sheets / Modals (iOS-ähnlich, deutlich runder als [xl]).
   static const double sheet = 28;
 
+  /// Zentrierte Alerts / Bestätigungsdialoge.
+  static const double dialog = 22;
+
   static const double pill = 100;
 }
 

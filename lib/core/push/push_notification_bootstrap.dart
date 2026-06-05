@@ -4,12 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../firebase_options.dart';
-import '../auth/profile_role_ids.dart';
-import '../../features/login/domain/models/profile_gate_data.dart';
 import '../../features/login/presentation/providers/profile_gate_notifier.dart';
 import 'push_notification_service.dart';
 
-/// Startet FCM-Sync für Admins nach Login; stoppt beim Logout.
+/// Startet FCM-Sync für eingeloggte Nutzer nach Login; stoppt beim Logout.
 class PushNotificationBootstrap {
   PushNotificationBootstrap({
     required ProfileGateNotifier profileGate,
@@ -58,14 +56,9 @@ class PushNotificationBootstrap {
 
   void _onProfileGateChanged() {
     if (!_profileGate.isReady) return;
-    final data = _profileGate.data;
-    if (!data.hasSession) return;
-    if (!_isAdmin(data)) return;
+    if (!_profileGate.data.hasSession) return;
     unawaited(_syncIfNeeded());
   }
-
-  bool _isAdmin(ProfileGateData data) =>
-      data.role?.trim() == ProfileRoleIds.admin;
 
   Future<void> _syncIfNeeded() async {
     if (_syncInFlight) return;

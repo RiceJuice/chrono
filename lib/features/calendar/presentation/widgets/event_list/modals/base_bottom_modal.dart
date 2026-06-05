@@ -1,6 +1,8 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
+import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/domain/preview/calendar_appearance_config.dart';
 import 'package:chronoapp/features/calendar/domain/preview/calendar_settings_kind.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/subjects_providers.dart';
@@ -53,9 +55,31 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
   final GlobalKey<CalendarAppearanceSubjectPanelState> _subjectPanelKey =
       GlobalKey();
 
+  /// Aktueller DB-Stand des geöffneten Termins (reagiert auf Speichern/Löschen).
+  CalendarEntry get _liveEntry {
+    final anchor = widget.entry;
+    final anchorDay = AppDateTime.localDay(anchor.startTime);
+    final dayEntries =
+        ref.watch(calendarEntriesForDayProvider(anchorDay)).asData?.value;
+    if (dayEntries != null) {
+      for (final entry in dayEntries) {
+        if (entry.id == anchor.id) return entry;
+      }
+    }
+
+    final allEntries = ref.watch(calendarAllEntriesProvider).asData?.value;
+    if (allEntries != null) {
+      for (final entry in allEntries) {
+        if (entry.id == anchor.id) return entry;
+      }
+    }
+
+    return anchor;
+  }
+
   bool get _supportsAccentMorph =>
-      widget.entry.type == CalendarEntryType.lesson &&
-      widget.entry.subjectId != null;
+      _liveEntry.type == CalendarEntryType.lesson &&
+      _liveEntry.subjectId != null;
 
   @override
   void initState() {
@@ -77,7 +101,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
   }
 
   CalendarEntry get _displayEntry {
-    final entry = widget.entry;
+    final entry = _liveEntry;
     final subjectId = entry.subjectId;
     if (subjectId == null) return entry;
     final overrides =
@@ -89,11 +113,12 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
 
   void _onAccentPressed() {
     AppHaptics.light();
-    final subjectId = widget.entry.subjectId;
+    final entry = _liveEntry;
+    final subjectId = entry.subjectId;
     final config = subjectId != null
         ? CalendarAppearanceBySubject(
             subjectId: subjectId,
-            previewEntry: widget.entry,
+            previewEntry: entry,
           )
         : const CalendarAppearanceByKind(CalendarSettingsKind.school);
 
@@ -154,12 +179,12 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
           SingleChildScrollView(child: _buildModalContent(t)),
           if (_supportsAccentMorph) ..._buildAccentChrome(context, t),
           if (!_supportsAccentMorph &&
-              widget.entry.type == CalendarEntryType.lesson)
+              _liveEntry.type == CalendarEntryType.lesson)
             Positioned(
               top: 6,
               right: 6,
               child: LessonAccentButton(
-                entry: widget.entry,
+                entry: _liveEntry,
                 onAccentPressed: _onAccentPressed,
               ),
             ),
@@ -215,7 +240,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
           child: Opacity(
             opacity: paletteOpacity,
             child: LessonAccentButton(
-              entry: widget.entry,
+              entry: _liveEntry,
               onAccentPressed: _onAccentPressed,
             ),
           ),
@@ -251,7 +276,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
               child: Opacity(
                 opacity: textOpacity,
                 child: LessonBottomModal(
-                  entry: widget.entry,
+                  entry: _liveEntry,
                   includeHeader: false,
                 ),
               ),
@@ -274,12 +299,13 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
   }
 
   Widget _buildModalContentByType() {
-    return switch (widget.entry.type) {
-      CalendarEntryType.lesson => LessonBottomModal(entry: widget.entry),
-      CalendarEntryType.meal => MealBottomModal(entry: widget.entry),
-      CalendarEntryType.event => EventBottomModal(entry: widget.entry),
-      CalendarEntryType.breakType => EventBottomModal(entry: widget.entry),
-      CalendarEntryType.choir => ChorBottomModal(entry: widget.entry),
+    final entry = _liveEntry;
+    return switch (entry.type) {
+      CalendarEntryType.lesson => LessonBottomModal(entry: entry),
+      CalendarEntryType.meal => MealBottomModal(entry: entry),
+      CalendarEntryType.event => EventBottomModal(entry: entry),
+      CalendarEntryType.breakType => EventBottomModal(entry: entry),
+      CalendarEntryType.choir => ChorBottomModal(entry: entry),
     };
   }
 }

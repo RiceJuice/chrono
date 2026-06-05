@@ -59,7 +59,6 @@ class _EventRecurrenceSectionState extends State<EventRecurrenceSection> {
     if (series == null) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
-    final dividerColor = scheme.outlineVariant.withValues(alpha: 0.22);
 
     return EventFormIsland(
       children: [
@@ -78,7 +77,7 @@ class _EventRecurrenceSectionState extends State<EventRecurrenceSection> {
               },
             ),
             if (series.frequency == Frequency.weekly) ...[
-              _islandDivider(dividerColor),
+              _islandDivider(),
               _ExpandableRecurrenceBlock(
                 row: EventFormIslandRow(
                   label: 'Wochentage',
@@ -102,7 +101,7 @@ class _EventRecurrenceSectionState extends State<EventRecurrenceSection> {
                     : null,
               ),
             ],
-            _islandDivider(dividerColor),
+            _islandDivider(),
             _ExpandableRecurrenceBlock(
               row: EventFormIslandRow(
                 label: 'Serienbeginn',
@@ -126,7 +125,7 @@ class _EventRecurrenceSectionState extends State<EventRecurrenceSection> {
                     )
                   : null,
             ),
-            _islandDivider(dividerColor),
+            _islandDivider(),
             _ExpandableRecurrenceBlock(
               row: EventFormIslandRow(
                 label: 'Serienende',
@@ -180,10 +179,10 @@ class _EventRecurrenceSectionState extends State<EventRecurrenceSection> {
     );
   }
 
-  Widget _islandDivider(Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-      child: AppHairlineDivider.horizontal(color: color),
+  Widget _islandDivider() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.l),
+      child: AppHairlineDivider.horizontal(),
     );
   }
 

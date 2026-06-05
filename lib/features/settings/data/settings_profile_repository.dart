@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:powersync/powersync.dart';
 import 'package:sqlite3/common.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -30,11 +32,52 @@ class SettingsProfileRepository {
   Stream<ProfileSnapshot?> watchProfileByUserId(String userId) async* {
     _cachedRemote = null;
 
-    await for (final local in _watchLocalBundles(userId)) {
-      if (_shouldFetchRemote(local?.snapshot)) {
-        _cachedRemote = await _fetchRemoteBundle(userId);
+    final rebuilds = StreamController<Object?>.broadcast();
+    DateTime? lastHandledSyncAt;
+
+    final localSub = _watchLocalBundles(userId).listen((_) {
+      if (!rebuilds.isClosed) rebuilds.add(null);
+    });
+    final syncSub = _db.statusStream.listen((status) {
+      final syncedAt = status.lastSyncedAt;
+      if (syncedAt == null || syncedAt == lastHandledSyncAt) return;
+      lastHandledSyncAt = syncedAt;
+      _cachedRemote = null;
+      if (!rebuilds.isClosed) rebuilds.add(null);
+    });
+
+    rebuilds.add(null);
+
+    try {
+      await for (final _ in rebuilds.stream) {
+        final local = await _readCurrentLocalBundle(userId);
+        if (_shouldFetchRemote(local?.snapshot)) {
+          _cachedRemote = await _fetchRemoteBundle(userId);
+        }
+        yield _mergeBundles(local, _cachedRemote)?.snapshot;
       }
-      yield _mergeBundles(local, _cachedRemote)?.snapshot;
+    } finally {
+      await localSub.cancel();
+      await syncSub.cancel();
+      await rebuilds.close();
+    }
+  }
+
+  Future<_ProfileRowBundle?> _readCurrentLocalBundle(String userId) async {
+    try {
+      final rows = await _db.getAll(
+        '''
+        SELECT first_name, last_name, class_name, schooltrack, voice, role, choir, diet,
+               updated_at
+        FROM $kProfilesTable
+        WHERE id = ?
+        LIMIT 1
+        ''',
+        [userId],
+      );
+      return _mapFirstRowBundleOrNull(rows);
+    } catch (_) {
+      return null;
     }
   }
 

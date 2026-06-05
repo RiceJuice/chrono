@@ -1,5 +1,7 @@
+import 'package:chronoapp/features/settings/presentation/helpers/settings_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/theme/theme_tokens.dart';
 
@@ -20,7 +22,7 @@ class SettingsLogoutButton extends StatelessWidget {
           minimumSize: const Size.fromHeight(54),
           shape: AppSquircle.shape(AppRadius.l),
         ),
-        icon: const Icon(Icons.logout_rounded, size: 19),
+        icon: PhosphorIcon(SettingsIcons.logout, size: 20),
         label: const Text('Abmelden'),
         onPressed: () async {
           HapticFeedback.mediumImpact();

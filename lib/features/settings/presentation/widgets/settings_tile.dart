@@ -1,5 +1,7 @@
+import 'package:chronoapp/features/settings/presentation/helpers/settings_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class SettingsTile extends StatelessWidget {
   const SettingsTile({
@@ -38,9 +40,9 @@ class SettingsTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Icon(
+              PhosphorIcon(
                 icon,
-                size: 20,
+                size: 22,
                 color: enabled ? scheme.onSurfaceVariant : scheme.outline,
               ),
               const SizedBox(width: 16),
@@ -72,8 +74,9 @@ class SettingsTile extends StatelessWidget {
               ],
               const SizedBox(width: 6),
               trailing ??
-                  Icon(
-                    Icons.chevron_right_rounded,
+                  PhosphorIcon(
+                    SettingsIcons.chevron,
+                    size: 18,
                     color: enabled ? scheme.onSurfaceVariant : scheme.outline,
                   ),
             ],
@@ -115,7 +118,7 @@ class SettingsSwitchTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+              PhosphorIcon(icon, size: 22, color: scheme.onSurfaceVariant),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
