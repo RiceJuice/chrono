@@ -17,9 +17,11 @@ class EventBottomModal extends StatelessWidget {
         BottomModalImages(entry: entry),
         BottomModalText(
           entry: entry,
+          layout: BottomModalTextLayout.event,
           titleStyle: GoogleFonts.libreBaskerville(
-            fontSize: 32,
+            fontSize: 30,
             fontWeight: FontWeight.bold,
+            height: 1.15,
           ),
         ),
       ],

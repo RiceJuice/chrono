@@ -79,7 +79,7 @@ BoxConstraints appModalSheetHeightConstraints(
 }
 
 /// Kleiner Abstand zwischen System-UI (Statusleiste/Notch) und Sheet-Oberkante.
-const double kAppSheetGapBelowSystemUi = AppSpacing.s;
+const double kAppSheetGapBelowSystemUi = AppSpacing.xs;
 
 /// MediaQuery der physischen [View] — unabhängig vom Bottom-Sheet-[MediaQuery.padding].
 MediaQueryData appSheetViewMediaQuery(BuildContext context) {

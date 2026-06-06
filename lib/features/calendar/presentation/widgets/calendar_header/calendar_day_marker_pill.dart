@@ -45,6 +45,10 @@ const _horizontalOverlapEpsilon = 0.5;
 /// Padding inside the pill between the rounded background and the segments.
 const _pillContentInset = 1.5;
 
+/// Fallback duration when an entry has no meaningful end time (DB `end_time`
+/// is null and the mapper sets `endTime == startTime`).
+const _defaultMarkerDuration = Duration(hours: 1);
+
 DateTime normalizeCalendarDay(DateTime day) => AppDateTime.localDay(day);
 
 Map<DateTime, CalendarDayMarkerData> buildCalendarDayMarkers(
@@ -68,9 +72,9 @@ Map<DateTime, CalendarDayMarkerData> buildCalendarDayMarkers(
       continue;
     }
     final start = AppDateTime.toLocal(entry.startTime);
-    final end = AppDateTime.toLocal(entry.endTime);
+    var end = AppDateTime.toLocal(entry.endTime);
     if (!end.isAfter(start)) {
-      continue;
+      end = start.add(_defaultMarkerDuration);
     }
 
     // Both choir- *and* event-type entries can carry a meaningful

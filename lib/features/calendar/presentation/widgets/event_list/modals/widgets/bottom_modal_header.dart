@@ -109,6 +109,7 @@ class BottomModalHeader extends ConsumerWidget {
     this.height = kBottomModalHeaderHeight,
     this.clipTopCorners = false,
     this.morph = 0,
+    this.showHandle = false,
   });
 
   /// Wenn false, übernimmt ein äußeres [ClipRRect] (z. B. [BaseBottomModal]) die oberen Ecken.
@@ -116,6 +117,9 @@ class BottomModalHeader extends ConsumerWidget {
 
   /// 0 = Detail-Liste, 1 = zentrierte Akzent-Vorschau (siehe [BottomModalHeaderMorph]).
   final double morph;
+
+  /// Drag-Handle oben — zentral über [AppExpandableModalSheet], sonst false.
+  final bool showHandle;
 
   static DateTime _localDayStart(CalendarEntry anchor) {
     final local = anchor.startTime.toLocal();
@@ -306,7 +310,7 @@ class BottomModalHeader extends ConsumerWidget {
           ),
         ),
         // Handle über der Liste, damit darunterliegende (gedimmte) Karten erlaubt sind.
-        const BottomModalHandle(),
+        if (showHandle) const BottomModalHandle(),
       ],
     );
 
@@ -338,12 +342,14 @@ class BottomModalHeaderMorph extends StatelessWidget {
     required this.morph,
     this.height = kBottomModalHeaderHeight,
     this.clipTopCorners = false,
+    this.showHandle = false,
   });
 
   final CalendarEntry entry;
   final Animation<double> morph;
   final double height;
   final bool clipTopCorners;
+  final bool showHandle;
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +361,7 @@ class BottomModalHeaderMorph extends StatelessWidget {
           height: height,
           clipTopCorners: clipTopCorners,
           morph: morph.value.clamp(0.0, 1.0),
+          showHandle: showHandle,
         );
       },
     );

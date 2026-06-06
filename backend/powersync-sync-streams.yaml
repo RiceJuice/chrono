@@ -38,3 +38,7 @@ streams:
   reference_klassen:
     auto_subscribe: true
     query: SELECT class_name AS id, class_name FROM klassen
+
+  event_schedules:
+    auto_subscribe: true
+    query: SELECT * FROM event_schedules

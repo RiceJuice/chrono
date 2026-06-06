@@ -22,12 +22,14 @@ class BottomModalImages extends StatefulWidget {
   final CalendarEntry entry;
   final BottomModalImagesLayout layout;
   final bool clipTopCorners;
+  final bool showHandle;
 
   const BottomModalImages({
     super.key,
     required this.entry,
     this.layout = BottomModalImagesLayout.carousel,
     this.clipTopCorners = false,
+    this.showHandle = false,
   });
 
   @override
@@ -317,7 +319,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
           width: double.infinity,
           child: ColoredBox(color: imagePanelBg, child: content),
         ),
-        const BottomModalHandle(),
+        if (widget.showHandle) const BottomModalHandle(),
       ],
     );
 
