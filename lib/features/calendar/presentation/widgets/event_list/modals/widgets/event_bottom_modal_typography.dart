@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Feste Typografie & Abstände für das Event-Detail-Bottom-Sheet.
@@ -12,8 +13,15 @@ abstract final class EventBottomModalTypography {
   /// Abstand oberhalb der Veranstaltungsort-Zeile (über dem Titel).
   static const double locationTop = 14;
   static const double gapAfterLocation = 4;
-  static const double gapAfterTitle = 14;
-  static const double gapAfterTime = 24;
+  static const double gapAfterTitle = 4;
+  static const double gapAfterDescription = 14;
+  static const double gapAfterMetaBoxes = 24;
+  static const double metaBoxGap = 8;
+  static const double metaBoxIconSize = 22;
+  static const double metaBoxIconGap = 6;
+  static const double metaBoxRadius = AppRadius.s;
+  static const EdgeInsets metaBoxPadding =
+      EdgeInsets.symmetric(horizontal: 12, vertical: 12);
   static const double gapSection = 18;
   static const double gapLabelBody = 3;
   static const double gapScheduleCards = 8;
@@ -36,7 +44,8 @@ abstract final class EventBottomModalTypography {
 
   // — Schriftgrößen —
   static const double location = 15;
-  static const double time = 18;
+  static const double subtitle = 15;
+  static const double metaBox = 16;
   static const double sectionLabel = 18;
   static const double body = 15;
 
@@ -52,8 +61,15 @@ abstract final class EventBottomModalTypography {
         color: scheme.onSurfaceVariant,
       );
 
-  static TextStyle eventTime(ColorScheme scheme) => TextStyle(
-        fontSize: time,
+  static TextStyle eventSubtitle(ColorScheme scheme) => TextStyle(
+        fontSize: subtitle,
+        fontWeight: FontWeight.w300,
+        height: 1.35,
+        color: scheme.onSurfaceVariant,
+      );
+
+  static TextStyle metaBoxText(ColorScheme scheme) => TextStyle(
+        fontSize: metaBox,
         fontWeight: FontWeight.w600,
         height: 1.25,
         color: scheme.onSurface,

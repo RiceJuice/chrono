@@ -39,6 +39,17 @@ class AppSquircle {
         cornerSmoothing: cornerSmoothing,
       );
 
+  /// Innen-Radius für concentische Squircle-Ecken: [outerRadius] minus [inset].
+  static double nestedCornerRadius(double outerRadius, double inset) {
+    return (outerRadius - inset).clamp(0.0, double.infinity);
+  }
+
+  static SmoothBorderRadius borderRadiusNested({
+    required double outerRadius,
+    required double inset,
+  }) =>
+      borderRadius(nestedCornerRadius(outerRadius, inset));
+
   static SmoothBorderRadius topSheet(double r) => SmoothBorderRadius.only(
         topLeft: SmoothRadius(
           cornerRadius: r,

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/data/calendar_image_cache_key.dart';
 import 'package:chronoapp/features/calendar/data/calendar_image_cache_manager.dart';
@@ -5,7 +6,8 @@ import 'package:chronoapp/features/calendar/data/calendar_images.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart'
     show BottomModalHandle;
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/skeleton_loader.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -24,12 +26,17 @@ class BottomModalImages extends StatefulWidget {
   final bool clipTopCorners;
   final bool showHandle;
 
+  /// Äußerer Radius der umgebenden Fläche (z. B. [AppRadius.sheet] vom Modal).
+  /// Wird mit dem Karussell-Padding zum inneren Clip-Radius umgerechnet.
+  final double? imageOuterBorderRadius;
+
   const BottomModalImages({
     super.key,
     required this.entry,
     this.layout = BottomModalImagesLayout.carousel,
     this.clipTopCorners = false,
     this.showHandle = false,
+    this.imageOuterBorderRadius,
   });
 
   @override
@@ -40,6 +47,10 @@ const double _kModalDetailPanelHeight = 260;
 
 /// Abstand zwischen nebeneinander liegenden Bildern im Karussell.
 const double _kModalDetailImageGap = AppSpacing.xs;
+
+/// Inset der Karussell-Bilder zum Modal-Rand — muss zum [imageOuterBorderRadius]
+/// passen, damit die Squircle-Kurve bündig bleibt.
+const double _kEventModalCarouselImageInset = AppSpacing.xs;
 
 BorderRadius _modalDetailImageBorderRadius({
   required int index,
@@ -125,6 +136,32 @@ class _BottomModalImagesState extends State<BottomModalImages> {
     return 2;
   }
 
+  Widget _clipCarouselTile({
+    required Widget child,
+    required int index,
+    required int count,
+  }) {
+    final outerRadius = widget.imageOuterBorderRadius;
+    if (outerRadius != null) {
+      return ClipSmoothRect(
+        radius: AppSquircle.borderRadiusNested(
+          outerRadius: outerRadius,
+          inset: _kEventModalCarouselImageInset,
+        ),
+        child: child,
+      );
+    }
+    return ClipRRect(
+      borderRadius: _modalDetailImageBorderRadius(index: index, count: count),
+      child: child,
+    );
+  }
+
+  EdgeInsets get _carouselPadding =>
+      widget.imageOuterBorderRadius != null
+          ? const EdgeInsets.all(_kEventModalCarouselImageInset)
+          : EdgeInsets.zero;
+
   Widget _buildCarouselContent({
     required bool isLoading,
     required bool hasError,
@@ -136,22 +173,19 @@ class _BottomModalImagesState extends State<BottomModalImages> {
       return ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
+        padding: _carouselPadding,
         itemCount: itemCount,
         itemBuilder: (context, index) {
           return Padding(
             padding: EdgeInsets.only(
               right: index < itemCount - 1 ? _kModalDetailImageGap : 0,
             ),
-            child: ClipRRect(
-              borderRadius: _modalDetailImageBorderRadius(
-                index: index,
-                count: itemCount,
-              ),
+            child: _clipCarouselTile(
+              index: index,
+              count: itemCount,
               child: AspectRatio(
                 aspectRatio: 1.5,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: imagePanelBg),
-                ),
+                child: const SkeletonLoader(),
               ),
             ),
           );
@@ -173,6 +207,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
+      padding: _carouselPadding,
       itemCount: imageUrls.length,
       itemBuilder: (context, index) {
         final count = imageUrls.length;
@@ -180,11 +215,9 @@ class _BottomModalImagesState extends State<BottomModalImages> {
           padding: EdgeInsets.only(
             right: index < count - 1 ? _kModalDetailImageGap : 0,
           ),
-          child: ClipRRect(
-            borderRadius: _modalDetailImageBorderRadius(
-              index: index,
-              count: count,
-            ),
+          child: _clipCarouselTile(
+            index: index,
+            count: count,
             child: AspectRatio(
               aspectRatio: 1.5,
               child: CachedNetworkImage(
@@ -198,7 +231,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
                 fit: BoxFit.cover,
                 fadeInDuration: Duration.zero,
                 fadeOutDuration: Duration.zero,
-                placeholder: (context, _) => ColoredBox(color: imagePanelBg),
+                placeholder: (context, _) => const SkeletonLoader(),
                 errorWidget: (context, _, _) => ColoredBox(
                   color: imagePanelBg,
                   child: const Icon(Icons.broken_image, size: 50),
@@ -220,7 +253,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
     if (isLoading) {
       return _ModalSingleImageFrame(
         backgroundColor: imagePanelBg,
-        child: ColoredBox(color: imagePanelBg),
+        child: const SkeletonLoader(),
       );
     }
     if (hasError) {
@@ -257,7 +290,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
         height: double.infinity,
         fadeInDuration: Duration.zero,
         fadeOutDuration: Duration.zero,
-        placeholder: (context, _) => ColoredBox(color: imagePanelBg),
+        placeholder: (context, _) => const SkeletonLoader(),
         errorWidget: (context, _, _) => ColoredBox(
           color: imagePanelBg,
           child: const Icon(Icons.broken_image, size: 50),

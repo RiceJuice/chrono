@@ -7,15 +7,15 @@ import 'package:flutter/material.dart';
 class BottomModalExpandableTextSection extends StatefulWidget {
   const BottomModalExpandableTextSection({
     super.key,
-    required this.label,
+    this.label,
     required this.text,
-    required this.labelStyle,
+    this.labelStyle,
     required this.bodyStyle,
     this.maxCollapsedLines = 3,
     this.labelGap = AppSpacing.s,
   });
 
-  final String label;
+  final String? label;
   final String text;
   final TextStyle? labelStyle;
   final TextStyle? bodyStyle;
@@ -211,11 +211,16 @@ class _BottomModalExpandableTextSectionState
           if (mounted) _measureLayout(constraints.maxWidth);
         });
 
+        final label = widget.label?.trim();
+        final showLabel = label != null && label.isNotEmpty;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.label, style: widget.labelStyle),
-            SizedBox(height: widget.labelGap),
+            if (showLabel) ...[
+              Text(label, style: widget.labelStyle),
+              SizedBox(height: widget.labelGap),
+            ],
             AnimatedSize(
               duration: _kExpandDuration,
               curve: _kExpandCurve,

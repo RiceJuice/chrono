@@ -6,6 +6,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_schedule_section.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_bottom_modal_typography.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -94,24 +95,24 @@ class _EventBottomModalTextContent extends ConsumerWidget {
             entry.eventName,
             style: titleStyle ?? theme.textTheme.titleLarge,
           ),
-          const SizedBox(height: EventBottomModalTypography.gapAfterTitle),
-          Text(
-            '${AppDateTime.formatLocalHourMinute(entry.startTime)} – '
-            '${AppDateTime.formatLocalHourMinute(entry.endTime)} Uhr',
-            style: EventBottomModalTypography.eventTime(scheme),
-          ),
           if (descriptionText.isNotEmpty) ...[
-            const SizedBox(height: EventBottomModalTypography.gapAfterTime),
+            const SizedBox(height: EventBottomModalTypography.gapAfterTitle),
             BottomModalExpandableTextSection(
-              label: 'Beschreibung',
               text: descriptionText,
-              labelStyle: EventBottomModalTypography.sectionLabelStyle(scheme),
-              bodyStyle: EventBottomModalTypography.bodyStyle(scheme),
-              labelGap: EventBottomModalTypography.gapLabelBody,
+              bodyStyle: EventBottomModalTypography.eventSubtitle(scheme),
             ),
           ],
+          SizedBox(
+            height: descriptionText.isNotEmpty
+                ? EventBottomModalTypography.gapAfterDescription
+                : EventBottomModalTypography.gapAfterTitle,
+          ),
+          _EventDateTimeBoxes(
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+          ),
           if (noteText.isNotEmpty) ...[
-            const SizedBox(height: EventBottomModalTypography.gapSection),
+            const SizedBox(height: EventBottomModalTypography.gapAfterMetaBoxes),
             BottomModalExpandableTextSection(
               label: 'Notiz',
               text: noteText,
@@ -154,6 +155,92 @@ class _EventBottomModalTextContent extends ConsumerWidget {
           else
             const SizedBox(height: AppSpacing.s),
         ],
+      ),
+    );
+  }
+}
+
+class _EventDateTimeBoxes extends StatelessWidget {
+  const _EventDateTimeBoxes({
+    required this.startTime,
+    required this.endTime,
+  });
+
+  final DateTime startTime;
+  final DateTime endTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textStyle = EventBottomModalTypography.metaBoxText(scheme);
+
+    return Row(
+      children: [
+        Expanded(
+          child: _EventMetaBox(
+            icon: Icons.calendar_today_rounded,
+            text: AppDateTime.formatLocalFullWeekdayDate(startTime),
+            style: textStyle,
+            iconColor: scheme.onSurfaceVariant,
+            backgroundColor: scheme.surfaceContainerHighest,
+          ),
+        ),
+        const SizedBox(width: EventBottomModalTypography.metaBoxGap),
+        Expanded(
+          child: _EventMetaBox(
+            icon: Icons.schedule_rounded,
+            text: '${AppDateTime.formatLocalHourMinute(startTime)} – '
+                '${AppDateTime.formatLocalHourMinute(endTime)} Uhr',
+            style: textStyle,
+            iconColor: scheme.onSurfaceVariant,
+            backgroundColor: scheme.surfaceContainerHighest,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EventMetaBox extends StatelessWidget {
+  const _EventMetaBox({
+    required this.icon,
+    required this.text,
+    required this.style,
+    required this.iconColor,
+    required this.backgroundColor,
+  });
+
+  final IconData icon;
+  final String text;
+  final TextStyle style;
+  final Color iconColor;
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipSmoothRect(
+      radius: AppSquircle.borderRadius(EventBottomModalTypography.metaBoxRadius),
+      child: ColoredBox(
+        color: backgroundColor,
+        child: Padding(
+          padding: EventBottomModalTypography.metaBoxPadding,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: EventBottomModalTypography.metaBoxIconSize,
+                color: iconColor,
+              ),
+              const SizedBox(height: EventBottomModalTypography.metaBoxIconGap),
+              Text(
+                text,
+                style: style,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class AppDateTime {
   const AppDateTime._();
 
@@ -243,5 +245,10 @@ class AppDateTime {
     final hours = local.hour.toString().padLeft(2, '0');
     final minutes = local.minute.toString().padLeft(2, '0');
     return '$hours:$minutes';
+  }
+
+  /// Vollständiges Datum, z. B. „Donnerstag, 3. Mai“.
+  static String formatLocalFullWeekdayDate(DateTime value) {
+    return DateFormat('EEEE, d. MMMM', 'de').format(localDay(value));
   }
 }

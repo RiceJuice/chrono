@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/event_schedules_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_images.dart';
@@ -20,13 +21,16 @@ class EventBottomModalHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        BottomModalImages(entry: entry),
+        BottomModalImages(
+          entry: entry,
+          imageOuterBorderRadius: AppRadius.sheet,
+        ),
         BottomModalText(
           entry: entry,
           layout: BottomModalTextLayout.event,
           includeScheduleSection: false,
           titleStyle: GoogleFonts.libreBaskerville(
-            fontSize: 30,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
             height: 1.15,
           ),
