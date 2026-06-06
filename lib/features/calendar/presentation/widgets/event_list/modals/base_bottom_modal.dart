@@ -1,6 +1,5 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
-import 'package:chronoapp/core/widgets/app_expandable_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/app_modal_scroll_surface.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/app_smooth_event_modal_sheet.dart';
@@ -197,24 +196,40 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
       );
     }
 
-    final initialSize = BaseBottomModal.isEventSheetType(entryType)
-        ? kAppExpandableModalEventInitialSize
-        : kAppExpandableModalInitialSize;
+    return _buildSimpleDetailSheet(
+      context: context,
+      sheetSurface: sheetSurface,
+      morph: t,
+    );
+  }
 
-    return AppExpandableModalSheet(
-      color: sheetSurface,
-      initialChildSize: initialSize,
-      builder: (context, scrollController, maxSheetHeight, isFullyExpanded) {
-        return Stack(
+  /// Feste Höhe + innerer Scroll — kein Expand/Snap (Lesson, Meal, Choir).
+  Widget _buildSimpleDetailSheet({
+    required BuildContext context,
+    required Color sheetSurface,
+    required double morph,
+  }) {
+    final sheetHeight =
+        MediaQuery.sizeOf(context).height * kAppDetailModalInitialSize;
+
+    return SizedBox(
+      height: sheetHeight,
+      child: AppModalSheetChrome(
+        color: sheetSurface,
+        clipTopCorners: true,
+        child: Stack(
           clipBehavior: Clip.none,
           children: [
-            CustomScrollView(
-              controller: scrollController,
-              slivers: [
-                SliverToBoxAdapter(child: _buildModalContent(t)),
-              ],
+            SingleChildScrollView(
+              child: _buildModalContent(morph),
             ),
-            if (_supportsAccentMorph) ..._buildAccentChrome(context, t),
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: BottomModalHandle(),
+            ),
+            if (_supportsAccentMorph) ..._buildAccentChrome(context, morph),
             if (!_supportsAccentMorph &&
                 _liveEntry.type == CalendarEntryType.lesson)
               Positioned(
@@ -227,8 +242,8 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
               ),
             _buildAdminEditButtonPositioned(),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 

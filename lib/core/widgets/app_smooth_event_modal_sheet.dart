@@ -1,4 +1,3 @@
-import 'package:chronoapp/core/widgets/app_expandable_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
 import 'package:flutter/material.dart';
@@ -17,7 +16,7 @@ abstract final class AppSmoothModalSheet {
     final resolvedBarrier = barrierColor ?? Colors.black54;
     final dismissSensitivity = SwipeDismissSensitivity(
       dismissalOffset: SheetOffset.proportionalToViewport(
-        kAppExpandableModalMinSize,
+        kAppEventModalMinSize,
       ),
     );
 
@@ -58,7 +57,7 @@ class AppSmoothEventModalSheet extends StatefulWidget {
     super.key,
     required this.builder,
     this.color,
-    this.initialSize = kAppExpandableModalEventInitialSize,
+    this.initialSize = kAppEventModalInitialSize,
   });
 
   /// `(scrollController, isFullyExpanded)` — Inhalt als scrollbare Slivers.

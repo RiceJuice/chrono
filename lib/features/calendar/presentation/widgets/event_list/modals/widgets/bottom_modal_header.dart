@@ -6,27 +6,18 @@ import 'package:chronoapp/features/calendar/presentation/providers/filter/calend
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/calendar_entry_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart'
     show kBottomModalHeaderHeight;
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_top_blur_fade.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/modal_preview_card_chrome.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Max. Blur (σ) — gilt erst bei größerem Abstand zur Auswahl.
-const double kModalPreviewNeighborBlurSigmaMax = 5;
-
-/// Min. Blur direkt neben der Auswahl (soll noch lesbar bleiben).
-const double kModalPreviewNeighborBlurSigmaMin = 0.8;
-
-/// Abstand ≥ dieses Ziel → volle Blur-Stärke ([kModalPreviewNeighborBlurSigmaMax]).
+/// Abstand ≥ dieses Ziel → volle Blur-Stärke ([kBottomModalTopBlurMaxSigma]).
 const double kModalPreviewBlurDistanceNorm = 3;
 
-/// > 1: Blur/Farbe wachsen am Anfang langsamer (exponentielle Kurve).
+/// > 1: Blur wächst am Anfang langsamer (exponentielle Kurve).
 const double kModalPreviewBlurCurveExponent = 2.4;
-
-/// Glas-Tönung: Minimum (Abstand 1) und Maximum (ferne Nachbarn).
-const double kModalPreviewNeighborGlassTintMin = 0.045;
-const double kModalPreviewNeighborGlassTintMax = 0.15;
 
 /// Farbe wächst schneller als Blur (niedrigerer Exponent = mehr Farbe früh).
 const double kModalPreviewTintCurveExponent = 1.2;
@@ -34,12 +25,13 @@ const double kModalPreviewTintCurveExponent = 1.2;
 /// σ für Nachbar-Karten: exponentiell nach Abstand zur Auswahl.
 double modalPreviewBlurSigmaForDistance(int distanceFromSelected) {
   if (distanceFromSelected <= 0) return 0;
+  final minSigma =
+      kBottomModalTopBlurMaxSigma * kModalPreviewNeighborBlurSigmaMinFactor;
   final t = (distanceFromSelected / kModalPreviewBlurDistanceNorm)
       .clamp(0.0, 1.0);
   final curved = math.pow(t, kModalPreviewBlurCurveExponent).toDouble();
-  return kModalPreviewNeighborBlurSigmaMin +
-      (kModalPreviewNeighborBlurSigmaMax - kModalPreviewNeighborBlurSigmaMin) *
-          curved;
+  return minSigma +
+      (kBottomModalTopBlurMaxSigma - minSigma) * curved;
 }
 
 /// Glas-Tönung: stärker und früher als der Blur.
@@ -118,7 +110,7 @@ class BottomModalHeader extends ConsumerWidget {
   /// 0 = Detail-Liste, 1 = zentrierte Akzent-Vorschau (siehe [BottomModalHeaderMorph]).
   final double morph;
 
-  /// Drag-Handle oben — zentral über [AppExpandableModalSheet], sonst false.
+  /// Drag-Handle oben — zentral über dem Sheet-Wrapper, sonst false.
   final bool showHandle;
 
   static DateTime _localDayStart(CalendarEntry anchor) {

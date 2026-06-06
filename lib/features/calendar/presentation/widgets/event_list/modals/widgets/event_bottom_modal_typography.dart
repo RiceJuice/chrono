@@ -11,9 +11,9 @@ abstract final class EventBottomModalTypography {
 
   /// Abstand oberhalb der Veranstaltungsort-Zeile (über dem Titel).
   static const double locationTop = 14;
-  static const double gapAfterLocation = 14;
-  static const double gapAfterTitle = 16;
-  static const double gapAfterTime = 12;
+  static const double gapAfterLocation = 4;
+  static const double gapAfterTitle = 14;
+  static const double gapAfterTime = 24;
   static const double gapSection = 18;
   static const double gapLabelBody = 3;
   static const double gapScheduleCards = 8;
@@ -36,7 +36,7 @@ abstract final class EventBottomModalTypography {
 
   // — Schriftgrößen —
   static const double location = 15;
-  static const double time = 22;
+  static const double time = 18;
   static const double sectionLabel = 18;
   static const double body = 15;
 

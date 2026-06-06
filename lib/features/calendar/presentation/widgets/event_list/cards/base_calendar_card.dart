@@ -1,10 +1,9 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/leading_indicator/calendar_card_leading_indicator.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_top_blur_fade.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
@@ -176,6 +175,7 @@ class BaseCalendarCard extends StatelessWidget {
           ),
         Expanded(
           child: _buildCardBody(
+            context: context,
             style: style,
             inlineTime: inlineTime,
           ),
@@ -197,6 +197,7 @@ class BaseCalendarCard extends StatelessWidget {
   }
 
   Widget _buildCardBody({
+    required BuildContext context,
     required CalendarCardStyle style,
     required bool inlineTime,
   }) {
@@ -238,28 +239,17 @@ class BaseCalendarCard extends StatelessWidget {
     );
 
     final sigma = neighborGlassBlurSigma;
-    if (sigma == null) return body;
+    if (sigma == null || sigma <= 0) return body;
 
+    final scheme = Theme.of(context).colorScheme;
     final tintAlpha = neighborGlassTintAlpha ?? 0;
-    final tint = tintAlpha > 0
-        ? Colors.white.withValues(alpha: tintAlpha)
-        : Colors.transparent;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.s),
-      child: Stack(
-        fit: StackFit.passthrough,
-        alignment: Alignment.center,
-        children: [
-          body,
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-              child: ColoredBox(color: tint),
-            ),
-          ),
-        ],
-      ),
+    return CalendarGradientBlurOverlay(
+      maxBlur: sigma,
+      surfaceColor: scheme.surface,
+      tintAlpha: tintAlpha,
+      borderRadius: AppSquircle.borderRadius(AppRadius.s),
+      child: body,
     );
   }
 }

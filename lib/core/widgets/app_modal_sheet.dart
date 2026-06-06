@@ -81,6 +81,15 @@ BoxConstraints appModalSheetHeightConstraints(
 /// Kleiner Abstand zwischen System-UI (Statusleiste/Notch) und Sheet-Oberkante.
 const double kAppSheetGapBelowSystemUi = AppSpacing.xs;
 
+/// Feste Sheet-Höhe für Lesson/Meal/Choir-Detail (60 % Bildschirm).
+const double kAppDetailModalInitialSize = 0.6;
+
+/// Event-Detail: etwas höher, damit Beschreibung und Ablauf sichtbar sind.
+const double kAppEventModalInitialSize = 0.65;
+
+/// Minimale Sheet-Höhe zum Herunterziehen / Schließen (Event smooth_sheets).
+const double kAppEventModalMinSize = 0.35;
+
 /// MediaQuery der physischen [View] — unabhängig vom Bottom-Sheet-[MediaQuery.padding].
 MediaQueryData appSheetViewMediaQuery(BuildContext context) {
   return MediaQueryData.fromView(View.of(context));

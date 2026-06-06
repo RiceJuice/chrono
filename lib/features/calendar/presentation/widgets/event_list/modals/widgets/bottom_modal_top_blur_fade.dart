@@ -3,19 +3,93 @@ import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:gradient_blur/gradient_blur.dart';
 
-/// Feste Höhe des Blur-Streifens ganz oben im Sheet.
+/// Feste Höhe des Blur-Streifens ganz oben im Event-Sheet.
 const double kBottomModalTopBlurOverlayHeight = 112;
 
-/// Maximale Blur-Stärke (σ) im Streifen.
+/// Maximale Blur-Stärke (σ).
 const double kBottomModalTopBlurMaxSigma = 4;
 
-/// Deckkraft der Sheet-Hintergrundfarbe oben (0…1).
+/// Deckkraft der Tönungsfarbe oben (0…1).
 const double kBottomModalTopBlurTintAlpha = 0.5;
 
-/// Scroll-Distanz (px), bis der Blur voll eingeblendet ist.
+const int kCalendarGradientBlurSlices = 14;
+const Curve kCalendarGradientBlurCurve = Curves.easeOutCubic;
+
+/// Scroll-Distanz (px), bis der Event-Top-Blur voll eingeblendet ist.
 const double kBottomModalTopBlurFadeScrollDistance = 36;
 
-/// Stärke 0…1 für den Top-Blur (Vollbild + gescrollt).
+/// Min. σ für Nachbar-Karten in der Lesson-Vorschau (Anteil von [kBottomModalTopBlurMaxSigma]).
+const double kModalPreviewNeighborBlurSigmaMinFactor = 0.22;
+
+/// Tönung Nachbar-Karten — weniger Farbe als zuvor (0.045…0.15).
+const double kModalPreviewNeighborGlassTintMin = 0.012;
+const double kModalPreviewNeighborGlassTintMax = 0.04;
+
+LinearGradient calendarGradientBlurTintGradient({
+  required Color surfaceColor,
+  required double tintAlpha,
+}) {
+  return LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      surfaceColor.withValues(alpha: tintAlpha),
+      surfaceColor.withValues(alpha: 0),
+    ],
+  );
+}
+
+/// Gradient-Blur-Overlay — blurrt den Inhalt darunter (Backdrop-Stapel wie im Event-Sheet).
+class CalendarGradientBlurOverlay extends StatelessWidget {
+  const CalendarGradientBlurOverlay({
+    super.key,
+    required this.maxBlur,
+    required this.surfaceColor,
+    required this.tintAlpha,
+    required this.borderRadius,
+    required this.child,
+  });
+
+  final double maxBlur;
+  final Color surfaceColor;
+  final double tintAlpha;
+  final SmoothBorderRadius borderRadius;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (maxBlur <= 0) {
+      return child;
+    }
+
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        child,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: ClipSmoothRect(
+              radius: borderRadius,
+              child: GradientBlur(
+                maxBlur: maxBlur,
+                minBlur: 0,
+                slices: kCalendarGradientBlurSlices,
+                curve: kCalendarGradientBlurCurve,
+                gradient: calendarGradientBlurTintGradient(
+                  surfaceColor: surfaceColor,
+                  tintAlpha: tintAlpha,
+                ),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Stärke 0…1 für den Event-Top-Blur (Vollbild + gescrollt).
 double bottomModalTopBlurStrength({
   required bool isFullyExpanded,
   required double contentScrollOffset,
@@ -27,7 +101,7 @@ double bottomModalTopBlurStrength({
       .clamp(0.0, 1.0);
 }
 
-/// Fester Blur-Streifen oben — blurrt nur den Scroll-Inhalt darunter (BackdropFilter).
+/// Fester Blur-Streifen oben im Event-Sheet.
 class BottomModalTopBlurOverlay extends StatelessWidget {
   const BottomModalTopBlurOverlay({
     super.key,
@@ -57,15 +131,11 @@ class BottomModalTopBlurOverlay extends StatelessWidget {
           child: GradientBlur(
             maxBlur: maxBlur,
             minBlur: 0,
-            slices: 14,
-            curve: Curves.easeOutCubic,
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                surfaceColor.withValues(alpha: tintAlpha),
-                surfaceColor.withValues(alpha: 0),
-              ],
+            slices: kCalendarGradientBlurSlices,
+            curve: kCalendarGradientBlurCurve,
+            gradient: calendarGradientBlurTintGradient(
+              surfaceColor: surfaceColor,
+              tintAlpha: tintAlpha,
             ),
             child: const SizedBox.expand(),
           ),
@@ -75,7 +145,7 @@ class BottomModalTopBlurOverlay extends StatelessWidget {
   }
 }
 
-/// Scroll-gesteuerter Top-Blur als festes Overlay.
+/// Scroll-gesteuerter Top-Blur im Event-Sheet.
 class BottomModalScrollTopBlurOverlay extends StatefulWidget {
   const BottomModalScrollTopBlurOverlay({
     super.key,
