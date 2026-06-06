@@ -1,6 +1,5 @@
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_top_glass_blend.dart';
 import 'package:flutter/material.dart';
 
 /// Anteil der Bildschirmhöhe beim ersten Öffnen (Apple-Maps-Stil).
@@ -20,22 +19,20 @@ class AppExpandableModalSheet extends StatefulWidget {
     this.color,
     this.initialChildSize = kAppExpandableModalInitialSize,
     this.minChildSize = kAppExpandableModalMinSize,
-    this.showTopGlassBlend = false,
   });
 
-  /// `(scrollController, maxSheetHeight)` — Inhalt als [CustomScrollView]-Slivers.
+  /// `(scrollController, maxSheetHeight, isFullyExpanded)` — Inhalt als
+  /// [CustomScrollView]-Slivers; [isFullyExpanded] für verschachtelte Listen.
   final Widget Function(
     BuildContext context,
     ScrollController scrollController,
     double maxSheetHeight,
+    bool isFullyExpanded,
   ) builder;
 
   final Color? color;
   final double initialChildSize;
   final double minChildSize;
-
-  /// Frosted-Glass-Verlauf oben, unter dem Drag-Handle (z. B. Event-Detail).
-  final bool showTopGlassBlend;
 
   static double maxChildSizeFraction(BuildContext context) {
     final view = appSheetViewMediaQuery(context);
@@ -75,6 +72,7 @@ class _AppExpandableModalSheetState extends State<AppExpandableModalSheet> {
         maxChildSize: maxChildSize,
         snap: true,
         snapSizes: [widget.initialChildSize, maxChildSize],
+        snapAnimationDuration: const Duration(milliseconds: 280),
         builder: (context, scrollController) {
           final maxSheetHeight = view.size.height * maxChildSize;
           final scheme = Theme.of(context).colorScheme;
@@ -86,19 +84,12 @@ class _AppExpandableModalSheetState extends State<AppExpandableModalSheet> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                widget.builder(context, scrollController, maxSheetHeight),
-                if (widget.showTopGlassBlend)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    // Eigenes, isoliertes Widget: zeichnet beim Scrollen nur
-                    // den Glass-Verlauf neu — nicht den ganzen CustomScrollView.
-                    child: _TopGlassBlend(
-                      controller: scrollController,
-                      isFullyExpanded: _isFullyExpanded,
-                    ),
-                  ),
+                widget.builder(
+                  context,
+                  scrollController,
+                  maxSheetHeight,
+                  _isFullyExpanded,
+                ),
                 const Positioned(
                   top: 0,
                   left: 0,
@@ -111,61 +102,5 @@ class _AppExpandableModalSheetState extends State<AppExpandableModalSheet> {
         },
       ),
     );
-  }
-}
-
-/// Reiner Glass-Verlauf, der sich beim Scrollen unabhängig vom Sheet-Inhalt
-/// aktualisiert, damit der äußere Scroll nicht jeden Frame neu gebaut wird.
-class _TopGlassBlend extends StatefulWidget {
-  const _TopGlassBlend({
-    required this.controller,
-    required this.isFullyExpanded,
-  });
-
-  final ScrollController controller;
-  final bool isFullyExpanded;
-
-  @override
-  State<_TopGlassBlend> createState() => _TopGlassBlendState();
-}
-
-class _TopGlassBlendState extends State<_TopGlassBlend> {
-  double _offset = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_onScroll);
-  }
-
-  @override
-  void didUpdateWidget(covariant _TopGlassBlend oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      oldWidget.controller.removeListener(_onScroll);
-      widget.controller.addListener(_onScroll);
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.controller.removeListener(_onScroll);
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!widget.controller.hasClients) return;
-    final offset = widget.controller.offset;
-    if (offset == _offset) return;
-    setState(() => _offset = offset);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final opacity = bottomModalTopGlassBlendOpacity(
-      isFullyExpanded: widget.isFullyExpanded,
-      contentScrollOffset: widget.isFullyExpanded ? _offset : 0,
-    );
-    return BottomModalTopGlassBlend(opacity: opacity);
   }
 }

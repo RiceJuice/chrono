@@ -79,26 +79,38 @@ abstract final class CalendarNowAnchor {
 
   /// Versucht den Sprung nach dem Layout und fasst mehrfach nach, bis der
   /// Anker tatsächlich gebaut ist (lazy Slivers werden erst beim Bedarf gebaut).
+  ///
+  /// [shouldContinue] wird vor jedem Versuch geprüft — z. B. um bei Nutzer-Scroll
+  /// alle ausstehenden Retries sofort abzubrechen.
   static void scheduleInitialJump({
     required bool Function() jump,
-    int maxAttempts = 12,
-    Duration retryDelay = const Duration(milliseconds: 60),
+    bool Function()? shouldContinue,
+    int maxAttempts = 8,
+    Duration retryDelay = const Duration(milliseconds: 48),
   }) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _attemptJump(jump: jump, remainingAttempts: maxAttempts, delay: retryDelay);
+      _attemptJump(
+        jump: jump,
+        shouldContinue: shouldContinue,
+        remainingAttempts: maxAttempts,
+        delay: retryDelay,
+      );
     });
   }
 
   static void _attemptJump({
     required bool Function() jump,
+    required bool Function()? shouldContinue,
     required int remainingAttempts,
     required Duration delay,
   }) {
+    if (shouldContinue != null && !shouldContinue()) return;
     if (jump() || remainingAttempts <= 1) return;
     Future<void>.delayed(
       delay,
       () => _attemptJump(
         jump: jump,
+        shouldContinue: shouldContinue,
         remainingAttempts: remainingAttempts - 1,
         delay: delay,
       ),

@@ -616,6 +616,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.19.0"
+  gradient_blur:
+    dependency: "direct main"
+    description:
+      name: gradient_blur
+      sha256: "72f5e2fabfa876cad9d0fc38817f82452c75313902b88785435391afabdbb919"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2+1"
   graphs:
     dependency: transitive
     description:
@@ -872,6 +880,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.17.6"
+  navigator_resizable:
+    dependency: transitive
+    description:
+      name: navigator_resizable
+      sha256: d1f58a264b9995234561043904ec59623d4b69446a41548c311b03f1ed800dd5
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.2"
   nm:
     dependency: transitive
     description:
@@ -1269,6 +1285,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  smooth_sheets:
+    dependency: "direct main"
+    description:
+      name: smooth_sheets
+      sha256: "7c9ad593964802f59a2d5b0ca5e3bc03fa8d429b2d76c82bb3cce90f0a2e0079"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   source_gen:
     dependency: transitive
     description:

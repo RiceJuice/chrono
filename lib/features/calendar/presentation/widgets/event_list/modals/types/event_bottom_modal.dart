@@ -38,8 +38,8 @@ class EventBottomModalHeader extends StatelessWidget {
 
 /// Ablauf-Bereich für das Event-Detail-Sheet.
 ///
-/// Mit [sliverLayout] als Sliver in [CustomScrollView] — scrollbare Liste
-/// mit eigener Scrollbar, aber weiterhin Teil des gesamten Modals.
+/// Mit [sliverLayout] als Sliver in [CustomScrollView] — Teil des gesamten
+/// Sheet-Scrolls (Header + Ablauf).
 class EventBottomModalSchedulePane extends ConsumerWidget {
   const EventBottomModalSchedulePane({
     super.key,
@@ -50,8 +50,6 @@ class EventBottomModalSchedulePane extends ConsumerWidget {
 
   final String eventId;
   final bool sliverLayout;
-
-  /// Äußerer Sheet-Scroll-Controller (für den „Jetzt“-Anker im Sliver-Layout).
   final ScrollController? scrollController;
 
   @override
