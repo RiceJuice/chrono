@@ -7,10 +7,10 @@ import 'package:gradient_blur/gradient_blur.dart';
 const double kBottomModalTopBlurOverlayHeight = 112;
 
 /// Maximale Blur-Stärke (σ) im Streifen.
-const double kBottomModalTopBlurMaxSigma = 9;
+const double kBottomModalTopBlurMaxSigma = 4;
 
 /// Deckkraft der Sheet-Hintergrundfarbe oben (0…1).
-const double kBottomModalTopBlurTintAlpha = 0.42;
+const double kBottomModalTopBlurTintAlpha = 0.5;
 
 /// Scroll-Distanz (px), bis der Blur voll eingeblendet ist.
 const double kBottomModalTopBlurFadeScrollDistance = 36;

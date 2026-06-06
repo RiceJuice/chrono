@@ -252,7 +252,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
               EventBottomModalSchedulePane(
                 eventId: entry.id,
                 sliverLayout: true,
-                scrollController: scrollController,
+                isSheetFullyExpanded: isFullyExpanded,
               ),
             ],
           ),

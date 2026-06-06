@@ -36,7 +36,7 @@ class BottomModalImages extends StatefulWidget {
   State<BottomModalImages> createState() => _BottomModalImagesState();
 }
 
-const double _kModalDetailPanelHeight = 200;
+const double _kModalDetailPanelHeight = 260;
 
 /// Abstand zwischen nebeneinander liegenden Bildern im Karussell.
 const double _kModalDetailImageGap = AppSpacing.xs;

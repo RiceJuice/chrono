@@ -21,6 +21,8 @@ abstract final class EventBottomModalTypography {
   static const double gapAfterScheduleHeader = 14;
   /// Zusätzlicher Abstand vor dem nächsten Ablaufpunkt (Now-Anker).
   static const double scheduleNowAnchorLeadGap = 20;
+  /// Höhe des scrollbaren Ablauf-Bereichs (60 % Bildschirm).
+  static const double scheduleListViewportFraction = 0.6;
 
   static const double cardHorizontal = 12;
   static const double cardVertical = 8;

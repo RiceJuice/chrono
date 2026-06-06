@@ -45,12 +45,12 @@ class EventBottomModalSchedulePane extends ConsumerWidget {
     super.key,
     required this.eventId,
     this.sliverLayout = false,
-    this.scrollController,
+    this.isSheetFullyExpanded = false,
   });
 
   final String eventId;
   final bool sliverLayout;
-  final ScrollController? scrollController;
+  final bool isSheetFullyExpanded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,7 +67,7 @@ class EventBottomModalSchedulePane extends ConsumerWidget {
           schedules: schedules,
           eventLayout: true,
           scrollable: sliverLayout,
-          scrollController: scrollController,
+          isSheetFullyExpanded: isSheetFullyExpanded,
         );
         if (sliverLayout) return section;
         return Padding(
