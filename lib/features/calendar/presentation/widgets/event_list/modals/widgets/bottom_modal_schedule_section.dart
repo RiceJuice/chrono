@@ -4,6 +4,8 @@ import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/filter/event_schedule_filter.dart';
 import 'package:chronoapp/features/calendar/domain/models/event_schedule.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
+import 'package:chronoapp/features/calendar/presentation/theme/calendar_presentation_theme.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/calendar_now_anchor.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_bottom_modal_typography.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
@@ -17,10 +19,17 @@ class BottomModalScheduleSection extends ConsumerStatefulWidget {
     super.key,
     required this.schedules,
     this.eventLayout = false,
+    this.scrollable = false,
+    this.scrollController,
   });
 
   final List<EventSchedule> schedules;
   final bool eventLayout;
+  final bool scrollable;
+
+  /// Scroll-Controller des äußeren Sheet-[CustomScrollView] (nur Sliver-Layout).
+  /// Wird für den „Jetzt“-Anker-Sprung im gemeinsamen Scroll benötigt.
+  final ScrollController? scrollController;
 
   @override
   ConsumerState<BottomModalScheduleSection> createState() =>
@@ -33,6 +42,10 @@ class _BottomModalScheduleSectionState
 
   static const Duration _collapseDuration = Duration(milliseconds: 420);
   static const Curve _collapseCurve = Curves.easeInOutCubic;
+
+  final GlobalKey _nowAnchorKey = GlobalKey();
+  bool _didInitialScroll = false;
+  int? _lastAnchorScheduleIndex;
 
   bool _isVisible(
     EventSchedule schedule,
@@ -53,95 +66,302 @@ class _BottomModalScheduleSectionState
     );
   }
 
+  List<EventSchedule> get _filterVisibleSchedules => widget.schedules
+      .where((schedule) => _isVisible(schedule, _filter))
+      .toList(growable: false);
+
+  int? _anchorScheduleIndex(List<EventSchedule> visibleSchedules) {
+    for (var i = 0; i < widget.schedules.length; i++) {
+      final schedule = widget.schedules[i];
+      if (!visibleSchedules.any((item) => item.id == schedule.id)) continue;
+      if (!CalendarNowAnchor.scheduleApplyPastStyling(schedule)) continue;
+      if (!CalendarNowAnchor.scheduleIsPast(schedule)) return i;
+    }
+    return null;
+  }
+
+  bool _jumpToNowAnchor() {
+    final controller = widget.scrollController;
+    if (controller == null || !controller.hasClients) return false;
+    return CalendarNowAnchor.jumpToAnchor(
+      anchorKey: _nowAnchorKey,
+      controller: controller,
+    );
+  }
+
+  void _scheduleInitialScrollToNowAnchor(int? anchorScheduleIndex) {
+    if (anchorScheduleIndex == null || !widget.scrollable || _didInitialScroll) {
+      return;
+    }
+    _didInitialScroll = true;
+    CalendarNowAnchor.scheduleInitialJump(jump: _jumpToNowAnchor);
+  }
+
   void _setFilter(EventScheduleListFilter next) {
     if (_filter == next) return;
     AppHaptics.light();
-    setState(() => _filter = next);
+    setState(() {
+      _filter = next;
+      _didInitialScroll = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     if (widget.schedules.isEmpty) return const SizedBox.shrink();
 
+    ref.watch(calendarFiltersProvider);
+
     final scheme = Theme.of(context).colorScheme;
     final gap = widget.eventLayout
         ? EventBottomModalTypography.gapScheduleCards
         : AppSpacing.s;
+    final visibleSchedules = _filterVisibleSchedules;
+    final visibleCount = visibleSchedules.length;
+    final anchorScheduleIndex = widget.scrollable
+        ? _anchorScheduleIndex(visibleSchedules)
+        : null;
 
-    ref.watch(calendarFiltersProvider);
+    if (anchorScheduleIndex != _lastAnchorScheduleIndex) {
+      _lastAnchorScheduleIndex = anchorScheduleIndex;
+      _didInitialScroll = false;
+    }
+    _scheduleInitialScrollToNowAnchor(anchorScheduleIndex);
 
-    final visibleCount = widget.schedules
-        .where((s) => _isVisible(s, _filter))
-        .length;
+    final header = _ScheduleSectionHeader(
+      scheme: scheme,
+      eventLayout: widget.eventLayout,
+      showFilterChips: _showFilterChips,
+      filter: _filter,
+      onFilterChanged: _setFilter,
+    );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              'Ablauf',
-              style: widget.eventLayout
-                  ? EventBottomModalTypography.scheduleSectionLabel(scheme)
-                  : Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+    if (!widget.scrollable) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          header,
+          SizedBox(
+            height: widget.eventLayout
+                ? EventBottomModalTypography.gapLabelBody
+                : AppSpacing.s,
+          ),
+          _buildStaticList(gap: gap, visibleCount: visibleCount),
+        ],
+      );
+    }
+
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              EventBottomModalTypography.contentHorizontal,
+              widget.eventLayout
+                  ? EventBottomModalTypography.gapSection
+                  : 0,
+              EventBottomModalTypography.contentHorizontal,
+              0,
             ),
-            if (_showFilterChips) ...[
-              const Spacer(),
-              _ScheduleFilterChip(
-                label: 'Alle',
-                selected: _filter == EventScheduleListFilter.all,
-                onTap: () => _setFilter(EventScheduleListFilter.all),
-              ),
-              const SizedBox(width: 6),
-              _ScheduleFilterChip(
-                label: 'Meine',
-                selected: _filter == EventScheduleListFilter.mine,
-                onTap: () => _setFilter(EventScheduleListFilter.mine),
-              ),
-            ],
-          ],
-        ),
-        SizedBox(
-          height: widget.eventLayout
-              ? EventBottomModalTypography.gapLabelBody
-              : AppSpacing.s,
-        ),
-        AnimatedSize(
-          duration: _collapseDuration,
-          curve: _collapseCurve,
-          alignment: Alignment.topCenter,
-          clipBehavior: Clip.hardEdge,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < widget.schedules.length; i++)
-                _CollapsingScheduleSlot(
-                  key: ValueKey(widget.schedules[i].id),
-                  visible: _isVisible(widget.schedules[i], _filter),
-                  gapAfter: i < widget.schedules.length - 1 ? gap : 0,
-                  duration: _collapseDuration,
-                  curve: _collapseCurve,
-                  child: _ScheduleItemCard(
-                    schedule: widget.schedules[i],
-                    eventLayout: widget.eventLayout,
-                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                header,
+                SizedBox(
+                  height: widget.eventLayout
+                      ? EventBottomModalTypography.gapLabelBody
+                      : AppSpacing.s,
                 ),
-              if (_filter == EventScheduleListFilter.mine && visibleCount == 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.s),
-                  child: Text(
-                    'Keine Termine für dein Profil.',
-                    style: EventBottomModalTypography.bodyStyle(scheme).copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
+        _buildScheduleListSliver(
+          gap: gap,
+          visibleCount: visibleCount,
+          anchorScheduleIndex: anchorScheduleIndex,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStaticList({
+    required double gap,
+    required int visibleCount,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return AnimatedSize(
+      duration: _collapseDuration,
+      curve: _collapseCurve,
+      alignment: Alignment.topCenter,
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < widget.schedules.length; i++)
+            _CollapsingScheduleSlot(
+              key: ValueKey(widget.schedules[i].id),
+              visible: _isVisible(widget.schedules[i], _filter),
+              gapAfter: i < widget.schedules.length - 1 ? gap : 0,
+              duration: _collapseDuration,
+              curve: _collapseCurve,
+              child: _ScheduleItemCard(
+                schedule: widget.schedules[i],
+                eventLayout: widget.eventLayout,
+              ),
+            ),
+          if (_filter == EventScheduleListFilter.mine && visibleCount == 0)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.s),
+              child: Text(
+                'Keine Termine für dein Profil.',
+                style: EventBottomModalTypography.bodyStyle(scheme).copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Ablauf-Karten als Slivers im gemeinsamen Sheet-Scroll (kein zweiter,
+  /// konkurrierender Scroll-Bereich mehr). Der „Jetzt“-Anker bleibt als 1px
+  /// hohes Key-Widget Teil der Liste.
+  Widget _buildScheduleListSliver({
+    required double gap,
+    required int visibleCount,
+    required int? anchorScheduleIndex,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasLeadGap =
+        anchorScheduleIndex != null && anchorScheduleIndex > 0;
+    final showEmptyMine =
+        _filter == EventScheduleListFilter.mine && visibleCount == 0;
+    final anchorExtra = anchorScheduleIndex != null ? 1 : 0;
+    final itemCount =
+        widget.schedules.length + anchorExtra + (showEmptyMine ? 1 : 0);
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(
+        EventBottomModalTypography.contentHorizontal,
+        8,
+        EventBottomModalTypography.contentHorizontal,
+        EventBottomModalTypography.contentBottom,
+      ),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            if (showEmptyMine && index == 0) {
+              return Text(
+                'Keine Termine für dein Profil.',
+                style: EventBottomModalTypography.bodyStyle(scheme).copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              );
+            }
+
+            final listOffset = showEmptyMine ? 1 : 0;
+            final builderIndex = index - listOffset;
+
+            if (anchorScheduleIndex != null &&
+                builderIndex == anchorScheduleIndex) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (hasLeadGap)
+                    const SizedBox(
+                      height:
+                          EventBottomModalTypography.scheduleNowAnchorLeadGap,
+                    ),
+                  SizedBox(key: _nowAnchorKey, height: 1),
+                ],
+              );
+            }
+
+            final scheduleIndex = anchorScheduleIndex != null &&
+                    builderIndex > anchorScheduleIndex
+                ? builderIndex - 1
+                : builderIndex;
+
+            return _buildScheduleRow(
+              schedule: widget.schedules[scheduleIndex],
+              gapAfter: gap,
+              isLast: scheduleIndex == widget.schedules.length - 1,
+            );
+          },
+          childCount: itemCount,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScheduleRow({
+    required EventSchedule schedule,
+    required double gapAfter,
+    required bool isLast,
+  }) {
+    return _CollapsingScheduleSlot(
+      key: ValueKey('schedule-${schedule.id}'),
+      visible: _isVisible(schedule, _filter),
+      gapAfter: isLast ? 0 : gapAfter,
+      duration: _collapseDuration,
+      curve: _collapseCurve,
+      child: _ScheduleItemCard(
+        schedule: schedule,
+        eventLayout: widget.eventLayout,
+        applyPastStyling: CalendarNowAnchor.scheduleApplyPastStyling(schedule),
+      ),
+    );
+  }
+}
+
+class _ScheduleSectionHeader extends StatelessWidget {
+  const _ScheduleSectionHeader({
+    required this.scheme,
+    required this.eventLayout,
+    required this.showFilterChips,
+    required this.filter,
+    required this.onFilterChanged,
+  });
+
+  final ColorScheme scheme;
+  final bool eventLayout;
+  final bool showFilterChips;
+  final EventScheduleListFilter filter;
+  final ValueChanged<EventScheduleListFilter> onFilterChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          'Ablauf',
+          style: eventLayout
+              ? EventBottomModalTypography.scheduleSectionLabel(scheme)
+              : Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+        ),
+        if (showFilterChips) ...[
+          const Spacer(),
+          _ScheduleFilterChip(
+            label: 'Alle',
+            selected: filter == EventScheduleListFilter.all,
+            onTap: () => onFilterChanged(EventScheduleListFilter.all),
+          ),
+          const SizedBox(width: EventBottomModalTypography.filterChipGap),
+          _ScheduleFilterChip(
+            label: 'Meine',
+            selected: filter == EventScheduleListFilter.mine,
+            onTap: () => onFilterChanged(EventScheduleListFilter.mine),
+          ),
+        ],
       ],
     );
   }
@@ -170,7 +390,7 @@ class _ScheduleFilterChip extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeInOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+          padding: EventBottomModalTypography.filterChipPadding,
           decoration: BoxDecoration(
             color: selected
                 ? _kScheduleFilterChipBlue
@@ -181,9 +401,9 @@ class _ScheduleFilterChip extends StatelessWidget {
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeInOutCubic,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: EventBottomModalTypography.filterChipFontSize,
               fontWeight: FontWeight.w600,
-              height: 1.1,
+              height: 1.15,
               color: selected ? Colors.white : _kScheduleFilterChipBlue,
             ),
             child: Text(label),
@@ -222,7 +442,9 @@ class _CollapsingScheduleSlot extends StatelessWidget {
             alignment: Alignment.topCenter,
             heightFactor: visible ? 1 : 0,
             child: AnimatedOpacity(
-              duration: duration * 0.65,
+              duration: Duration(
+                milliseconds: (duration.inMilliseconds * 0.65).round(),
+              ),
               curve: curve,
               opacity: visible ? 1 : 0,
               child: child,
@@ -243,10 +465,12 @@ class _ScheduleItemCard extends StatelessWidget {
   const _ScheduleItemCard({
     required this.schedule,
     required this.eventLayout,
+    this.applyPastStyling = false,
   });
 
   final EventSchedule schedule;
   final bool eventLayout;
+  final bool applyPastStyling;
 
   String _formatTimeRange() {
     final start = AppDateTime.formatLocalHourMinute(schedule.startTime);
@@ -262,15 +486,40 @@ class _ScheduleItemCard extends StatelessWidget {
     final description = (schedule.description ?? '').trim();
     final location = (schedule.location ?? '').trim();
     final mutedColor = scheme.onSurface.withValues(alpha: AppOpacity.secondaryContent);
+    final isPast = CalendarNowAnchor.scheduleIsPast(schedule);
+    final usePastStyle = applyPastStyling && isPast;
 
     if (eventLayout) {
-      final locationStyle = EventBottomModalTypography.scheduleCardLocationStyle(scheme);
+      final baseCardColor = scheme.surfaceContainerHighest;
+      final cardColor = usePastStyle
+          ? CalendarPresentationTheme.dimmedSurface(context, baseCardColor)
+          : baseCardColor;
+      final primaryTextColor = usePastStyle
+          ? CalendarPresentationTheme.pastTextColor(context)
+          : scheme.onSurface;
+      final secondaryTextColor = usePastStyle
+          ? CalendarPresentationTheme.pastMutedTextColor(context)
+          : scheme.onSurface.withValues(alpha: 0.54);
+
+      final titleStyle = EventBottomModalTypography.scheduleCardTitleStyle(scheme)
+          .copyWith(color: primaryTextColor);
+      final bodyStyle = EventBottomModalTypography.scheduleCardBodyStyle(scheme)
+          .copyWith(color: primaryTextColor);
+      final timeStyle = EventBottomModalTypography.scheduleCardTimeStyle(scheme)
+          .copyWith(color: secondaryTextColor);
+      final locationStyle = EventBottomModalTypography.scheduleCardLocationStyle(
+        scheme,
+      ).copyWith(
+        color: usePastStyle
+            ? CalendarPresentationTheme.pastMutedTextColor(context)
+            : EventBottomModalTypography.scheduleCardLocationStyle(scheme).color,
+      );
       final locationColor = locationStyle.color!;
 
       return ClipSmoothRect(
         radius: AppSquircle.borderRadius(AppRadius.s),
         child: ColoredBox(
-          color: scheme.surfaceContainerHighest,
+          color: cardColor,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -284,16 +533,10 @@ class _ScheduleItemCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      schedule.title,
-                      style: EventBottomModalTypography.scheduleCardTitleStyle(scheme),
-                    ),
+                    Text(schedule.title, style: titleStyle),
                     if (description.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        description,
-                        style: EventBottomModalTypography.scheduleCardBodyStyle(scheme),
-                      ),
+                      Text(description, style: bodyStyle),
                     ],
                   ],
                 ),
@@ -302,7 +545,7 @@ class _ScheduleItemCard extends StatelessWidget {
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     EventBottomModalTypography.cardLocationLeft,
-                    description.isEmpty ? AppSpacing.xs : AppSpacing.xs,
+                    AppSpacing.xs,
                     EventBottomModalTypography.cardHorizontal,
                     EventBottomModalTypography.cardVertical,
                   ),
@@ -331,10 +574,7 @@ class _ScheduleItemCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: AppSpacing.s),
-                      Text(
-                        _formatTimeRange(),
-                        style: EventBottomModalTypography.scheduleCardTimeStyle(scheme),
-                      ),
+                      Text(_formatTimeRange(), style: timeStyle),
                     ],
                   ),
                 )
@@ -346,10 +586,7 @@ class _ScheduleItemCard extends StatelessWidget {
                     EventBottomModalTypography.cardHorizontal,
                     EventBottomModalTypography.cardVertical,
                   ),
-                  child: Text(
-                    _formatTimeRange(),
-                    style: EventBottomModalTypography.scheduleCardTimeStyle(scheme),
-                  ),
+                  child: Text(_formatTimeRange(), style: timeStyle),
                 ),
             ],
           ),
@@ -357,10 +594,18 @@ class _ScheduleItemCard extends StatelessWidget {
       );
     }
 
+    final cardColor = usePastStyle
+        ? CalendarPresentationTheme.dimmedSurface(
+            context,
+            scheme.surfaceContainerHighest,
+          )
+        : scheme.surfaceContainerHighest;
+    final pastMuted = CalendarPresentationTheme.pastMutedTextColor(context);
+
     return ClipSmoothRect(
       radius: AppSquircle.borderRadius(AppRadius.s),
       child: ColoredBox(
-        color: scheme.surfaceContainerHighest,
+        color: cardColor,
         child: Padding(
           padding: AppInsets.cardPadding,
           child: Column(
@@ -368,13 +613,17 @@ class _ScheduleItemCard extends StatelessWidget {
             children: [
               Text(
                 schedule.title,
-                style: theme.textTheme.labelLarge,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: usePastStyle
+                      ? CalendarPresentationTheme.pastTextColor(context)
+                      : null,
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 _formatTimeRange(),
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: mutedColor,
+                  color: usePastStyle ? pastMuted : mutedColor,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -386,14 +635,14 @@ class _ScheduleItemCard extends StatelessWidget {
                     Icon(
                       Icons.place_outlined,
                       size: 16,
-                      color: mutedColor,
+                      color: usePastStyle ? pastMuted : mutedColor,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
                         location,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: mutedColor,
+                          color: usePastStyle ? pastMuted : mutedColor,
                         ),
                       ),
                     ),
@@ -405,7 +654,7 @@ class _ScheduleItemCard extends StatelessWidget {
                 Text(
                   description,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: mutedColor,
+                    color: usePastStyle ? pastMuted : mutedColor,
                   ),
                 ),
               ],

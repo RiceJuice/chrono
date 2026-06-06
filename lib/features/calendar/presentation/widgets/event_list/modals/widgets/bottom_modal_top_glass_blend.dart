@@ -1,5 +1,7 @@
 import 'dart:ui' show ImageFilter;
 
+import 'package:cupertino_native_better/cupertino_native_better.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Frosted-Glass-Verlauf oben im Detail-Sheet — liegt unter dem Drag-Handle.
@@ -12,7 +14,13 @@ class BottomModalTopGlassBlend extends StatelessWidget {
   final double opacity;
 
   static const double height = 96;
-  static const double _blurSigma = 52;
+
+  static bool _useNativeLiquidGlass() {
+    final isApple =
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+    return isApple && PlatformVersion.shouldUseNativeGlass;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,10 +28,9 @@ class BottomModalTopGlassBlend extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tint = isDark
-        ? Colors.black.withValues(alpha: 0.72)
-        : Colors.black.withValues(alpha: 0.52);
+    final glassLayer = _useNativeLiquidGlass()
+        ? _buildNativeGlass()
+        : _buildFallbackBlur();
 
     return IgnorePointer(
       child: Opacity(
@@ -40,16 +47,35 @@ class BottomModalTopGlassBlend extends StatelessWidget {
                 colors: [Color(0xFFFFFFFF), Color(0x00000000)],
                 stops: [0.0, 1.0],
               ).createShader(bounds),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: _blurSigma,
-                  sigmaY: _blurSigma,
-                ),
-                child: ColoredBox(color: tint),
-              ),
+              child: glassLayer,
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildNativeGlass() {
+    return LiquidGlassContainer(
+      config: const LiquidGlassConfig(
+        effect: CNGlassEffect.regular,
+        shape: CNGlassEffectShape.rect,
+        cornerRadius: 0,
+        interactive: false,
+      ),
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+      ),
+    );
+  }
+
+  /// Fallback ohne native Liquid Glass — nur Blur, ohne sichtbare Tönung.
+  Widget _buildFallbackBlur() {
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+      child: const ColoredBox(
+        color: Color(0x01FFFFFF),
       ),
     );
   }

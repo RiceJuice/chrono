@@ -17,10 +17,20 @@ abstract final class EventBottomModalTypography {
   static const double gapSection = 18;
   static const double gapLabelBody = 3;
   static const double gapScheduleCards = 8;
+  /// Abstand zwischen „Ablauf“-Zeile (inkl. Chips) und erster Karte.
+  static const double gapAfterScheduleHeader = 14;
+  /// Zusätzlicher Abstand vor dem nächsten Ablaufpunkt (Now-Anker).
+  static const double scheduleNowAnchorLeadGap = 20;
 
   static const double cardHorizontal = 12;
   static const double cardVertical = 8;
   static const double cardLocationLeft = 12;
+
+  // — Ablauf-Filter-Chips —
+  static const double filterChipFontSize = 15;
+  static const EdgeInsets filterChipPadding =
+      EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+  static const double filterChipGap = 8;
 
   // — Schriftgrößen —
   static const double location = 15;

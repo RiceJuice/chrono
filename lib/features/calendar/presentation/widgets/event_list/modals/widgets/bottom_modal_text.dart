@@ -1,7 +1,5 @@
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
-import 'package:chronoapp/features/calendar/event_editor/presentation/providers/is_admin_provider.dart';
-import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/admin_edit_button.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/event_schedules_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_expandable_text.dart';
@@ -22,11 +20,13 @@ class BottomModalText extends ConsumerWidget {
     required this.entry,
     this.titleStyle,
     this.layout = BottomModalTextLayout.standard,
+    this.includeScheduleSection = true,
   });
 
   final CalendarEntry entry;
   final TextStyle? titleStyle;
   final BottomModalTextLayout layout;
+  final bool includeScheduleSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,6 +36,7 @@ class BottomModalText extends ConsumerWidget {
       return _EventBottomModalTextContent(
         entry: entry,
         titleStyle: titleStyle,
+        includeScheduleSection: includeScheduleSection,
       );
     }
 
@@ -50,10 +51,12 @@ class _EventBottomModalTextContent extends ConsumerWidget {
   const _EventBottomModalTextContent({
     required this.entry,
     this.titleStyle,
+    this.includeScheduleSection = true,
   });
 
   final CalendarEntry entry;
   final TextStyle? titleStyle;
+  final bool includeScheduleSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -63,7 +66,6 @@ class _EventBottomModalTextContent extends ConsumerWidget {
     final descriptionText = (entry.description ?? '').trim();
     final noteText = (entry.note ?? '').trim();
     final locationText = (entry.location ?? '').trim();
-    final isAdmin = ref.watch(isAdminProvider);
     final schedulesAsync = ref.watch(eventSchedulesForEntryProvider(entry.id));
 
     return Padding(
@@ -88,20 +90,9 @@ class _EventBottomModalTextContent extends ConsumerWidget {
             ),
             const SizedBox(height: EventBottomModalTypography.gapAfterLocation),
           ],
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  entry.eventName,
-                  style: titleStyle ?? theme.textTheme.titleLarge,
-                ),
-              ),
-              if (isAdmin) ...[
-                const SizedBox(width: AppSpacing.s),
-                AdminEditTextButton(entry: entry),
-              ],
-            ],
+          Text(
+            entry.eventName,
+            style: titleStyle ?? theme.textTheme.titleLarge,
           ),
           const SizedBox(height: EventBottomModalTypography.gapAfterTitle),
           Text(
@@ -129,35 +120,39 @@ class _EventBottomModalTextContent extends ConsumerWidget {
               labelGap: EventBottomModalTypography.gapLabelBody,
             ),
           ],
-          schedulesAsync.when(
-            data: (schedules) {
-              if (schedules.isEmpty) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(
-                  top: EventBottomModalTypography.gapSection,
-                ),
-                child: BottomModalScheduleSection(
-                  schedules: schedules,
-                  eventLayout: true,
-                ),
-              );
-            },
-            loading: () => const Padding(
-              padding: EdgeInsets.only(top: EventBottomModalTypography.gapSection),
-              child: SizedBox(
-                height: 40,
-                child: Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+          if (includeScheduleSection)
+            schedulesAsync.when(
+              data: (schedules) {
+                if (schedules.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(
+                    top: EventBottomModalTypography.gapSection,
+                  ),
+                  child: BottomModalScheduleSection(
+                    schedules: schedules,
+                    eventLayout: true,
+                  ),
+                );
+              },
+              loading: () => const Padding(
+                padding: EdgeInsets.only(top: EventBottomModalTypography.gapSection),
+                child: SizedBox(
+                  height: 40,
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
                 ),
               ),
+              error: (_, _) => const SizedBox.shrink(),
             ),
-            error: (_, _) => const SizedBox.shrink(),
-          ),
-          const SizedBox(height: EventBottomModalTypography.contentBottom),
+          if (includeScheduleSection)
+            const SizedBox(height: EventBottomModalTypography.contentBottom)
+          else
+            const SizedBox(height: AppSpacing.s),
         ],
       ),
     );
@@ -192,7 +187,6 @@ class _StandardBottomModalTextContent extends ConsumerWidget {
     final descriptionText = (entry.description ?? '').trim();
     final noteText = (entry.note ?? '').trim();
     final locationText = (entry.location ?? '').trim();
-    final isAdmin = ref.watch(isAdminProvider);
     final schedulesAsync = ref.watch(eventSchedulesForEntryProvider(entry.id));
 
     return Padding(
@@ -212,20 +206,9 @@ class _StandardBottomModalTextContent extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.s),
           ],
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  entry.eventName,
-                  style: titleStyle ?? theme.textTheme.titleLarge,
-                ),
-              ),
-              if (isAdmin) ...[
-                const SizedBox(width: AppSpacing.s),
-                AdminEditTextButton(entry: entry),
-              ],
-            ],
+          Text(
+            entry.eventName,
+            style: titleStyle ?? theme.textTheme.titleLarge,
           ),
           const SizedBox(height: AppSpacing.m),
           Text(

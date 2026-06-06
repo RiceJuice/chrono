@@ -4,8 +4,6 @@ import 'package:chronoapp/core/time/app_date_time.dart';
 
 import 'package:chronoapp/core/widgets/app_expandable_modal_sheet.dart';
 
-import 'package:chronoapp/core/widgets/app_modal_scroll_surface.dart';
-
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
@@ -31,6 +29,11 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/meal_bottom_modal.dart';
 
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
+
+import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/admin_edit_button.dart';
+
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart'
+    show kBottomModalHeaderHeight;
 
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/lesson_accent_button.dart';
 
@@ -341,26 +344,39 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
         ? kAppExpandableModalEventInitialSize
         : kAppExpandableModalInitialSize;
 
+    final showTopGlassBlend =
+        !_supportsAccentMorph &&
+        (entryType == CalendarEntryType.event ||
+            entryType == CalendarEntryType.breakType);
+
     return AppExpandableModalSheet(
       color: sheetSurface,
       initialChildSize: initialSize,
-      builder: (context, scrollController, _) {
+      showTopGlassBlend: showTopGlassBlend,
+      builder: (context, scrollController, maxSheetHeight) {
+        final entry = _liveEntry;
+        final isEventSheet =
+            !_supportsAccentMorph &&
+            (entry.type == CalendarEntryType.event ||
+                entry.type == CalendarEntryType.breakType);
+
+        final scrollContent = CustomScrollView(
+          controller: scrollController,
+          slivers: [
+            SliverToBoxAdapter(child: _buildModalContent(t)),
+            if (isEventSheet)
+              EventBottomModalSchedulePane(
+                eventId: entry.id,
+                sliverLayout: true,
+                scrollController: scrollController,
+              ),
+          ],
+        );
 
         return Stack(
-
           clipBehavior: Clip.none,
-
           children: [
-
-            AppModalScrollSurface(
-              controller: scrollController,
-              child: CustomScrollView(
-                controller: scrollController,
-                slivers: [
-                  SliverToBoxAdapter(child: _buildModalContent(t)),
-                ],
-              ),
-            ),
+            scrollContent,
 
             if (_supportsAccentMorph) ..._buildAccentChrome(context, t),
 
@@ -384,6 +400,8 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
 
               ),
 
+            _buildAdminEditButtonPositioned(),
+
           ],
 
         );
@@ -395,6 +413,23 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
   }
 
 
+
+  /// Rechts oben im Header, sofern kein anderer Button dort sitzt
+  /// (z. B. [LessonAccentButton]); sonst rechts unten im Header.
+  Positioned _buildAdminEditButtonPositioned() {
+    const inset = 6.0;
+    const buttonSide = 44.0;
+    final hasTopRightButton = _liveEntry.type == CalendarEntryType.lesson;
+    final top = hasTopRightButton
+        ? kBottomModalHeaderHeight - buttonSide - inset
+        : inset;
+
+    return Positioned(
+      top: top,
+      right: inset,
+      child: AdminEditButton(entry: _liveEntry),
+    );
+  }
 
   List<Widget> _buildAccentChrome(BuildContext context, double t) {
 
@@ -618,9 +653,9 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
 
       CalendarEntryType.meal => MealBottomModal(entry: entry),
 
-      CalendarEntryType.event => EventBottomModal(entry: entry),
+      CalendarEntryType.event => EventBottomModalHeader(entry: entry),
 
-      CalendarEntryType.breakType => EventBottomModal(entry: entry),
+      CalendarEntryType.breakType => EventBottomModalHeader(entry: entry),
 
       CalendarEntryType.choir => ChorBottomModal(entry: entry),
 

@@ -1,8 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/rendering.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
@@ -11,6 +10,7 @@ import '../../../domain/models/calendar_entry.dart';
 import '../../providers/calendar_providers.dart';
 import 'calendar_break_tile.dart';
 import 'calendar_day_empty_state.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/calendar_now_anchor.dart';
 import 'cards/calendar_entry_card.dart';
 
 class DayPage extends ConsumerStatefulWidget {
@@ -46,12 +46,7 @@ class _DayPageState extends ConsumerState<DayPage> {
   }
 
   int _entryIndexForNowAnchor(List<CalendarEntry> entries) {
-    final now = DateTime.now();
-    for (var i = 0; i < entries.length; i++) {
-      final localEnd = AppDateTime.toLocal(entries[i].endTime);
-      if (localEnd.isAfter(now)) return i;
-    }
-    return entries.length;
+    return CalendarNowAnchor.entryIndexForNowAnchor(entries);
   }
 
   String _buildCombinedBreakLabel(List<CalendarEntry> breakEntries) {
@@ -80,14 +75,7 @@ class _DayPageState extends ConsumerState<DayPage> {
   void _scheduleInitialScrollToNowAnchor() {
     if (!AppDateTime.isTodayLocal(widget.date) || _didInitialScroll) return;
     _didInitialScroll = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _jumpToNowAnchor();
-      Future<void>.delayed(const Duration(milliseconds: 80), () {
-        if (!mounted) return;
-        _jumpToNowAnchor();
-      });
-    });
+    CalendarNowAnchor.scheduleInitialJump(jump: _jumpToNowAnchor);
   }
 
   void _scheduleInitialScrollbarReveal() {
@@ -110,21 +98,10 @@ class _DayPageState extends ConsumerState<DayPage> {
     });
   }
 
-  void _jumpToNowAnchor() {
-    final anchorContext = _nowAnchorKey.currentContext;
-    if (anchorContext == null) return;
-    final anchorRenderObject = anchorContext.findRenderObject();
-    if (anchorRenderObject == null || !_scrollController.hasClients) return;
-
-    final viewport = RenderAbstractViewport.maybeOf(anchorRenderObject);
-    if (viewport == null) return;
-
-    final position = _scrollController.position;
-    final targetOffset = viewport
-        .getOffsetToReveal(anchorRenderObject, 0.28)
-        .offset;
-    _scrollController.jumpTo(
-      targetOffset.clamp(position.minScrollExtent, position.maxScrollExtent),
+  bool _jumpToNowAnchor() {
+    return CalendarNowAnchor.jumpToAnchor(
+      anchorKey: _nowAnchorKey,
+      controller: _scrollController,
     );
   }
 
