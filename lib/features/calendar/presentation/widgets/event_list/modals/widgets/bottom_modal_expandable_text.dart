@@ -2,8 +2,8 @@ import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-/// Abschnitt mit Label und Text, der nach [maxCollapsedLines] per „mehr“
-/// in der letzten Zeile animiert aufgeklappt wird.
+/// Abschnitt mit Label und Text, der nach [maxCollapsedLines] per „Mehr“
+/// inline in der letzten Zeile animiert aufgeklappt wird.
 class BottomModalExpandableTextSection extends StatefulWidget {
   const BottomModalExpandableTextSection({
     super.key,
@@ -11,7 +11,7 @@ class BottomModalExpandableTextSection extends StatefulWidget {
     required this.text,
     this.labelStyle,
     required this.bodyStyle,
-    this.maxCollapsedLines = 3,
+    this.maxCollapsedLines = 2,
     this.labelGap = AppSpacing.s,
   });
 
@@ -27,17 +27,24 @@ class BottomModalExpandableTextSection extends StatefulWidget {
       _BottomModalExpandableTextSectionState();
 }
 
+class _CollapsedLayout {
+  const _CollapsedLayout({
+    required this.canExpand,
+    required this.prefix,
+  });
+
+  final bool canExpand;
+  final String prefix;
+}
+
 class _BottomModalExpandableTextSectionState
     extends State<BottomModalExpandableTextSection> {
   static const Duration _kExpandDuration = Duration(milliseconds: 280);
   static const Curve _kExpandCurve = Curves.easeInOutCubic;
-  static const String _kMoreLabel = ' mehr';
-  static const String _kLessLabel = ' weniger';
+  static const String _kMoreLabel = ' Mehr';
+  static const String _kLessLabel = ' Weniger';
 
   bool _expanded = false;
-  bool _canExpand = false;
-  double? _lastMeasuredWidth;
-  String? _collapsedPrefix;
   TapGestureRecognizer? _toggleRecognizer;
 
   @override
@@ -45,9 +52,6 @@ class _BottomModalExpandableTextSectionState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text) {
       _expanded = false;
-      _canExpand = false;
-      _lastMeasuredWidth = null;
-      _collapsedPrefix = null;
     }
   }
 
@@ -79,46 +83,51 @@ class _BottomModalExpandableTextSectionState
     return _toggleRecognizer ??= TapGestureRecognizer()..onTap = _toggleExpanded;
   }
 
-  void _measureLayout(double maxWidth) {
-    if (maxWidth <= 0) return;
+  _CollapsedLayout _collapsedLayout({
+    required BuildContext context,
+    required double maxWidth,
+  }) {
+    final effectiveWidth = _effectiveMaxWidth(context, maxWidth);
+    if (effectiveWidth <= 0) {
+      return _CollapsedLayout(canExpand: false, prefix: widget.text);
+    }
 
     final bodyStyle = _bodyStyle(context);
     final linkStyle = _linkStyle(context);
     final textDirection = Directionality.of(context);
+    final textScaler = MediaQuery.textScalerOf(context);
 
     final fullPainter = TextPainter(
       text: TextSpan(text: widget.text, style: bodyStyle),
-      maxLines: widget.maxCollapsedLines,
       textDirection: textDirection,
-    )..layout(maxWidth: maxWidth);
+      textScaler: textScaler,
+    )..layout(maxWidth: effectiveWidth);
 
-    final canExpand = fullPainter.didExceedMaxLines;
-    String? collapsedPrefix;
+    final canExpand =
+        fullPainter.computeLineMetrics().length > widget.maxCollapsedLines;
 
-    if (canExpand) {
-      collapsedPrefix = _truncateForInlineAction(
+    if (!canExpand) {
+      return _CollapsedLayout(canExpand: false, prefix: widget.text);
+    }
+
+    return _CollapsedLayout(
+      canExpand: true,
+      prefix: _truncateForInlineAction(
         text: widget.text,
         suffix: _kMoreLabel,
         bodyStyle: bodyStyle,
         actionStyle: linkStyle,
-        maxWidth: maxWidth,
+        maxWidth: effectiveWidth,
         maxLines: widget.maxCollapsedLines,
         textDirection: textDirection,
-      );
-    }
+        textScaler: textScaler,
+      ),
+    );
+  }
 
-    if (_lastMeasuredWidth == maxWidth &&
-        _canExpand == canExpand &&
-        _collapsedPrefix == collapsedPrefix) {
-      return;
-    }
-
-    setState(() {
-      _canExpand = canExpand;
-      _lastMeasuredWidth = maxWidth;
-      _collapsedPrefix = collapsedPrefix;
-      if (!canExpand) _expanded = false;
-    });
+  double _effectiveMaxWidth(BuildContext context, double maxWidth) {
+    if (maxWidth.isFinite && maxWidth > 0) return maxWidth;
+    return MediaQuery.sizeOf(context).width;
   }
 
   String _truncateForInlineAction({
@@ -129,6 +138,7 @@ class _BottomModalExpandableTextSectionState
     required double maxWidth,
     required int maxLines,
     required TextDirection textDirection,
+    required TextScaler textScaler,
   }) {
     var low = 0;
     var high = text.length;
@@ -137,19 +147,19 @@ class _BottomModalExpandableTextSectionState
     while (low <= high) {
       final mid = (low + high) ~/ 2;
       final candidate = text.substring(0, mid).trimRight();
-      final painter = TextPainter(
-        text: TextSpan(
+      if (_fitsInLines(
+        span: TextSpan(
           style: bodyStyle,
           children: [
             TextSpan(text: candidate),
             TextSpan(text: suffix, style: actionStyle),
           ],
         ),
+        maxWidth: maxWidth,
         maxLines: maxLines,
         textDirection: textDirection,
-      )..layout(maxWidth: maxWidth);
-
-      if (!painter.didExceedMaxLines) {
+        textScaler: textScaler,
+      )) {
         best = candidate;
         low = mid + 1;
       } else {
@@ -164,19 +174,37 @@ class _BottomModalExpandableTextSectionState
     return best;
   }
 
-  InlineSpan _buildCollapsedSpan(BuildContext context) {
+  bool _fitsInLines({
+    required InlineSpan span,
+    required double maxWidth,
+    required int maxLines,
+    required TextDirection textDirection,
+    required TextScaler textScaler,
+  }) {
+    final painter = TextPainter(
+      text: span,
+      textDirection: textDirection,
+      textScaler: textScaler,
+    )..layout(maxWidth: maxWidth);
+
+    return painter.computeLineMetrics().length <= maxLines;
+  }
+
+  InlineSpan _buildCollapsedSpan(
+    BuildContext context,
+    _CollapsedLayout layout,
+  ) {
     final bodyStyle = _bodyStyle(context);
     final linkStyle = _linkStyle(context);
 
-    if (!_canExpand) {
+    if (!layout.canExpand) {
       return TextSpan(text: widget.text, style: bodyStyle);
     }
 
-    final prefix = _collapsedPrefix ?? widget.text;
     return TextSpan(
       style: bodyStyle,
       children: [
-        TextSpan(text: prefix),
+        TextSpan(text: layout.prefix),
         TextSpan(
           text: _kMoreLabel,
           style: linkStyle,
@@ -207,9 +235,10 @@ class _BottomModalExpandableTextSectionState
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _measureLayout(constraints.maxWidth);
-        });
+        final collapsedLayout = _collapsedLayout(
+          context: context,
+          maxWidth: constraints.maxWidth,
+        );
 
         final label = widget.label?.trim();
         final showLabel = label != null && label.isNotEmpty;
@@ -227,8 +256,11 @@ class _BottomModalExpandableTextSectionState
               alignment: Alignment.topCenter,
               clipBehavior: Clip.none,
               child: Text.rich(
-                _expanded ? _buildExpandedSpan(context) : _buildCollapsedSpan(context),
+                _expanded
+                    ? _buildExpandedSpan(context)
+                    : _buildCollapsedSpan(context, collapsedLayout),
                 textAlign: TextAlign.start,
+                maxLines: _expanded ? null : widget.maxCollapsedLines,
               ),
             ),
           ],

@@ -58,7 +58,7 @@ class EventAttachSourcePanel extends StatelessWidget {
               label: 'Mediathek',
               subtitle: isIosSimulator
                   ? 'Fotos per Drag & Drop in die Mediathek legen'
-                  : null,
+                  : 'Mehrere Fotos auswählbar',
               onTap: () => _select(context, EventImageAttachSource.gallery),
             ),
           ),
@@ -68,6 +68,7 @@ class EventAttachSourcePanel extends StatelessWidget {
             child: _OptionTile(
               icon: Icons.folder_open_outlined,
               label: 'Datei',
+              subtitle: 'Mehrere Dateien auswählbar',
               onTap: () => _select(context, EventImageAttachSource.file),
             ),
           ),

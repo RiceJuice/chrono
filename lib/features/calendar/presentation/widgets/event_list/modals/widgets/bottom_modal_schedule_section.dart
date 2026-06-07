@@ -454,7 +454,7 @@ class _ScheduleSectionHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
-          'Ablauf',
+          eventLayout ? 'ABLAUF' : 'Ablauf',
           style: eventLayout
               ? EventBottomModalTypography.scheduleSectionLabel(scheme)
               : Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -648,7 +648,9 @@ class _ScheduleItemCard extends StatelessWidget {
                   children: [
                     Text(schedule.title, style: titleStyle),
                     if (description.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.xs),
+                      const SizedBox(
+                        height: EventBottomModalTypography.scheduleCardTitleBodyGap,
+                      ),
                       Text(description, style: bodyStyle),
                     ],
                   ],
@@ -658,7 +660,7 @@ class _ScheduleItemCard extends StatelessWidget {
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     EventBottomModalTypography.cardLocationLeft,
-                    AppSpacing.xs,
+                    EventBottomModalTypography.scheduleCardBodyLocationGap,
                     EventBottomModalTypography.cardHorizontal,
                     EventBottomModalTypography.cardVertical,
                   ),
@@ -695,7 +697,7 @@ class _ScheduleItemCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     EventBottomModalTypography.cardHorizontal,
-                    AppSpacing.xs,
+                    EventBottomModalTypography.scheduleCardBodyLocationGap,
                     EventBottomModalTypography.cardHorizontal,
                     EventBottomModalTypography.cardVertical,
                   ),

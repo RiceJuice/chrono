@@ -320,11 +320,13 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
   Future<CalendarEventPendingAttachment?> _attachmentFromPickedFile(
     EventPickedFile picked, {
     EventAttachmentCaptureMetrics? metrics,
+    int idSuffix = 0,
   }) async {
     final file = picked.file;
     final displayName = picked.displayName;
     final isImage = EventAttachmentPicker.isImagePath(file.path);
     final isPdf = EventAttachmentPicker.isPdfPath(file.path);
+    final id = '${DateTime.now().microsecondsSinceEpoch}_$idSuffix';
 
     if (isImage) {
       final normalized =
@@ -334,7 +336,7 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
       );
       if (normalized != null) {
         return CalendarEventPendingAttachment(
-          id: '${DateTime.now().microsecondsSinceEpoch}',
+          id: id,
           localPath: normalized.file.path,
           displayName: displayName,
           isImage: true,
@@ -350,12 +352,33 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
       displayName: displayName,
     );
     return CalendarEventPendingAttachment(
-      id: '${DateTime.now().microsecondsSinceEpoch}',
+      id: id,
       localPath: persisted.path,
       displayName: EventAttachmentPicker.displayNameForFile(persisted.path),
       isImage: isImage,
       isPdf: isPdf,
     );
+  }
+
+  Future<List<CalendarEventPendingAttachment>> _attachmentsFromPickedFiles(
+    List<EventPickedFile> pickedFiles, {
+    EventAttachmentCaptureMetrics? metrics,
+  }) async {
+    if (pickedFiles.isEmpty) return const [];
+
+    final captureMetrics = metrics ?? _captureMetrics();
+    final attachments = <CalendarEventPendingAttachment>[];
+    for (var i = 0; i < pickedFiles.length; i++) {
+      final attachment = await _attachmentFromPickedFile(
+        pickedFiles[i],
+        metrics: captureMetrics,
+        idSuffix: i,
+      );
+      if (attachment != null) {
+        attachments.add(attachment);
+      }
+    }
+    return attachments;
   }
 
   Future<void> _onAttachSourceSelected(EventImageAttachSource source) async {
@@ -387,24 +410,24 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     setState(() => _attachingMedia = true);
     final captureMetrics = _captureMetrics();
     try {
-      final picked = await _pickFileForSource(source);
-      if (picked == null || !mounted) return;
+      final picked = await _pickFilesForSource(source);
+      if (picked.isEmpty || !mounted) return;
 
-      final attachment = await _attachmentFromPickedFile(
+      final attachments = await _attachmentsFromPickedFiles(
         picked,
         metrics: captureMetrics,
       );
-      if (attachment == null || !mounted) return;
+      if (attachments.isEmpty || !mounted) return;
 
       setState(() {
         _attachMenuOpen = false;
-        _pendingAttachments.add(attachment);
+        _pendingAttachments.addAll(attachments);
       });
-      final fileSize = await File(attachment.localPath).length();
       await AppHaptics.success();
       if (!mounted) return;
       _logUpload(
-        'picked file path=${attachment.localPath} size=$fileSize',
+        'picked ${attachments.length} file(s): '
+        '${attachments.map((a) => a.localPath).join(', ')}',
       );
     } catch (e, stack) {
       await AppHaptics.error();
@@ -450,27 +473,27 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     final captureMetrics = EventAttachmentCaptureMetrics.fromContext(hostContext);
 
     try {
-      final picked = await EventAttachmentPicker.pickDocument();
-      if (picked == null) {
+      final picked = await EventAttachmentPicker.pickDocuments();
+      if (picked.isEmpty) {
         await reopenForm();
         return;
       }
 
-      final attachment = await _attachmentFromPickedFile(
+      final attachments = await _attachmentsFromPickedFiles(
         picked,
         metrics: captureMetrics,
       );
-      if (attachment == null) {
+      if (attachments.isEmpty) {
         await reopenForm();
         return;
       }
       await AppHaptics.success();
       if (!hostContext.mounted) return;
       await reopenForm(
-        pending: [...pendingSnapshot, attachment],
+        pending: [...pendingSnapshot, ...attachments],
       );
       _logUpload(
-        'picked file path=${attachment.localPath} (ios sheet dismiss)',
+        'picked ${attachments.length} file(s) (ios sheet dismiss)',
       );
     } catch (e, stack) {
       await AppHaptics.error();
@@ -486,7 +509,9 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     }
   }
 
-  Future<EventPickedFile?> _pickFileForSource(EventImageAttachSource source) async {
+  Future<List<EventPickedFile>> _pickFilesForSource(
+    EventImageAttachSource source,
+  ) async {
     try {
       switch (source) {
         case EventImageAttachSource.camera:
@@ -495,16 +520,12 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
             imageQuality: 90,
             requestFullMetadata: true,
           );
-          return EventAttachmentPicker.fromXFile(photo);
+          final picked = EventAttachmentPicker.fromXFile(photo);
+          return picked == null ? const [] : [picked];
         case EventImageAttachSource.gallery:
-          final image = await _imagePicker.pickImage(
-            source: ImageSource.gallery,
-            imageQuality: 90,
-            requestFullMetadata: true,
-          );
-          return EventAttachmentPicker.fromXFile(image);
+          return EventAttachmentPicker.pickGalleryImages(_imagePicker);
         case EventImageAttachSource.file:
-          return EventAttachmentPicker.pickDocument();
+          return EventAttachmentPicker.pickDocuments();
       }
     } catch (e, stack) {
       debugPrint('[EventAttach] picker failed: $e\n$stack');
@@ -515,7 +536,7 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
           kind: AppToastKind.error,
         );
       }
-      return null;
+      return const [];
     }
   }
 
@@ -557,9 +578,12 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
       await AppHaptics.success();
       if (!mounted) return;
       _logUpload('confirm done paths=$paths — closing modal');
+      final count = localFiles.length;
       showAppToast(
         context,
-        'Datei hochgeladen — wird verarbeitet.',
+        count == 1
+            ? 'Datei hochgeladen — wird verarbeitet.'
+            : '$count Dateien hochgeladen — werden verarbeitet.',
         kind: AppToastKind.success,
       );
       Navigator.of(context, rootNavigator: true).pop();
@@ -707,7 +731,7 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
       saving: _saving,
       titleAlign: _isCreateMode ? TextAlign.start : TextAlign.center,
       onAttachMedia:
-          _isCreateMode && !_attachmentFocusMode ? _toggleAttachMenu : null,
+          _isCreateMode && !_saving ? _toggleAttachMenu : null,
       attachingMedia: _attachingMedia,
       onClose: _onClose,
       onSave: _onHeaderSave,
@@ -735,6 +759,20 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
                       right: 0,
                       child: header,
                     ),
+                    if (_attachMenuOpen)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: Material(
+                          color: Theme.of(context).colorScheme.surface,
+                          elevation: 2,
+                          child: EventAttachSourceReveal(
+                            visible: true,
+                            onSelected: _onAttachSourceSelected,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

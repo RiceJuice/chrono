@@ -6,6 +6,7 @@ import 'package:chronoapp/features/calendar/data/calendar_images.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart'
     show BottomModalHandle;
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_bottom_modal_typography.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/skeleton_loader.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/foundation.dart';
@@ -45,12 +46,10 @@ class BottomModalImages extends StatefulWidget {
 
 const double _kModalDetailPanelHeight = 260;
 
-/// Abstand zwischen nebeneinander liegenden Bildern im Karussell.
-const double _kModalDetailImageGap = AppSpacing.xs;
-
-/// Inset der Karussell-Bilder zum Modal-Rand — muss zum [imageOuterBorderRadius]
-/// passen, damit die Squircle-Kurve bündig bleibt.
-const double _kEventModalCarouselImageInset = AppSpacing.xs;
+double _eventImageHeaderSpacing(BottomModalImages widget) =>
+    widget.imageOuterBorderRadius != null
+        ? EventBottomModalTypography.imageHeaderSpacing
+        : AppSpacing.xs;
 
 BorderRadius _modalDetailImageBorderRadius({
   required int index,
@@ -146,7 +145,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
       return ClipSmoothRect(
         radius: AppSquircle.borderRadiusNested(
           outerRadius: outerRadius,
-          inset: _kEventModalCarouselImageInset,
+          inset: _eventImageHeaderSpacing(widget),
         ),
         child: child,
       );
@@ -157,10 +156,11 @@ class _BottomModalImagesState extends State<BottomModalImages> {
     );
   }
 
-  EdgeInsets get _carouselPadding =>
-      widget.imageOuterBorderRadius != null
-          ? const EdgeInsets.all(_kEventModalCarouselImageInset)
-          : EdgeInsets.zero;
+  EdgeInsets get _carouselPadding {
+    if (widget.imageOuterBorderRadius == null) return EdgeInsets.zero;
+    final spacing = _eventImageHeaderSpacing(widget);
+    return EdgeInsets.all(spacing);
+  }
 
   Widget _buildCarouselContent({
     required bool isLoading,
@@ -178,7 +178,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
         itemBuilder: (context, index) {
           return Padding(
             padding: EdgeInsets.only(
-              right: index < itemCount - 1 ? _kModalDetailImageGap : 0,
+              right: index < itemCount - 1 ? _eventImageHeaderSpacing(widget) : 0,
             ),
             child: _clipCarouselTile(
               index: index,
@@ -213,7 +213,7 @@ class _BottomModalImagesState extends State<BottomModalImages> {
         final count = imageUrls.length;
         return Padding(
           padding: EdgeInsets.only(
-            right: index < count - 1 ? _kModalDetailImageGap : 0,
+            right: index < count - 1 ? _eventImageHeaderSpacing(widget) : 0,
           ),
           child: _clipCarouselTile(
             index: index,

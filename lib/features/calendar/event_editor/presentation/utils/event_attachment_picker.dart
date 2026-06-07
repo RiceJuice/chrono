@@ -27,23 +27,44 @@ abstract final class EventAttachmentPicker {
 
   static const Duration iosSheetDismissDelay = Duration(milliseconds: 400);
 
-  static Future<EventPickedFile?> pickDocument() async {
+  static Future<List<EventPickedFile>> pickDocuments() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         withData: false,
-        allowMultiple: false,
+        allowMultiple: true,
         type: FileType.any,
       );
-      if (result == null || result.files.isEmpty) return null;
-      final platformFile = result.files.single;
-      final file = await _fileFromPlatformFile(platformFile);
-      if (file == null) return null;
-      return EventPickedFile(
-        file: file,
-        displayName: displayNameForPlatformFile(platformFile),
-      );
+      if (result == null || result.files.isEmpty) return const [];
+
+      final picked = <EventPickedFile>[];
+      for (final platformFile in result.files) {
+        final file = await _fileFromPlatformFile(platformFile);
+        if (file == null) continue;
+        picked.add(
+          EventPickedFile(
+            file: file,
+            displayName: displayNameForPlatformFile(platformFile),
+          ),
+        );
+      }
+      return picked;
     } catch (e, stack) {
       debugPrint('[EventAttach] file picker failed: $e\n$stack');
+      rethrow;
+    }
+  }
+
+  static Future<List<EventPickedFile>> pickGalleryImages(
+    ImagePicker picker,
+  ) async {
+    try {
+      final images = await picker.pickMultiImage(
+        imageQuality: 90,
+        requestFullMetadata: true,
+      );
+      return fromXFiles(images);
+    } catch (e, stack) {
+      debugPrint('[EventAttach] gallery picker failed: $e\n$stack');
       rethrow;
     }
   }
@@ -57,6 +78,13 @@ abstract final class EventAttachmentPicker {
       file: File(path),
       displayName: name.isNotEmpty ? name : p.basename(path),
     );
+  }
+
+  static List<EventPickedFile> fromXFiles(List<XFile>? files) {
+    if (files == null || files.isEmpty) return const [];
+    return files.map(fromXFile).whereType<EventPickedFile>().toList(
+          growable: false,
+        );
   }
 
   static String displayNameForPlatformFile(PlatformFile platformFile) {

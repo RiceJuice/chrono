@@ -1,4 +1,3 @@
-import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Feste Typografie & Abstände für das Event-Detail-Bottom-Sheet.
@@ -6,59 +5,62 @@ abstract final class EventBottomModalTypography {
   EventBottomModalTypography._();
 
   // — Layout —
-  static const double contentHorizontal = 14;
-  static const double contentTop = 8;
-  static const double contentBottom = 16;
+  /// Ein Wert für den Event-Bild-Header: Rand-Abstand, Abstand zwischen Bildern
+  /// und Basis für den inneren Eckenradius (Sheet-Radius minus dieser Wert).
+  static const double imageHeaderSpacing = 6;
 
-  /// Abstand oberhalb der Veranstaltungsort-Zeile (über dem Titel).
-  static const double locationTop = 14;
-  static const double gapAfterLocation = 4;
-  static const double gapAfterTitle = 4;
-  static const double gapAfterDescription = 14;
-  static const double gapAfterMetaBoxes = 24;
-  static const double metaBoxGap = 8;
-  static const double metaBoxIconSize = 22;
-  static const double metaBoxIconGap = 6;
-  static const double metaBoxRadius = AppRadius.s;
-  static const EdgeInsets metaBoxPadding =
-      EdgeInsets.symmetric(horizontal: 12, vertical: 12);
-  static const double gapSection = 18;
-  static const double gapLabelBody = 3;
+  static const double contentHorizontal = 20;
+  static const double contentTop = 4;
+  static const double contentBottom = 24;
+
+  /// Kleiner Abstand zwischen Titel und Untertitel/Beschreibung.
+  static const double gapAfterTitle = 8;
+
+  /// Einheitlicher, großzügiger Abstand zwischen den Hauptblöcken
+  /// (Titel/Beschreibung ↔ Eckdaten ↔ Notiz ↔ Ablauf).
+  static const double gapSection = 28;
+
+  /// Abstand zwischen den Eckdaten-Zeilen (Datum/Uhrzeit ↔ Ort).
+  static const double gapInlineInfoRows = 2;
+  static const double inlineInfoIconSize = 16;
+  static const double inlineInfoIconGap = 12;
+  static const double gapLabelBody = 8;
   static const double gapScheduleCards = 8;
   /// Abstand zwischen „Ablauf“-Zeile (inkl. Chips) und erster Karte.
   static const double gapAfterScheduleHeader = 14;
   /// Zusätzlicher Abstand vor dem nächsten Ablaufpunkt (Now-Anker).
-  static const double scheduleNowAnchorLeadGap = 20;
+  static const double scheduleNowAnchorLeadGap = 12;
   /// Höhe des scrollbaren Ablauf-Bereichs (60 % Bildschirm).
   static const double scheduleListViewportFraction = 0.6;
 
   static const double cardHorizontal = 12;
   static const double cardVertical = 8;
   static const double cardLocationLeft = 12;
+  static const double scheduleCardTitleBodyGap = 3;
+  static const double scheduleCardBodyLocationGap = 8;
 
   // — Ablauf-Filter-Chips —
   static const double filterChipFontSize = 15;
   static const EdgeInsets filterChipPadding =
-      EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+      EdgeInsets.symmetric(horizontal: 16, vertical: 4);
   static const double filterChipGap = 8;
 
   // — Schriftgrößen —
-  static const double location = 15;
   static const double subtitle = 15;
-  static const double metaBox = 16;
-  static const double sectionLabel = 18;
+  static const double inlineInfo = 15;
+  static const double sectionLabel = 13;
   static const double body = 15;
 
-  static const double scheduleCardTitle = 16;
+  static const double scheduleCardTitle = 15;
   static const double scheduleCardBody = 15;
-  static const double scheduleCardLocation = 16;
+  static const double scheduleCardLocation = 14;
   static const double scheduleCardTime = 16;
 
-  static TextStyle eventLocation(ColorScheme scheme) => TextStyle(
-        fontSize: location,
+  static TextStyle inlineInfoStyle(ColorScheme scheme) => TextStyle(
+        fontSize: inlineInfo,
         fontWeight: FontWeight.w400,
-        height: 1.25,
-        color: scheme.onSurfaceVariant,
+        height: 1.4,
+        color: scheme.onSurface,
       );
 
   static TextStyle eventSubtitle(ColorScheme scheme) => TextStyle(
@@ -68,19 +70,12 @@ abstract final class EventBottomModalTypography {
         color: scheme.onSurfaceVariant,
       );
 
-  static TextStyle metaBoxText(ColorScheme scheme) => TextStyle(
-        fontSize: metaBox,
-        fontWeight: FontWeight.w600,
-        height: 1.25,
-        color: scheme.onSurface,
-      );
-
   static TextStyle sectionLabelStyle(ColorScheme scheme) => TextStyle(
         fontSize: sectionLabel,
         fontWeight: FontWeight.w600,
         height: 1.2,
-        letterSpacing: 0.3,
-        color: scheme.onSurfaceVariant,
+        letterSpacing: 0.6,
+        color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
       );
 
   static TextStyle bodyStyle(ColorScheme scheme) => TextStyle(
@@ -94,8 +89,8 @@ abstract final class EventBottomModalTypography {
         fontSize: sectionLabel,
         fontWeight: FontWeight.w600,
         height: 1.2,
-        letterSpacing: 0.3,
-        color: scheme.onSurfaceVariant,
+        letterSpacing: 0.6,
+        color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
       );
 
   static TextStyle scheduleCardTitleStyle(ColorScheme scheme) => TextStyle(
