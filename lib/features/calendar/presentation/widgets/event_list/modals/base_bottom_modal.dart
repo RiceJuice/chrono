@@ -20,6 +20,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_top_blur_fade.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/lesson_accent_button.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -190,7 +191,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
             morph: t,
             sheetSurface: sheetSurface,
             scrollController: scrollController,
-            isFullyExpanded: isFullyExpanded,
+            isFullyExpandedListenable: isFullyExpanded,
           );
         },
       );
@@ -251,7 +252,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
     required double morph,
     required Color sheetSurface,
     required ScrollController scrollController,
-    required bool isFullyExpanded,
+    required ValueListenable<bool> isFullyExpandedListenable,
   }) {
     final entry = _liveEntry;
 
@@ -267,20 +268,26 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
               EventBottomModalSchedulePane(
                 eventId: entry.id,
                 sliverLayout: true,
-                isSheetFullyExpanded: isFullyExpanded,
+                isSheetFullyExpandedListenable: isFullyExpandedListenable,
+                outerScrollController: scrollController,
               ),
             ],
           ),
         ),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: BottomModalScrollTopBlurOverlay(
-            controller: scrollController,
-            isFullyExpanded: isFullyExpanded,
-            surfaceColor: sheetSurface,
-          ),
+        ValueListenableBuilder<bool>(
+          valueListenable: isFullyExpandedListenable,
+          builder: (context, isFullyExpanded, _) {
+            return Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: BottomModalScrollTopBlurOverlay(
+                controller: scrollController,
+                isFullyExpanded: isFullyExpanded,
+                surfaceColor: sheetSurface,
+              ),
+            );
+          },
         ),
         _buildAdminEditButtonPositioned(),
       ],

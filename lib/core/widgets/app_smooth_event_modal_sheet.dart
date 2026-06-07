@@ -1,5 +1,6 @@
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:smooth_sheets/smooth_sheets.dart';
 
@@ -64,7 +65,7 @@ class AppSmoothEventModalSheet extends StatefulWidget {
   final Widget Function(
     BuildContext context,
     ScrollController scrollController,
-    bool isFullyExpanded,
+    ValueListenable<bool> isFullyExpanded,
   ) builder;
 
   final Color? color;
@@ -80,7 +81,7 @@ class _AppSmoothEventModalSheetState extends State<AppSmoothEventModalSheet> {
 
   late final SheetController _sheetController;
   late final SheetScrollController _contentScrollController;
-  bool _isFullyExpanded = false;
+  late final ValueNotifier<bool> _isFullyExpanded;
 
   SheetOffset get _initialSnap =>
       SheetOffset.proportionalToViewport(widget.initialSize);
@@ -90,21 +91,26 @@ class _AppSmoothEventModalSheetState extends State<AppSmoothEventModalSheet> {
     super.initState();
     _sheetController = SheetController();
     _contentScrollController = SheetScrollController();
+    _isFullyExpanded = ValueNotifier(false);
+    _sheetController.addListener(_syncFullyExpanded, fireImmediately: true);
   }
 
   @override
   void dispose() {
+    _sheetController.removeListener(_syncFullyExpanded);
+    _isFullyExpanded.dispose();
     _contentScrollController.dispose();
     _sheetController.dispose();
     super.dispose();
   }
 
-  bool _onSheetNotification(SheetNotification notification) {
-    final metrics = notification.metrics;
-    final isFullyExpanded = metrics.offset >= metrics.maxOffset - 0.001;
-    if (isFullyExpanded == _isFullyExpanded) return false;
-    setState(() => _isFullyExpanded = isFullyExpanded);
-    return false;
+  void _syncFullyExpanded() {
+    final metrics = _sheetController.metrics;
+    if (metrics == null) return;
+
+    final next = metrics.offset >= metrics.maxOffset - 1;
+    if (_isFullyExpanded.value == next) return;
+    _isFullyExpanded.value = next;
   }
 
   @override
@@ -112,9 +118,7 @@ class _AppSmoothEventModalSheetState extends State<AppSmoothEventModalSheet> {
     final scheme = Theme.of(context).colorScheme;
     final bg = widget.color ?? scheme.surfaceContainer;
 
-    return NotificationListener<SheetNotification>(
-      onNotification: _onSheetNotification,
-      child: Sheet(
+    return Sheet(
         controller: _sheetController,
         initialOffset: _initialSnap,
         snapGrid: SheetSnapGrid(snaps: [_initialSnap, _fullSnap]),
@@ -149,7 +153,6 @@ class _AppSmoothEventModalSheetState extends State<AppSmoothEventModalSheet> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }

@@ -1,7 +1,8 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
-import 'package:chronoapp/core/widgets/app_modal_scroll_surface.dart';
+import 'package:chronoapp/core/widgets/event_modal_nested_scroll_physics.dart';
+import 'package:chronoapp/core/widgets/event_modal_schedule_scroll_viewport.dart';
 import 'package:chronoapp/features/calendar/domain/filter/event_schedule_filter.dart';
 import 'package:chronoapp/features/calendar/domain/models/event_schedule.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
@@ -9,6 +10,8 @@ import 'package:chronoapp/features/calendar/presentation/theme/calendar_presenta
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/calendar_now_anchor.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_bottom_modal_typography.dart';
 import 'package:figma_squircle/figma_squircle.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,7 +24,8 @@ class BottomModalScheduleSection extends ConsumerStatefulWidget {
     required this.schedules,
     this.eventLayout = false,
     this.scrollable = false,
-    this.isSheetFullyExpanded = false,
+    this.isSheetFullyExpandedListenable,
+    this.outerScrollController,
   });
 
   final List<EventSchedule> schedules;
@@ -29,7 +33,10 @@ class BottomModalScheduleSection extends ConsumerStatefulWidget {
   final bool scrollable;
 
   /// Ob das Sheet voll expandiert ist — innere Ablauf-Liste scrollt erst dann.
-  final bool isSheetFullyExpanded;
+  final ValueListenable<bool>? isSheetFullyExpandedListenable;
+
+  /// Äußerer Sheet-[CustomScrollView]-Controller für Scroll-Ketten.
+  final ScrollController? outerScrollController;
 
   @override
   ConsumerState<BottomModalScheduleSection> createState() =>
@@ -232,14 +239,10 @@ class _BottomModalScheduleSectionState
           ),
         ),
         SliverToBoxAdapter(
-          child: SizedBox(
-            height: MediaQuery.sizeOf(context).height *
-                EventBottomModalTypography.scheduleListViewportFraction,
-            child: _buildScrollableList(
-              gap: gap,
-              visibleCount: visibleCount,
-              anchorScheduleIndex: anchorScheduleIndex,
-            ),
+          child: _buildScrollableListShell(
+            gap: gap,
+            visibleCount: visibleCount,
+            anchorScheduleIndex: anchorScheduleIndex,
           ),
         ),
       ],
@@ -287,11 +290,40 @@ class _BottomModalScheduleSectionState
     );
   }
 
+  Widget _buildScrollableListShell({
+    required double gap,
+    required int visibleCount,
+    required int? anchorScheduleIndex,
+  }) {
+    final listenable = widget.isSheetFullyExpandedListenable;
+    if (listenable == null) {
+      return _buildScrollableList(
+        gap: gap,
+        visibleCount: visibleCount,
+        anchorScheduleIndex: anchorScheduleIndex,
+        isSheetFullyExpanded: false,
+      );
+    }
+
+    return ValueListenableBuilder<bool>(
+      valueListenable: listenable,
+      builder: (context, isSheetFullyExpanded, _) {
+        return _buildScrollableList(
+          gap: gap,
+          visibleCount: visibleCount,
+          anchorScheduleIndex: anchorScheduleIndex,
+          isSheetFullyExpanded: isSheetFullyExpanded,
+        );
+      },
+    );
+  }
+
   /// Eigene Ablauf-Liste im festen Viewport — scrollt unabhängig vom Sheet-Header.
   Widget _buildScrollableList({
     required double gap,
     required int visibleCount,
     required int? anchorScheduleIndex,
+    required bool isSheetFullyExpanded,
   }) {
     final scheme = Theme.of(context).colorScheme;
     final hasLeadGap =
@@ -301,6 +333,13 @@ class _BottomModalScheduleSectionState
     final anchorExtra = anchorScheduleIndex != null ? 1 : 0;
     final itemCount =
         widget.schedules.length + anchorExtra + (showEmptyMine ? 1 : 0);
+
+    final outerController = widget.outerScrollController;
+    final listPhysics = !isSheetFullyExpanded || outerController == null
+        ? const NeverScrollableScrollPhysics()
+        : EventModalNestedScrollPhysics(
+            outerScrollController: outerController,
+          );
 
     final listView = NotificationListener<ScrollNotification>(
       onNotification: (notification) {
@@ -313,9 +352,8 @@ class _BottomModalScheduleSectionState
         key: const PageStorageKey<String>('event-schedule-list'),
         controller: _scheduleScrollController,
         primary: false,
-        physics: _ScheduleNestedScrollPhysics(
-          userScrollEnabled: widget.isSheetFullyExpanded,
-        ),
+        physics: listPhysics,
+        dragStartBehavior: DragStartBehavior.down,
         padding: const EdgeInsets.fromLTRB(
           EventBottomModalTypography.contentHorizontal,
           8,
@@ -365,8 +403,12 @@ class _BottomModalScheduleSectionState
       ),
     );
 
-    return AppModalScrollSurface(
-      controller: _scheduleScrollController,
+    return EventModalScheduleScrollViewport(
+      height: MediaQuery.sizeOf(context).height *
+          EventBottomModalTypography.scheduleListViewportFraction,
+      scrollController: _scheduleScrollController,
+      outerScrollController: outerController,
+      isSheetFullyExpanded: isSheetFullyExpanded,
       child: listView,
     );
   }
@@ -388,35 +430,6 @@ class _BottomModalScheduleSectionState
         applyPastStyling: CalendarNowAnchor.scheduleApplyPastStyling(schedule),
       ),
     );
-  }
-}
-
-/// Stabile Scroll-Physics: Typ bleibt gleich, nur User-Scroll wird ein/aus.
-/// Im Vollbild: leichtes Bounce oben, damit das Sheet-Runterziehen weich übergeht.
-class _ScheduleNestedScrollPhysics extends ScrollPhysics {
-  const _ScheduleNestedScrollPhysics({
-    required this.userScrollEnabled,
-    super.parent,
-  });
-
-  final bool userScrollEnabled;
-
-  @override
-  _ScheduleNestedScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _ScheduleNestedScrollPhysics(
-      userScrollEnabled: userScrollEnabled,
-      parent: userScrollEnabled
-          ? const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            )
-          : buildParent(ancestor),
-    );
-  }
-
-  @override
-  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
-    if (!userScrollEnabled) return 0;
-    return super.applyPhysicsToUserOffset(position, offset);
   }
 }
 

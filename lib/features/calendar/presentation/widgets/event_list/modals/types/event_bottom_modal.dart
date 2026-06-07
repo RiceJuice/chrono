@@ -5,6 +5,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_schedule_section.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_text.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_bottom_modal_typography.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -49,12 +50,14 @@ class EventBottomModalSchedulePane extends ConsumerWidget {
     super.key,
     required this.eventId,
     this.sliverLayout = false,
-    this.isSheetFullyExpanded = false,
+    this.isSheetFullyExpandedListenable,
+    this.outerScrollController,
   });
 
   final String eventId;
   final bool sliverLayout;
-  final bool isSheetFullyExpanded;
+  final ValueListenable<bool>? isSheetFullyExpandedListenable;
+  final ScrollController? outerScrollController;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -71,7 +74,8 @@ class EventBottomModalSchedulePane extends ConsumerWidget {
           schedules: schedules,
           eventLayout: true,
           scrollable: sliverLayout,
-          isSheetFullyExpanded: isSheetFullyExpanded,
+          isSheetFullyExpandedListenable: isSheetFullyExpandedListenable,
+          outerScrollController: outerScrollController,
         );
         if (sliverLayout) return section;
         return Padding(
