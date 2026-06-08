@@ -33,6 +33,7 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
   _WeekTransitionData? _activeTransition;
   double _timelineScrollOffset = 0;
   bool? _lastUsesMobileSeamlessScroll;
+  bool _pageTransitionsEnabled = false;
 
   @override
   void initState() {
@@ -46,6 +47,10 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     _weekPageController = PageController(initialPage: initialPage);
     _ensureTransitionController();
     _currentPage = initialPage;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _pageTransitionsEnabled = true);
+    });
   }
 
   @override
@@ -259,6 +264,8 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
   }
 
   void _startOverlayTransition({required int fromPage, required int toPage}) {
+    if (!_pageTransitionsEnabled) return;
+
     final transition = _WeekTransitionData(
       fromMonday: mondayForPageIndex(fromPage),
       toMonday: mondayForPageIndex(toPage),

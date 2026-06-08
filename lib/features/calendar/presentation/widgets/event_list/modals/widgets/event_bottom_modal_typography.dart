@@ -9,6 +9,13 @@ abstract final class EventBottomModalTypography {
   /// und Basis für den inneren Eckenradius (Sheet-Radius minus dieser Wert).
   static const double imageHeaderSpacing = 6;
 
+  /// Volle Höhe des Event-Bild-Karussells im Detail-Sheet.
+  static const double imageHeaderMaxHeight = 260;
+
+  /// Beim Scrollen sichtbarer Bildstreifen — unter dem Top-Blur.
+  /// Kleinerer Wert = weniger Bild sichtbar ([EventModalCollapsingImageHeaderSliver.minHeight]).
+  static const double imageHeaderPinnedPeekHeight = 72;
+
   static const double contentHorizontal = 20;
   static const double contentTop = 4;
   static const double contentBottom = 24;
@@ -30,8 +37,6 @@ abstract final class EventBottomModalTypography {
   static const double gapAfterScheduleHeader = 14;
   /// Zusätzlicher Abstand vor dem nächsten Ablaufpunkt (Now-Anker).
   static const double scheduleNowAnchorLeadGap = 12;
-  /// Höhe des scrollbaren Ablauf-Bereichs (60 % Bildschirm).
-  static const double scheduleListViewportFraction = 0.6;
 
   static const double cardHorizontal = 12;
   static const double cardVertical = 8;

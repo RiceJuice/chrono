@@ -1,17 +1,15 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
-import 'package:chronoapp/core/widgets/event_modal_nested_scroll_physics.dart';
-import 'package:chronoapp/core/widgets/event_modal_schedule_scroll_viewport.dart';
+import 'package:chronoapp/core/widgets/event_schedule_scroll_coordinator.dart';
 import 'package:chronoapp/features/calendar/domain/filter/event_schedule_filter.dart';
 import 'package:chronoapp/features/calendar/domain/models/event_schedule.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/theme/calendar_presentation_theme.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/calendar_now_anchor.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_bottom_modal_typography.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_modal_sticky_header.dart';
 import 'package:figma_squircle/figma_squircle.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,19 +22,31 @@ class BottomModalScheduleSection extends ConsumerStatefulWidget {
     required this.schedules,
     this.eventLayout = false,
     this.scrollable = false,
-    this.isSheetFullyExpandedListenable,
-    this.outerScrollController,
+    this.sheetScrollController,
+    this.scrollCoordinator,
+    this.stickyImages,
+    this.stickyTitleBlock,
+    this.scrollableDetailBlock,
+    this.stickyHeaderSurfaceColor,
   });
 
   final List<EventSchedule> schedules;
   final bool eventLayout;
   final bool scrollable;
+  final ScrollController? sheetScrollController;
+  final EventScheduleScrollCoordinator? scrollCoordinator;
 
-  /// Ob das Sheet voll expandiert ist — innere Ablauf-Liste scrollt erst dann.
-  final ValueListenable<bool>? isSheetFullyExpandedListenable;
+  /// Scrollt weg — nur bei [scrollable] + [stickyHeaderSurfaceColor].
+  final Widget? stickyImages;
 
-  /// Äußerer Sheet-[CustomScrollView]-Controller für Scroll-Ketten.
-  final ScrollController? outerScrollController;
+  /// Nur Event-Titel — gepinnt.
+  final Widget? stickyTitleBlock;
+
+  /// Beschreibung, Eckdaten, Notiz — scrollt zwischen Titel und Ablauf.
+  final Widget? scrollableDetailBlock;
+
+  /// Sheet-Hintergrund für den gepinnten Block.
+  final Color? stickyHeaderSurfaceColor;
 
   @override
   ConsumerState<BottomModalScheduleSection> createState() =>
@@ -57,9 +67,13 @@ class _BottomModalScheduleSectionState
   /// Nutzer hat die Liste berührt — ausstehende Anker-Sprünge abbrechen.
   bool _userAdjustedScheduleScroll = false;
 
+  ScrollController? get _activeScrollController =>
+      widget.scrollable ? widget.sheetScrollController : _scheduleScrollController;
+
   @override
   void initState() {
     super.initState();
+    widget.scrollCoordinator?.onUserScroll = _cancelPendingAnchorJump;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _tryScheduleInitialAnchorJump();
     });
@@ -68,6 +82,10 @@ class _BottomModalScheduleSectionState
   @override
   void didUpdateWidget(covariant BottomModalScheduleSection oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.scrollCoordinator != widget.scrollCoordinator) {
+      oldWidget.scrollCoordinator?.onUserScroll = null;
+      widget.scrollCoordinator?.onUserScroll = _cancelPendingAnchorJump;
+    }
     if (oldWidget.schedules.isEmpty && widget.schedules.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _tryScheduleInitialAnchorJump();
@@ -77,7 +95,10 @@ class _BottomModalScheduleSectionState
 
   @override
   void dispose() {
-    _scheduleScrollController.dispose();
+    widget.scrollCoordinator?.onUserScroll = null;
+    if (!widget.scrollable) {
+      _scheduleScrollController.dispose();
+    }
     super.dispose();
   }
 
@@ -88,13 +109,6 @@ class _BottomModalScheduleSectionState
 
   bool _shouldContinueAnchorJump() =>
       mounted && !_userAdjustedScheduleScroll;
-
-  bool _onScheduleScrollStart(ScrollStartNotification notification) {
-    if (notification.dragDetails != null) {
-      _cancelPendingAnchorJump();
-    }
-    return false;
-  }
 
   void _tryScheduleInitialAnchorJump() {
     if (!mounted || !widget.scrollable || widget.schedules.isEmpty) return;
@@ -136,12 +150,15 @@ class _BottomModalScheduleSectionState
   }
 
   bool _jumpToNowAnchor() {
-    if (!_shouldContinueAnchorJump() || !_scheduleScrollController.hasClients) {
+    final controller = _activeScrollController;
+    if (!_shouldContinueAnchorJump() ||
+        controller == null ||
+        !controller.hasClients) {
       return true;
     }
     return CalendarNowAnchor.jumpToAnchor(
       anchorKey: _nowAnchorKey,
-      controller: _scheduleScrollController,
+      controller: controller,
     );
   }
 
@@ -212,6 +229,40 @@ class _BottomModalScheduleSectionState
       );
     }
 
+    final useStickyHeader =
+        widget.scrollable && widget.stickyHeaderSurfaceColor != null;
+
+    if (useStickyHeader) {
+      return SliverMainAxisGroup(
+        slivers: [
+          if (widget.stickyImages != null)
+            EventModalCollapsingImageHeaderSliver(
+              child: widget.stickyImages!,
+            ),
+          if (widget.stickyTitleBlock != null)
+            EventModalStickyHeaderSliver(
+              backgroundColor: widget.stickyHeaderSurfaceColor!,
+              child: widget.stickyTitleBlock!,
+            ),
+          if (widget.scrollableDetailBlock != null)
+            SliverToBoxAdapter(child: widget.scrollableDetailBlock!),
+          EventModalStickyHeaderSliver(
+            backgroundColor: widget.stickyHeaderSurfaceColor!,
+            child: _buildStickyAblaufHeader(header),
+          ),
+          _buildScheduleSliverList(
+            gap: gap,
+            anchorScheduleIndex: anchorScheduleIndex,
+            visibleCount: visibleCount,
+            includeTopPadding: false,
+          ),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: EventBottomModalTypography.contentBottom),
+          ),
+        ],
+      );
+    }
+
     return SliverMainAxisGroup(
       slivers: [
         SliverToBoxAdapter(
@@ -238,14 +289,118 @@ class _BottomModalScheduleSectionState
             ),
           ),
         ),
-        SliverToBoxAdapter(
-          child: _buildScrollableListShell(
-            gap: gap,
-            visibleCount: visibleCount,
-            anchorScheduleIndex: anchorScheduleIndex,
-          ),
+        _buildScheduleSliverList(
+          gap: gap,
+          anchorScheduleIndex: anchorScheduleIndex,
+          visibleCount: visibleCount,
+        ),
+        const SliverToBoxAdapter(
+          child: SizedBox(height: EventBottomModalTypography.contentBottom),
         ),
       ],
+    );
+  }
+
+  /// Gepinnter Block: nur „Ablauf“-Zeile inkl. Abstand zur ersten Karte.
+  Widget _buildStickyAblaufHeader(Widget scheduleHeader) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        EventBottomModalTypography.contentHorizontal,
+        0,
+        EventBottomModalTypography.contentHorizontal,
+        widget.eventLayout
+            ? EventBottomModalTypography.gapAfterScheduleHeader
+            : 0,
+      ),
+      child: scheduleHeader,
+    );
+  }
+
+  /// Ablauf-Einträge als [SliverList] — ein Scroll mit dem Sheet, kein Nested-Scroll.
+  Widget _buildScheduleSliverList({
+    required double gap,
+    required int? anchorScheduleIndex,
+    required int visibleCount,
+    bool includeTopPadding = true,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasLeadGap =
+        anchorScheduleIndex != null && anchorScheduleIndex > 0;
+    final showEmptyMine =
+        _filter == EventScheduleListFilter.mine && visibleCount == 0;
+    final anchorExtra = anchorScheduleIndex != null ? 1 : 0;
+    final itemCount =
+        widget.schedules.length + anchorExtra + (showEmptyMine ? 1 : 0);
+
+    return SliverPadding(
+      padding: EdgeInsets.only(top: includeTopPadding ? 8 : 0),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          if (showEmptyMine && index == 0) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(
+                EventBottomModalTypography.contentHorizontal,
+                8,
+                EventBottomModalTypography.contentHorizontal,
+                0,
+              ),
+              child: Text(
+                'Keine Termine für dein Profil.',
+                style: EventBottomModalTypography.bodyStyle(scheme).copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            );
+          }
+
+          final listOffset = showEmptyMine ? 1 : 0;
+          final builderIndex = index - listOffset;
+
+          if (anchorScheduleIndex != null &&
+              builderIndex == anchorScheduleIndex) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: EventBottomModalTypography.contentHorizontal,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (hasLeadGap)
+                    const SizedBox(
+                      height:
+                          EventBottomModalTypography.scheduleNowAnchorLeadGap,
+                    ),
+                  SizedBox(key: _nowAnchorKey, height: 1),
+                ],
+              ),
+            );
+          }
+
+          final scheduleIndex = anchorScheduleIndex != null &&
+                  builderIndex > anchorScheduleIndex
+              ? builderIndex - 1
+              : builderIndex;
+
+          return RepaintBoundary(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: EventBottomModalTypography.contentHorizontal,
+              ),
+              child: _buildScheduleRow(
+                schedule: widget.schedules[scheduleIndex],
+                gapAfter: gap,
+                isLast: scheduleIndex == widget.schedules.length - 1,
+              ),
+            ),
+          );
+        },
+        childCount: itemCount,
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: false,
+      ),
+      ),
     );
   }
 
@@ -287,129 +442,6 @@ class _BottomModalScheduleSectionState
             ),
         ],
       ),
-    );
-  }
-
-  Widget _buildScrollableListShell({
-    required double gap,
-    required int visibleCount,
-    required int? anchorScheduleIndex,
-  }) {
-    final listenable = widget.isSheetFullyExpandedListenable;
-    if (listenable == null) {
-      return _buildScrollableList(
-        gap: gap,
-        visibleCount: visibleCount,
-        anchorScheduleIndex: anchorScheduleIndex,
-        isSheetFullyExpanded: false,
-      );
-    }
-
-    return ValueListenableBuilder<bool>(
-      valueListenable: listenable,
-      builder: (context, isSheetFullyExpanded, _) {
-        return _buildScrollableList(
-          gap: gap,
-          visibleCount: visibleCount,
-          anchorScheduleIndex: anchorScheduleIndex,
-          isSheetFullyExpanded: isSheetFullyExpanded,
-        );
-      },
-    );
-  }
-
-  /// Eigene Ablauf-Liste im festen Viewport — scrollt unabhängig vom Sheet-Header.
-  Widget _buildScrollableList({
-    required double gap,
-    required int visibleCount,
-    required int? anchorScheduleIndex,
-    required bool isSheetFullyExpanded,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    final hasLeadGap =
-        anchorScheduleIndex != null && anchorScheduleIndex > 0;
-    final showEmptyMine =
-        _filter == EventScheduleListFilter.mine && visibleCount == 0;
-    final anchorExtra = anchorScheduleIndex != null ? 1 : 0;
-    final itemCount =
-        widget.schedules.length + anchorExtra + (showEmptyMine ? 1 : 0);
-
-    final outerController = widget.outerScrollController;
-    final listPhysics = !isSheetFullyExpanded || outerController == null
-        ? const NeverScrollableScrollPhysics()
-        : EventModalNestedScrollPhysics(
-            outerScrollController: outerController,
-          );
-
-    final listView = NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification is ScrollStartNotification) {
-          return _onScheduleScrollStart(notification);
-        }
-        return false;
-      },
-      child: ListView.builder(
-        key: const PageStorageKey<String>('event-schedule-list'),
-        controller: _scheduleScrollController,
-        primary: false,
-        physics: listPhysics,
-        dragStartBehavior: DragStartBehavior.down,
-        padding: const EdgeInsets.fromLTRB(
-          EventBottomModalTypography.contentHorizontal,
-          8,
-          EventBottomModalTypography.contentHorizontal,
-          EventBottomModalTypography.contentBottom,
-        ),
-        itemCount: itemCount,
-        itemBuilder: (context, index) {
-          if (showEmptyMine && index == 0) {
-            return Text(
-              'Keine Termine für dein Profil.',
-              style: EventBottomModalTypography.bodyStyle(scheme).copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            );
-          }
-
-          final listOffset = showEmptyMine ? 1 : 0;
-          final builderIndex = index - listOffset;
-
-          if (anchorScheduleIndex != null &&
-              builderIndex == anchorScheduleIndex) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (hasLeadGap)
-                  const SizedBox(
-                    height: EventBottomModalTypography.scheduleNowAnchorLeadGap,
-                  ),
-                SizedBox(key: _nowAnchorKey, height: 1),
-              ],
-            );
-          }
-
-          final scheduleIndex = anchorScheduleIndex != null &&
-                  builderIndex > anchorScheduleIndex
-              ? builderIndex - 1
-              : builderIndex;
-
-          return _buildScheduleRow(
-            schedule: widget.schedules[scheduleIndex],
-            gapAfter: gap,
-            isLast: scheduleIndex == widget.schedules.length - 1,
-          );
-        },
-      ),
-    );
-
-    return EventModalScheduleScrollViewport(
-      height: MediaQuery.sizeOf(context).height *
-          EventBottomModalTypography.scheduleListViewportFraction,
-      scrollController: _scheduleScrollController,
-      outerScrollController: outerController,
-      isSheetFullyExpanded: isSheetFullyExpanded,
-      child: listView,
     );
   }
 

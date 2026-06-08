@@ -39,6 +39,7 @@ class CustomTableCalendar extends ConsumerStatefulWidget {
 
 class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
   DateTime? _pendingProgrammaticFocusedDay;
+  bool _skipInitialPageChanged = true;
 
   bool _isSameMonth(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month;
@@ -356,6 +357,10 @@ class _CustomTableCalendarState extends ConsumerState<CustomTableCalendar> {
         ref.read(focusedDayProvider.notifier).update(newFocusedDay);
       },
       onPageChanged: (newFocusedDay) {
+        if (_skipInitialPageChanged) {
+          _skipInitialPageChanged = false;
+          return;
+        }
         final pendingProgrammaticFocusedDay = _pendingProgrammaticFocusedDay;
         if (widget.weekTimetableMode) {
           if (pendingProgrammaticFocusedDay != null &&

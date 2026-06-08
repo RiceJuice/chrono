@@ -16,7 +16,7 @@ class CalendarEventPendingAttachment {
   final bool isImage;
   final bool isPdf;
 
-  /// Abmessungen nach Normalisierung — für Vorschau in natürlichem Seitenverhältnis.
+  /// Pixelabmessungen des Bildes — für Vorschau in natürlichem Seitenverhältnis.
   final int? pixelWidth;
   final int? pixelHeight;
 

@@ -14,6 +14,18 @@ enum BottomModalTextLayout {
   event,
 }
 
+/// Welcher Abschnitt des Event-Textblocks gerendert wird (Sliver-Layout).
+enum BottomModalEventTextPart {
+  /// Titel, Beschreibung, Eckdaten, Notiz — wie bisher.
+  full,
+
+  /// Nur Event-Titel (sticky).
+  titleOnly,
+
+  /// Beschreibung, Eckdaten, Notiz — scrollt zwischen Titel und Ablauf.
+  detailsOnly,
+}
+
 class BottomModalText extends ConsumerWidget {
   const BottomModalText({
     super.key,
@@ -21,12 +33,14 @@ class BottomModalText extends ConsumerWidget {
     this.titleStyle,
     this.layout = BottomModalTextLayout.standard,
     this.includeScheduleSection = true,
+    this.eventPart = BottomModalEventTextPart.full,
   });
 
   final CalendarEntry entry;
   final TextStyle? titleStyle;
   final BottomModalTextLayout layout;
   final bool includeScheduleSection;
+  final BottomModalEventTextPart eventPart;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,6 +51,7 @@ class BottomModalText extends ConsumerWidget {
         entry: entry,
         titleStyle: titleStyle,
         includeScheduleSection: includeScheduleSection,
+        part: eventPart,
       );
     }
 
@@ -52,11 +67,13 @@ class _EventBottomModalTextContent extends ConsumerWidget {
     required this.entry,
     this.titleStyle,
     this.includeScheduleSection = true,
+    this.part = BottomModalEventTextPart.full,
   });
 
   final CalendarEntry entry;
   final TextStyle? titleStyle;
   final bool includeScheduleSection;
+  final BottomModalEventTextPart part;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,6 +84,62 @@ class _EventBottomModalTextContent extends ConsumerWidget {
     final noteText = (entry.note ?? '').trim();
     final locationText = (entry.location ?? '').trim();
     final schedulesAsync = ref.watch(eventSchedulesForEntryProvider(entry.id));
+
+    if (part == BottomModalEventTextPart.titleOnly) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          EventBottomModalTypography.contentHorizontal,
+          EventBottomModalTypography.contentTop,
+          EventBottomModalTypography.contentHorizontal,
+          0,
+        ),
+        child: Text(
+          entry.eventName,
+          style: titleStyle ?? theme.textTheme.titleLarge,
+        ),
+      );
+    }
+
+    final detailsColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (descriptionText.isNotEmpty) ...[
+          const SizedBox(height: EventBottomModalTypography.gapAfterTitle),
+          BottomModalExpandableTextSection(
+            text: descriptionText,
+            bodyStyle: EventBottomModalTypography.eventSubtitle(scheme),
+          ),
+        ],
+        const SizedBox(height: EventBottomModalTypography.gapSection),
+        _EventInlineInfoSection(
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+          location: locationText,
+        ),
+        if (noteText.isNotEmpty) ...[
+          const SizedBox(height: EventBottomModalTypography.gapSection),
+          BottomModalExpandableTextSection(
+            label: 'NOTIZ',
+            text: noteText,
+            labelStyle: EventBottomModalTypography.sectionLabelStyle(scheme),
+            bodyStyle: EventBottomModalTypography.bodyStyle(scheme),
+            labelGap: EventBottomModalTypography.gapLabelBody,
+          ),
+        ],
+        if (part == BottomModalEventTextPart.detailsOnly)
+          const SizedBox(height: EventBottomModalTypography.gapSection),
+      ],
+    );
+
+    if (part == BottomModalEventTextPart.detailsOnly) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: EventBottomModalTypography.contentHorizontal,
+        ),
+        child: detailsColumn,
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -82,29 +155,7 @@ class _EventBottomModalTextContent extends ConsumerWidget {
             entry.eventName,
             style: titleStyle ?? theme.textTheme.titleLarge,
           ),
-          if (descriptionText.isNotEmpty) ...[
-            const SizedBox(height: EventBottomModalTypography.gapAfterTitle),
-            BottomModalExpandableTextSection(
-              text: descriptionText,
-              bodyStyle: EventBottomModalTypography.eventSubtitle(scheme),
-            ),
-          ],
-          const SizedBox(height: EventBottomModalTypography.gapSection),
-          _EventInlineInfoSection(
-            startTime: entry.startTime,
-            endTime: entry.endTime,
-            location: locationText,
-          ),
-          if (noteText.isNotEmpty) ...[
-            const SizedBox(height: EventBottomModalTypography.gapSection),
-            BottomModalExpandableTextSection(
-              label: 'NOTIZ',
-              text: noteText,
-              labelStyle: EventBottomModalTypography.sectionLabelStyle(scheme),
-              bodyStyle: EventBottomModalTypography.bodyStyle(scheme),
-              labelGap: EventBottomModalTypography.gapLabelBody,
-            ),
-          ],
+          detailsColumn,
           if (includeScheduleSection)
             schedulesAsync.when(
               data: (schedules) {

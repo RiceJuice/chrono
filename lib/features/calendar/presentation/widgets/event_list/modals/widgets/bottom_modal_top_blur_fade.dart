@@ -165,7 +165,7 @@ class BottomModalScrollTopBlurOverlay extends StatefulWidget {
 
 class _BottomModalScrollTopBlurOverlayState
     extends State<BottomModalScrollTopBlurOverlay> {
-  double _offset = 0;
+  double _strength = 0;
 
   @override
   void initState() {
@@ -179,6 +179,9 @@ class _BottomModalScrollTopBlurOverlayState
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onScroll);
       widget.controller.addListener(_onScroll);
+      _strength = 0;
+    } else if (oldWidget.isFullyExpanded != widget.isFullyExpanded) {
+      _syncStrength(force: true);
     }
   }
 
@@ -189,19 +192,24 @@ class _BottomModalScrollTopBlurOverlayState
   }
 
   void _onScroll() {
+    _syncStrength();
+  }
+
+  void _syncStrength({bool force = false}) {
     if (!widget.controller.hasClients) return;
-    final offset = widget.controller.offset;
-    if (offset == _offset) return;
-    setState(() => _offset = offset);
+    final next = bottomModalTopBlurStrength(
+      isFullyExpanded: widget.isFullyExpanded,
+      contentScrollOffset: widget.isFullyExpanded ? widget.controller.offset : 0,
+    );
+    if (!force && (next - _strength).abs() < 0.04) return;
+    if (!mounted || next == _strength) return;
+    setState(() => _strength = next);
   }
 
   @override
   Widget build(BuildContext context) {
     return BottomModalTopBlurOverlay(
-      strength: bottomModalTopBlurStrength(
-        isFullyExpanded: widget.isFullyExpanded,
-        contentScrollOffset: widget.isFullyExpanded ? _offset : 0,
-      ),
+      strength: _strength,
       surfaceColor: widget.surfaceColor,
     );
   }

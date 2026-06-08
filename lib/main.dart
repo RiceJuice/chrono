@@ -20,6 +20,8 @@ import 'core/database/database_provider.dart';
 import 'core/database/powersync_auth_binding.dart';
 import 'core/network/connectivity_notifier.dart';
 import 'core/router/app_router.dart';
+import 'core/database/powersync_schema.dart';
+import 'core/startup/calendar_filter_startup_state.dart';
 import 'core/startup/calendar_startup_state.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
@@ -88,13 +90,33 @@ void main() async {
   await _finishStartup(
     startupNotifier: startupNotifier,
     profileGateNotifier: profileGateNotifier,
+    powerSyncDb: powerSyncDb,
   );
 }
 
 /// Ladescreen bleibt, bis Theme, Locale, Kalender-Scroll und Profil-Gate bereit sind.
+Future<String?> _loadLocalProfileDiet(
+  PowerSyncDatabase db,
+  String userId,
+) async {
+  try {
+    final row = await db.getOptional(
+      'SELECT diet FROM $kProfilesTable WHERE id = ? LIMIT 1',
+      [userId],
+    );
+    if (row == null) return null;
+    final diet = row['diet']?.toString().trim();
+    if (diet == null || diet.isEmpty) return null;
+    return diet;
+  } catch (_) {
+    return null;
+  }
+}
+
 Future<void> _finishStartup({
   required AppStartupNotifier startupNotifier,
   required ProfileGateNotifier profileGateNotifier,
+  required PowerSyncDatabase powerSyncDb,
 }) async {
   final view = PlatformDispatcher.instance.views.first;
   final pixelRatio = view.devicePixelRatio;
@@ -112,6 +134,15 @@ Future<void> _finishStartup({
     attachSupabaseAppleAuthDeepLinks(),
     profileGateNotifier.waitUntilReady(),
   ]);
+
+  final gateData = profileGateNotifier.data;
+  if (gateData.hasSession) {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final diet = userId == null
+        ? null
+        : await _loadLocalProfileDiet(powerSyncDb, userId);
+    CalendarFilterStartupState.preload(gateData: gateData, diet: diet);
+  }
 
   PushNotificationBootstrap.start(profileGate: profileGateNotifier);
 

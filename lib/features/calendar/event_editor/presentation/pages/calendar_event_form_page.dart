@@ -39,7 +39,6 @@ import '../widgets/sections/event_basic_section.dart';
 import '../widgets/sections/event_datetime_section.dart';
 import '../widgets/sections/event_extra_section.dart';
 import '../widgets/sections/event_recurrence_section.dart';
-import '../utils/event_attachment_image_normalizer.dart';
 import '../utils/event_attachment_picker.dart';
 import '../widgets/sections/event_subject_section.dart';
 
@@ -308,10 +307,6 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     }
   }
 
-  EventAttachmentCaptureMetrics _captureMetrics([BuildContext? ctx]) {
-    return EventAttachmentCaptureMetrics.fromContext(ctx ?? context);
-  }
-
   void _toggleAttachMenu() {
     if (_saving || _attachingMedia) return;
     setState(() => _attachMenuOpen = !_attachMenuOpen);
@@ -319,7 +314,6 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
 
   Future<CalendarEventPendingAttachment?> _attachmentFromPickedFile(
     EventPickedFile picked, {
-    EventAttachmentCaptureMetrics? metrics,
     int idSuffix = 0,
   }) async {
     final file = picked.file;
@@ -327,25 +321,6 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     final isImage = EventAttachmentPicker.isImagePath(file.path);
     final isPdf = EventAttachmentPicker.isPdfPath(file.path);
     final id = '${DateTime.now().microsecondsSinceEpoch}_$idSuffix';
-
-    if (isImage) {
-      final normalized =
-          await EventAttachmentImageNormalizer.normalizeForEventModal(
-        file,
-        metrics: metrics ?? _captureMetrics(),
-      );
-      if (normalized != null) {
-        return CalendarEventPendingAttachment(
-          id: id,
-          localPath: normalized.file.path,
-          displayName: displayName,
-          isImage: true,
-          isPdf: false,
-          pixelWidth: normalized.width,
-          pixelHeight: normalized.height,
-        );
-      }
-    }
 
     final persisted = await EventAttachmentPicker.persistPickedFile(
       file,
@@ -361,17 +336,14 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
   }
 
   Future<List<CalendarEventPendingAttachment>> _attachmentsFromPickedFiles(
-    List<EventPickedFile> pickedFiles, {
-    EventAttachmentCaptureMetrics? metrics,
-  }) async {
+    List<EventPickedFile> pickedFiles,
+  ) async {
     if (pickedFiles.isEmpty) return const [];
 
-    final captureMetrics = metrics ?? _captureMetrics();
     final attachments = <CalendarEventPendingAttachment>[];
     for (var i = 0; i < pickedFiles.length; i++) {
       final attachment = await _attachmentFromPickedFile(
         pickedFiles[i],
-        metrics: captureMetrics,
         idSuffix: i,
       );
       if (attachment != null) {
@@ -408,15 +380,11 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
     if (!mounted) return;
 
     setState(() => _attachingMedia = true);
-    final captureMetrics = _captureMetrics();
     try {
       final picked = await _pickFilesForSource(source);
       if (picked.isEmpty || !mounted) return;
 
-      final attachments = await _attachmentsFromPickedFiles(
-        picked,
-        metrics: captureMetrics,
-      );
+      final attachments = await _attachmentsFromPickedFiles(picked);
       if (attachments.isEmpty || !mounted) return;
 
       setState(() {
@@ -470,8 +438,6 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
       );
     }
 
-    final captureMetrics = EventAttachmentCaptureMetrics.fromContext(hostContext);
-
     try {
       final picked = await EventAttachmentPicker.pickDocuments();
       if (picked.isEmpty) {
@@ -479,10 +445,7 @@ class _CalendarEventFormPageState extends ConsumerState<CalendarEventFormPage> {
         return;
       }
 
-      final attachments = await _attachmentsFromPickedFiles(
-        picked,
-        metrics: captureMetrics,
-      );
+      final attachments = await _attachmentsFromPickedFiles(picked);
       if (attachments.isEmpty) {
         await reopenForm();
         return;

@@ -29,6 +29,7 @@ class _DayPageState extends ConsumerState<DayPage> {
   bool _didInitialScroll = false;
   bool _didScheduleInitialScrollbarReveal = false;
   bool _isScrollbarThumbVisible = false;
+  bool _initialContentRevealed = true;
 
   static const Duration _initialScrollbarRevealDelay = Duration(
     milliseconds: 560,
@@ -75,7 +76,20 @@ class _DayPageState extends ConsumerState<DayPage> {
   void _scheduleInitialScrollToNowAnchor() {
     if (!AppDateTime.isTodayLocal(widget.date) || _didInitialScroll) return;
     _didInitialScroll = true;
-    CalendarNowAnchor.scheduleInitialJump(jump: _jumpToNowAnchor);
+    _initialContentRevealed = false;
+    CalendarNowAnchor.scheduleInitialJump(
+      jump: () {
+        final jumped = _jumpToNowAnchor();
+        if (jumped && mounted) {
+          setState(() => _initialContentRevealed = true);
+        }
+        return jumped;
+      },
+    );
+    Future<void>.delayed(const Duration(milliseconds: 420), () {
+      if (!mounted || _initialContentRevealed) return;
+      setState(() => _initialContentRevealed = true);
+    });
   }
 
   void _scheduleInitialScrollbarReveal() {
@@ -183,9 +197,7 @@ class _DayPageState extends ConsumerState<DayPage> {
         }
         _scheduleInitialScrollbarReveal();
 
-        return _buildPlatformScrollbar(
-          context: context,
-          child: ListView.builder(
+        final listView = ListView.builder(
             controller: _scrollController,
             padding: EdgeInsets.only(
               top: AppSpacing.m,
@@ -232,6 +244,13 @@ class _DayPageState extends ConsumerState<DayPage> {
                 ],
               );
             },
+          );
+
+        return _buildPlatformScrollbar(
+          context: context,
+          child: Opacity(
+            opacity: _initialContentRevealed ? 1.0 : 0.0,
+            child: listView,
           ),
         );
       },

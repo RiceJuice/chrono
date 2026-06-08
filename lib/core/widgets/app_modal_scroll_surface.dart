@@ -25,30 +25,9 @@ class _AppModalScrollSurfaceState extends State<AppModalScrollSurface> {
   static const Duration _hideDelay = Duration(milliseconds: 900);
 
   @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_onScrollActivity);
-  }
-
-  @override
-  void didUpdateWidget(covariant AppModalScrollSurface oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      oldWidget.controller.removeListener(_onScrollActivity);
-      widget.controller.addListener(_onScrollActivity);
-    }
-  }
-
-  @override
   void dispose() {
-    widget.controller.removeListener(_onScrollActivity);
     _hideScrollbarTimer?.cancel();
     super.dispose();
-  }
-
-  void _onScrollActivity() {
-    if (!widget.controller.hasClients) return;
-    _revealThumb();
   }
 
   void _revealThumb() {
@@ -61,16 +40,29 @@ class _AppModalScrollSurfaceState extends State<AppModalScrollSurface> {
     });
   }
 
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification ||
+        notification is ScrollStartNotification) {
+      _revealThumb();
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final platform = Theme.of(context).platform;
+    final scrollChild = NotificationListener<ScrollNotification>(
+      onNotification: _onScrollNotification,
+      child: widget.child,
+    );
+
     if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
       return CupertinoScrollbar(
         controller: widget.controller,
         thumbVisibility: _thumbVisible,
         thickness: 2.5,
         radius: const Radius.circular(100),
-        child: widget.child,
+        child: scrollChild,
       );
     }
 
@@ -89,7 +81,7 @@ class _AppModalScrollSurfaceState extends State<AppModalScrollSurface> {
       child: Scrollbar(
         controller: widget.controller,
         thumbVisibility: _thumbVisible,
-        child: widget.child,
+        child: scrollChild,
       ),
     );
   }

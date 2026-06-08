@@ -168,7 +168,9 @@ class _EventListState extends ConsumerState<EventList>
         return;
       }
 
-      if (currentIndex != null) {
+      if (currentIndex != null &&
+          ref.read(calendarDaySelectionOriginProvider.notifier).changeGeneration >
+              0) {
         _startOverlayTransition(fromIndex: currentIndex, toIndex: targetIndex);
       }
 

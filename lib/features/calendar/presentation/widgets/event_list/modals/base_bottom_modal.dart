@@ -1,8 +1,11 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/core/widgets/app_modal_scroll_surface.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/app_smooth_event_modal_sheet.dart';
+import 'package:chronoapp/core/widgets/event_modal_sheet_physics.dart';
+import 'package:chronoapp/core/widgets/event_schedule_scroll_coordinator.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/domain/preview/calendar_appearance_config.dart';
 import 'package:chronoapp/features/calendar/domain/preview/calendar_settings_kind.dart';
@@ -22,6 +25,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/lesson_accent_button.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 export 'package:chronoapp/core/widgets/app_modal_sheet.dart' show kAppModalSheetMotion;
@@ -69,6 +73,8 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
   CalendarAppearanceBySubject? _subjectAppearance;
   final GlobalKey<CalendarAppearanceSubjectPanelState> _subjectPanelKey =
       GlobalKey();
+  final EventScheduleScrollCoordinator _scheduleScrollCoordinator =
+      EventScheduleScrollCoordinator();
 
   CalendarEntry get _liveEntry {
     final anchor = widget.entry;
@@ -94,6 +100,10 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
   bool get _supportsAccentMorph =>
       _liveEntry.type == CalendarEntryType.lesson &&
       _liveEntry.subjectId != null;
+
+  /// Speiseplan: Sheet-Höhe folgt dem Inhalt (kein fester Anteil am Bildschirm).
+  bool get _usesContentSizedDetailSheet =>
+      _liveEntry.type == CalendarEntryType.meal && !_supportsAccentMorph;
 
   @override
   void initState() {
@@ -197,6 +207,14 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
       );
     }
 
+    if (_usesContentSizedDetailSheet) {
+      return _buildContentSizedDetailSheet(
+        context: context,
+        sheetSurface: sheetSurface,
+        morph: t,
+      );
+    }
+
     return _buildSimpleDetailSheet(
       context: context,
       sheetSurface: sheetSurface,
@@ -204,7 +222,41 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
     );
   }
 
-  /// Feste Höhe + innerer Scroll — kein Expand/Snap (Lesson, Meal, Choir).
+  /// Inhaltshöhe folgt dem Speiseplan-Inhalt (kein fester Anteil am Bildschirm).
+  Widget _buildContentSizedDetailSheet({
+    required BuildContext context,
+    required Color sheetSurface,
+    required double morph,
+  }) {
+    final bottomInset = appSheetViewMediaQuery(context).viewPadding.bottom;
+
+    return AppModalSheetChrome(
+      color: sheetSurface,
+      clipTopCorners: true,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildModalContent(morph),
+              SizedBox(height: AppSpacing.l + bottomInset),
+            ],
+          ),
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: BottomModalHandle(),
+          ),
+          _buildAdminEditButtonPositioned(),
+        ],
+      ),
+    );
+  }
+
+  /// Feste Höhe + innerer Scroll — kein Expand/Snap (Lesson, Choir).
   Widget _buildSimpleDetailSheet({
     required BuildContext context,
     required Color sheetSurface,
@@ -261,17 +313,31 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
       children: [
         AppModalScrollSurface(
           controller: scrollController,
-          child: CustomScrollView(
+          child: EventModalScrollNearTopSnap(
             controller: scrollController,
-            slivers: [
-              SliverToBoxAdapter(child: _buildModalContent(morph)),
-              EventBottomModalSchedulePane(
-                eventId: entry.id,
-                sliverLayout: true,
-                isSheetFullyExpandedListenable: isFullyExpandedListenable,
-                outerScrollController: scrollController,
+            child: NotificationListener<UserScrollNotification>(
+              onNotification: (notification) {
+                if (notification.direction != ScrollDirection.idle) {
+                  _scheduleScrollCoordinator.notifyUserScroll();
+                }
+                return false;
+              },
+              child: CustomScrollView(
+                controller: scrollController,
+                physics: eventModalContentScrollPhysics(context),
+                cacheExtent: 480,
+                slivers: [
+                  EventBottomModalSchedulePane(
+                    eventId: entry.id,
+                    entry: entry,
+                    sliverLayout: true,
+                    sheetScrollController: scrollController,
+                    scrollCoordinator: _scheduleScrollCoordinator,
+                    sheetSurfaceColor: sheetSurface,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
         ValueListenableBuilder<bool>(

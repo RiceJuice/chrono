@@ -1,4 +1,5 @@
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
+import 'package:chronoapp/core/widgets/event_modal_sheet_physics.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -15,11 +16,7 @@ abstract final class AppSmoothModalSheet {
   }) {
     AppModalSheetTracker.retainMainNavigationHidden();
     final resolvedBarrier = barrierColor ?? Colors.black54;
-    final dismissSensitivity = SwipeDismissSensitivity(
-      dismissalOffset: SheetOffset.proportionalToViewport(
-        kAppEventModalMinSize,
-      ),
-    );
+    final dismissSensitivity = appEventModalSwipeDismissSensitivity();
 
     final Future<T?> route;
     final platform = Theme.of(context).platform;
@@ -119,40 +116,41 @@ class _AppSmoothEventModalSheetState extends State<AppSmoothEventModalSheet> {
     final bg = widget.color ?? scheme.surfaceContainer;
 
     return Sheet(
-        controller: _sheetController,
-        initialOffset: _initialSnap,
-        snapGrid: SheetSnapGrid(snaps: [_initialSnap, _fullSnap]),
-        scrollConfiguration: const SheetScrollConfiguration(
-          scrollSyncMode: SheetScrollHandlingBehavior.onlyFromTop,
-        ),
-        decoration: MaterialSheetDecoration(
-          size: SheetSize.fit,
-          color: Colors.transparent,
+      controller: _sheetController,
+      initialOffset: _initialSnap,
+      snapGrid: SheetSnapGrid(snaps: [_initialSnap, _fullSnap]),
+      physics: const EventModalSheetPhysics(),
+      scrollConfiguration: const SheetScrollConfiguration(
+        scrollSyncMode: SheetScrollHandlingBehavior.onlyFromTop,
+      ),
+      decoration: MaterialSheetDecoration(
+        size: SheetSize.fit,
+        color: Colors.transparent,
+        clipBehavior: Clip.none,
+      ),
+      child: AppModalSheetChrome(
+        color: bg,
+        clipTopCorners: true,
+        child: Stack(
           clipBehavior: Clip.none,
-        ),
-        child: AppModalSheetChrome(
-          color: bg,
-          clipTopCorners: true,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              SheetScrollable(
-                controller: _contentScrollController,
-                child: widget.builder(
-                  context,
-                  _contentScrollController,
-                  _isFullyExpanded,
-                ),
+          children: [
+            SheetScrollable(
+              controller: _contentScrollController,
+              child: widget.builder(
+                context,
+                _contentScrollController,
+                _isFullyExpanded,
               ),
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: BottomModalHandle(),
-              ),
-            ],
-          ),
+            ),
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: BottomModalHandle(),
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 }

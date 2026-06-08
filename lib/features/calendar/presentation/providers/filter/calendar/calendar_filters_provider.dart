@@ -1,23 +1,36 @@
+import 'package:chronoapp/core/startup/calendar_filter_startup_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
+import '../../../../domain/filter/calendar_filter_defaults.dart';
 import '../../../../domain/filter/calendar_filter_text.dart';
 import '../../../../../settings/data/models/profile_snapshot.dart';
 import 'calendar_filters_state.dart';
 import '../shared/calendar_filters_notifier_base.dart';
 
 class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
+  @override
+  CalendarFiltersState build() {
+    final bootstrapped = CalendarFilterStartupState.consume();
+    if (bootstrapped != null) {
+      return bootstrapped;
+    }
+    return super.build();
+  }
+
   void initializeFromProfile(ProfileSnapshot? profile) {
-    final defaultChoirs = normalizedCalendarFilterList([profile?.choir]);
-    final defaultVoices = normalizedCalendarFilterList([profile?.voice]);
-    final defaultClassNames = normalizedCalendarFilterList([profile?.className]);
-    final defaultSchoolTracks = normalizedCalendarFilterList([profile?.schoolTrack]);
-    final defaultDiets = normalizedCalendarFilterList([profile?.diet]);
+    final defaults = calendarFiltersStateFromProfileFields(
+      choir: profile?.choir,
+      voice: profile?.voice,
+      className: profile?.className,
+      schoolTrack: profile?.schoolTrack,
+      diet: profile?.diet,
+    );
     initializeDefaults(
-      choirs: defaultChoirs,
-      voices: defaultVoices,
-      classNames: defaultClassNames,
-      schoolTracks: defaultSchoolTracks,
-      diets: defaultDiets,
+      choirs: defaults.choirs,
+      voices: defaults.voices,
+      classNames: defaults.classNames,
+      schoolTracks: defaults.schoolTracks,
+      diets: defaults.diets,
     );
   }
 

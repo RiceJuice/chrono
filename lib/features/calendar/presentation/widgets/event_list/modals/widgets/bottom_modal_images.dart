@@ -11,6 +11,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Layout der Bildleiste im Detail-Sheet.
 enum BottomModalImagesLayout {
@@ -46,21 +47,9 @@ class BottomModalImages extends StatefulWidget {
 
 const double _kModalDetailPanelHeight = 260;
 
-double _eventImageHeaderSpacing(BottomModalImages widget) =>
-    widget.imageOuterBorderRadius != null
-        ? EventBottomModalTypography.imageHeaderSpacing
-        : AppSpacing.xs;
+/// Virtueller Start für endloses Scrollen (wie Chor-Karussell).
+const int _kCarouselInitialPageOffset = 10000;
 
-BorderRadius _modalDetailImageBorderRadius({
-  required int index,
-  required int count,
-}) {
-  final radius = Radius.circular(AppRadius.s);
-  return BorderRadius.only(
-    topLeft: index == 0 ? radius : Radius.zero,
-    topRight: index == count - 1 ? radius : Radius.zero,
-  );
-}
 
 int _knownImageCount(CalendarEntry entry) {
   final urls = entry.imageUrls;
@@ -73,8 +62,65 @@ int _knownImageCount(CalendarEntry entry) {
 class _BottomModalImagesState extends State<BottomModalImages> {
   List<String>? _immediateImageUrls;
   Future<List<String>>? _imageUrlsFuture;
+  PageController? _pageController;
+  double? _viewportFraction;
 
   bool get _singleLayout => widget.layout == BottomModalImagesLayout.single;
+
+  double get _imageGap => _horizontalInset;
+
+  double get _horizontalInset => widget.imageOuterBorderRadius != null
+      ? EventBottomModalTypography.imageHeaderSpacing
+      : AppSpacing.xs;
+
+  double get _verticalInset => widget.imageOuterBorderRadius != null
+      ? EventBottomModalTypography.imageHeaderSpacing
+      : 0;
+
+  double _carouselContentHeight() =>
+      _kModalDetailPanelHeight - _verticalInset * 2;
+
+  /// Volle Bildbreite zwischen den Seitenrändern.
+  double _carouselImageWidth(double viewportWidth) =>
+      viewportWidth - _horizontalInset * 2;
+
+  /// Eine Seite = Seiten-Padding + Bild + kleiner Zwischenraum.
+  double _carouselPageExtent(double viewportWidth) =>
+      _horizontalInset + _carouselImageWidth(viewportWidth) + _imageGap;
+
+  int _initialVirtualPage(int itemCount) {
+    if (itemCount <= 0) return 0;
+    return _kCarouselInitialPageOffset -
+        (_kCarouselInitialPageOffset % itemCount);
+  }
+
+  int _imageIndexForPage(int page, int itemCount) {
+    if (itemCount <= 0) return 0;
+    return (page % itemCount + itemCount) % itemCount;
+  }
+
+  int _pageForImageIndex(int imageIndex, int itemCount) =>
+      _initialVirtualPage(itemCount) + imageIndex;
+
+  void _onCarouselPageChanged(int index, int itemCount) {
+    HapticFeedback.mediumImpact();
+
+    final controller = _pageController;
+    if (controller == null || itemCount <= 1) return;
+
+    const lowThreshold = 1000;
+    const highThreshold = _kCarouselInitialPageOffset + 1000;
+    if (index < lowThreshold || index > highThreshold) {
+      final imageIndex = _imageIndexForPage(index, itemCount);
+      final targetPage = _pageForImageIndex(imageIndex, itemCount);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (controller.hasClients) {
+          controller.jumpToPage(targetPage);
+        }
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -83,8 +129,21 @@ class _BottomModalImagesState extends State<BottomModalImages> {
   }
 
   @override
+  void dispose() {
+    _pageController?.dispose();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(covariant BottomModalImages oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.entry.id != widget.entry.id) {
+      final count = _knownImageCount(widget.entry);
+      final controller = _pageController;
+      if (controller != null && controller.hasClients && count > 1) {
+        controller.jumpToPage(_initialVirtualPage(count));
+      }
+    }
     if (oldWidget.entry.id != widget.entry.id ||
         !listEquals(oldWidget.entry.imageUrls, widget.entry.imageUrls) ||
         !listEquals(oldWidget.entry.imagePaths, widget.entry.imagePaths)) {
@@ -135,31 +194,189 @@ class _BottomModalImagesState extends State<BottomModalImages> {
     return 2;
   }
 
-  Widget _clipCarouselTile({
-    required Widget child,
-    required int index,
-    required int count,
-  }) {
+  void _configurePageController(double viewportWidth, int itemCount) {
+    final targetPageExtent = _carouselPageExtent(viewportWidth);
+    final viewportFraction = (targetPageExtent / viewportWidth).clamp(0.0, 1.0);
+
+    final PageController? currentController = _pageController;
+    if (currentController != null &&
+        _viewportFraction != null &&
+        (_viewportFraction! - viewportFraction).abs() < 0.001) {
+      return;
+    }
+
+    final int initialPage = currentController?.hasClients == true
+        ? (currentController!.page ?? _initialVirtualPage(itemCount).toDouble())
+              .round()
+        : _initialVirtualPage(itemCount);
+    _viewportFraction = viewportFraction;
+    _pageController = PageController(
+      viewportFraction: viewportFraction,
+      initialPage: initialPage,
+    );
+    if (currentController != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        currentController.dispose();
+      });
+    }
+  }
+
+  double _carouselCurrentPage() {
+    final PageController? controller = _pageController;
+    if (controller == null ||
+        !controller.hasClients ||
+        controller.positions.length != 1) {
+      return _initialVirtualPage(1).toDouble();
+    }
+    return controller.page ?? _initialVirtualPage(1).toDouble();
+  }
+
+  int _activeImageIndexFromController(int itemCount) {
+    if (itemCount <= 1) return 0;
+    return _imageIndexForPage(_carouselCurrentPage().round(), itemCount);
+  }
+
+  Widget _clipCarouselTile({required Widget child}) {
     final outerRadius = widget.imageOuterBorderRadius;
     if (outerRadius != null) {
       return ClipSmoothRect(
         radius: AppSquircle.borderRadiusNested(
           outerRadius: outerRadius,
-          inset: _eventImageHeaderSpacing(widget),
+          inset: _verticalInset,
         ),
         child: child,
       );
     }
     return ClipRRect(
-      borderRadius: _modalDetailImageBorderRadius(index: index, count: count),
+      borderRadius: BorderRadius.circular(AppRadius.s),
       child: child,
     );
   }
 
-  EdgeInsets get _carouselPadding {
-    if (widget.imageOuterBorderRadius == null) return EdgeInsets.zero;
-    final spacing = _eventImageHeaderSpacing(widget);
-    return EdgeInsets.all(spacing);
+  Widget _buildCarouselTileContent({
+    required double width,
+    required Widget child,
+  }) {
+    return _clipCarouselTile(
+      child: SizedBox(
+        width: width,
+        height: _carouselContentHeight(),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildCarouselPage({
+    required double imageWidth,
+    required Widget child,
+  }) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        _horizontalInset,
+        _verticalInset,
+        0,
+        _verticalInset,
+      ),
+      child: Row(
+        children: [
+          _buildCarouselTileContent(
+            width: imageWidth,
+            child: child,
+          ),
+          SizedBox(width: _imageGap),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSingleCarouselImage({
+    required Widget child,
+    required double imageWidth,
+  }) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        _horizontalInset,
+        _verticalInset,
+        _horizontalInset,
+        _verticalInset,
+      ),
+      child: _buildCarouselTileContent(width: imageWidth, child: child),
+    );
+  }
+
+  Widget _buildPageCounter(int current, int total) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Text(
+          '$current von $total',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            height: 1.1,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSnappingCarousel({
+    required int itemCount,
+    required Widget Function(int index) itemBuilder,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportWidth = constraints.maxWidth;
+        final imageWidth = _carouselImageWidth(viewportWidth);
+        _configurePageController(viewportWidth, itemCount);
+        final controller = _pageController!;
+
+        if (itemCount <= 1) {
+          return _buildSingleCarouselImage(
+            imageWidth: imageWidth,
+            child: itemBuilder(0),
+          );
+        }
+
+        return Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.none,
+          children: [
+            PageView.builder(
+              controller: controller,
+              clipBehavior: Clip.none,
+              padEnds: false,
+              onPageChanged: (index) =>
+                  _onCarouselPageChanged(index, itemCount),
+              itemBuilder: (context, index) {
+                final imageIndex = _imageIndexForPage(index, itemCount);
+                return _buildCarouselPage(
+                  imageWidth: imageWidth,
+                  child: itemBuilder(imageIndex),
+                );
+              },
+            ),
+            Positioned(
+              right: _horizontalInset,
+              bottom: _verticalInset,
+              child: AnimatedBuilder(
+                animation: controller,
+                builder: (context, _) {
+                  final activeIndex =
+                      _activeImageIndexFromController(itemCount);
+                  return _buildPageCounter(activeIndex + 1, itemCount);
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildCarouselContent({
@@ -170,26 +387,9 @@ class _BottomModalImagesState extends State<BottomModalImages> {
   }) {
     if (isLoading) {
       final itemCount = _carouselLoadingPlaceholderCount();
-      return ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: _carouselPadding,
+      return _buildSnappingCarousel(
         itemCount: itemCount,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: EdgeInsets.only(
-              right: index < itemCount - 1 ? _eventImageHeaderSpacing(widget) : 0,
-            ),
-            child: _clipCarouselTile(
-              index: index,
-              count: itemCount,
-              child: AspectRatio(
-                aspectRatio: 1.5,
-                child: const SkeletonLoader(),
-              ),
-            ),
-          );
-        },
+        itemBuilder: (index) => const SkeletonLoader(),
       );
     }
     if (hasError) {
@@ -204,43 +404,25 @@ class _BottomModalImagesState extends State<BottomModalImages> {
         text: 'Keine Bilder vorhanden.',
       );
     }
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      padding: _carouselPadding,
+    return _buildSnappingCarousel(
       itemCount: imageUrls.length,
-      itemBuilder: (context, index) {
-        final count = imageUrls.length;
-        return Padding(
-          padding: EdgeInsets.only(
-            right: index < count - 1 ? _eventImageHeaderSpacing(widget) : 0,
-          ),
-          child: _clipCarouselTile(
-            index: index,
-            count: count,
-            child: AspectRatio(
-              aspectRatio: 1.5,
-              child: CachedNetworkImage(
-                imageUrl: imageUrls[index],
-                cacheKey: calendarEventImageCacheKey(
-                  entryId: widget.entry.id,
-                  imageIndex: index,
-                  entry: widget.entry,
-                ),
-                cacheManager: CalendarImageCacheManager.instance,
-                fit: BoxFit.cover,
-                fadeInDuration: Duration.zero,
-                fadeOutDuration: Duration.zero,
-                placeholder: (context, _) => const SkeletonLoader(),
-                errorWidget: (context, _, _) => ColoredBox(
-                  color: imagePanelBg,
-                  child: const Icon(Icons.broken_image, size: 50),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+      itemBuilder: (index) => CachedNetworkImage(
+        imageUrl: imageUrls[index],
+        cacheKey: calendarEventImageCacheKey(
+          entryId: widget.entry.id,
+          imageIndex: index,
+          entry: widget.entry,
+        ),
+        cacheManager: CalendarImageCacheManager.instance,
+        fit: BoxFit.cover,
+        fadeInDuration: Duration.zero,
+        fadeOutDuration: Duration.zero,
+        placeholder: (context, _) => const SkeletonLoader(),
+        errorWidget: (context, _, _) => ColoredBox(
+          color: imagePanelBg,
+          child: const Icon(Icons.broken_image, size: 50),
+        ),
+      ),
     );
   }
 

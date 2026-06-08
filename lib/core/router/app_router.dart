@@ -164,8 +164,10 @@ class AppRouter {
         ),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            MainShellScaffold(navigationShell: navigationShell),
+        pageBuilder: (context, state, navigationShell) => NoTransitionPage(
+          key: state.pageKey,
+          child: MainShellScaffold(navigationShell: navigationShell),
+        ),
         branches: [
           StatefulShellBranch(
             routes: [
