@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../routes/login_routes.dart';
-import '../../widgets/buttons.dart';
 import '../../widgets/login_scroll_surface.dart';
+import '../../widgets/login_start_auth_panel.dart';
 
-/// Einstieg: Marke, Kurztext und ein Schritt zur Zugangsdaten-Seite.
+/// Einstieg: Marke, Kurztext und Auth-Optionen in Squircle-Box.
 ///
 /// Wird innerhalb von [LoginOnboardingShell] gerendert; Top-Bar liegt im Shell.
 class StartScreenPage extends StatelessWidget {
   const StartScreenPage({super.key});
-
-  static const _accent = Color(0xFFCBBBA0);
 
   @override
   Widget build(BuildContext context) {
@@ -54,17 +50,7 @@ class StartScreenPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                SafeArea(
-                  top: false,
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: LoginPrimaryButton(
-                      label: 'Weiter',
-                      color: _accent,
-                      onPressed: () => context.go(LoginPaths.credentials),
-                    ),
-                  ),
-                ),
+                const LoginStartAuthPanel(),
               ],
             ),
           ),

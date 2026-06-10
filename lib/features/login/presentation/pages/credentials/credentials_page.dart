@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import '../../state/login_flow_draft.dart';
 import '../../utils/draft_text_controller.dart';
 import '../../utils/login_form_validation.dart';
 import '../../widgets/login_step_layout.dart';
+import '../../widgets/login_social_sign_in_block.dart';
 import 'widgets/account_auth_mode.dart';
 import 'widgets/account_auth_mode_selector.dart';
 import 'widgets/credential_form_fields.dart';
@@ -41,6 +43,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
 
   late AccountAuthMode _mode;
   bool _busy = false;
+  bool _socialBusy = false;
 
   @override
   void initState() {
@@ -141,7 +144,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
           ? 'Willkommen zurück!'
           : 'Lege jetzt los und erstelle dein Konto',
       submitLabel: isSignIn ? 'Anmelden' : 'Registrieren',
-      submitBusy: _busy,
+      submitBusy: _busy || _socialBusy,
       nextPath: LoginPaths.role,
       // Kein Viewport-Centering: LoginScrollSurface (SingleChildScrollView +
       // Scrollbar) darf den Inhalt natürlich wachsen lassen, wodurch Scrolling
@@ -198,6 +201,11 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
               emailFieldKey: _emailFieldKey,
               passwordFieldKey: _passwordFieldKey,
               passwordConfirmFieldKey: _passwordConfirmFieldKey,
+            ),
+            const SizedBox(height: AppSpacing.l),
+            LoginSocialSignInBlock(
+              disabled: _busy,
+              onBusyChanged: (busy) => setState(() => _socialBusy = busy),
             ),
           ],
         ),

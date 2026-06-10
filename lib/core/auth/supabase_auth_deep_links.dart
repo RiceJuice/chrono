@@ -6,18 +6,20 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth_redirect_config.dart';
 
-bool get _isAppleDesktopOrMobile {
+bool get _isMobileAuthDeepLinkPlatform {
   if (kIsWeb) return false;
   return defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.macOS;
 }
 
-/// Registriert Deep Links für Supabase-Auth (nur iOS/macOS).
+/// Zusätzlicher Deep-Link-Listener für Supabase-Auth-Callbacks.
 ///
-/// Nach Klick auf den Bestätigungslink öffnet die App und stellt die Session
-/// aus der Redirect-URL wieder her.
-Future<void> attachSupabaseAppleAuthDeepLinks() async {
-  if (!_isAppleDesktopOrMobile) return;
+/// Ergänzt den eingebauten Observer von `supabase_flutter` (Initial-URI wird
+/// dort bereits verarbeitet). Relevant für E-Mail-Bestätigung und OAuth auf
+/// iOS/Android, sobald die App über `chronoapp://auth-callback` geöffnet wird.
+Future<void> attachSupabaseAuthDeepLinks() async {
+  if (!_isMobileAuthDeepLinkPlatform) return;
 
   final appLinks = AppLinks();
 
@@ -27,11 +29,10 @@ Future<void> attachSupabaseAppleAuthDeepLinks() async {
     try {
       await Supabase.instance.client.auth.getSessionFromUrl(uri);
     } catch (_, _) {
-      // Intentionally ignored: callback processing should be best-effort.
+      // Best-effort: Callback-Verarbeitung darf den App-Start nicht blockieren.
     }
   }
 
-  await handleUri(await appLinks.getInitialLink());
   appLinks.uriLinkStream.listen((uri) {
     unawaited(handleUri(uri));
   });

@@ -1,4 +1,6 @@
 {
   "SUPABASE_URL": "https://YOUR_PROJECT_REF.supabase.co",
-  "SUPABASE_ANON_KEY": "YOUR_SUPABASE_ANON_KEY"
+  "SUPABASE_ANON_KEY": "YOUR_SUPABASE_ANON_KEY",
+  "GOOGLE_WEB_CLIENT_ID": "304796088073-g9b092e5mamdtsd3gcjdjo8gt6ua09si.apps.googleusercontent.com",
+  "GOOGLE_IOS_CLIENT_ID": "304796088073-4df2dpk5rfq1kavr7apgrb1f0pidthqc.apps.googleusercontent.com"
 }

@@ -12,7 +12,12 @@
           "package_name": "com.domspatzen.chronoapp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "304796088073-g9b092e5mamdtsd3gcjdjo8gt6ua09si.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCYvK_XhCq2PqBbEqDegH447GayJHawsqk"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "304796088073-g9b092e5mamdtsd3gcjdjo8gt6ua09si.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "304796088073-4df2dpk5rfq1kavr7apgrb1f0pidthqc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.domspatzen.chronoapp"
+              }
+            }
+          ]
         }
       }
     }

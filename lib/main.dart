@@ -10,7 +10,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:powersync/powersync.dart' hide Column;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'core/auth/supabase_apple_auth_deep_links.dart';
+import 'core/auth/supabase_auth_deep_links.dart';
 import 'core/push/firebase_messaging_background.dart';
 import 'core/push/push_notification_bootstrap.dart';
 import 'core/push/push_notification_service.dart';
@@ -33,19 +33,25 @@ const String kSupabaseUrl = 'https://chrbvfaknykaycwumuba.supabase.co';
 const String kSupabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNocmJ2ZmFrbnlrYXljd3VtdWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ0MjEsImV4cCI6MjA5MDQ3MDQyMX0.K7ChUbeWNd_-wCWCswo0b-dVpe50x57qK-dsBkN9NrE';
 
-Future<void> _initializeFirebase() async {
+Future<void> _initializeFirebaseCore() async {
+  if (!DefaultFirebaseOptions.isConfigured) return;
+  if (!PushNotificationService.supportsPush) return;
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+}
+
+Future<void> _registerPushListeners() async {
   if (!DefaultFirebaseOptions.isConfigured) return;
   if (!PushNotificationService.supportsPush) return;
 
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await PushNotificationService().registerListeners();
   } catch (e, st) {
     if (kDebugMode) {
-      debugPrint('[FCM] Firebase init failed: $e\n$st');
+      debugPrint('[FCM] Push listener registration failed: $e\n$st');
     }
   }
 }
@@ -53,7 +59,7 @@ Future<void> _initializeFirebase() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await _initializeFirebase();
+  await _initializeFirebaseCore();
 
   final results = await Future.wait<Object>([
     Supabase.initialize(url: kSupabaseUrl, anonKey: kSupabaseAnonKey),
@@ -62,6 +68,8 @@ void main() async {
     bootstrapCalendarViewMode(),
   ]);
   final powerSyncDb = results[1] as PowerSyncDatabase;
+
+  await _registerPushListeners();
 
   attachCalendarEventsDebugLogs(powerSyncDb);
   scheduleCalendarEventsLocalSnapshots(powerSyncDb);
@@ -131,7 +139,7 @@ Future<void> _finishStartup({
 
   await Future.wait<void>([
     initializeDateFormatting('de', null),
-    attachSupabaseAppleAuthDeepLinks(),
+    attachSupabaseAuthDeepLinks(),
     profileGateNotifier.waitUntilReady(),
   ]);
 

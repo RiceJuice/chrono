@@ -72,6 +72,9 @@ class LoginOnboardingShell extends StatelessWidget {
     // die Tastatur gehoben. Andere Schritte behalten das Standardverhalten.
     final bool resizeBody = location != LoginPaths.credentials;
     final Widget flowContent = SafeArea(
+      // Startscreen: Squircle-Panel bis zum unteren Bildschirmrand; Safe-Area-Inset
+      // liegt im Panel-Innenpadding.
+      bottom: !isStart,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -97,10 +100,10 @@ class LoginOnboardingShell extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: EdgeInsets.fromLTRB(
-                isChoirPage ? 0 : 20,
+                isChoirPage || isStart ? 0 : 20,
                 0,
-                isChoirPage ? 0 : 20,
-                18,
+                isChoirPage || isStart ? 0 : 20,
+                isStart ? 0 : 18,
               ),
               child: child,
             ),

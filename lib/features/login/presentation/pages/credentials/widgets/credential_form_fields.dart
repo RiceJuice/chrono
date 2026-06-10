@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/login_input_decoration.dart';
 import '../../../widgets/login_text_field.dart';
 
 class CredentialFormFields extends StatelessWidget {
@@ -49,7 +50,7 @@ class CredentialFormFields extends StatelessWidget {
           hintText: 'name@beispiel.de',
           keyboardType: TextInputType.emailAddress,
           prefixIcon: Icons.email_outlined,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+          contentPadding: kLoginCredentialsFieldPadding,
           validator: (value) {
             final input = value?.trim() ?? '';
             if (input.isEmpty) {
@@ -77,7 +78,7 @@ class CredentialFormFields extends StatelessWidget {
           obscureText: true,
           showPasswordVisibilityToggle: true,
           prefixIcon: Icons.lock_outline_rounded,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+          contentPadding: kLoginCredentialsFieldPadding,
           validator: (value) {
             final input = value ?? '';
             if (input.isEmpty) {
@@ -106,8 +107,7 @@ class CredentialFormFields extends StatelessWidget {
             obscureText: true,
             showPasswordVisibilityToggle: true,
             prefixIcon: Icons.lock_reset_rounded,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+            contentPadding: kLoginCredentialsFieldPadding,
             validator: (value) {
               final input = value ?? '';
               if (input.isEmpty) {

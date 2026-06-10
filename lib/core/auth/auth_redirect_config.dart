@@ -20,6 +20,19 @@ String authEmailRedirectTo() {
   }
 }
 
+/// Redirect für OAuth (z. B. Apple Sign-In auf Android).
+///
+/// **Supabase Dashboard:** `chronoapp://auth-callback` unter Redirect URLs.
+String authOAuthRedirectTo() {
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.iOS:
+    case TargetPlatform.android:
+      return kAppleAuthEmailRedirectUrl;
+    default:
+      return kAuthEmailRedirectFallbackUrl;
+  }
+}
+
 /// True, wenn die URI wahrscheinlich ein Supabase-Auth-Callback ist
 /// (Apple-Schema oder Token/Code in Query/Fragment).
 bool uriLooksLikeSupabaseAuthCallback(Uri uri) {

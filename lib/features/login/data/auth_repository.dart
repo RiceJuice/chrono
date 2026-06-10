@@ -1,6 +1,8 @@
 import 'package:chronoapp/core/auth/auth_redirect_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'social_auth_service.dart';
+
 /// Nutzerorientierte Fehlermeldung aus der Auth-/Profil-Schicht.
 class AuthRepositoryException implements Exception {
   AuthRepositoryException(this.message);
@@ -27,9 +29,10 @@ class SignUpResult {
 }
 
 class AuthRepository {
-  AuthRepository(this._client);
+  AuthRepository(this._client) : _socialAuth = SocialAuthService(_client);
 
   final SupabaseClient _client;
+  final SocialAuthService _socialAuth;
 
   String? get currentUserEmail => _client.auth.currentUser?.email;
 
@@ -72,6 +75,58 @@ class AuthRepository {
       return e.message;
     }
     return 'Anmeldung fehlgeschlagen. Bitte versuche es erneut.';
+  }
+
+  Future<AuthResponse> signInWithGoogle() async {
+    final response = await _socialAuth.signInWithGoogle();
+    await ensureProfileRowExists();
+    return response;
+  }
+
+  Future<AuthResponse> signInWithApple() async {
+    final response = await _socialAuth.signInWithApple();
+    await ensureProfileRowExists();
+    return response;
+  }
+
+  /// Legt eine fehlende [profiles]-Zeile an (Fallback, falls der DB-Trigger
+  /// bei OAuth-Neuanmeldungen nicht greift).
+  Future<void> ensureProfileRowExists() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final existing = await _client
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
+      if (existing != null) return;
+
+      final meta = user.userMetadata ?? {};
+      await _client.from('profiles').insert({
+        'id': user.id,
+        'first_name': _metaNamePart(meta, 'first_name', 'given_name'),
+        'last_name': _metaNamePart(meta, 'last_name', 'family_name'),
+      });
+    } on AuthException catch (e) {
+      throw AuthRepositoryException(_mapAuthException(e));
+    } catch (_) {
+      throw AuthRepositoryException(
+        'Profil konnte nicht angelegt werden. Bitte erneut versuchen.',
+      );
+    }
+  }
+
+  static String _metaNamePart(
+    Map<String, dynamic> meta,
+    String primaryKey,
+    String fallbackKey,
+  ) {
+    final primary = meta[primaryKey]?.toString().trim();
+    if (primary != null && primary.isNotEmpty) return primary;
+    final fallback = meta[fallbackKey]?.toString().trim();
+    return fallback ?? '';
   }
 
   Future<AuthResponse> signInWithPassword({
