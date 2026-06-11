@@ -81,8 +81,8 @@ BoxConstraints appModalSheetHeightConstraints(
 /// Kleiner Abstand zwischen System-UI (Statusleiste/Notch) und Sheet-Oberkante.
 const double kAppSheetGapBelowSystemUi = AppSpacing.xs;
 
-/// Feste Sheet-Höhe für Lesson/Meal/Choir-Detail (60 % Bildschirm).
-const double kAppDetailModalInitialSize = 0.6;
+/// Feste Sheet-Höhe für Lesson/Meal/Choir-Detail (70 % Bildschirm).
+const double kAppDetailModalInitialSize = 0.7;
 
 /// Event-Detail: etwas höher, damit Beschreibung und Ablauf sichtbar sind.
 const double kAppEventModalInitialSize = 0.65;

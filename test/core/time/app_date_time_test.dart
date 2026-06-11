@@ -25,6 +25,36 @@ void main() {
     });
   });
 
+  group('AppDateTime.formatLocalFullWeekdays', () {
+    test('formats single weekday adverbially', () {
+      expect(
+        AppDateTime.formatLocalFullWeekdays({DateTime.monday}),
+        'Montags',
+      );
+    });
+
+    test('joins two weekdays with und', () {
+      expect(
+        AppDateTime.formatLocalFullWeekdays({
+          DateTime.wednesday,
+          DateTime.monday,
+        }),
+        'Montags und Mittwochs',
+      );
+    });
+
+    test('formats weekdays in Monday-first order with und', () {
+      expect(
+        AppDateTime.formatLocalFullWeekdays({
+          DateTime.wednesday,
+          DateTime.monday,
+          DateTime.friday,
+        }),
+        'Montags, Mittwochs und Freitags',
+      );
+    });
+  });
+
   group('AppDateTime.parseDatabaseTimeOnDate', () {
     test('converts Postgres timetz values with hour-only offsets', () {
       final parsed = AppDateTime.parseDatabaseTimeOnDate(

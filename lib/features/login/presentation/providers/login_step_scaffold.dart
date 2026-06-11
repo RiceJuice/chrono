@@ -196,11 +196,18 @@ class LoginStepScaffold extends StatelessWidget {
           child: Text(
             subtitleOverride!,
             textAlign: TextAlign.left,
-            style: TextStyle(
-              color: scheme.onSurfaceVariant,
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-            ),
+            style: theme.textTheme.bodyLarge?.copyWith(
+                  color: scheme.onSurface.withValues(alpha: 0.78),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  height: 1.35,
+                ) ??
+                TextStyle(
+                  color: scheme.onSurface.withValues(alpha: 0.78),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  height: 1.35,
+                ),
           ),
         ),
     ];

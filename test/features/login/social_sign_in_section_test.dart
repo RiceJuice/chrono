@@ -21,7 +21,12 @@ void main() {
     );
 
     expect(find.text('Mit Google fortfahren'), findsOneWidget);
-    expect(find.text('Mit Apple fortfahren'), findsOneWidget);
+    expect(
+      find.text('Mit Apple fortfahren'),
+      SocialSignInSection.isAppleSignInSupported
+          ? findsOneWidget
+          : findsNothing,
+    );
     expect(find.text('oder'), findsOneWidget);
   });
 }

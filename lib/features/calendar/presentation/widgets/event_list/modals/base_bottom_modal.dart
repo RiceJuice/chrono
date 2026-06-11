@@ -1,5 +1,4 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
-import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/core/widgets/app_modal_scroll_surface.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
@@ -100,10 +99,6 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
   bool get _supportsAccentMorph =>
       _liveEntry.type == CalendarEntryType.lesson &&
       _liveEntry.subjectId != null;
-
-  /// Speiseplan: Sheet-Höhe folgt dem Inhalt (kein fester Anteil am Bildschirm).
-  bool get _usesContentSizedDetailSheet =>
-      _liveEntry.type == CalendarEntryType.meal && !_supportsAccentMorph;
 
   @override
   void initState() {
@@ -207,14 +202,6 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
       );
     }
 
-    if (_usesContentSizedDetailSheet) {
-      return _buildContentSizedDetailSheet(
-        context: context,
-        sheetSurface: sheetSurface,
-        morph: t,
-      );
-    }
-
     return _buildSimpleDetailSheet(
       context: context,
       sheetSurface: sheetSurface,
@@ -222,41 +209,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
     );
   }
 
-  /// Inhaltshöhe folgt dem Speiseplan-Inhalt (kein fester Anteil am Bildschirm).
-  Widget _buildContentSizedDetailSheet({
-    required BuildContext context,
-    required Color sheetSurface,
-    required double morph,
-  }) {
-    final bottomInset = appSheetViewMediaQuery(context).viewPadding.bottom;
-
-    return AppModalSheetChrome(
-      color: sheetSurface,
-      clipTopCorners: true,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildModalContent(morph),
-              SizedBox(height: AppSpacing.l + bottomInset),
-            ],
-          ),
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: BottomModalHandle(),
-          ),
-          _buildAdminEditButtonPositioned(),
-        ],
-      ),
-    );
-  }
-
-  /// Feste Höhe + innerer Scroll — kein Expand/Snap (Lesson, Choir).
+  /// Feste Höhe + innerer Scroll — kein Expand/Snap (Lesson, Meal, Choir).
   Widget _buildSimpleDetailSheet({
     required BuildContext context,
     required Color sheetSurface,

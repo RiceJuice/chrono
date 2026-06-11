@@ -52,6 +52,12 @@ class SocialSignInSection extends StatelessWidget {
         defaultTargetPlatform == TargetPlatform.android;
   }
 
+  /// Nativer Apple-Login nur auf iOS; auf Android ausgeblendet.
+  static bool get isAppleSignInSupported {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!isSupported) return const SizedBox.shrink();
@@ -60,19 +66,20 @@ class SocialSignInSection extends StatelessWidget {
     final appleForeground = loginAppleButtonColors(scheme).$2;
 
     final socialButtons = <Widget>[
-      LoginAuthOptionButton(
-        label: appleLabel,
-        variant: LoginAuthOptionButtonVariant.apple,
-        compact: true,
-        startScreenStyle: useSquirclePanel,
-        leading: Icon(
-          Icons.apple,
-          size: 22,
-          color: appleForeground,
+      if (isAppleSignInSupported)
+        LoginAuthOptionButton(
+          label: appleLabel,
+          variant: LoginAuthOptionButtonVariant.apple,
+          compact: true,
+          startScreenStyle: useSquirclePanel,
+          leading: Icon(
+            Icons.apple,
+            size: 22,
+            color: appleForeground,
+          ),
+          isLoading: busyProvider == SocialSignInProvider.apple,
+          onPressed: onApplePressed,
         ),
-        isLoading: busyProvider == SocialSignInProvider.apple,
-        onPressed: onApplePressed,
-      ),
       LoginAuthOptionButton(
         label: googleLabel,
         variant: LoginAuthOptionButtonVariant.google,

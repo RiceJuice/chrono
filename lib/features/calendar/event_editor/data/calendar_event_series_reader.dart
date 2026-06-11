@@ -1,5 +1,6 @@
 import 'package:powersync/powersync.dart';
 import 'package:rrule/rrule.dart';
+import 'package:sqlite3/common.dart';
 
 import '../../../../core/database/powersync_schema.dart';
 import '../../../../core/time/app_date_time.dart';
@@ -65,5 +66,91 @@ class CalendarEventSeriesReader {
       series: series,
       subjectId: subjectId == null || subjectId.isEmpty ? null : subjectId,
     );
+  }
+
+  Stream<Set<int>> watchLessonWeekdays({
+    required String? subjectId,
+    required String? seriesId,
+    required int fallbackWeekday,
+  }) {
+    if (subjectId != null && subjectId.isNotEmpty) {
+      return watchWeekdaysForSubject(
+        subjectId,
+        fallbackWeekday: fallbackWeekday,
+      );
+    }
+    if (seriesId != null && seriesId.isNotEmpty) {
+      return watchWeekdaysForSeries(
+        seriesId,
+        fallbackWeekday: fallbackWeekday,
+      );
+    }
+    return Stream<Set<int>>.value({fallbackWeekday});
+  }
+
+  Stream<Set<int>> watchWeekdaysForSubject(
+    String subjectId, {
+    required int fallbackWeekday,
+  }) {
+    return _db
+        .watch(
+          '''
+          SELECT rrule, series_start
+          FROM $kCalendarSeriesTable
+          WHERE subject_id = ? AND type = 'lesson'
+          ''',
+          parameters: [subjectId],
+          triggerOnTables: const {kCalendarSeriesTable},
+        )
+        .map((rows) => _resolveWeekdays(rows, fallbackWeekday: fallbackWeekday));
+  }
+
+  Stream<Set<int>> watchWeekdaysForSeries(
+    String seriesId, {
+    required int fallbackWeekday,
+  }) {
+    return _db
+        .watch(
+          '''
+          SELECT rrule, series_start
+          FROM $kCalendarSeriesTable
+          WHERE id = ?
+          LIMIT 1
+          ''',
+          parameters: [seriesId],
+          triggerOnTables: const {kCalendarSeriesTable},
+        )
+        .map((rows) => _resolveWeekdays(rows, fallbackWeekday: fallbackWeekday));
+  }
+
+  Set<int> _resolveWeekdays(
+    ResultSet rows, {
+    required int fallbackWeekday,
+  }) {
+    final weekdays = _aggregateWeekdaysFromRows(rows);
+    return weekdays.isEmpty ? {fallbackWeekday} : weekdays;
+  }
+
+  Set<int> _aggregateWeekdaysFromRows(ResultSet rows) {
+    final weekdays = <int>{};
+    for (final row in rows) {
+      final seriesStartRaw = row['series_start']?.toString();
+      if (seriesStartRaw == null || seriesStartRaw.trim().isEmpty) {
+        continue;
+      }
+
+      final seriesStart = AppDateTime.localDay(
+        DateTime.parse(seriesStartRaw.trim()),
+      );
+      final parsed = CalendarEventRruleCodec.fromStorageText(
+        row['rrule']?.toString(),
+        fallbackSeriesStart: seriesStart,
+      );
+      if (parsed == null || parsed.frequency != Frequency.weekly) {
+        continue;
+      }
+      weekdays.addAll(parsed.weekdays);
+    }
+    return weekdays;
   }
 }

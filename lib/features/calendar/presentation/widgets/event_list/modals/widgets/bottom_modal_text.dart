@@ -1,6 +1,7 @@
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/event_schedules_providers.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/lesson_weekdays_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_expandable_text.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_schedule_section.dart';
@@ -323,6 +324,14 @@ class _StandardBottomModalTextContent extends ConsumerWidget {
     final noteText = (entry.note ?? '').trim();
     final locationText = (entry.location ?? '').trim();
     final schedulesAsync = ref.watch(eventSchedulesForEntryProvider(entry.id));
+    final isLesson = entry.type == CalendarEntryType.lesson;
+    final weekdaysAsync = isLesson
+        ? ref.watch(
+            lessonWeekdaysForEntryProvider(
+              LessonWeekdaysLookup.fromEntry(entry),
+            ),
+          )
+        : null;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.l, _kContentTop, AppSpacing.l, 0),
@@ -353,6 +362,24 @@ class _StandardBottomModalTextContent extends ConsumerWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (isLesson && weekdaysAsync != null)
+            weekdaysAsync.when(
+              data: (weekdays) {
+                final label = AppDateTime.formatLocalFullWeekdays(weekdays);
+                if (label.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.s),
+                  child: Text(
+                    label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
+            ),
           if (descriptionText.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.l),
             Text('Beschreibung', style: sectionLabelStyle),

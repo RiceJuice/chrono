@@ -10,6 +10,7 @@ import '../pages/start_screen/start_screen_page.dart';
 import '../pages/select_role/select_role.dart';
 import '../widgets/login_onboarding_shell.dart';
 import 'login_flow_specs.dart';
+import 'login_morph_page_transition.dart';
 import 'login_paths.dart';
 
 export 'login_paths.dart';
@@ -65,8 +66,6 @@ abstract final class LoginRouteTransitionTracker {
   }
 }
 
-const Duration _loginSlideDuration = Duration(milliseconds: 300);
-
 Page<void> loginSlidePage({
   required GoRouterState state,
   required Widget child,
@@ -75,29 +74,22 @@ Page<void> loginSlidePage({
     return NoTransitionPage<void>(key: state.pageKey, child: child);
   }
 
-  final forward = LoginRouteTransitionTracker.transitionForward;
-
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    transitionDuration: _loginSlideDuration,
-    reverseTransitionDuration: _loginSlideDuration,
+    opaque: false,
+    transitionDuration: kLoginMorphDuration,
+    reverseTransitionDuration: kLoginMorphDuration,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      // Vorwärts im Flow: Inhalt kommt von rechts. Zurück: von links.
-      // (secondaryAnimation betrifft die darunterliegende Route; hier nur die
-      // eingehende Seite animieren, damit der Shell-Header statisch bleibt.)
-      final bg = Theme.of(context).scaffoldBackgroundColor;
-      final begin = forward ? const Offset(1, 0) : const Offset(-1, 0);
-      return SlideTransition(
-        position: Tween<Offset>(begin: begin, end: Offset.zero).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-        ),
-        child: ClipRect(
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: bg),
-            child: SizedBox.expand(child: child),
-          ),
-        ),
+      // Richtung zur Laufzeit lesen: die ausgehende Route wurde oft bei einem
+      // frueheren Navigations-Schritt gebaut und haette sonst eine veraltete
+      // forward-Richtung (Morph kommt von der falschen Seite).
+      return buildLoginMorphPageTransition(
+        context: context,
+        animation: animation,
+        secondaryAnimation: secondaryAnimation,
+        forward: LoginRouteTransitionTracker.transitionForward,
+        child: child,
       );
     },
   );

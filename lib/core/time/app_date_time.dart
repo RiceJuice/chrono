@@ -251,4 +251,50 @@ class AppDateTime {
   static String formatLocalFullWeekdayDate(DateTime value) {
     return DateFormat('EEEE, d. MMMM', 'de').format(localDay(value));
   }
+
+  static const weekdayOrderMondayFirst = <int>[
+    DateTime.monday,
+    DateTime.tuesday,
+    DateTime.wednesday,
+    DateTime.thursday,
+    DateTime.friday,
+    DateTime.saturday,
+    DateTime.sunday,
+  ];
+
+  static const fullWeekdayLabels = <int, String>{
+    DateTime.monday: 'Montag',
+    DateTime.tuesday: 'Dienstag',
+    DateTime.wednesday: 'Mittwoch',
+    DateTime.thursday: 'Donnerstag',
+    DateTime.friday: 'Freitag',
+    DateTime.saturday: 'Samstag',
+    DateTime.sunday: 'Sonntag',
+  };
+
+  static const recurringWeekdayLabels = <int, String>{
+    DateTime.monday: 'Montags',
+    DateTime.tuesday: 'Dienstags',
+    DateTime.wednesday: 'Mittwochs',
+    DateTime.thursday: 'Donnerstags',
+    DateTime.friday: 'Freitags',
+    DateTime.saturday: 'Samstags',
+    DateTime.sunday: 'Sonntags',
+  };
+
+  /// Wiederholungs-Wochentage, z. B. „Montags, Mittwochs und Freitags“.
+  static String formatLocalFullWeekdays(Iterable<int> weekdays) {
+    final unique = weekdays.toSet();
+    if (unique.isEmpty) return '';
+
+    final sorted =
+        weekdayOrderMondayFirst.where(unique.contains).toList(growable: false);
+    final labels =
+        sorted.map((day) => recurringWeekdayLabels[day]!).toList(growable: false);
+
+    if (labels.length == 1) return labels.first;
+    if (labels.length == 2) return '${labels[0]} und ${labels[1]}';
+
+    return '${labels.sublist(0, labels.length - 1).join(', ')} und ${labels.last}';
+  }
 }
