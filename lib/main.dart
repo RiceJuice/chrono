@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:inspire_blur/inspire_blur.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:powersync/powersync.dart' hide Column;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -58,6 +59,8 @@ Future<void> _registerPushListeners() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Inspire.warmUp();
 
   await _initializeFirebaseCore();
 

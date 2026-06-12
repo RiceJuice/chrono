@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
+    },
+    "flutter-skill": {
+      "command": "C:\\Users\\palex\\AppData\\Local\\Pub\\Cache\\bin\\flutter_skill.bat",
+      "args": ["server"]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "flutter-skill": {
+      "command": "C:\\Users\\palex\\AppData\\Local\\Pub\\Cache\\bin\\flutter_skill.bat",
+      "args": ["server"]
+    }
+  }
+}
