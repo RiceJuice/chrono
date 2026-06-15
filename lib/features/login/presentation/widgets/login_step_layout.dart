@@ -55,10 +55,10 @@ class LoginStepLayout extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(child: scrollArea),
-              Align(alignment: Alignment.center, child: footer!),
+              Center(child: footer!),
               SizedBox(height: buttonReserve),
             ],
           ),
@@ -77,7 +77,7 @@ class LoginStepLayout extends StatelessWidget {
       children: [
         Expanded(child: scrollArea),
         if (bottomBehavior == LoginBottomBehavior.footerFixed && hasFooter) ...[
-          Align(alignment: Alignment.center, child: footer!),
+          Center(child: footer!),
           SizedBox(height: footerSpacing.tail),
         ],
         if (showPrimaryButton) primaryButton,

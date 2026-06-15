@@ -18,10 +18,13 @@ class AccountAuthModeSelector extends StatelessWidget {
     final isSignIn = selectedMode == AccountAuthMode.signIn;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return Text.rich(
-      TextSpan(
-        text: isSignIn ? 'Noch keinen Account? ' : 'Bereits registriert? ',
-        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
+    return SizedBox(
+      width: double.infinity,
+      child: Text.rich(
+        textAlign: TextAlign.center,
+        TextSpan(
+          text: isSignIn ? 'Noch keinen Account? ' : 'Bereits registriert? ',
+          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
         children: [
           TextSpan(
             text: isSignIn ? 'Hier registrieren' : 'Jetzt anmelden',
@@ -39,6 +42,7 @@ class AccountAuthModeSelector extends StatelessWidget {
               },
           ),
         ],
+        ),
       ),
     );
   }

@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 /// Dezente Phosphor-Icons für den Login-Flow (Credentials, Social).
@@ -12,5 +12,5 @@ abstract final class LoginAuthIcons {
   static IconData get passwordConfirm => PhosphorIcons.lockKey(_style);
   static IconData get visibility => PhosphorIcons.eye(_style);
   static IconData get visibilityOff => PhosphorIcons.eyeSlash(_style);
-  static IconData get apple => PhosphorIcons.appleLogo(_style);
+  static IconData get apple => Icons.apple;
 }

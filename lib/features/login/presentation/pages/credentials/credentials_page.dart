@@ -11,6 +11,7 @@ import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 import '../../utils/draft_text_controller.dart';
 import '../../utils/login_form_validation.dart';
+import '../../widgets/login_flow_spacing.dart';
 import '../../widgets/login_social_sign_in_block.dart';
 import '../../widgets/login_step_layout.dart';
 import '../../widgets/login_step_scaffold.dart';
@@ -134,7 +135,8 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
     final isSignIn = _mode == AccountAuthMode.signIn;
     final double screenH = MediaQuery.sizeOf(context).height;
     final double footerLead = (screenH * 0.055).clamp(20.0, 52.0);
-    final double footerTail = (screenH * 0.022).clamp(10.0, 22.0);
+    final double footerTail =
+        LoginFlowSpacing.gapBetweenFooterAndPrimaryButton(context);
 
     return LoginStepScaffold(
       step: LoginFlowStep.credentials,

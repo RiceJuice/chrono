@@ -292,33 +292,27 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
       children: [
         AppModalScrollSurface(
           controller: scrollController,
-          child: EventModalScrollNearTopSnap(
-            controller: scrollController,
-            child: NotificationListener<UserScrollNotification>(
-              onNotification: (notification) {
-                if (notification.direction != ScrollDirection.idle) {
-                  _scheduleScrollCoordinator.notifyUserScroll();
-                }
-                return false;
-              },
-              child: ScrollConfiguration(
-                behavior: const EventModalScrollBehavior(),
-                child: CustomScrollView(
-                  controller: scrollController,
-                  physics: eventBottomModalScrollPhysics(context),
-                  cacheExtent: 480,
-                  slivers: [
-                    EventBottomModalSchedulePane(
-                      eventId: entry.id,
-                      entry: entry,
-                      sliverLayout: true,
-                      sheetScrollController: scrollController,
-                      scrollCoordinator: _scheduleScrollCoordinator,
-                      sheetSurfaceColor: sheetSurface,
-                    ),
-                  ],
+          child: NotificationListener<UserScrollNotification>(
+            onNotification: (notification) {
+              if (notification.direction != ScrollDirection.idle) {
+                _scheduleScrollCoordinator.notifyUserScroll();
+              }
+              return false;
+            },
+            child: CustomScrollView(
+              controller: scrollController,
+              physics: eventModalContentScrollPhysics(context),
+              cacheExtent: 480,
+              slivers: [
+                EventBottomModalSchedulePane(
+                  eventId: entry.id,
+                  entry: entry,
+                  sliverLayout: true,
+                  sheetScrollController: scrollController,
+                  scrollCoordinator: _scheduleScrollCoordinator,
+                  sheetSurfaceColor: sheetSurface,
                 ),
-              ),
+              ],
             ),
           ),
         ),

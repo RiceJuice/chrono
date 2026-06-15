@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 abstract final class LoginFlowSpacing {
   /// Kurze Viewports (z. B. iPhone SE, kleine Android-Geräte).
   static bool isCompact(BuildContext context) =>
-      MediaQuery.sizeOf(context).height < 700;
+      MediaQuery.sizeOf(context).height < 860;
 
   static double _proportional(
     BuildContext context, {
@@ -74,6 +74,15 @@ abstract final class LoginFlowSpacing {
         factor: 0.012,
         min: AppSpacing.xs,
         max: AppSpacing.s,
+      );
+
+  /// Abstand zwischen fixem Footer-Text und Primärbutton (Credentials).
+  static double gapBetweenFooterAndPrimaryButton(BuildContext context) =>
+      _proportional(
+        context,
+        factor: 0.04,
+        min: AppSpacing.xl,
+        max: 40,
       );
 
   /// Titelgröße für Schritt-Header — kleiner auf kompakten Screens.

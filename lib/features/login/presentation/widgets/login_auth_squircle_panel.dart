@@ -28,6 +28,7 @@ class LoginAuthSquirclePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final bottomSafe = MediaQuery.paddingOf(context).bottom;
+    final double bottomPadding = bottomSafe + AppSpacing.l;
 
     final content = <Widget>[
       ..._withSpacing(socialButtons, socialGap),
@@ -53,7 +54,7 @@ class LoginAuthSquirclePanel extends StatelessWidget {
               inset,
               inset,
               inset,
-              inset + bottomSafe,
+              bottomPadding,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

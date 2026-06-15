@@ -1,4 +1,3 @@
-import 'package:chronoapp/core/widgets/event_modal_sheet_physics.dart';
 import 'package:chronoapp/core/widgets/event_schedule_scroll_coordinator.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
@@ -10,10 +9,6 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-/// Scroll-Physik für das Event-Detail-Sheet ([CustomScrollView] in [BaseBottomModal]).
-ScrollPhysics eventBottomModalScrollPhysics(BuildContext context) =>
-    eventModalContentScrollPhysics(context);
 
 /// Bilder + Metadaten (ohne Ablauf) für das Event-Detail-Sheet.
 class EventBottomModalHeader extends StatelessWidget {
