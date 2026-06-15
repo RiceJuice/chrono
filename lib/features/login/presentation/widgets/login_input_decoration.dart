@@ -1,12 +1,6 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// Gleiches Padding wie die Credentials-Textfelder.
-const EdgeInsets kLoginCredentialsFieldPadding = EdgeInsets.symmetric(
-  horizontal: 12,
-  vertical: 15,
-);
-
 /// Social-Login-Buttons: etwas großzügiger als Textfelder.
 const EdgeInsets kLoginSocialButtonPadding = EdgeInsets.symmetric(
   horizontal: 16,
@@ -61,7 +55,14 @@ InputDecoration loginInputDecoration(
     contentPadding: contentPadding ?? AppInsets.inputContent,
     prefixIcon: prefixIcon == null
         ? null
-        : Icon(prefixIcon, color: colorScheme.onSurfaceVariant),
+        : Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Icon(
+              prefixIcon,
+              size: 17,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+            ),
+          ),
     suffixIcon: suffixIcon,
     border: enabledBorder,
     enabledBorder: enabledBorder,

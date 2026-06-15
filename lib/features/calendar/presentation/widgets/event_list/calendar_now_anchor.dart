@@ -52,6 +52,37 @@ abstract final class CalendarNowAnchor {
     return AppDateTime.isTodayLocal(schedule.startTime, now: now);
   }
 
+  /// Ob mindestens ein heutiger Ablaufpunkt bereits begonnen hat.
+  static bool scheduleHasStarted(
+    List<EventSchedule> schedules, {
+    DateTime? now,
+  }) {
+    final clock = now ?? DateTime.now();
+    for (final schedule in schedules) {
+      if (!scheduleApplyPastStyling(schedule, now: now)) continue;
+      if (scheduleIsPast(schedule, now: now)) return true;
+      if (AppDateTime.toLocal(schedule.startTime).isBefore(clock)) return true;
+    }
+    return false;
+  }
+
+  /// Index des ersten sichtbaren, aktuellen Ablaufpunkts (heute, noch nicht beendet).
+  ///
+  /// `null`, wenn kein Jetzt-Anker gesetzt werden soll.
+  static int? scheduleAnchorIndex(
+    List<EventSchedule> schedules, {
+    bool Function(EventSchedule schedule)? isVisible,
+    DateTime? now,
+  }) {
+    for (var i = 0; i < schedules.length; i++) {
+      final schedule = schedules[i];
+      if (isVisible != null && !isVisible(schedule)) continue;
+      if (!scheduleApplyPastStyling(schedule, now: now)) continue;
+      if (!scheduleIsPast(schedule, now: now)) return i;
+    }
+    return null;
+  }
+
   /// Springt zum Anker; gibt `true` zurück, wenn der Sprung ausgeführt wurde.
   /// `false`, wenn der Anker noch nicht gebaut/gemessen ist (z. B. lazy Liste).
   static bool jumpToAnchor({

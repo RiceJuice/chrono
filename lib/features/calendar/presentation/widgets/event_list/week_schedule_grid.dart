@@ -15,6 +15,7 @@ class WeekScheduleGrid extends ConsumerWidget {
     this.showTimelineColumn = true,
     this.hourHeight,
     this.allDaySectionHeight,
+    this.scrollPadding = EdgeInsets.zero,
     super.key,
   });
 
@@ -22,6 +23,7 @@ class WeekScheduleGrid extends ConsumerWidget {
   final bool showTimelineColumn;
   final double? hourHeight;
   final double? allDaySectionHeight;
+  final EdgeInsets scrollPadding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -75,6 +77,7 @@ class WeekScheduleGrid extends ConsumerWidget {
         ),
         Expanded(
           child: SingleChildScrollView(
+            padding: scrollPadding,
             child: SizedBox(
               height: totalHeight,
               child: Row(

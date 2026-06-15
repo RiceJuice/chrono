@@ -40,6 +40,17 @@ bool weekScheduleUsesMobileSeamlessScroll(BuildContext context) {
   return MediaQuery.orientationOf(context) == Orientation.portrait;
 }
 
+/// Gleiche Abstände wie in [WeekScheduleMobileBody] (Phone-Portrait + Tablet).
+bool weekScheduleUsesCompactEntryGaps(BuildContext context) {
+  return weekScheduleUsesMobileSeamlessScroll(context) ||
+      weekScheduleIsTabletViewport(context);
+}
+
+/// Unteres Safe-Area-Padding für vertikales Scrollen im Wochenraster.
+EdgeInsets weekScheduleContentScrollPadding(BuildContext context) {
+  return EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom);
+}
+
 /// Horizontale Snap-Einheit im mobilen Wochen-Stundenplan.
 enum WeekSchedulePanStride { day, week }
 

@@ -12,12 +12,14 @@ class WeekSchedulePageTransition extends ConsumerWidget {
     required this.toMonday,
     required this.isForward,
     required this.animation,
+    this.scrollPadding = EdgeInsets.zero,
   });
 
   final DateTime fromMonday;
   final DateTime toMonday;
   final bool isForward;
   final Animation<double> animation;
+  final EdgeInsets scrollPadding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,6 +41,7 @@ class WeekSchedulePageTransition extends ConsumerWidget {
         showTimelineColumn: false,
         hourHeight: hourHeight,
         allDaySectionHeight: allDaySectionHeight,
+        scrollPadding: scrollPadding,
       ),
       incoming: WeekScheduleGrid(
         key: ValueKey<String>('to-$toMonday'),
@@ -46,6 +49,7 @@ class WeekSchedulePageTransition extends ConsumerWidget {
         showTimelineColumn: false,
         hourHeight: hourHeight,
         allDaySectionHeight: allDaySectionHeight,
+        scrollPadding: scrollPadding,
       ),
     );
   }

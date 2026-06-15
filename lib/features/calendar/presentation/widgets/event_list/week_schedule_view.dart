@@ -97,6 +97,7 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
     _lastUsesMobileSeamlessScroll = usesMobileSeamless;
 
     final hourHeight = weekScheduleHourHeightFor(context);
+    final contentScrollPadding = weekScheduleContentScrollPadding(context);
 
     return Stack(
       children: [
@@ -140,6 +141,7 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
                           showTimelineColumn: false,
                           hourHeight: hourHeight,
                           allDaySectionHeight: allDaySectionHeight,
+                          scrollPadding: contentScrollPadding,
                         );
                       },
                     ),
@@ -164,6 +166,7 @@ class _WeekScheduleViewState extends ConsumerState<WeekScheduleView>
                 toMonday: _activeTransition!.toMonday,
                 isForward: _activeTransition!.isForward,
                 animation: _ensureTransitionController(),
+                scrollPadding: contentScrollPadding,
               ),
             ),
           ),

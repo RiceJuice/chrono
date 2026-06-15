@@ -30,10 +30,6 @@ class LoginDropdownField extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color mutedColor = scheme.onSurfaceVariant.withValues(alpha: 0.7);
     final bool isEnabled = options.isNotEmpty;
-    const fieldContentPadding = EdgeInsets.symmetric(
-      horizontal: 12,
-      vertical: 15,
-    );
 
     return FormField<String>(
       key: formFieldKey,
@@ -74,7 +70,6 @@ class LoginDropdownField extends StatelessWidget {
                   loginInputDecoration(context, label).copyWith(
                     hintText: hintText,
                     hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
-                    contentPadding: fieldContentPadding,
                     prefixIcon: mutedLeadingIcon,
                     errorText: field.errorText,
                   ),

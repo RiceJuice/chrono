@@ -10,7 +10,9 @@ import 'package:chronoapp/features/calendar/domain/preview/calendar_appearance_c
 import 'package:chronoapp/features/calendar/domain/preview/calendar_settings_kind.dart';
 import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/admin_edit_button.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/event_schedules_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/subjects_providers.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/calendar_now_anchor.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_appearance_bottom_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_appearance_subject_panel.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/event_list.dart'
@@ -99,6 +101,21 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
   bool get _supportsAccentMorph =>
       _liveEntry.type == CalendarEntryType.lesson &&
       _liveEntry.subjectId != null;
+
+  bool _eventSheetStartsExpanded(CalendarEntry entry) {
+    if (!BaseBottomModal.isEventSheetType(entry.type)) return false;
+
+    final schedulesAsync = ref.watch(eventSchedulesForEntryProvider(entry.id));
+    return schedulesAsync.when(
+      data: (schedules) =>
+          schedules.isNotEmpty &&
+          CalendarNowAnchor.scheduleHasStarted(schedules),
+      loading: () =>
+          AppDateTime.isTodayLocal(entry.startTime) &&
+          AppDateTime.isPastInstant(entry.startTime),
+      error: (_, _) => false,
+    );
+  }
 
   @override
   void initState() {
@@ -189,14 +206,23 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
         !_supportsAccentMorph && BaseBottomModal.isEventSheetType(entryType);
 
     if (isEventSheet) {
+      final entry = _liveEntry;
+      final startsExpanded = _eventSheetStartsExpanded(entry);
+
       return AppSmoothEventModalSheet(
         color: sheetSurface,
+        startExpanded: startsExpanded,
         builder: (context, scrollController, isFullyExpanded) {
-          return _buildEventSheetContent(
-            morph: t,
-            sheetSurface: sheetSurface,
-            scrollController: scrollController,
-            isFullyExpandedListenable: isFullyExpanded,
+          return _EventSheetAnchorScrollGate(
+            isFullyExpanded: isFullyExpanded,
+            scrollCoordinator: _scheduleScrollCoordinator,
+            requiresExpandedViewport: startsExpanded,
+            child: _buildEventSheetContent(
+              morph: t,
+              sheetSurface: sheetSurface,
+              scrollController: scrollController,
+              isFullyExpandedListenable: isFullyExpanded,
+            ),
           );
         },
       );
@@ -275,20 +301,23 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
                 }
                 return false;
               },
-              child: CustomScrollView(
-                controller: scrollController,
-                physics: eventModalContentScrollPhysics(context),
-                cacheExtent: 480,
-                slivers: [
-                  EventBottomModalSchedulePane(
-                    eventId: entry.id,
-                    entry: entry,
-                    sliverLayout: true,
-                    sheetScrollController: scrollController,
-                    scrollCoordinator: _scheduleScrollCoordinator,
-                    sheetSurfaceColor: sheetSurface,
-                  ),
-                ],
+              child: ScrollConfiguration(
+                behavior: const EventModalScrollBehavior(),
+                child: CustomScrollView(
+                  controller: scrollController,
+                  physics: eventBottomModalScrollPhysics(context),
+                  cacheExtent: 480,
+                  slivers: [
+                    EventBottomModalSchedulePane(
+                      eventId: entry.id,
+                      entry: entry,
+                      sliverLayout: true,
+                      sheetScrollController: scrollController,
+                      scrollCoordinator: _scheduleScrollCoordinator,
+                      sheetSurfaceColor: sheetSurface,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -444,4 +473,67 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
       CalendarEntryType.choir => ChorBottomModal(entry: entry),
     };
   }
+}
+
+/// Meldet dem [EventScheduleScrollCoordinator], wenn das Sheet voll expandiert ist.
+class _EventSheetAnchorScrollGate extends StatefulWidget {
+  const _EventSheetAnchorScrollGate({
+    required this.isFullyExpanded,
+    required this.scrollCoordinator,
+    required this.requiresExpandedViewport,
+    required this.child,
+  });
+
+  final ValueListenable<bool> isFullyExpanded;
+  final EventScheduleScrollCoordinator scrollCoordinator;
+  final bool requiresExpandedViewport;
+  final Widget child;
+
+  @override
+  State<_EventSheetAnchorScrollGate> createState() =>
+      _EventSheetAnchorScrollGateState();
+}
+
+class _EventSheetAnchorScrollGateState extends State<_EventSheetAnchorScrollGate> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.requiresExpandedViewport) {
+      widget.scrollCoordinator.requireExpandedViewportForAnchorScroll();
+    }
+    widget.isFullyExpanded.addListener(_onFullyExpandedChanged);
+    _onFullyExpandedChanged();
+  }
+
+  @override
+  void didUpdateWidget(covariant _EventSheetAnchorScrollGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isFullyExpanded != widget.isFullyExpanded) {
+      oldWidget.isFullyExpanded.removeListener(_onFullyExpandedChanged);
+      widget.isFullyExpanded.addListener(_onFullyExpandedChanged);
+      _onFullyExpandedChanged();
+    }
+    if (!oldWidget.requiresExpandedViewport && widget.requiresExpandedViewport) {
+      widget.scrollCoordinator.requireExpandedViewportForAnchorScroll();
+      _onFullyExpandedChanged();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.isFullyExpanded.removeListener(_onFullyExpandedChanged);
+    super.dispose();
+  }
+
+  void _onFullyExpandedChanged() {
+    if (!widget.requiresExpandedViewport) return;
+    if (!widget.isFullyExpanded.value) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.scrollCoordinator.markAnchorScrollViewportReady();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

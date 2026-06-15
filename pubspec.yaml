@@ -70,6 +70,7 @@ dependencies:
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0
   crypto: ^3.0.7
+  lottie: ^3.3.3
 
 dev_dependencies:
   flutter_test:
@@ -114,4 +115,5 @@ flutter:
     - assets/icon/app_icon_foreground.png
     - assets/icon/google_g.svg
     - assets/Carusell/
+    - assets/lottie/login_success.json
 

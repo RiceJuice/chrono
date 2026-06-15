@@ -6,7 +6,7 @@ import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../copy/login_flow_role_ui.dart';
-import '../../providers/login_step_scaffold.dart';
+import '../../widgets/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../state/login_flow_draft.dart';
 import 'provider/select_choir_provider.dart';
@@ -70,7 +70,7 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
       submitBusy: _busy,
       contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
-      canProceed: () {
+      validateBeforeProceed: () {
         final bool isVoiceSelected = _voices.contains(_selectedVoice);
 
         if (!isVoiceSelected) {

@@ -901,9 +901,7 @@ class _WeekScheduleMobileBodyState extends ConsumerState<WeekScheduleMobileBody>
                     return gridPane;
                   }
                   return SingleChildScrollView(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.paddingOf(context).bottom,
-                    ),
+                    padding: weekScheduleContentScrollPadding(context),
                     child: gridPane,
                   );
                 },

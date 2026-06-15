@@ -37,7 +37,7 @@ final class LoginFlowRoleUi {
 
   bool get isGuardian => _kind == _LoginFlowRoleKind.guardian;
 
-  /// Titel im [LoginStepScaffold]; fällt sonst auf den Standard aus [LoginFlowStep.title] zurück.
+  /// Titel im [LoginStepScaffold]; sonst Standard aus [LoginFlowStep.title].
   String scaffoldTitle(LoginFlowStep step) {
     switch (_kind) {
       case _LoginFlowRoleKind.guardian:

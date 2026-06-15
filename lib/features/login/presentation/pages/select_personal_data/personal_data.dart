@@ -7,7 +7,7 @@ import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../providers/klassen_provider.dart';
 import '../../copy/login_flow_role_ui.dart';
-import '../../providers/login_step_scaffold.dart';
+import '../../widgets/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
@@ -70,7 +70,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
       submitBusy: _busy,
       contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
-      canProceed: () => loginValidateFormAndScrollToFirstError(
+      validateBeforeProceed: () => loginValidateFormAndScrollToFirstError(
         context,
         formKey: _formKey,
         orderedFieldKeys: [

@@ -9,7 +9,8 @@ import 'package:open_mail/open_mail.dart';
 import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
-import '../../providers/login_step_scaffold.dart';
+import '../../widgets/login_step_layout.dart';
+import '../../widgets/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
@@ -148,11 +149,13 @@ class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage>
       showPrimaryButton: true,
       submitLabel: 'E-Mail-App öffnen',
       nextPath: LoginPaths.role,
-      centerChildInScrollViewport: true,
       contentMaxWidth: CredentialsPage.maxFormWidth,
       primaryButtonMaxWidth: CredentialsPage.maxFormWidth,
-      footerLeadHeight: metrics.footerLead,
-      footerTailHeight: metrics.footerTail,
+      footerSpacing: LoginFooterSpacing(
+        lead: metrics.footerLead,
+        tail: metrics.footerTail,
+      ),
+      bottomBehavior: LoginBottomBehavior.footerInScroll,
       onAsyncProceed: (_) async {
         await _openMailApp();
       },

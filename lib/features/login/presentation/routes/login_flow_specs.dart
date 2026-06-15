@@ -61,6 +61,9 @@ int loginFlowOrderIndex(String path) {
   for (var i = 0; i < loginFlowSpecs.length; i++) {
     if (loginFlowSpecs[i].path == path) return i + 2;
   }
+  if (path == LoginPaths.success) {
+    return loginFlowSpecs.length + 2;
+  }
   return -1;
 }
 
@@ -80,4 +83,5 @@ Set<String> get onboardingLoginPaths => <String>{
       LoginPaths.login,
       LoginPaths.credentials,
       for (final spec in loginFlowSpecs) spec.path,
+      LoginPaths.success,
     };

@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
 
-/// Scrollbar mit dauerhaft sichtbarem Griff + [SingleChildScrollView] für den Login-Flow.
+/// Scrollbar mit sichtbarem Griff für den Login-Flow.
 class LoginScrollSurface extends StatefulWidget {
   const LoginScrollSurface({
     super.key,
     required this.child,
-    this.contentMinHeight,
     this.scrollPadding = EdgeInsets.zero,
   });
 
   final Widget child;
-
-  /// Optional: Mindesthöhe (z. B. Viewport), damit [MainAxisAlignment.spaceBetween] wirkt.
-  final double? contentMinHeight;
-
-  /// Zusätzliches Padding innerhalb der Scroll-View (ohne Tastatur-Inset).
   final EdgeInsets scrollPadding;
 
   static ScrollbarThemeData _scrollbarTheme(BuildContext context) {
@@ -52,20 +46,6 @@ class _LoginScrollSurfaceState extends State<LoginScrollSurface> {
 
   @override
   Widget build(BuildContext context) {
-    // Kein zusätzliches viewInsets.bottom: [Scaffold] mit resizeToAvoidBottomInset
-    // (Standard true) verkleinert den Body bereits — doppeltes Padding erzeugt Sprünge
-    // beim Scrollen mit offener Tastatur.
-    final EdgeInsets padding = widget.scrollPadding;
-
-    Widget body = widget.child;
-    final double? minH = widget.contentMinHeight;
-    if (minH != null) {
-      body = ConstrainedBox(
-        constraints: BoxConstraints(minHeight: minH),
-        child: body,
-      );
-    }
-
     return Theme(
       data: Theme.of(
         context,
@@ -76,10 +56,10 @@ class _LoginScrollSurfaceState extends State<LoginScrollSurface> {
         interactive: true,
         child: SingleChildScrollView(
           controller: _scrollController,
-          // onDrag schließt die Tastatur bei jeder Scroll-Geste und wirkt wie „Rausspringen“.
+          physics: const ClampingScrollPhysics(),
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-          padding: padding,
-          child: body,
+          padding: widget.scrollPadding,
+          child: widget.child,
         ),
       ),
     );

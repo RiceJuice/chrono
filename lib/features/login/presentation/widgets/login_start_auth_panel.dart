@@ -13,7 +13,7 @@ class LoginStartAuthPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return LoginSocialSignInBlock(
       showDivider: false,
-      useSquirclePanel: true,
+      presentation: SocialSignInPresentation.startSheet,
       trailing: [
         LoginAuthOptionButton(
           label: 'Mit E-Mail fortfahren',

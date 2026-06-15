@@ -1,156 +1,345 @@
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
+
 import 'package:chronoapp/core/widgets/event_modal_sheet_physics.dart';
+
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
+
 import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
+
 import 'package:smooth_sheets/smooth_sheets.dart';
 
+
+
 /// Modal-Einstieg für Event-/Break-Detail-Sheets via [smooth_sheets].
+
 abstract final class AppSmoothModalSheet {
+
   AppSmoothModalSheet._();
 
+
+
   static Future<T?> show<T>({
+
     required BuildContext context,
+
     required Widget Function(BuildContext context) builder,
+
     Color? barrierColor,
+
   }) {
+
     AppModalSheetTracker.retainMainNavigationHidden();
+
     final resolvedBarrier = barrierColor ?? Colors.black54;
+
     final dismissSensitivity = appEventModalSwipeDismissSensitivity();
 
+
+
     final Future<T?> route;
+
     final platform = Theme.of(context).platform;
+
     if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
+
       route = showCupertinoModalSheet<T>(
+
         context: context,
+
         useRootNavigator: true,
+
         swipeDismissible: true,
+
         barrierColor: resolvedBarrier,
+
         transitionDuration: kAppModalSheetMotion.duration,
+
         transitionCurve: kAppModalSheetMotion.curve,
+
         swipeDismissSensitivity: dismissSensitivity,
+
         builder: (ctx) => AppModalSheetMediaScope(child: builder(ctx)),
+
       );
+
     } else {
+
       route = showModalSheet<T>(
+
         context: context,
+
         useRootNavigator: true,
+
         swipeDismissible: true,
+
         barrierColor: resolvedBarrier,
+
         transitionDuration: kAppModalSheetMotion.duration,
+
         transitionCurve: kAppModalSheetMotion.curve,
+
         swipeDismissSensitivity: dismissSensitivity,
+
         viewportPadding: EdgeInsets.only(top: appSheetTopOffset(context)),
+
         builder: (ctx) => AppModalSheetMediaScope(child: builder(ctx)),
+
       );
+
     }
 
+
+
     return route.whenComplete(AppModalSheetTracker.releaseMainNavigationHidden);
+
   }
+
 }
+
+
 
 /// Event-Detail-Bottom-Sheet: ein koordinierter Scroll via [smooth_sheets].
+
 class AppSmoothEventModalSheet extends StatefulWidget {
+
   const AppSmoothEventModalSheet({
+
     super.key,
+
     required this.builder,
+
     this.color,
+
     this.initialSize = kAppEventModalInitialSize,
+
+    this.startExpanded = false,
+
   });
 
+
+
   /// `(scrollController, isFullyExpanded)` — Inhalt als scrollbare Slivers.
+
   final Widget Function(
+
     BuildContext context,
+
     ScrollController scrollController,
+
     ValueListenable<bool> isFullyExpanded,
+
   ) builder;
 
+
+
   final Color? color;
+
   final double initialSize;
 
+
+
+  /// Startet direkt im voll expandierten Snap — identisch zum Hochziehen.
+
+  final bool startExpanded;
+
+
+
   @override
+
   State<AppSmoothEventModalSheet> createState() =>
+
       _AppSmoothEventModalSheetState();
+
 }
+
+
 
 class _AppSmoothEventModalSheetState extends State<AppSmoothEventModalSheet> {
+
   static const SheetOffset _fullSnap = SheetOffset(1);
 
+
+
   late final SheetController _sheetController;
+
   late final SheetScrollController _contentScrollController;
+
   late final ValueNotifier<bool> _isFullyExpanded;
 
-  SheetOffset get _initialSnap =>
+
+
+  SheetOffset get _compactSnap =>
+
       SheetOffset.proportionalToViewport(widget.initialSize);
 
-  @override
-  void initState() {
-    super.initState();
-    _sheetController = SheetController();
-    _contentScrollController = SheetScrollController();
-    _isFullyExpanded = ValueNotifier(false);
-    _sheetController.addListener(_syncFullyExpanded, fireImmediately: true);
-  }
+
+
+  SheetOffset get _initialSnap => widget.startExpanded ? _fullSnap : _compactSnap;
+
+
 
   @override
-  void dispose() {
-    _sheetController.removeListener(_syncFullyExpanded);
-    _isFullyExpanded.dispose();
-    _contentScrollController.dispose();
-    _sheetController.dispose();
-    super.dispose();
+
+  void initState() {
+
+    super.initState();
+
+    _sheetController = SheetController();
+
+    _contentScrollController = SheetScrollController();
+
+    _isFullyExpanded = ValueNotifier(widget.startExpanded);
+
+    _sheetController.addListener(_syncFullyExpanded, fireImmediately: true);
+
   }
+
+
+
+  @override
+
+  void didUpdateWidget(covariant AppSmoothEventModalSheet oldWidget) {
+
+    super.didUpdateWidget(oldWidget);
+
+    if (!oldWidget.startExpanded && widget.startExpanded) {
+
+      _sheetController.animateTo(_fullSnap);
+
+    }
+
+  }
+
+
+
+  @override
+
+  void dispose() {
+
+    _sheetController.removeListener(_syncFullyExpanded);
+
+    _isFullyExpanded.dispose();
+
+    _contentScrollController.dispose();
+
+    _sheetController.dispose();
+
+    super.dispose();
+
+  }
+
+
 
   void _syncFullyExpanded() {
+
     final metrics = _sheetController.metrics;
+
     if (metrics == null) return;
 
+
+
     final next = metrics.offset >= metrics.maxOffset - 1;
+
     if (_isFullyExpanded.value == next) return;
+
     _isFullyExpanded.value = next;
+
   }
+
+
 
   @override
+
   Widget build(BuildContext context) {
+
     final scheme = Theme.of(context).colorScheme;
+
     final bg = widget.color ?? scheme.surfaceContainer;
 
+
+
     return Sheet(
+
       controller: _sheetController,
+
       initialOffset: _initialSnap,
-      snapGrid: SheetSnapGrid(snaps: [_initialSnap, _fullSnap]),
+
+      snapGrid: SheetSnapGrid(snaps: [_compactSnap, _fullSnap]),
+
       physics: const EventModalSheetPhysics(),
+
       scrollConfiguration: const SheetScrollConfiguration(
+
         scrollSyncMode: SheetScrollHandlingBehavior.onlyFromTop,
+
+        // Sheet-Physik (Clamping) fängt Overscroll oben ab; unten an die Liste.
+
+        delegateUnhandledOverscrollToChild: true,
+
       ),
+
       decoration: MaterialSheetDecoration(
+
         size: SheetSize.fit,
+
         color: Colors.transparent,
+
         clipBehavior: Clip.none,
+
       ),
+
       child: AppModalSheetChrome(
+
         color: bg,
+
         clipTopCorners: true,
+
         child: Stack(
+
           clipBehavior: Clip.none,
+
           children: [
+
             SheetScrollable(
+
               controller: _contentScrollController,
+
               child: widget.builder(
+
                 context,
+
                 _contentScrollController,
+
                 _isFullyExpanded,
+
               ),
+
             ),
+
             const Positioned(
+
               top: 0,
+
               left: 0,
+
               right: 0,
+
               child: BottomModalHandle(),
+
             ),
+
           ],
+
         ),
+
       ),
+
     );
+
   }
+
 }
+
+

@@ -7,6 +7,7 @@ import '../../data/auth_repository.dart';
 import '../../data/social_auth_service.dart';
 import '../providers/auth_repository_provider.dart';
 import '../providers/profile_gate_provider.dart';
+import '../routes/login_paths.dart';
 import 'social_sign_in_section.dart';
 
 /// Social-Login mit Auth-Logik für Start- und Credentials-Screen.
@@ -16,14 +17,14 @@ class LoginSocialSignInBlock extends ConsumerStatefulWidget {
     this.disabled = false,
     this.onBusyChanged,
     this.showDivider = true,
-    this.useSquirclePanel = false,
+    this.presentation = SocialSignInPresentation.inline,
     this.trailing,
   });
 
   final bool disabled;
   final ValueChanged<bool>? onBusyChanged;
   final bool showDivider;
-  final bool useSquirclePanel;
+  final SocialSignInPresentation presentation;
   final List<Widget>? trailing;
 
   @override
@@ -42,7 +43,8 @@ class _LoginSocialSignInBlockState extends ConsumerState<LoginSocialSignInBlock>
   Future<void> _completeSocialSignIn() async {
     await ref.read(profileGateProvider).refresh();
     if (!mounted) return;
-    final target = ref.read(profileGateProvider).requiredPath ?? '/calendar';
+    final target =
+        ref.read(profileGateProvider).requiredPath ?? LoginPaths.success;
     context.go(target);
   }
 
@@ -73,13 +75,28 @@ class _LoginSocialSignInBlockState extends ConsumerState<LoginSocialSignInBlock>
 
   @override
   Widget build(BuildContext context) {
-    if (!SocialSignInSection.isSupported) return const SizedBox.shrink();
+    if (!SocialSignInSection.isSupported) {
+      final trailing = widget.trailing;
+      if (widget.presentation == SocialSignInPresentation.startSheet &&
+          trailing != null &&
+          trailing.isNotEmpty) {
+        return SocialSignInSection(
+          showDivider: widget.showDivider,
+          presentation: widget.presentation,
+          trailing: trailing,
+          busyProvider: null,
+          onGooglePressed: null,
+          onApplePressed: null,
+        );
+      }
+      return const SizedBox.shrink();
+    }
 
     final disabled = widget.disabled || _busy != null;
 
     return SocialSignInSection(
       showDivider: widget.showDivider,
-      useSquirclePanel: widget.useSquirclePanel,
+      presentation: widget.presentation,
       trailing: widget.trailing,
       busyProvider: _busy,
       onGooglePressed: disabled

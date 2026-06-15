@@ -118,6 +118,7 @@ class AppRouter {
 
       if (requiredPath == null) {
         if (isLoadingRoute) return '/calendar';
+        if (loc == LoginPaths.success) return null;
         if (loc.startsWith(LoginPaths.login)) return '/calendar';
         return null;
       }

@@ -3,6 +3,8 @@ import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../utils/login_auth_icons.dart';
+import '../utils/login_layout_utils.dart';
 import 'google_logo_icon.dart';
 import 'login_auth_squircle_panel.dart';
 import 'login_input_decoration.dart';
@@ -10,6 +12,9 @@ import 'login_input_decoration.dart';
 enum SocialSignInProvider { google, apple }
 
 enum LoginAuthOptionButtonVariant { apple, google, neutral, primary }
+
+/// Startscreen: volle Buttons in Squircle-Box. Credentials: volle Breite inline.
+enum SocialSignInPresentation { startSheet, inline }
 
 (Color background, Color foreground, Color border) loginAppleButtonColors(
   ColorScheme scheme,
@@ -20,7 +25,7 @@ enum LoginAuthOptionButtonVariant { apple, google, neutral, primary }
   return (background, foreground, background);
 }
 
-/// Google- und Apple-Buttons; optional in Squircle-Box (Startscreen).
+/// Google- und Apple-Buttons; Darstellung je nach [presentation].
 class SocialSignInSection extends StatelessWidget {
   const SocialSignInSection({
     super.key,
@@ -28,20 +33,19 @@ class SocialSignInSection extends StatelessWidget {
     required this.onGooglePressed,
     required this.onApplePressed,
     this.showDivider = true,
-    this.useSquirclePanel = false,
+    this.presentation = SocialSignInPresentation.inline,
     this.appleLabel = 'Mit Apple fortfahren',
     this.googleLabel = 'Mit Google fortfahren',
     this.trailing,
   });
 
-  /// Höhe des Primary-Buttons (z. B. „Mit E-Mail fortfahren“).
   static const double buttonHeight = 60;
 
   final SocialSignInProvider? busyProvider;
   final VoidCallback? onGooglePressed;
   final VoidCallback? onApplePressed;
   final bool showDivider;
-  final bool useSquirclePanel;
+  final SocialSignInPresentation presentation;
   final String appleLabel;
   final String googleLabel;
   final List<Widget>? trailing;
@@ -52,15 +56,27 @@ class SocialSignInSection extends StatelessWidget {
         defaultTargetPlatform == TargetPlatform.android;
   }
 
-  /// Nativer Apple-Login nur auf iOS; auf Android ausgeblendet.
   static bool get isAppleSignInSupported {
     if (kIsWeb) return false;
     return defaultTargetPlatform == TargetPlatform.iOS;
   }
 
+  bool get _useSquirclePanel => presentation == SocialSignInPresentation.startSheet;
+
   @override
   Widget build(BuildContext context) {
-    if (!isSupported) return const SizedBox.shrink();
+    if (!isSupported) {
+      final trailingWidgets = trailing;
+      if (presentation == SocialSignInPresentation.startSheet &&
+          trailingWidgets != null &&
+          trailingWidgets.isNotEmpty) {
+        return LoginAuthSquirclePanel(
+          socialButtons: const [],
+          trailing: trailingWidgets,
+        );
+      }
+      return const SizedBox.shrink();
+    }
 
     final scheme = Theme.of(context).colorScheme;
     final appleForeground = loginAppleButtonColors(scheme).$2;
@@ -71,9 +87,9 @@ class SocialSignInSection extends StatelessWidget {
           label: appleLabel,
           variant: LoginAuthOptionButtonVariant.apple,
           compact: true,
-          startScreenStyle: useSquirclePanel,
+          startScreenStyle: _useSquirclePanel,
           leading: Icon(
-            Icons.apple,
+            LoginAuthIcons.apple,
             size: 22,
             color: appleForeground,
           ),
@@ -84,14 +100,14 @@ class SocialSignInSection extends StatelessWidget {
         label: googleLabel,
         variant: LoginAuthOptionButtonVariant.google,
         compact: true,
-        startScreenStyle: useSquirclePanel,
-        leading: const GoogleLogoIcon(),
+        startScreenStyle: _useSquirclePanel,
+        leading: const GoogleLogoIcon(size: 20),
         isLoading: busyProvider == SocialSignInProvider.google,
         onPressed: isGoogleSignInConfigured ? onGooglePressed : null,
       ),
     ];
 
-    final panel = useSquirclePanel
+    final panel = _useSquirclePanel
         ? LoginAuthSquirclePanel(
             socialButtons: socialButtons,
             trailing: trailing ?? const [],
@@ -99,7 +115,7 @@ class SocialSignInSection extends StatelessWidget {
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ..._spaced(socialButtons, AppSpacing.m),
+              ...spacedWidgets(socialButtons, AppSpacing.m),
               if (trailing != null) ...[
                 const SizedBox(height: AppSpacing.xl + AppSpacing.xs),
                 ...trailing!,
@@ -109,43 +125,46 @@ class SocialSignInSection extends StatelessWidget {
 
     if (!showDivider) return panel;
 
-    final dividerColor = scheme.onSurfaceVariant.withValues(
-      alpha: AppOpacity.subtle,
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(child: Divider(color: dividerColor)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
-              child: Text(
-                'oder',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-              ),
-            ),
-            Expanded(child: Divider(color: dividerColor)),
-          ],
-        ),
+        _OrDivider(showLabel: true),
         const SizedBox(height: AppSpacing.l),
         panel,
       ],
     );
   }
+}
 
-  List<Widget> _spaced(List<Widget> items, double gap) {
-    if (items.isEmpty) return items;
-    final spaced = <Widget>[items.first];
-    for (var i = 1; i < items.length; i++) {
-      spaced
-        ..add(SizedBox(height: gap))
-        ..add(items[i]);
-    }
-    return spaced;
+class _OrDivider extends StatelessWidget {
+  const _OrDivider({required this.showLabel});
+
+  final bool showLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dividerColor = scheme.onSurfaceVariant.withValues(
+      alpha: AppOpacity.subtle * 2.5,
+    );
+
+    return Row(
+      children: [
+        Expanded(child: Divider(color: dividerColor, height: 1)),
+        if (showLabel)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+            child: Text(
+              'oder',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.65),
+                    fontSize: 12,
+                  ),
+            ),
+          ),
+        Expanded(child: Divider(color: dividerColor, height: 1)),
+      ],
+    );
   }
 }
 
@@ -196,7 +215,7 @@ class LoginAuthOptionButton extends StatelessWidget {
       LoginAuthOptionButtonVariant.google => (
           scheme.surfaceContainer,
           scheme.onSurface,
-          scheme.surfaceContainerHighest,
+          scheme.surfaceContainerHighest.withValues(alpha: 0.6),
         ),
       _ when startScreenStyle => (
           scheme.surfaceContainerHighest,
@@ -206,7 +225,7 @@ class LoginAuthOptionButton extends StatelessWidget {
       _ => (
           scheme.surfaceContainer,
           scheme.onSurface,
-          scheme.surfaceContainerHighest,
+          scheme.surfaceContainerHighest.withValues(alpha: 0.6),
         ),
     };
 

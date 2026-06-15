@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 import '../pages/credentials/credentials_page.dart';
 import '../pages/credentials/widgets/account_auth_mode.dart';
 import '../pages/email_confirmation/email_confirmation_page.dart';
+import '../pages/login_success/login_success_page.dart';
 import '../pages/select_choir/select_choir.dart';
 import '../pages/select_personal_data/personal_data.dart';
 import '../pages/start_screen/start_screen_page.dart';
 import '../pages/select_role/select_role.dart';
 import '../widgets/login_onboarding_shell.dart';
+import 'login_entry_transition.dart';
 import 'login_flow_specs.dart';
 import 'login_morph_page_transition.dart';
 import 'login_paths.dart';
@@ -22,14 +24,18 @@ abstract final class LoginRouteTransitionTracker {
   static String? _lastLocation;
   static bool _transitionForward = true;
   static bool _enterWithoutTransition = false;
+  static bool _useEntryTransition = false;
 
   static void reset() {
     _lastLocation = null;
     _transitionForward = true;
     _enterWithoutTransition = false;
+    _useEntryTransition = false;
   }
 
   static bool get transitionForward => _transitionForward;
+
+  static bool get useEntryTransition => _useEntryTransition;
 
   /// Einmalig nach App-Start oder Wechsel von außerhalb des Login-Flows.
   static bool consumeEnterWithoutTransition() {
@@ -59,8 +65,13 @@ abstract final class LoginRouteTransitionTracker {
       } else {
         _transitionForward = true;
       }
+      _useEntryTransition =
+          (previous == LoginPaths.login &&
+              location == LoginPaths.credentials) ||
+          (previous == LoginPaths.credentials && location == LoginPaths.login);
     } else {
       _transitionForward = true;
+      _useEntryTransition = false;
     }
     _lastLocation = location;
   }
@@ -74,21 +85,31 @@ Page<void> loginSlidePage({
     return NoTransitionPage<void>(key: state.pageKey, child: child);
   }
 
+  final bool useEntry = LoginRouteTransitionTracker.useEntryTransition;
+  final duration = useEntry ? kLoginEntryDuration : kLoginMorphDuration;
+
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    opaque: false,
-    transitionDuration: kLoginMorphDuration,
-    reverseTransitionDuration: kLoginMorphDuration,
+    opaque: true,
+    transitionDuration: duration,
+    reverseTransitionDuration: duration,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      // Richtung zur Laufzeit lesen: die ausgehende Route wurde oft bei einem
-      // frueheren Navigations-Schritt gebaut und haette sonst eine veraltete
-      // forward-Richtung (Morph kommt von der falschen Seite).
+      final forward = LoginRouteTransitionTracker.transitionForward;
+      if (useEntry) {
+        return buildLoginEntryTransition(
+          context: context,
+          animation: animation,
+          secondaryAnimation: secondaryAnimation,
+          forward: forward,
+          child: child,
+        );
+      }
       return buildLoginMorphPageTransition(
         context: context,
         animation: animation,
         secondaryAnimation: secondaryAnimation,
-        forward: LoginRouteTransitionTracker.transitionForward,
+        forward: forward,
         child: child,
       );
     },
@@ -150,6 +171,13 @@ final List<RouteBase> loginRoutes = [
         pageBuilder: (context, state) => loginSlidePage(
               state: state,
               child: const EmailConfirmationPage(),
+            ),
+      ),
+      GoRoute(
+        path: LoginPaths.success,
+        pageBuilder: (context, state) => loginSlidePage(
+              state: state,
+              child: const LoginSuccessPage(),
             ),
       ),
     ],

@@ -81,9 +81,86 @@ class _EventModalScrollNearTopSnapState extends State<EventModalScrollNearTopSna
   }
 }
 
-/// Scroll-Physik für den Event-Sheet-Inhalt — kein iOS-Bounce am oberen Rand.
+/// Scroll-Physik für den Event-Sheet-Inhalt.
+///
+/// Oben geklammert (Sheet-Übergabe via [SheetScrollHandlingBehavior.onlyFromTop]),
+/// unten mit Plattform-Overscroll: iOS-Bounce bzw. Android-Stretch.
 ScrollPhysics eventModalContentScrollPhysics(BuildContext context) {
-  return const ClampingScrollPhysics(
-    parent: AlwaysScrollableScrollPhysics(),
-  );
+  const always = AlwaysScrollableScrollPhysics();
+  final platform = Theme.of(context).platform;
+
+  if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
+    return const _EventModalTopClampingScrollPhysics(
+      parent: BouncingScrollPhysics(parent: always),
+    );
+  }
+
+  return const _EventModalTopClampingScrollPhysics(parent: always);
+}
+
+/// Material-Scroll-Verhalten für Event-Sheets — Android-Stretch am Listenende.
+class EventModalScrollBehavior extends MaterialScrollBehavior {
+  const EventModalScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    final platform = getPlatform(context);
+    if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
+      return child;
+    }
+    return StretchingOverscrollIndicator(
+      axisDirection: details.direction,
+      child: child,
+    );
+  }
+}
+
+/// Verhindert Overscroll am oberen Listenrand, lässt ihn am unteren Ende zu.
+class _EventModalTopClampingScrollPhysics extends ScrollPhysics {
+  const _EventModalTopClampingScrollPhysics({super.parent});
+
+  @override
+  _EventModalTopClampingScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _EventModalTopClampingScrollPhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  double applyBoundaryConditions(ScrollMetrics position, double value) {
+    if (value < position.pixels &&
+        position.pixels <= position.minScrollExtent) {
+      return value - position.pixels;
+    }
+    return super.applyBoundaryConditions(position, value);
+  }
+
+  @override
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
+    final tolerance = toleranceFor(position);
+    if (position.pixels > position.maxScrollExtent) {
+      return ScrollSpringSimulation(
+        spring,
+        position.pixels,
+        position.maxScrollExtent,
+        velocity,
+        tolerance: tolerance,
+      );
+    }
+    if (position.pixels < position.minScrollExtent) {
+      return ScrollSpringSimulation(
+        spring,
+        position.pixels,
+        position.minScrollExtent,
+        velocity,
+        tolerance: tolerance,
+      );
+    }
+    return super.createBallisticSimulation(position, velocity);
+  }
 }

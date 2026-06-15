@@ -173,7 +173,7 @@ class WeekEntriesLayer extends StatelessWidget {
         final regularEntries = entries
             .where((entry) => entry.type != CalendarEntryType.breakType)
             .toList(growable: false);
-        final compactMobile = weekScheduleUsesMobileSeamlessScroll(context);
+        final compactMobile = weekScheduleUsesCompactEntryGaps(context);
         final placements = buildWeekEntryPlacements(
           entries: regularEntries,
           day: day,
@@ -525,7 +525,7 @@ class _WeekEntryCardFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compactMobile = weekScheduleUsesMobileSeamlessScroll(context);
+    final compactMobile = weekScheduleUsesCompactEntryGaps(context);
     final horizontalGap = compactMobile
         ? kWeekScheduleEntryHorizontalGapPhone
         : kWeekScheduleEntryHorizontalGapDefault;

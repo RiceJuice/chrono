@@ -112,7 +112,10 @@ class _BottomModalScheduleSectionState
 
   void _tryScheduleInitialAnchorJump() {
     if (!mounted || !widget.scrollable || widget.schedules.isEmpty) return;
-    final anchorIndex = _anchorScheduleIndex(_filterVisibleSchedules);
+    final anchorIndex = CalendarNowAnchor.scheduleAnchorIndex(
+      widget.schedules,
+      isVisible: (schedule) => _isVisible(schedule, _filter),
+    );
     _scheduleInitialScrollToNowAnchor(anchorIndex);
   }
 
@@ -140,13 +143,11 @@ class _BottomModalScheduleSectionState
       .toList(growable: false);
 
   int? _anchorScheduleIndex(List<EventSchedule> visibleSchedules) {
-    for (var i = 0; i < widget.schedules.length; i++) {
-      final schedule = widget.schedules[i];
-      if (!visibleSchedules.any((item) => item.id == schedule.id)) continue;
-      if (!CalendarNowAnchor.scheduleApplyPastStyling(schedule)) continue;
-      if (!CalendarNowAnchor.scheduleIsPast(schedule)) return i;
-    }
-    return null;
+    return CalendarNowAnchor.scheduleAnchorIndex(
+      widget.schedules,
+      isVisible: (schedule) =>
+          visibleSchedules.any((item) => item.id == schedule.id),
+    );
   }
 
   bool _jumpToNowAnchor() {
@@ -170,10 +171,21 @@ class _BottomModalScheduleSectionState
       return;
     }
     _didInitialScroll = true;
-    CalendarNowAnchor.scheduleInitialJump(
-      jump: _jumpToNowAnchor,
-      shouldContinue: _shouldContinueAnchorJump,
-    );
+
+    void runJump() {
+      if (!mounted || _userAdjustedScheduleScroll) return;
+      CalendarNowAnchor.scheduleInitialJump(
+        jump: _jumpToNowAnchor,
+        shouldContinue: _shouldContinueAnchorJump,
+      );
+    }
+
+    final coordinator = widget.scrollCoordinator;
+    if (coordinator != null) {
+      coordinator.runWhenAnchorScrollViewportReady(runJump);
+    } else {
+      runJump();
+    }
   }
 
   void _setFilter(EventScheduleListFilter next) {

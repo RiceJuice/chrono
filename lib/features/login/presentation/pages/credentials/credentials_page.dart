@@ -6,14 +6,14 @@ import 'package:go_router/go_router.dart';
 import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
-import '../../providers/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 import '../../utils/draft_text_controller.dart';
 import '../../utils/login_form_validation.dart';
-import '../../widgets/login_step_layout.dart';
 import '../../widgets/login_social_sign_in_block.dart';
+import '../../widgets/login_step_layout.dart';
+import '../../widgets/login_step_scaffold.dart';
 import 'widgets/account_auth_mode.dart';
 import 'widgets/account_auth_mode_selector.dart';
 import 'widgets/credential_form_fields.dart';
@@ -21,7 +21,6 @@ import 'widgets/credential_form_fields.dart';
 class CredentialsPage extends ConsumerStatefulWidget {
   const CredentialsPage({super.key, this.initialMode = AccountAuthMode.signUp});
 
-  /// Gemeinsame Maximalbreite für Formularfelder und Primärbutton (Tablet/Desktop).
   static const double maxFormWidth = LoginStepScaffold.defaultContentMaxWidth;
 
   final AccountAuthMode initialMode;
@@ -146,23 +145,16 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
       submitLabel: isSignIn ? 'Anmelden' : 'Registrieren',
       submitBusy: _busy || _socialBusy,
       nextPath: LoginPaths.role,
-      // Kein Viewport-Centering: LoginScrollSurface (SingleChildScrollView +
-      // Scrollbar) darf den Inhalt natürlich wachsen lassen, wodurch Scrolling
-      // und Scrollbar-Thumb korrekt funktionieren.
-      centerChildInScrollViewport: false,
       contentMaxWidth: CredentialsPage.maxFormWidth,
       primaryButtonMaxWidth: CredentialsPage.maxFormWidth,
       footerLeadHeight: footerLead,
       footerTailHeight: footerTail,
-      // Footer sitzt außerhalb des Scrollbereichs direkt über dem PrimaryButton:
-      // Er scrollt nicht mit dem Formular mit. Beim Einblenden der Tastatur
-      // bleibt der Footer fixiert, nur der Button wandert nach oben.
       bottomBehavior: LoginBottomBehavior.footerFixed,
       footer: AccountAuthModeSelector(
         selectedMode: _mode,
         onChanged: (mode) => setState(() => _mode = mode),
       ),
-      canProceed: _validateAndScrollToFirstError,
+      validateBeforeProceed: _validateAndScrollToFirstError,
       onAsyncProceed: (goNext) async {
         if (_mode == AccountAuthMode.signIn) {
           final success = await _runSignIn();
@@ -171,7 +163,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
           await ref.read(profileGateProvider).refresh();
           if (!context.mounted) return;
           final target =
-              ref.read(profileGateProvider).requiredPath ?? '/calendar';
+              ref.read(profileGateProvider).requiredPath ?? LoginPaths.success;
           context.go(target);
           return;
         }

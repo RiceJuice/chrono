@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/auth_repository.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
-import '../../providers/login_step_scaffold.dart';
+import '../../widgets/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
@@ -37,7 +37,7 @@ class _SelectRolePageState extends ConsumerState<SelectRolePage> {
       submitBusy: _busy,
       contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
-      canProceed: () {
+      validateBeforeProceed: () {
         if (_selectedRole.trim().isEmpty) {
           showAppToast(
             context,
