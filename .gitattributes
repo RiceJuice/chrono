@@ -1,1 +1,1 @@
-ios/ci_scripts/ci_post_clone.sh text eol=lf
+ios/ci_scripts/*.sh text eol=lf

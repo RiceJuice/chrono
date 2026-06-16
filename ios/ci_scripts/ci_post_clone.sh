@@ -1,48 +1,22 @@
 #!/bin/sh
 
-# 1. Fehlerbehandlung: Stop bei jedem Fehler
+# Xcode Cloud: Flutter-SDK und Dart-Abhängigkeiten nach dem Clone.
+# Pod install und Tests laufen in ci_pre_xcodebuild.sh (eigenes Timeout-Budget).
+
 set -e
 
-# 2. Homebrew-Interaktionen unterdrücken
-export HOMEBREW_NO_AUTO_UPDATE=1
-export HOMEBREW_NO_INSTALL_CLEANUP=1
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "$SCRIPT_DIR/flutter_env.sh"
 
-# 3. Ins Root-Verzeichnis wechseln
-cd ../..
+setup_flutter
 
-# 4. Flutter Installation (Feste Version für Stabilität)
-# TIPP: Schau lokal mit 'flutter --version' nach und trage sie hier ein.
-FLUTTER_VERSION="3.41.5" 
-
-if [ ! -d "flutter" ]; then
-  echo "--- Cloning Flutter $FLUTTER_VERSION ---"
-  git clone https://github.com/flutter/flutter.git -b $FLUTTER_VERSION --depth 1 flutter
-fi
-
-# 5. Pfad setzen
-export PATH="$PWD/flutter/bin:$PATH"
-
-# 6. Abhängigkeiten laden
 echo "--- Fetching dependencies ---"
 flutter precache --ios
 flutter pub get
 
-# 7. UNIT TESTS HINZUFÜGEN
-# Wenn die Tests fehlschlagen, bricht der Build hier ab (wegen set -e)
-echo "--- Running Unit Tests ---"
-flutter test
+echo "--- Generating iOS configuration ---"
+flutter build ios --config-only --no-codesign
 
-# 8. iOS / CocoaPods
-echo "--- Preparing iOS build ---"
-cd ios
+ensure_cocoapods
 
-# Nur pod install: Nutzt vorhandenes Pods/ + Podfile.lock wenn Xcode Cloud sie cached.
-# Kein rm -rf Pods — vermeidet unnötige Neu-Downloads (z. B. sqlite.org) pro Build.
-pod install
-
-cd ..
-
-# Push: RunnerDebug/RunnerRelease.entitlements + CODE_SIGN_ENTITLEMENTS in project.pbxproj
-# (siehe backend/PUSH_NOTIFICATIONS.md). Apple Developer: Push an App-ID aktivieren.
-
-echo "--- Setup & Tests successful. Starting Xcode Cloud build ---"
+echo "--- ci_post_clone complete ---"
