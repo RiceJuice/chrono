@@ -11,6 +11,15 @@ const AnimationStyle kAppModalSheetMotion = AnimationStyle(
   reverseCurve: Cubic(0.33, 0.0, 0.67, 1.0),
 );
 
+/// Einstellungen: ruhigeres Einblenden für Auswahl-Sheets — langsamer als
+/// [kAppModalSheetMotion], aber ohne träge zu wirken.
+const AnimationStyle kSettingsChoiceSheetMotion = AnimationStyle(
+  duration: Duration(milliseconds: 420),
+  reverseDuration: Duration(milliseconds: 260),
+  curve: Cubic(0.22, 1, 0.36, 1),
+  reverseCurve: Cubic(0.4, 0, 1, 1),
+);
+
 /// Zählt offene App-Modals — zuverlässiger als [CNTabBarRouteObserver],
 /// weil Bottom-Sheets nicht immer den Root-Navigator mit Observer treffen.
 final class AppModalSheetTracker {
@@ -55,14 +64,11 @@ class AppModalSheetMediaScope extends StatelessWidget {
   }
 }
 
-/// Min-/Max für kompakte Auswahl-Modals (Einstellungen etc.).
+/// Max-Höhe für kompakte Auswahl-Modals (Einstellungen etc.) — Inhaltshöhe
+/// darunter, mit kleinem Bottom-Padding; darüber wird gescrollt.
 BoxConstraints appModalChoiceSheetConstraints(BuildContext context) {
   final screenHeight = MediaQuery.sizeOf(context).height;
   return BoxConstraints(maxHeight: screenHeight * 0.7);
-}
-
-double appModalChoiceSheetMinHeight(BuildContext context) {
-  return MediaQuery.sizeOf(context).height * 0.5;
 }
 
 /// Feste Min-/Max-Höhe für große Modals (z. B. Kalender-Detail).

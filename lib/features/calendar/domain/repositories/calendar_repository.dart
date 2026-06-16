@@ -8,7 +8,7 @@ import '../../../../core/database/powersync_schema.dart';
 import '../../../../core/time/app_date_time.dart';
 import '../../data/calendar_entry_mapper.dart';
 import '../../event_editor/data/calendar_event_recurrence_id.dart';
-import '../calendar_series_instance_cancellation.dart';
+import '../calendar_series_merge.dart';
 import '../models/calendar_entry.dart';
 
 class CalendarRepository {
@@ -142,8 +142,19 @@ class CalendarRepository {
             )
              OR (
               type != 'break'
-              AND julianday(start_time) >= julianday(?)
-              AND julianday(start_time) < julianday(?)
+              AND (
+                (
+                  julianday(start_time) >= julianday(?)
+                  AND julianday(start_time) < julianday(?)
+                )
+                OR (
+                  series_id IS NOT NULL
+                  AND recurrence_id IS NOT NULL
+                  AND trim(recurrence_id) != ''
+                  AND julianday(recurrence_id) >= julianday(?)
+                  AND julianday(recurrence_id) < julianday(?)
+                )
+              )
             )
 
           UNION ALL
@@ -177,7 +188,7 @@ class CalendarRepository {
           WHERE date(cs.series_start) <= date(?)
             AND (cs.series_end IS NULL OR date(cs.series_end) >= date(?))
           ''',
-          parameters: [hi, lo, lo, hi, hiDate, loDate],
+          parameters: [hi, lo, lo, hi, lo, hi, hiDate, loDate],
           triggerOnTables: const {
             kCalendarEventsTable,
             kCalendarSeriesTable,
@@ -258,7 +269,12 @@ class CalendarRepository {
         })
         .toList(growable: false);
 
-    final merged = _mergeWithOverrides(events, filteredSeries);
+    final merged = mergeCalendarEntriesWithSeriesOverrides(
+      events: events,
+      expandedSeries: filteredSeries,
+      startUtc: startUtc,
+      endExclusiveUtc: endExclusiveUtc,
+    );
     final filtered = query == null
         ? merged
         : merged.where((entry) => _matchesQuery(entry, query)).toList();
@@ -436,41 +452,6 @@ class CalendarRepository {
       day = AppDateTime.addLocalCalendarDays(day, 1);
     }
     return out;
-  }
-
-  List<CalendarEntry> _mergeWithOverrides(
-    List<CalendarEntry> events,
-    List<CalendarEntry> expandedSeries,
-  ) {
-    final overrides = <String>{};
-    final visibleEvents = <CalendarEntry>[];
-
-    for (final event in events) {
-      final key = _seriesOverrideKey(event.seriesId, event.recurrenceId);
-      if (key != null) {
-        overrides.add(key);
-        if (!isCalendarSeriesInstanceCancellation(event)) {
-          visibleEvents.add(event);
-        }
-      } else {
-        visibleEvents.add(event);
-      }
-    }
-
-    final remainingSeries = expandedSeries.where((seriesEntry) {
-      final key = _seriesOverrideKey(
-        seriesEntry.seriesId,
-        seriesEntry.recurrenceId,
-      );
-      return key == null || !overrides.contains(key);
-    });
-
-    return <CalendarEntry>[...visibleEvents, ...remainingSeries];
-  }
-
-  String? _seriesOverrideKey(String? seriesId, DateTime? recurrenceId) {
-    if (seriesId == null || recurrenceId == null) return null;
-    return '$seriesId|${formatCalendarRecurrenceId(recurrenceId)}';
   }
 
   bool _matchesQuery(CalendarEntry entry, String query) {

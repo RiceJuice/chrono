@@ -12,13 +12,22 @@ import 'app_glass_icon_button.dart';
 import 'app_hairline_divider.dart';
 import 'domspatzen_icon_metrics.dart';
 
-class MainNavigationBar extends ConsumerWidget {
+class MainNavigationBar extends ConsumerStatefulWidget {
   const MainNavigationBar({
     required this.searchController,
     super.key,
   });
 
   final CNTabBarSearchController searchController;
+
+  @override
+  ConsumerState<MainNavigationBar> createState() => _MainNavigationBarState();
+}
+
+class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
+  Uint8List? _iosInactiveCalendarIcon;
+  Uint8List? _iosActiveCalendarIcon;
+  Brightness? _iosIconBrightness;
 
   static const _calendarPath = '/calendar';
   static const _homeworkPath = '/homework';
@@ -43,14 +52,50 @@ class MainNavigationBar extends ConsumerWidget {
     };
   }
 
-  void _openSearchMode(WidgetRef ref) {
+  void _openSearchMode() {
     AppHaptics.light();
     ref.read(calendarSearchOpenProvider.notifier).open();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_useNativeIosTabBar()) {
+      _ensureIosCalendarIcons();
+    }
+  }
+
+  Future<void> _ensureIosCalendarIcons() async {
+    final brightness = Theme.of(context).brightness;
+    if (_iosIconBrightness == brightness &&
+        _iosInactiveCalendarIcon != null &&
+        _iosActiveCalendarIcon != null) {
+      return;
+    }
+
+    final inactiveColor = _tabIconColor(context, selected: false);
+    final activeColor = _tabIconColor(context, selected: true);
+    final results = await Future.wait([
+      DomspatzenIconMetrics.renderTabIconPngBytes(
+        color: inactiveColor,
+        glyphSize: _iosTabGlyphSize,
+      ),
+      DomspatzenIconMetrics.renderTabIconPngBytes(
+        color: activeColor,
+        glyphSize: _iosTabGlyphSize,
+      ),
+    ]);
+
+    if (!mounted || Theme.of(context).brightness != brightness) return;
+    setState(() {
+      _iosIconBrightness = brightness;
+      _iosInactiveCalendarIcon = results[0];
+      _iosActiveCalendarIcon = results[1];
+    });
+  }
+
   void _onDestinationSelected({
     required BuildContext context,
-    required WidgetRef ref,
     required String location,
     required int index,
   }) {
@@ -62,7 +107,7 @@ class MainNavigationBar extends ConsumerWidget {
       exitCalendarSearchToCalendarTab(
         ref,
         context,
-        searchController: searchController,
+        searchController: widget.searchController,
       );
       return;
     }
@@ -91,6 +136,11 @@ class MainNavigationBar extends ConsumerWidget {
     );
   }
 
+  Color _tabIconColor(BuildContext context, {required bool selected}) {
+    final scheme = Theme.of(context).colorScheme;
+    return selected ? scheme.primary : scheme.onSurfaceVariant;
+  }
+
   Widget _buildCalendarIcon({
     required BuildContext context,
     required bool selected,
@@ -102,12 +152,10 @@ class MainNavigationBar extends ConsumerWidget {
       height: assetSize,
       width: assetSize,
       fit: BoxFit.contain,
-      colorFilter: selected
-          ? null
-          : ColorFilter.mode(
-              Theme.of(context).colorScheme.onSurfaceVariant,
-              BlendMode.srcIn,
-            ),
+      colorFilter: ColorFilter.mode(
+        _tabIconColor(context, selected: selected),
+        BlendMode.srcIn,
+      ),
     );
   }
 
@@ -116,11 +164,10 @@ class MainNavigationBar extends ConsumerWidget {
     required bool selected,
     required double glyphSize,
   }) {
-    final scheme = Theme.of(context).colorScheme;
     return Icon(
       selected ? Icons.menu_book : Icons.menu_book_outlined,
       size: glyphSize,
-      color: selected ? scheme.primary : scheme.onSurfaceVariant,
+      color: _tabIconColor(context, selected: selected),
     );
   }
 
@@ -129,17 +176,15 @@ class MainNavigationBar extends ConsumerWidget {
     required bool selected,
     required double glyphSize,
   }) {
-    final scheme = Theme.of(context).colorScheme;
     return Icon(
       selected ? Icons.settings : Icons.settings_outlined,
       size: glyphSize,
-      color: selected ? scheme.primary : scheme.onSurfaceVariant,
+      color: _tabIconColor(context, selected: selected),
     );
   }
 
   Widget _buildMaterialNavigationBar({
     required BuildContext context,
-    required WidgetRef ref,
     required String location,
     required int currentIndex,
   }) {
@@ -148,7 +193,14 @@ class MainNavigationBar extends ConsumerWidget {
         icon: _tabIconSlot(
           _buildCalendarIcon(
             context: context,
-            selected: currentIndex == 0,
+            selected: false,
+            glyphSize: _materialTabGlyphSize,
+          ),
+        ),
+        selectedIcon: _tabIconSlot(
+          _buildCalendarIcon(
+            context: context,
+            selected: true,
             glyphSize: _materialTabGlyphSize,
           ),
         ),
@@ -158,7 +210,14 @@ class MainNavigationBar extends ConsumerWidget {
         icon: _tabIconSlot(
           _buildHomeworkIcon(
             context: context,
-            selected: currentIndex == 1,
+            selected: false,
+            glyphSize: _materialTabGlyphSize,
+          ),
+        ),
+        selectedIcon: _tabIconSlot(
+          _buildHomeworkIcon(
+            context: context,
+            selected: true,
             glyphSize: _materialTabGlyphSize,
           ),
         ),
@@ -168,7 +227,14 @@ class MainNavigationBar extends ConsumerWidget {
         icon: _tabIconSlot(
           _buildSettingsIcon(
             context: context,
-            selected: currentIndex == 2,
+            selected: false,
+            glyphSize: _materialTabGlyphSize,
+          ),
+        ),
+        selectedIcon: _tabIconSlot(
+          _buildSettingsIcon(
+            context: context,
+            selected: true,
             glyphSize: _materialTabGlyphSize,
           ),
         ),
@@ -199,7 +265,6 @@ class MainNavigationBar extends ConsumerWidget {
                 onDestinationSelected: (index) {
                   _onDestinationSelected(
                     context: context,
-                    ref: ref,
                     location: location,
                     index: index,
                   );
@@ -212,7 +277,7 @@ class MainNavigationBar extends ConsumerWidget {
               child: AppGlassIconButton(
                 icon: Icons.search,
                 tooltip: 'Suchen',
-                onPressed: () => _openSearchMode(ref),
+                onPressed: _openSearchMode,
               ),
             ),
           ],
@@ -223,26 +288,41 @@ class MainNavigationBar extends ConsumerWidget {
 
   Widget _buildIosNavigationBar({
     required BuildContext context,
-    required WidgetRef ref,
     required String location,
     required int currentIndex,
   }) {
-    final inactiveIconColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final iosSparrowAssetSize =
         DomspatzenIconMetrics.assetSizeForGlyph(_iosTabGlyphSize);
+    final inactiveIconColor = _tabIconColor(context, selected: false);
+    final activeIconColor = _tabIconColor(context, selected: true);
 
     final items = <CNTabBarItem>[
       CNTabBarItem(
         label: 'Kalender',
-        imageAsset: CNImageAsset(
-          DomspatzenIconMetrics.assetPath,
-          size: iosSparrowAssetSize,
-          color: inactiveIconColor,
-        ),
-        activeImageAsset: CNImageAsset(
-          DomspatzenIconMetrics.assetPath,
-          size: iosSparrowAssetSize,
-        ),
+        imageAsset: _iosInactiveCalendarIcon != null
+            ? CNImageAsset(
+                DomspatzenIconMetrics.assetPath,
+                size: iosSparrowAssetSize,
+                imageData: _iosInactiveCalendarIcon,
+                imageFormat: 'png',
+              )
+            : CNImageAsset(
+                DomspatzenIconMetrics.assetPath,
+                size: iosSparrowAssetSize,
+                color: inactiveIconColor,
+              ),
+        activeImageAsset: _iosActiveCalendarIcon != null
+            ? CNImageAsset(
+                DomspatzenIconMetrics.assetPath,
+                size: iosSparrowAssetSize,
+                imageData: _iosActiveCalendarIcon,
+                imageFormat: 'png',
+              )
+            : CNImageAsset(
+                DomspatzenIconMetrics.assetPath,
+                size: iosSparrowAssetSize,
+                color: activeIconColor,
+              ),
       ),
       CNTabBarItem(
         label: 'Aufgaben',
@@ -257,13 +337,15 @@ class MainNavigationBar extends ConsumerWidget {
     ];
 
     return CNTabBar(
+      key: ValueKey(
+        'main-nav-${_iosInactiveCalendarIcon != null}-${_iosActiveCalendarIcon != null}',
+      ),
       autoHideOnModal: false,
       labelFontSize: 10,
       currentIndex: currentIndex,
       onTap: (index) {
         _onDestinationSelected(
           context: context,
-          ref: ref,
           location: location,
           index: index,
         );
@@ -286,7 +368,7 @@ class MainNavigationBar extends ConsumerWidget {
           ref.read(calendarSearchInputFocusedProvider.notifier).dismiss();
           closeCalendarSearchMode(
             ref,
-            searchController: searchController,
+            searchController: widget.searchController,
             deactivateNativeSearch: false,
           );
         },
@@ -298,7 +380,7 @@ class MainNavigationBar extends ConsumerWidget {
           searchBarPadding: const EdgeInsets.only(left: 12, right: 44),
         ),
       ),
-      searchController: searchController,
+      searchController: widget.searchController,
     );
   }
 
@@ -308,20 +390,18 @@ class MainNavigationBar extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     final currentIndex = _tabIndexFromLocation(location);
     if (_useNativeIosTabBar()) {
       return _buildIosNavigationBar(
         context: context,
-        ref: ref,
         location: location,
         currentIndex: currentIndex,
       );
     }
     return _buildMaterialNavigationBar(
       context: context,
-      ref: ref,
       location: location,
       currentIndex: currentIndex,
     );

@@ -11,11 +11,11 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 setup_flutter
 
 echo "--- Fetching dependencies ---"
-flutter precache --ios
-flutter pub get
+run_flutter precache --ios
+run_flutter pub get
 
 echo "--- Generating iOS configuration ---"
-flutter build ios --config-only --no-codesign
+run_flutter build ios --config-only --no-codesign
 
 ensure_cocoapods
 

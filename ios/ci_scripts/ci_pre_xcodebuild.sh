@@ -12,7 +12,7 @@ setup_flutter
 ensure_cocoapods
 
 echo "--- Running Unit Tests ---"
-flutter test
+run_flutter test
 
 echo "--- Preparing iOS build ---"
 cd ios

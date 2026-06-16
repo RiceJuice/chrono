@@ -86,10 +86,14 @@ class EventModalStickyHeaderSliver extends StatefulWidget {
     super.key,
     required this.backgroundColor,
     required this.child,
+    this.allowChildOverflow = false,
   });
 
   final Color backgroundColor;
   final Widget child;
+
+  /// Erlaubt z. B. einen Scroll-Hinweis unterhalb des Headers ohne Höhenänderung.
+  final bool allowChildOverflow;
 
   @override
   State<EventModalStickyHeaderSliver> createState() =>
@@ -137,6 +141,7 @@ class _EventModalStickyHeaderSliverState
       delegate: _EventModalStickyHeaderDelegate(
         extent: _extent,
         backgroundColor: widget.backgroundColor,
+        allowChildOverflow: widget.allowChildOverflow,
         child: NotificationListener<SizeChangedLayoutNotification>(
           onNotification: (_) {
             _scheduleRemeasure();
@@ -159,11 +164,13 @@ class _EventModalStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.extent,
     required this.backgroundColor,
     required this.child,
+    this.allowChildOverflow = false,
   });
 
   final double extent;
   final Color backgroundColor;
   final Widget child;
+  final bool allowChildOverflow;
 
   @override
   double get minExtent => extent;
@@ -183,7 +190,8 @@ class _EventModalStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
       child: ColoredBox(
         color: backgroundColor,
         child: Stack(
-          clipBehavior: Clip.hardEdge,
+          clipBehavior:
+              allowChildOverflow ? Clip.none : Clip.hardEdge,
           fit: StackFit.expand,
           children: [
             Positioned(
@@ -202,6 +210,7 @@ class _EventModalStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(covariant _EventModalStickyHeaderDelegate oldDelegate) {
     return oldDelegate.extent != extent ||
         oldDelegate.backgroundColor != backgroundColor ||
-        oldDelegate.child != child;
+        oldDelegate.child != child ||
+        oldDelegate.allowChildOverflow != allowChildOverflow;
   }
 }

@@ -102,6 +102,11 @@ class AppGlassIconButton extends StatelessWidget {
       icon == Icons.add_photo_alternate_outlined ||
       icon == Icons.add_photo_alternate;
 
+  static bool _isEditIcon(IconData icon) =>
+      icon == Icons.edit_outlined ||
+      icon == Icons.edit ||
+      icon == Icons.edit_rounded;
+
   static CNSymbol? _sfSymbolFor(IconData icon, double size, Color color) {
     final visualSize = _visualIconSize(size);
     if (icon == Icons.close) {
@@ -118,6 +123,9 @@ class AppGlassIconButton extends StatelessWidget {
     }
     if (_isAttachMediaIcon(icon)) {
       return CNSymbol('photo.badge.plus', size: visualSize, color: color);
+    }
+    if (_isEditIcon(icon)) {
+      return CNSymbol('square.and.pencil', size: visualSize, color: color);
     }
     return null;
   }
@@ -137,6 +145,9 @@ class AppGlassIconButton extends StatelessWidget {
         size: visualSize,
         color: color,
       );
+    }
+    if (_isEditIcon(icon)) {
+      return Icon(CupertinoIcons.square_pencil, size: visualSize, color: color);
     }
     return Icon(icon, size: visualSize, color: color);
   }

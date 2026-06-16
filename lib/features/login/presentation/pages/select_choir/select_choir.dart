@@ -9,6 +9,7 @@ import '../../copy/login_flow_role_ui.dart';
 import '../../widgets/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../state/login_flow_draft.dart';
+import 'login_choir_options.dart';
 import 'provider/select_choir_provider.dart';
 import 'widgets/dropdown.dart';
 import 'widgets/login_choir_selection.dart';
@@ -28,15 +29,8 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
   bool _syncedChoirFromCarousel = false;
 
   static const List<String> _voices = ['Tenor', 'Sopran', 'Alt', 'Bass'];
-  static const List<String> _choirs = [
-    'DKM',
-    'Giehl',
-    'Rädlinger',
-    'Schola',
-    'Szuczies',
-  ];
-
-  String get _choirLabelForCurrentPage => _choirs[_choirPage % _choirs.length];
+  String get _choirLabelForCurrentPage =>
+      LoginChoirOptions.labelForPageIndex(_choirPage);
 
   @override
   void initState() {
@@ -122,7 +116,7 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
             onPageChanged: (page) => setState(() {
               _choirPage = page;
               _draft.choirPage = page;
-              final choirLabel = _choirs[page % _choirs.length];
+              final choirLabel = LoginChoirOptions.labelForPageIndex(page);
               ref.read(selectedChoirProvider.notifier).selectChoir(choirLabel);
             }),
             onVoiceChanged: (voice) => setState(() {

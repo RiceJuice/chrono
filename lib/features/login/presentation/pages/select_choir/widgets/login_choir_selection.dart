@@ -1,6 +1,8 @@
+import 'package:chronoapp/features/login/domain/models/login_flow_step.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../login_choir_options.dart';
 import 'login_choir_card.dart';
 
 class LoginChoirSelection extends StatefulWidget {
@@ -24,14 +26,8 @@ class LoginChoirSelection extends StatefulWidget {
 class _LoginChoirSelectionState extends State<LoginChoirSelection> {
   static const int _initialPageOffset = 10000;
   static const double _targetPageExtent = 305;
-  static const _choirs = ['DKM', 'Giehl', 'Rädlinger', 'Schola', 'Szuczies'];
-  static const _choirImages = [
-    'assets/Carusell/Heiß.jpg',
-    'assets/Carusell/Giehl.jpg',
-    'assets/Carusell/Rädlinger.jpg',
-    'assets/Carusell/Juric.png',
-    'assets/Carusell/Szuczies.jpg',
-  ];
+  static const _choirs = LoginChoirOptions.labels;
+  static const _choirImages = LoginChoirOptions.imageAssets;
 
   PageController? _controller;
   double? _viewportFraction;
@@ -87,6 +83,7 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final Color carouselAccent = LoginFlowStep.choir.accentColor;
     final double screenWidth = MediaQuery.sizeOf(context).width;
     final double screenHeight = MediaQuery.sizeOf(context).height;
     final double carouselHeight = (screenHeight * 0.44).clamp(330.0, 430.0);
@@ -168,7 +165,7 @@ class _LoginChoirSelectionState extends State<LoginChoirSelection> {
                           height: 4,
                           decoration: BoxDecoration(
                             color: selected
-                                ? const Color(0xFFCBBBA0)
+                                ? carouselAccent
                                 : scheme.onSurface.withValues(alpha: 0.28),
                             borderRadius: BorderRadius.circular(100),
                           ),

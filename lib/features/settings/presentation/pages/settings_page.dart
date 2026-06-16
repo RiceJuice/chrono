@@ -12,12 +12,14 @@ import 'package:chronoapp/features/login/data/auth_repository.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/settings_icons.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/settings_profile_display.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_choice_action_sheet.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_choir_carousel_sheet.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_footer.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_island.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_logout_button.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_profile_header_card.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_section_label.dart';
 import 'package:chronoapp/features/settings/presentation/pages/settings_profile_page.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_scroll_top_blur.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_sliver_header.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_tile.dart';
 import 'package:flutter/material.dart';
@@ -42,9 +44,23 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// 0–1 aus Scroll-Offset (linear); Sichtbarkeit der AppBar-Überschrift: ease-in.
   double _appBarTitleLinear = 0;
 
+  /// 0–1 für den Top-Blur — erst nach weggescrollter Profilkarte.
+  double _topBlurLinear = 0;
+
   /// Scroll-Offset, ab dem der AppBar-Titel sichtbar wird / voll sichtbar ist.
   static const _appBarTitleFadeStart = 28.0;
   static const _appBarTitleFadeEnd = 88.0;
+
+  /// Scroll-Inhalt bis Unterkante der Profilkarte (Titel + Abstand + Karte).
+  static const _largeTitleBlockHeight = 75.0;
+  static const _profileCardTopGap = 18.0;
+  static const _profileHeaderCardHeight = 92.0;
+  static const _profileCardBottomOffset =
+      _largeTitleBlockHeight + _profileCardTopGap + _profileHeaderCardHeight;
+
+  /// Blur erst, wenn große Überschrift + Profilkarte vollständig weggescrollt sind.
+  static const _topBlurFadeStart = _profileCardBottomOffset;
+  static const _topBlurFadeEnd = _profileCardBottomOffset + 44.0;
 
   static const _roleOptions = <String>['Schüler', 'Elternteil'];
   static const _voiceOptions = <String>['Sopran', 'Alt', 'Tenor', 'Bass'];
@@ -74,12 +90,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   void _onScroll() {
     if (!_scrollController.hasClients) return;
     final o = _scrollController.offset;
-    final span = _appBarTitleFadeEnd - _appBarTitleFadeStart;
-    final p = span <= 0
+    final titleSpan = _appBarTitleFadeEnd - _appBarTitleFadeStart;
+    final titleP = titleSpan <= 0
         ? (o >= _appBarTitleFadeEnd ? 1.0 : 0.0)
-        : ((o - _appBarTitleFadeStart) / span).clamp(0.0, 1.0);
-    if (p == _appBarTitleLinear) return;
-    setState(() => _appBarTitleLinear = p);
+        : ((o - _appBarTitleFadeStart) / titleSpan).clamp(0.0, 1.0);
+    final blurSpan = _topBlurFadeEnd - _topBlurFadeStart;
+    final blurP = blurSpan <= 0
+        ? (o >= _topBlurFadeEnd ? 1.0 : 0.0)
+        : ((o - _topBlurFadeStart) / blurSpan).clamp(0.0, 1.0);
+    if (titleP == _appBarTitleLinear && blurP == _topBlurLinear) return;
+    setState(() {
+      _appBarTitleLinear = titleP;
+      _topBlurLinear = blurP;
+    });
   }
 
   @override
@@ -112,19 +135,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ),
       ),
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          SettingsSliverHeader.largeTitleSliver(context),
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              0,
-              16,
-              24 + MediaQuery.paddingOf(context).bottom,
-            ),
-            sliver: SliverList.list(
-              children: [
+      body: Stack(
+        children: [
+          CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              SettingsSliverHeader.largeTitleSliver(context),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  0,
+                  16,
+                  24 + MediaQuery.paddingOf(context).bottom,
+                ),
+                sliver: SliverList.list(
+                  children: [
                 const SizedBox(height: 18),
                 profileAsync.when(
                   data: (profile) => SettingsProfileHeaderCard(
@@ -200,14 +225,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           ),
                           icon: SettingsIcons.choir,
                           enabled: !_saving,
-                          onTap: () => _editChoiceField(
-                            title: 'Chor auswählen',
-                            initialValue: choirDisplayLabel(profile?.choir),
-                            options: BackendChoir.values
-                                .where((item) => item != BackendChoir.unknown)
-                                .map((item) => item.displayLabel)
-                                .toList(),
-                            onSave: (value) => _updateProfile(choir: value),
+                          onTap: () => _editChoirField(
+                            initialChoirLabel: choirDisplayLabel(profile?.choir),
                           ),
                         ),
                         SettingsTile(
@@ -262,7 +281,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   onPressed: () => BackendConnector.logout(context),
                 ),
                 const SettingsFooter(),
-              ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SettingsScrollTopBlurOverlay(
+              strength: _topBlurLinear,
+              surfaceColor: bg,
             ),
           ),
         ],
@@ -277,6 +307,25 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         builder: (context) => const SettingsProfilePage(),
       ),
     );
+  }
+
+  Future<void> _editChoirField({required String? initialChoirLabel}) async {
+    HapticFeedback.heavyImpact();
+    final value = await AppModalSheet.show<String>(
+      context: context,
+      showDragHandle: true,
+      sheetAnimationStyle: kSettingsChoiceSheetMotion,
+      builder: (context) {
+        return AppModalSheetChrome(
+          child: SettingsChoirCarouselSheet(
+            initialChoirLabel: initialChoirLabel,
+          ),
+        );
+      },
+    );
+
+    if (value == null || value == initialChoirLabel) return;
+    await _updateProfile(choir: value);
   }
 
   Future<void> _editChoiceField({
@@ -295,9 +344,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final value = await AppModalSheet.show<String>(
       context: context,
       showDragHandle: true,
+      sheetAnimationStyle: kSettingsChoiceSheetMotion,
       builder: (context) {
         return AppModalSheetChrome(
-          constraints: appModalChoiceSheetConstraints(context),
           child: SettingsChoiceActionSheet(
             title: title,
             options: options,

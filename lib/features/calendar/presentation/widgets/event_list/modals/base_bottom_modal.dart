@@ -23,6 +23,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/types/meal_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_header.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_top_blur_fade.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/schedule_scroll_edge_hint.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/lesson_accent_button.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -286,6 +287,12 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
     required ValueListenable<bool> isFullyExpandedListenable,
   }) {
     final entry = _liveEntry;
+    final scheme = Theme.of(context).colorScheme;
+    final hasSchedules = ref
+            .watch(eventSchedulesForEntryProvider(entry.id))
+            .value
+            ?.isNotEmpty ??
+        false;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -330,6 +337,17 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
               ),
             );
           },
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: ScheduleScrollEndHintOverlay(
+            controller: scrollController,
+            surfaceColor: sheetSurface,
+            enabled: hasSchedules,
+            iconColor: scheme.onSurfaceVariant,
+          ),
         ),
         _buildAdminEditButtonPositioned(),
       ],

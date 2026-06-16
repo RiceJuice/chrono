@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
@@ -9,6 +11,7 @@ import 'package:chronoapp/features/calendar/presentation/theme/calendar_presenta
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/calendar_now_anchor.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_bottom_modal_typography.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_modal_sticky_header.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/schedule_scroll_edge_hint.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,18 +57,26 @@ class BottomModalScheduleSection extends ConsumerStatefulWidget {
 }
 
 class _BottomModalScheduleSectionState
-    extends ConsumerState<BottomModalScheduleSection> {
+    extends ConsumerState<BottomModalScheduleSection>
+    with SingleTickerProviderStateMixin {
   EventScheduleListFilter _filter = EventScheduleListFilter.all;
 
   static const Duration _collapseDuration = Duration(milliseconds: 420);
   static const Curve _collapseCurve = Curves.easeInOutCubic;
+  static const double _scrollUpHintOffsetThreshold = 8;
 
   final ScrollController _scheduleScrollController = ScrollController();
-  final GlobalKey _nowAnchorKey = GlobalKey();
+  GlobalKey _nowAnchorKey = GlobalKey();
   bool _didInitialScroll = false;
 
   /// Nutzer hat die Liste berührt — ausstehende Anker-Sprünge abbrechen.
   bool _userAdjustedScheduleScroll = false;
+
+  late final AnimationController _scrollUpHintPulseController;
+  ScrollController? _attachedScrollController;
+  double _lastScrollOffset = 0;
+  bool _showScrollUpHint = false;
+  bool _scrollHintHasHiddenAbove = false;
 
   ScrollController? get _activeScrollController =>
       widget.scrollable ? widget.sheetScrollController : _scheduleScrollController;
@@ -73,7 +84,12 @@ class _BottomModalScheduleSectionState
   @override
   void initState() {
     super.initState();
+    _scrollUpHintPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
     widget.scrollCoordinator?.onUserScroll = _cancelPendingAnchorJump;
+    _attachActiveScrollListener();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _tryScheduleInitialAnchorJump();
     });
@@ -91,15 +107,62 @@ class _BottomModalScheduleSectionState
         _tryScheduleInitialAnchorJump();
       });
     }
+    if (oldWidget.schedules != widget.schedules) {
+      _nowAnchorKey = GlobalKey();
+    }
+    _attachActiveScrollListener();
   }
 
   @override
   void dispose() {
+    _detachActiveScrollListener();
+    _scrollUpHintPulseController.dispose();
     widget.scrollCoordinator?.onUserScroll = null;
     if (!widget.scrollable) {
       _scheduleScrollController.dispose();
     }
     super.dispose();
+  }
+
+  void _attachActiveScrollListener() {
+    final controller = _activeScrollController;
+    if (controller == _attachedScrollController) return;
+    _detachActiveScrollListener();
+    _attachedScrollController = controller;
+    controller?.addListener(_onActiveScroll);
+  }
+
+  void _detachActiveScrollListener() {
+    _attachedScrollController?.removeListener(_onActiveScroll);
+    _attachedScrollController = null;
+  }
+
+  void _onActiveScroll() {
+    if (!mounted) return;
+
+    final controller = _activeScrollController;
+    if (controller == null || !controller.hasClients || !widget.scrollable) {
+      return;
+    }
+
+    final offset = controller.offset;
+    final scrollingDown = offset > _lastScrollOffset + 0.5;
+    _lastScrollOffset = offset;
+
+    final hasHiddenAbove = _scrollHintHasHiddenAbove;
+    final pastThreshold = offset > _scrollUpHintOffsetThreshold;
+    final shouldShow = hasHiddenAbove && pastThreshold;
+
+    if (scrollingDown && shouldShow) {
+      if (!_showScrollUpHint) {
+        setState(() => _showScrollUpHint = true);
+      }
+      if (mounted) {
+        unawaited(_scrollUpHintPulseController.forward(from: 0));
+      }
+    } else if (!shouldShow && _showScrollUpHint) {
+      setState(() => _showScrollUpHint = false);
+    }
   }
 
   void _cancelPendingAnchorJump() {
@@ -195,6 +258,9 @@ class _BottomModalScheduleSectionState
       _filter = next;
       _didInitialScroll = false;
       _userAdjustedScheduleScroll = false;
+      _showScrollUpHint = false;
+      _lastScrollOffset = 0;
+      _nowAnchorKey = GlobalKey();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _tryScheduleInitialAnchorJump();
@@ -216,6 +282,8 @@ class _BottomModalScheduleSectionState
     final anchorScheduleIndex = widget.scrollable
         ? _anchorScheduleIndex(visibleSchedules)
         : null;
+    _scrollHintHasHiddenAbove =
+        anchorScheduleIndex != null && anchorScheduleIndex > 0;
 
     final header = _ScheduleSectionHeader(
       scheme: scheme,
@@ -260,6 +328,7 @@ class _BottomModalScheduleSectionState
             SliverToBoxAdapter(child: widget.scrollableDetailBlock!),
           EventModalStickyHeaderSliver(
             backgroundColor: widget.stickyHeaderSurfaceColor!,
+            allowChildOverflow: true,
             child: _buildStickyAblaufHeader(header),
           ),
           _buildScheduleSliverList(
@@ -315,16 +384,36 @@ class _BottomModalScheduleSectionState
 
   /// Gepinnter Block: nur „Ablauf“-Zeile inkl. Abstand zur ersten Karte.
   Widget _buildStickyAblaufHeader(Widget scheduleHeader) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        EventBottomModalTypography.contentHorizontal,
-        0,
-        EventBottomModalTypography.contentHorizontal,
-        widget.eventLayout
-            ? EventBottomModalTypography.gapAfterScheduleHeader
-            : 0,
-      ),
-      child: scheduleHeader,
+    final scheme = Theme.of(context).colorScheme;
+    final surfaceColor = widget.stickyHeaderSurfaceColor ?? scheme.surface;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            EventBottomModalTypography.contentHorizontal,
+            0,
+            EventBottomModalTypography.contentHorizontal,
+            widget.eventLayout
+                ? EventBottomModalTypography.gapAfterScheduleHeader
+                : 0,
+          ),
+          child: scheduleHeader,
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: -ScheduleScrollEdgeHint.height,
+          child: ScheduleScrollEdgeHint(
+            direction: ScheduleScrollHintDirection.up,
+            visible: _showScrollUpHint,
+            pulse: _scrollUpHintPulseController,
+            surfaceColor: surfaceColor,
+            iconColor: scheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 

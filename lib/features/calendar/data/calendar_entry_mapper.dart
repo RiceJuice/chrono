@@ -7,6 +7,7 @@ import '../../../core/database/backend_enums.dart';
 import '../../../core/database/postgres_enum_array_codec.dart';
 import '../../../core/time/app_date_time.dart';
 import '../domain/models/calendar_entry.dart';
+import '../event_editor/data/calendar_event_recurrence_id.dart';
 import 'subject_color_codec.dart';
 
 class CalendarEntryMapper {
@@ -108,7 +109,7 @@ class CalendarEntryMapper {
     final imagePaths = _decodeStringList(_rowValue(row, 'image_paths'));
 
     final rowId = _rowValue(row, 'id').toString();
-    final parsedRecurrenceId = _parseDateTimeOrNull(
+    final parsedRecurrenceId = _parseRecurrenceIdOrNull(
       _rowValue(row, 'recurrence_id'),
     );
     final parsedSeriesId = forceSeriesIdFromId
@@ -180,6 +181,12 @@ class CalendarEntryMapper {
       s,
       assumeUtcWhenTimezoneMissing: true,
     );
+  }
+
+  static DateTime? _parseRecurrenceIdOrNull(Object? value) {
+    final s = _asString(value);
+    if (s == null || s.isEmpty) return null;
+    return parseCalendarRecurrenceId(s);
   }
 
   static DateTime _parseDate(Object? value) {

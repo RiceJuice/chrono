@@ -33,26 +33,35 @@ class LoginPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseStyle = Theme.of(context).elevatedButtonTheme.style!;
-    final Color progressColor =
+    final onColor =
         color.computeLuminance() < 0.5 ? Colors.white : Colors.black87;
     return SizedBox(
       height: 60,
       width: double.infinity,
-      child: ElevatedButton(
+      child: FilledButton(
         onPressed: isLoading || onPressed == null
             ? null
             : () {
                 HapticFeedback.selectionClick();
                 unawaited(_runWithOutcomeHaptic(onPressed));
               },
-        style: baseStyle.copyWith(
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled)) {
-              return color.withValues(alpha: AppOpacity.disabled);
-            }
-            return color;
-          }),
+        style: FilledButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: onColor,
+          disabledBackgroundColor: color.withValues(alpha: AppOpacity.disabled),
+          disabledForegroundColor: onColor.withValues(alpha: AppOpacity.disabled),
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          padding: AppInsets.buttonContentWide,
+          minimumSize: const Size(double.infinity, 60),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: AppSquircle.shape(AppRadius.s),
+          textStyle: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+            color: onColor,
+          ),
         ),
         child: isLoading
             ? SizedBox(
@@ -60,7 +69,7 @@ class LoginPrimaryButton extends StatelessWidget {
                 width: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                  valueColor: AlwaysStoppedAnimation<Color>(onColor),
                 ),
               )
             : Text(label),

@@ -31,7 +31,7 @@ class _SettingsChoiceActionSheetState extends State<SettingsChoiceActionSheet> {
   bool _isScrollbarThumbVisible = false;
 
   static const Duration _initialScrollbarRevealDelay = Duration(
-    milliseconds: 560,
+    milliseconds: 680,
   );
   static const Duration _initialScrollbarVisibleDuration = Duration(
     milliseconds: 900,
@@ -125,17 +125,21 @@ class _SettingsChoiceActionSheetState extends State<SettingsChoiceActionSheet> {
         theme.colorScheme.surfaceContainer;
   }
 
+  static const double _bottomContentPadding = 12;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final minHeight = appModalChoiceSheetMinHeight(context);
+    final sheetConstraints = appModalChoiceSheetConstraints(context);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final sheetBg = _sheetBackgroundColor(context);
 
     return SafeArea(
       bottom: false,
       child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: minHeight),
+        constraints: sheetConstraints,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ColoredBox(
@@ -153,8 +157,9 @@ class _SettingsChoiceActionSheetState extends State<SettingsChoiceActionSheet> {
             Flexible(
               child: _buildPlatformScrollbar(
                 child: ListView(
+                  shrinkWrap: true,
                   controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                   children: [
                     ...widget.options.map((option) {
                       final isSelected = option == widget.initialValue;
@@ -177,6 +182,7 @@ class _SettingsChoiceActionSheetState extends State<SettingsChoiceActionSheet> {
                 ),
               ),
             ),
+            SizedBox(height: _bottomContentPadding + bottomInset),
           ],
         ),
       ),

@@ -32,6 +32,9 @@ class CalendarSearchPage extends ConsumerStatefulWidget {
 class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   static const double _stickyHeaderHeight = 40;
   static const Duration _initialMorphWindow = Duration(milliseconds: 520);
+
+  double get _listTopPadding => _stickyHeaderHeight;
+
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
   DateTime? _stickyDay;
@@ -136,12 +139,13 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
               
               Expanded(
                 child: Stack(
+                  clipBehavior: Clip.hardEdge,
                   children: [
                     LayoutBuilder(
                       builder: (context, constraints) {
                         _listViewportHeight = constraints.maxHeight;
                         return ColoredBox(
-                          color: theme.scaffoldBackgroundColor,
+                          color: theme.colorScheme.surface,
                           child: NotificationListener<ScrollNotification>(
                             onNotification: (notification) {
                               if (notification is ScrollStartNotification ||
@@ -165,8 +169,8 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                                 'search-list-${widget.query}-${_filtersSignature(filters)}',
                               ),
                               itemPositionsListener: _itemPositionsListener,
-                              padding: const EdgeInsets.only(
-                                top: _stickyHeaderHeight,
+                              padding: EdgeInsets.only(
+                                top: _listTopPadding,
                                 bottom: AppSpacing.l,
                               ),
                               itemCount: rows.length,
@@ -209,7 +213,8 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                         );
                       },
                     ),
-                    if (_stickyDay != null)
+                    if (_stickyDay != null &&
+                        _stickyHeaderPushOffset > -_stickyHeaderHeight)
                       Positioned(
                         top: 0,
                         left: 0,
@@ -320,7 +325,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
 
     return Container(
       height: _stickyHeaderHeight,
-      color: Theme.of(context).scaffoldBackgroundColor,
+      color: Theme.of(context).colorScheme.surface,
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Text(
@@ -411,6 +416,11 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
           if (leadingPx < _stickyHeaderHeight) {
             pushOffset = leadingPx - _stickyHeaderHeight;
           }
+        }
+
+        if (pushOffset <= -_stickyHeaderHeight) {
+          nextStickyDay = null;
+          pushOffset = 0;
         }
       }
     }

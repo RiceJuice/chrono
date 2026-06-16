@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/settings/presentation/helpers/settings_app_metadata.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_buy_coffee_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,12 +29,20 @@ class SettingsFooter extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text(
+            'Impressum',
+            style: textStyle?.copyWith(fontWeight: FontWeight.w600),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
             'Alexander Ottmann, '
             'Frederick Seubert\n'
             'Florian Bandulik',
             style: textStyle,
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 28),
+          const SettingsBuyCoffeeButton(),
         ],
       ),
     );
