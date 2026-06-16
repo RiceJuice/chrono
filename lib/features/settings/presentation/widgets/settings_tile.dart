@@ -10,6 +10,7 @@ class SettingsTile extends StatelessWidget {
     required this.icon,
     this.subtitle,
     this.enabled = true,
+    this.isDestructive = false,
     this.onTap,
     this.trailing,
   });
@@ -18,13 +19,16 @@ class SettingsTile extends StatelessWidget {
   final IconData icon;
   final String? subtitle;
   final bool enabled;
+  final bool isDestructive;
   final VoidCallback? onTap;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final effectiveContentColor = enabled ? scheme.onSurface : scheme.outline;
+    final effectiveContentColor = enabled
+        ? (isDestructive ? scheme.error : scheme.onSurface)
+        : scheme.outline;
     final value = subtitle?.trim();
 
     return InkWell(

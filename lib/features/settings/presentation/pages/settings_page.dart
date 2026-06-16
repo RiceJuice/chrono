@@ -9,7 +9,6 @@ import 'package:chronoapp/features/login/presentation/providers/auth_repository_
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
-import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/settings_icons.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/settings_profile_display.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_choice_action_sheet.dart';
@@ -18,7 +17,7 @@ import 'package:chronoapp/features/settings/presentation/widgets/settings_island
 import 'package:chronoapp/features/settings/presentation/widgets/settings_logout_button.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_profile_header_card.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_section_label.dart';
-import 'package:chronoapp/features/settings/presentation/pages/settings_edit_personal_data_page.dart';
+import 'package:chronoapp/features/settings/presentation/pages/settings_profile_page.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_sliver_header.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_tile.dart';
 import 'package:flutter/material.dart';
@@ -128,8 +127,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               children: [
                 const SizedBox(height: 18),
                 profileAsync.when(
-                  data: (profile) =>
-                      SettingsProfileHeaderCard(profile: profile),
+                  data: (profile) => SettingsProfileHeaderCard(
+                    profile: profile,
+                    onTap: _openProfile,
+                  ),
                   loading: () => const _SettingsLoadingIsland(
                     message: 'Profil wird geladen...',
                   ),
@@ -140,19 +141,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
                 ...profileAsync.maybeWhen(
                   data: (profile) => [
-                    const SettingsSectionLabel(title: 'Persönlich', top: 22),
-                    SettingsIsland(
-                      children: [
-                        SettingsTile(
-                          title: 'Name',
-                          subtitle: settingsProfileName(profile),
-                          icon: SettingsIcons.name,
-                          enabled: !_saving,
-                          onTap: () => _openEditPersonalData(profile),
-                        ),
-                      ],
-                    ),
-                    const SettingsSectionLabel(title: 'Schule'),
+                    const SettingsSectionLabel(title: 'Schule', top: 22),
                     SettingsIsland(
                       children: [
                         SettingsTile(
@@ -281,14 +270,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  void _openEditPersonalData(ProfileSnapshot? profile) {
+  void _openProfile() {
     HapticFeedback.heavyImpact();
-    Navigator.of(context, rootNavigator: true).push<void>(
+    Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (context) => SettingsEditPersonalDataPage(
-          initialFirstName: profile?.firstName,
-          initialLastName: profile?.lastName,
-        ),
+        builder: (context) => const SettingsProfilePage(),
       ),
     );
   }

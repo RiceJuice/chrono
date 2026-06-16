@@ -1,5 +1,5 @@
-import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
-import 'package:chronoapp/core/widgets/app_toast.dart';
+import 'package:chronoapp/core/widgets/app_glass_back_button.dart';
+import 'package:chronoapp/core/widgets/main_shell_scaffold.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
 import 'package:chronoapp/features/login/domain/models/login_flow_step.dart';
 import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
@@ -11,7 +11,6 @@ import 'package:chronoapp/features/login/presentation/widgets/buttons.dart';
 import 'package:chronoapp/features/login/presentation/widgets/login_personal_name_fields.dart';
 import 'package:chronoapp/features/login/presentation/widgets/login_scroll_surface.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -32,7 +31,11 @@ class SettingsEditPersonalDataPage extends ConsumerStatefulWidget {
 
 class _SettingsEditPersonalDataPageState
     extends ConsumerState<SettingsEditPersonalDataPage> {
+  static const _firstNameFieldId = Object();
+  static const _lastNameFieldId = Object();
+
   final _formKey = GlobalKey<FormState>();
+  final _fieldErrors = LoginFormFieldErrors();
   final _firstNameFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _lastNameFieldKey = GlobalKey<FormFieldState<dynamic>>();
   late final TextEditingController _firstNameController;
@@ -42,7 +45,6 @@ class _SettingsEditPersonalDataPageState
   @override
   void initState() {
     super.initState();
-    AppModalSheetTracker.retainMainNavigationHidden();
     _firstNameController = TextEditingController(
       text: (widget.initialFirstName ?? '').trim(),
     );
@@ -53,7 +55,6 @@ class _SettingsEditPersonalDataPageState
 
   @override
   void dispose() {
-    AppModalSheetTracker.releaseMainNavigationHidden();
     _firstNameController.dispose();
     _lastNameController.dispose();
     super.dispose();
@@ -81,20 +82,35 @@ class _SettingsEditPersonalDataPageState
       Navigator.of(context).pop();
     } on AuthRepositoryException catch (e) {
       if (mounted) {
-        showAppToast(context, e.message, kind: AppToastKind.error);
+        _showError(e.message);
       }
-      rethrow;
     } catch (_) {
       if (mounted) {
-        showAppToast(
-          context,
+        _showError(
           'Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.',
-          kind: AppToastKind.error,
         );
       }
-      rethrow;
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _showError(String message) {
+    loginShowAuthFormError(
+      context,
+      message: message,
+      fieldErrors: _fieldErrors,
+      fieldId: _firstNameFieldId,
+      fieldKey: _firstNameFieldKey,
+      formKey: _formKey,
+      onRebuild: () => setState(() {}),
+    );
+  }
+
+  void _onFieldEdited(Object fieldId) {
+    if (_fieldErrors.clear(fieldId)) {
+      setState(() {});
+      _formKey.currentState?.validate();
     }
   }
 
@@ -115,17 +131,10 @@ class _SettingsEditPersonalDataPageState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 4),
+              padding: const EdgeInsets.only(left: 8, top: 4),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: IconButton(
-                  icon: const Icon(Icons.chevron_left, size: 40),
-                  padding: const EdgeInsets.only(left: 4),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.of(context).pop();
-                  },
-                ),
+                child: AppGlassBackButton(enabled: !_busy),
               ),
             ),
             Padding(
@@ -163,6 +172,10 @@ class _SettingsEditPersonalDataPageState
                           lastNameFieldKey: _lastNameFieldKey,
                           firstNameController: _firstNameController,
                           lastNameController: _lastNameController,
+                          fieldErrors: _fieldErrors,
+                          firstNameFieldId: _firstNameFieldId,
+                          lastNameFieldId: _lastNameFieldId,
+                          onFieldEdited: _onFieldEdited,
                         ),
                       ),
                     ),
@@ -171,7 +184,12 @@ class _SettingsEditPersonalDataPageState
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                16 + kMainShellNavigationBarHeight,
+              ),
               child: Align(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(

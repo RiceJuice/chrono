@@ -88,6 +88,15 @@ class AppGlassIconButton extends StatelessWidget {
   /// Anhang / Foto (SF Symbol [photo.badge.plus], Cupertino-Fallback).
   static const IconData attachMediaIcon = Icons.photo_outlined;
 
+  /// Zurück-Navigation (SF Symbol [chevron.left]).
+  static const IconData backIcon = Icons.chevron_left;
+
+  static bool _isBackIcon(IconData icon) =>
+      icon == backIcon ||
+      icon == Icons.arrow_back_ios_new_rounded ||
+      icon == Icons.arrow_back_ios ||
+      icon == Icons.arrow_back;
+
   static bool _isAttachMediaIcon(IconData icon) =>
       icon == attachMediaIcon ||
       icon == Icons.add_photo_alternate_outlined ||
@@ -100,6 +109,9 @@ class AppGlassIconButton extends StatelessWidget {
     }
     if (icon == Icons.check) {
       return CNSymbol('checkmark', size: visualSize, color: color);
+    }
+    if (_isBackIcon(icon)) {
+      return CNSymbol('chevron.left', size: visualSize, color: color);
     }
     if (icon == accentColorIcon || icon == Icons.brush) {
       return CNSymbol('paintbrush', size: visualSize, color: color);
@@ -116,6 +128,9 @@ class AppGlassIconButton extends StatelessWidget {
     required Color color,
   }) {
     final visualSize = _visualIconSize(iconSize);
+    if (_isBackIcon(icon)) {
+      return Icon(CupertinoIcons.back, size: visualSize, color: color);
+    }
     if (_isAttachMediaIcon(icon)) {
       return Icon(
         CupertinoIcons.photo_on_rectangle,

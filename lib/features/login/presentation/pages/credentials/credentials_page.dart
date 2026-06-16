@@ -1,5 +1,4 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
-import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,8 +30,13 @@ class CredentialsPage extends ConsumerStatefulWidget {
 }
 
 class _CredentialsPageState extends ConsumerState<CredentialsPage> {
+  static const _emailFieldId = Object();
+  static const _passwordFieldId = Object();
+  static const _passwordConfirmFieldId = Object();
+
   final _draft = LoginFlowDraft.instance;
   final _formKey = GlobalKey<FormState>();
+  final _fieldErrors = LoginFormFieldErrors();
   final _emailFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _passwordFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _passwordConfirmFieldKey = GlobalKey<FormFieldState<dynamic>>();
@@ -73,7 +77,30 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
 
   Future<void> _showError(String message) async {
     if (!mounted) return;
-    showAppToast(context, message, kind: AppToastKind.error);
+    final fieldKey = loginResolveAuthErrorFieldKey(
+      message,
+      emailFieldKey: _emailFieldKey,
+      passwordFieldKey: _passwordFieldKey,
+    );
+    final fieldId = fieldKey == _emailFieldKey
+        ? _emailFieldId
+        : _passwordFieldId;
+    loginShowAuthFormError(
+      context,
+      message: message,
+      fieldErrors: _fieldErrors,
+      fieldId: fieldId,
+      fieldKey: fieldKey,
+      formKey: _formKey,
+      onRebuild: () => setState(() {}),
+    );
+  }
+
+  void _onFieldEdited(Object fieldId) {
+    if (_fieldErrors.clear(fieldId)) {
+      setState(() {});
+      _formKey.currentState?.validate();
+    }
   }
 
   Future<bool> _runSignIn() async {
@@ -195,6 +222,11 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
               emailFieldKey: _emailFieldKey,
               passwordFieldKey: _passwordFieldKey,
               passwordConfirmFieldKey: _passwordConfirmFieldKey,
+              fieldErrors: _fieldErrors,
+              emailFieldId: _emailFieldId,
+              passwordFieldId: _passwordFieldId,
+              passwordConfirmFieldId: _passwordConfirmFieldId,
+              onFieldEdited: _onFieldEdited,
             ),
             const SizedBox(height: AppSpacing.l),
             LoginSocialSignInBlock(

@@ -12,6 +12,7 @@ class LoginTextField extends StatefulWidget {
     this.obscureText = false,
     this.showPasswordVisibilityToggle = false,
     this.validator,
+    this.onChanged,
     this.prefixIcon,
     this.contentPadding,
     this.formFieldKey,
@@ -23,6 +24,7 @@ class LoginTextField extends StatefulWidget {
   final bool obscureText;
   final bool showPasswordVisibilityToggle;
   final String? Function(String?)? validator;
+  final ValueChanged<String>? onChanged;
   final IconData? prefixIcon;
   final EdgeInsetsGeometry? contentPadding;
   final GlobalKey<FormFieldState<dynamic>>? formFieldKey;
@@ -62,6 +64,7 @@ class _LoginTextFieldState extends State<LoginTextField> {
       keyboardType: widget.keyboardType,
       obscureText: obscured,
       validator: widget.validator,
+      onChanged: widget.onChanged,
       style: TextStyle(color: colorScheme.onSurface),
       decoration: loginInputDecoration(
         context,

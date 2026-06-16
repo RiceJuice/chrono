@@ -52,7 +52,14 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: Theme.of(context).textTheme.titleLarge),
+                SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 if (isCalendarSettings) ...[
                   _CalendarSettingsListSection(

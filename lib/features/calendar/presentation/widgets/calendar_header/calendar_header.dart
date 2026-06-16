@@ -7,6 +7,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_view_options.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
+import 'calendar_create_event_button.dart';
 import 'calendar_filter_deviation_icon.dart';
 import 'calendar_handle.dart';
 import 'custom_table_calendar.dart';
@@ -18,9 +19,9 @@ const _headerBottomRadius = 28.0;
 
 class CalendarHeader extends ConsumerStatefulWidget {
   const CalendarHeader({
-    required this.onSearchPressed,
     required this.onFilterPressed,
     required this.viewOptions,
+    this.onCreatePressed,
     this.viewMode = CalendarViewMode.day,
     this.onViewModeChanged,
     this.onViewMenuPressed,
@@ -29,7 +30,7 @@ class CalendarHeader extends ConsumerStatefulWidget {
     super.key,
   });
 
-  final VoidCallback onSearchPressed;
+  final VoidCallback? onCreatePressed;
   final VoidCallback onFilterPressed;
   final List<CalendarViewOption> viewOptions;
   final CalendarViewMode viewMode;
@@ -52,6 +53,23 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
     CalendarFormat.twoWeeks,
     CalendarFormat.month,
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _applyPendingWeekExpand();
+    });
+  }
+
+  void _applyPendingWeekExpand() {
+    if (!mounted) return;
+    if (!ref.read(calendarHeaderWeekExpandRequestProvider)) return;
+    if (_calendarFormat != CalendarFormat.week) {
+      setState(() => _calendarFormat = CalendarFormat.week);
+    }
+    ref.read(calendarHeaderWeekExpandRequestProvider.notifier).acknowledge();
+  }
 
   void _changeFormatByDrag({required bool dragDown}) {
     if (widget.weekTimetableMode) return;
@@ -98,6 +116,11 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(calendarHeaderWeekExpandRequestProvider, (previous, next) {
+      if (!next) return;
+      _applyPendingWeekExpand();
+    });
+
     final usePhoneLandscapeChrome = calendarUsePhoneLandscapeChrome(context);
     final titleDay = ref.watch(selectedDayProvider);
     final monthName = DateFormat.MMMM('de').format(titleDay);
@@ -194,12 +217,12 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
                         option: selectedViewOption,
                         onPressed: widget.onViewMenuPressed!,
                       ),
+                    if (widget.onCreatePressed != null)
+                      CalendarCreateEventButton(
+                        onPressed: widget.onCreatePressed!,
+                      ),
                     CalendarFilterDeviationIcon(
                       onPressed: widget.onFilterPressed,
-                    ),
-                    IconButton(
-                      onPressed: widget.onSearchPressed,
-                      icon: const Icon(Icons.search),
                     ),
                   ],
                 ),

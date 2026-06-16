@@ -208,3 +208,46 @@ final calendarSearchInputFocusedProvider =
     fr.NotifierProvider<CalendarSearchInputFocus, bool>(
       CalendarSearchInputFocus.new,
     );
+
+/// Ob der globale Kalender-Suchmodus aktiv ist (Shell-Overlay + Bottom-Bar).
+class CalendarSearchOpen extends fr.Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void open() => state = true;
+
+  void close() => state = false;
+}
+
+final calendarSearchOpenProvider =
+    fr.NotifierProvider<CalendarSearchOpen, bool>(CalendarSearchOpen.new);
+
+/// Live-Suchtext aus der unteren Suchleiste (Debounce im [CalendarSearchLayer]).
+class CalendarSearchQuery extends fr.Notifier<String> {
+  @override
+  String build() => '';
+
+  void updateQuery(String query) => state = query;
+
+  void clear() => state = '';
+}
+
+final calendarSearchQueryProvider =
+    fr.NotifierProvider<CalendarSearchQuery, String>(CalendarSearchQuery.new);
+
+/// Fordert den [CalendarHeader] auf, die Wochen-Zeile einzublenden (z. B. nach
+/// Verlassen der Suche über den Kalender-Tab). Bleibt gesetzt, bis der Header
+/// [acknowledge] aufruft — wichtig, wenn die Anforderung vor dem Mount kommt.
+class CalendarHeaderWeekExpandRequest extends fr.Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void request() => state = true;
+
+  void acknowledge() => state = false;
+}
+
+final calendarHeaderWeekExpandRequestProvider =
+    fr.NotifierProvider<CalendarHeaderWeekExpandRequest, bool>(
+      CalendarHeaderWeekExpandRequest.new,
+    );

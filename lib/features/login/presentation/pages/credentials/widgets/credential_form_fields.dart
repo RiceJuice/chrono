@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../utils/login_form_validation.dart';
 import '../../../widgets/login_flow_spacing.dart';
 import '../../../widgets/login_labeled_field.dart';
 import '../../../widgets/login_text_field.dart';
@@ -14,6 +15,11 @@ class CredentialFormFields extends StatelessWidget {
     required this.emailFieldKey,
     required this.passwordFieldKey,
     required this.passwordConfirmFieldKey,
+    this.fieldErrors,
+    this.emailFieldId,
+    this.passwordFieldId,
+    this.passwordConfirmFieldId,
+    this.onFieldEdited,
   });
 
   final TextEditingController emailController;
@@ -23,11 +29,44 @@ class CredentialFormFields extends StatelessWidget {
   final GlobalKey<FormFieldState<dynamic>> emailFieldKey;
   final GlobalKey<FormFieldState<dynamic>> passwordFieldKey;
   final GlobalKey<FormFieldState<dynamic>> passwordConfirmFieldKey;
+  final LoginFormFieldErrors? fieldErrors;
+  final Object? emailFieldId;
+  final Object? passwordFieldId;
+  final Object? passwordConfirmFieldId;
+  final ValueChanged<Object>? onFieldEdited;
 
   @override
   Widget build(BuildContext context) {
     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     final double blockGap = LoginFlowSpacing.gapBetweenFields(context);
+    final fieldErrors = this.fieldErrors;
+
+    String? validateEmail(String? value) {
+      final input = value?.trim() ?? '';
+      if (input.isEmpty) return 'Bitte E-Mail eingeben.';
+      if (!emailRegex.hasMatch(input)) {
+        return 'Bitte eine gültige E-Mail eingeben.';
+      }
+      return null;
+    }
+
+    String? validatePassword(String? value) {
+      final input = value ?? '';
+      if (input.isEmpty) return 'Bitte Passwort eingeben.';
+      if (requirePasswordConfirmation && input.length < 8) {
+        return 'Passwort muss mindestens 8 Zeichen haben.';
+      }
+      return null;
+    }
+
+    String? validatePasswordConfirm(String? value) {
+      final input = value ?? '';
+      if (input.isEmpty) return 'Bitte Passwort bestätigen.';
+      if (input != passwordController.text) {
+        return 'Passwörter stimmen nicht überein.';
+      }
+      return null;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,14 +78,12 @@ class CredentialFormFields extends StatelessWidget {
             controller: emailController,
             hintText: 'name@beispiel.de',
             keyboardType: TextInputType.emailAddress,
-            validator: (value) {
-              final input = value?.trim() ?? '';
-              if (input.isEmpty) return 'Bitte E-Mail eingeben.';
-              if (!emailRegex.hasMatch(input)) {
-                return 'Bitte eine gültige E-Mail eingeben.';
-              }
-              return null;
-            },
+            validator: fieldErrors != null && emailFieldId != null
+                ? fieldErrors.merge(emailFieldId!, validateEmail)
+                : validateEmail,
+            onChanged: emailFieldId == null
+                ? null
+                : (_) => onFieldEdited?.call(emailFieldId!),
           ),
         ),
         SizedBox(height: blockGap),
@@ -58,14 +95,12 @@ class CredentialFormFields extends StatelessWidget {
             hintText: 'Passwort eingeben',
             obscureText: true,
             showPasswordVisibilityToggle: true,
-            validator: (value) {
-              final input = value ?? '';
-              if (input.isEmpty) return 'Bitte Passwort eingeben.';
-              if (requirePasswordConfirmation && input.length < 8) {
-                return 'Passwort muss mindestens 8 Zeichen haben.';
-              }
-              return null;
-            },
+            validator: fieldErrors != null && passwordFieldId != null
+                ? fieldErrors.merge(passwordFieldId!, validatePassword)
+                : validatePassword,
+            onChanged: passwordFieldId == null
+                ? null
+                : (_) => onFieldEdited?.call(passwordFieldId!),
           ),
         ),
         if (requirePasswordConfirmation) ...[
@@ -78,14 +113,15 @@ class CredentialFormFields extends StatelessWidget {
               hintText: 'Passwort bestätigen',
               obscureText: true,
               showPasswordVisibilityToggle: true,
-              validator: (value) {
-                final input = value ?? '';
-                if (input.isEmpty) return 'Bitte Passwort bestätigen.';
-                if (input != passwordController.text) {
-                  return 'Passwörter stimmen nicht überein.';
-                }
-                return null;
-              },
+              validator: fieldErrors != null && passwordConfirmFieldId != null
+                  ? fieldErrors.merge(
+                      passwordConfirmFieldId!,
+                      validatePasswordConfirm,
+                    )
+                  : validatePasswordConfirm,
+              onChanged: passwordConfirmFieldId == null
+                  ? null
+                  : (_) => onFieldEdited?.call(passwordConfirmFieldId!),
             ),
           ),
         ],

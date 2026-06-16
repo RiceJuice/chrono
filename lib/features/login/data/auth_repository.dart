@@ -36,6 +36,18 @@ class AuthRepository {
 
   String? get currentUserEmail => _client.auth.currentUser?.email;
 
+  /// `true`, wenn der Nutzer eine E-Mail/Passwort-Identität hat (nicht nur OAuth).
+  bool get canChangePassword {
+    final user = _client.auth.currentUser;
+    if (user == null) return false;
+    final identities = user.identities;
+    if (identities != null && identities.isNotEmpty) {
+      return identities.any((identity) => identity.provider == 'email');
+    }
+    final email = user.email?.trim();
+    return email != null && email.isNotEmpty;
+  }
+
   String _mapAuthException(AuthException e) {
     final msg = e.message.toLowerCase();
     final status = e.statusCode;
@@ -55,6 +67,9 @@ class AuthRepository {
         msg.contains('user already registered') ||
         msg.contains('already been registered')) {
       return 'Diese E-Mail ist bereits registriert.';
+    }
+    if (code == 'same_password' || msg.contains('same password')) {
+      return 'Das neue Passwort muss sich vom aktuellen unterscheiden.';
     }
     if (msg.contains('password') &&
         (msg.contains('weak') || msg.contains('short'))) {
@@ -282,6 +297,116 @@ class AuthRepository {
         'Anmeldung fehlgeschlagen. Bitte versuche es erneut.',
       );
     }
+  }
+
+  /// Ändert das Passwort nach Prüfung des aktuellen Passworts.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final email = currentUserEmail?.trim();
+    if (email == null || email.isEmpty) {
+      throw AuthRepositoryException('Nicht angemeldet.');
+    }
+    if (!canChangePassword) {
+      throw AuthRepositoryException(
+        'Passwort kann nur für E-Mail-Konten geändert werden.',
+      );
+    }
+
+    try {
+      await _client.auth.signInWithPassword(
+        email: email,
+        password: currentPassword,
+      );
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } on AuthException catch (e) {
+      throw AuthRepositoryException(_mapAuthException(e));
+    } on AuthRepositoryException {
+      rethrow;
+    } catch (_) {
+      throw AuthRepositoryException(
+        'Passwort konnte nicht geändert werden. Bitte erneut versuchen.',
+      );
+    }
+  }
+
+  /// Löscht das Konto unwiderruflich nach Passwort- bzw. E-Mail-Bestätigung.
+  Future<void> deleteAccount({
+    String? password,
+    String? confirmationEmail,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw AuthRepositoryException('Nicht angemeldet.');
+    }
+
+    if (canChangePassword) {
+      final trimmedPassword = password?.trim();
+      if (trimmedPassword == null || trimmedPassword.isEmpty) {
+        throw AuthRepositoryException('Bitte Passwort eingeben.');
+      }
+    } else {
+      final email = currentUserEmail?.trim().toLowerCase();
+      final confirmed = confirmationEmail?.trim().toLowerCase();
+      if (email == null ||
+          email.isEmpty ||
+          confirmed == null ||
+          confirmed != email) {
+        throw AuthRepositoryException(
+          'E-Mail-Adresse stimmt nicht mit deinem Konto überein.',
+        );
+      }
+    }
+
+    try {
+      final response = await _client.functions.invoke(
+        'delete-account',
+        body: {
+          if (canChangePassword) 'password': password!.trim(),
+          if (!canChangePassword)
+            'confirmationEmail': confirmationEmail!.trim(),
+        },
+      );
+
+      if (response.status != 200) {
+        final data = response.data;
+        final message = data is Map && data['error'] != null
+            ? data['error'].toString()
+            : 'Konto konnte nicht gelöscht werden (${response.status}).';
+        throw AuthRepositoryException(_mapDeleteAccountError(message));
+      }
+
+      try {
+        await _client.auth.signOut();
+      } catch (_) {
+        // Nutzer ist serverseitig bereits gelöscht.
+      }
+    } on AuthRepositoryException {
+      rethrow;
+    } on AuthException catch (e) {
+      throw AuthRepositoryException(_mapAuthException(e));
+    } catch (_) {
+      throw AuthRepositoryException(
+        'Konto konnte nicht gelöscht werden. Bitte erneut versuchen.',
+      );
+    }
+  }
+
+  String _mapDeleteAccountError(String message) {
+    final lower = message.toLowerCase();
+    if (lower.contains('passwort') && lower.contains('ungültig')) {
+      return 'Passwort ist ungültig.';
+    }
+    if (lower.contains('e-mail') && lower.contains('überein')) {
+      return 'E-Mail-Adresse stimmt nicht mit deinem Konto überein.';
+    }
+    if (lower.contains('nicht angemeldet')) {
+      return 'Nicht angemeldet.';
+    }
+    return message.trim().isNotEmpty
+        ? message
+        : 'Konto konnte nicht gelöscht werden. Bitte erneut versuchen.';
   }
 
   /// Aktualisiert nur übergebene Felder in [public.profiles] für den aktuellen User.

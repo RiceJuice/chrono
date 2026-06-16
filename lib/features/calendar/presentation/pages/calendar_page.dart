@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
 
+import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
-import 'package:chronoapp/features/calendar/data/calendar_signed_url_cache.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
-import 'package:chronoapp/features/calendar/presentation/pages/calendar_search_page.dart';
+import 'package:chronoapp/features/calendar/data/calendar_signed_url_cache.dart';
+import 'package:chronoapp/features/calendar/event_editor/presentation/pages/calendar_event_form_page.dart';
+import 'package:chronoapp/features/calendar/event_editor/presentation/providers/is_admin_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_view_options.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_filter_bottom_sheet.dart';
@@ -17,8 +18,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chronoapp/features/settings/presentation/providers/settings_profile_providers.dart';
 
 import '../widgets/calendar_header/calendar_header.dart';
-import '../widgets/calendar_header/calendar_search_overlay.dart';
-import '../widgets/calendar_header/calendar_search_ui_metrics.dart';
 import '../widgets/calendar_header/calendar_view_mode_overlay.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
@@ -30,11 +29,14 @@ class CalendarPage extends ConsumerStatefulWidget {
 
 class _CalendarPageState extends ConsumerState<CalendarPage>
     with WidgetsBindingObserver {
-  static const Duration _searchDebounce = Duration(milliseconds: 300);
   static const Duration _viewModeTransitionDuration = Duration(
     milliseconds: 300,
   );
   static const Curve _viewModeTransitionCurve = Cubic(0.2, 0.8, 0.2, 1);
+
+  /// Letzter bekannter Landscape-Zustand — nur um beim Eintreten ins Querformat
+  /// den Fokus auf den Montag zu setzen.
+  bool? _prevIsPhoneLandscape;
 
   void _restoreNonImmersiveSystemUi() {
     SystemChrome.setEnabledSystemUIMode(
@@ -50,22 +52,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     } else {
       _restoreNonImmersiveSystemUi();
     }
-  }
-
-  bool _isSearchOpen = false;
-  Timer? _debounceTimer;
-  String _debouncedSearchQuery = '';
-
-  /// Letzter bekannter Landscape-Zustand — nur um beim Eintreten ins Querformat
-  /// den Fokus auf den Montag zu setzen.
-  bool? _prevIsPhoneLandscape;
-
-  void _openSearch() {
-    HapticFeedback.selectionClick();
-    ref.read(calendarViewModeOverlayOpenProvider.notifier).set(isOpen: false);
-    setState(() {
-      _isSearchOpen = true;
-    });
   }
 
   void _openViewModeOverlay() {
@@ -89,25 +75,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     );
   }
 
-  Future<void> _openSearchFilters() async {
-    HapticFeedback.heavyImpact();
-    await AppModalSheet.show<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const CalendarFilterBottomSheet(
-        mode: CalendarFilterBottomSheetMode.searchFilter,
-      ),
-    );
-  }
-
-  void _closeSearch() {
-    _debounceTimer?.cancel();
-    ref.read(searchFiltersProvider.notifier).resetToDefaults();
-    setState(() {
-      _isSearchOpen = false;
-      _debouncedSearchQuery = '';
-    });
+  Future<void> _openCreateEventSheet() async {
+    if (AppModalSheetTracker.depth.value > 0) return;
+    AppHaptics.light();
+    final day = ref.read(selectedDayProvider);
+    await CalendarEventFormPage.showCreate(context, initialDay: day);
   }
 
   @override
@@ -133,25 +105,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     if (state == AppLifecycleState.resumed) {
       _syncCalendarLandscapeImmersive();
     }
-  }
-
-  void _onSearchQueryChanged(String nextQuery) {
-    final trimmedQuery = nextQuery.trim();
-    _debounceTimer?.cancel();
-
-    if (trimmedQuery.isEmpty) {
-      setState(() {
-        _debouncedSearchQuery = '';
-      });
-      return;
-    }
-
-    _debounceTimer = Timer(_searchDebounce, () {
-      if (!mounted) return;
-      setState(() {
-        _debouncedSearchQuery = trimmedQuery;
-      });
-    });
   }
 
   void _onCalendarViewModeChanged(CalendarViewMode nextMode) {
@@ -194,7 +147,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
           curve: _viewModeTransitionCurve,
           reverseCurve: Curves.easeInCubic,
         );
-        // Nur vertikal: Wochenraster wirkt wie „nach oben geschoben“, Tagesliste von oben.
         final slideBegin = isWeekTarget
             ? const Offset(0, 0.078)
             : const Offset(0, -0.078);
@@ -251,54 +203,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     );
   }
 
-  Widget _buildSearchMorphBody({
-    required bool showSearchResults,
-    required CalendarViewMode viewMode,
-    required double searchBarBottomInset,
-    required bool isTabletCalendar,
-  }) {
-    return AnimatedSwitcher(
-      duration: kCalendarSearchMorphDuration,
-      reverseDuration: kCalendarSearchMorphDuration,
-      // Eine Kurve im [transitionBuilder] — sonst doppelte Easing-Kette (Switcher + Builder).
-      switchInCurve: Curves.linear,
-      switchOutCurve: Curves.linear,
-      layoutBuilder: (currentChild, previousChildren) {
-        return Stack(
-          fit: StackFit.expand,
-          alignment: Alignment.topCenter,
-          children: <Widget>[...previousChildren, ?currentChild],
-        );
-      },
-      transitionBuilder: _buildSearchMorphTransition,
-      child: showSearchResults
-          ? SizedBox.expand(
-              key: const ValueKey<_CalendarBodySurface>(
-                _CalendarBodySurface.search,
-              ),
-              child: Padding(
-                padding: EdgeInsets.only(top: searchBarBottomInset),
-                child: CalendarSearchPage(
-                  query: _debouncedSearchQuery,
-                  playInitialMorph: _isSearchOpen,
-                ),
-              ),
-            )
-          : SizedBox.expand(
-              key: const ValueKey<_CalendarBodySurface>(
-                _CalendarBodySurface.calendar,
-              ),
-              child: _buildCalendarContent(
-                viewMode: viewMode,
-                isTabletCalendar: isTabletCalendar,
-              ),
-            ),
-    );
-  }
-
   Widget _buildCalendarContent({
     required CalendarViewMode viewMode,
     required bool isTabletCalendar,
+    required bool isAdmin,
   }) {
     final isWeekView = viewMode == CalendarViewMode.week;
 
@@ -312,7 +220,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
           onViewModeChanged: _onCalendarViewModeChanged,
           onViewMenuPressed: _openViewModeOverlay,
           showCenteredViewControl: isTabletCalendar,
-          onSearchPressed: _openSearch,
+          onCreatePressed: isAdmin ? _openCreateEventSheet : null,
           onFilterPressed: _openCalendarFilters,
         ),
         Expanded(child: _buildCalendarBody(viewMode: viewMode)),
@@ -320,63 +228,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     );
   }
 
-  Widget _buildSearchMorphTransition(
-    Widget child,
-    Animation<double> animation,
-  ) {
-    final key = child.key;
-    final surface = key is ValueKey<_CalendarBodySurface> ? key.value : null;
-    final isSearchSurface = surface == _CalendarBodySurface.search;
-    // Einheitliche Kurve für Ein- und Ausblendung (reverseCurve = curve).
-    final t = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeInOutCubic,
-      reverseCurve: Curves.easeInOutCubic,
-    );
-    final slideBegin = isSearchSurface
-        ? const Offset(0, 0.048)
-        : const Offset(0, -0.022);
-    final slideAnimation = Tween<Offset>(
-      begin: slideBegin,
-      end: Offset.zero,
-    ).animate(t);
-    final beginScale = isSearchSurface ? 0.976 : 0.991;
-    final scaleAnimation = Tween<double>(begin: beginScale, end: 1).animate(t);
-    final radiusBegin = isSearchSurface ? 22.0 : 14.0;
-    final blurMax = isSearchSurface ? 3.2 : 1.2;
-
-    return FadeTransition(
-      opacity: t,
-      child: SlideTransition(
-        position: slideAnimation,
-        child: ScaleTransition(
-          scale: scaleAnimation,
-          child: AnimatedBuilder(
-            animation: t,
-            child: child,
-            builder: (context, child) {
-              final v = t.value.clamp(0.0, 1.0);
-              final radius = radiusBegin * (1.0 - v);
-              final sigma = blurMax * (1.0 - v);
-              return ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(radius),
-                  child: child,
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _restoreNonImmersiveSystemUi();
-    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -398,20 +253,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
         ref.read(searchFiltersProvider.notifier).initializeFromCalendar(next);
       });
     });
-    final searchFilters = ref.watch(searchFiltersProvider);
-    final hasVisibleSearchFilterChips = searchFilters.hasVisibleDeviationChips;
-    final showSearchResults =
-        _isSearchOpen ||
-        _debouncedSearchQuery.isNotEmpty ||
-        searchFilters.hasUserOverrides;
+
+    final isAdmin = ref.watch(isAdminProvider);
     final storedViewMode = ref.watch(calendarViewModeProvider);
     final usePhoneLandscapeChrome = calendarUsePhoneLandscapeChrome(context);
-    // Handy im Querformat → immer Wochenansicht, ohne den gespeicherten Modus zu ändern.
-    // Beim Zurückdrehen gilt wieder storedViewMode, da der Provider unberührt bleibt.
     final viewMode =
         usePhoneLandscapeChrome ? CalendarViewMode.week : storedViewMode;
 
-    // Fokus auf Montag setzen, sobald wir ins Querformat wechseln.
     if (usePhoneLandscapeChrome && _prevIsPhoneLandscape == false) {
       _prevIsPhoneLandscape = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -434,16 +282,6 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     } else {
       _prevIsPhoneLandscape = usePhoneLandscapeChrome;
     }
-    final mediaPadding = MediaQuery.paddingOf(context);
-    final searchBarBottomInset =
-        mediaPadding.top +
-        CalendarSearchOverlayMetrics.topPadding +
-        CalendarSearchOverlayMetrics.inputRowHeight +
-        CalendarSearchOverlayMetrics.inputToChipsGap +
-        (_isSearchOpen && hasVisibleSearchFilterChips
-            ? CalendarSearchOverlayMetrics.chipRowExtent
-            : 0) +
-        CalendarSearchOverlayMetrics.bottomPadding;
 
     return Scaffold(
       body: Stack(
@@ -458,11 +296,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
               return SizedBox(
                 width: constraints.maxWidth,
                 height: constraints.maxHeight,
-                child: _buildSearchMorphBody(
-                  showSearchResults: showSearchResults,
+                child: _buildCalendarContent(
                   viewMode: viewMode,
-                  searchBarBottomInset: searchBarBottomInset,
                   isTabletCalendar: isTabletCalendar,
+                  isAdmin: isAdmin,
                 ),
               );
             },
@@ -474,16 +311,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
             onClose: _closeViewModeOverlay,
             onSelected: _onCalendarViewModeChanged,
           ),
-          CalendarSearchOverlay(
-            isOpen: _isSearchOpen,
-            onClose: _closeSearch,
-            onQueryChanged: _onSearchQueryChanged,
-            onFilterPressed: _openSearchFilters,
-          ),
         ],
       ),
     );
   }
 }
-
-enum _CalendarBodySurface { calendar, search }

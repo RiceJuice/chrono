@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.notify-event-change]
 verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
