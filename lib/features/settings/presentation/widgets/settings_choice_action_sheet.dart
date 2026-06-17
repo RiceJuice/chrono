@@ -31,7 +31,7 @@ class _SettingsChoiceActionSheetState extends State<SettingsChoiceActionSheet> {
   bool _isScrollbarThumbVisible = false;
 
   static const Duration _initialScrollbarRevealDelay = Duration(
-    milliseconds: 680,
+    milliseconds: 500,
   );
   static const Duration _initialScrollbarVisibleDuration = Duration(
     milliseconds: 900,

@@ -1,4 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
 import '../../../../core/haptics/app_haptics.dart';
@@ -207,6 +208,37 @@ class CalendarSearchInputFocus extends fr.Notifier<bool> {
 final calendarSearchInputFocusedProvider =
     fr.NotifierProvider<CalendarSearchInputFocus, bool>(
       CalendarSearchInputFocus.new,
+    );
+
+/// Kurzzeit-Guard: natives `deactivateSearch` nach Tab-Lupen-Tap ignorieren,
+/// damit `onSearchActiveChanged(false)` den Flutter-Suchmodus nicht sofort schließt.
+class CalendarSearchNativeCollapseGuard extends fr.Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void arm() => state = true;
+
+  void disarm() => state = false;
+}
+
+final calendarSearchNativeCollapseGuardProvider =
+    fr.NotifierProvider<CalendarSearchNativeCollapseGuard, bool>(
+      CalendarSearchNativeCollapseGuard.new,
+    );
+
+/// Globale Startposition der Tab-Lupe für die Morph-Animation in die Suchleiste.
+class CalendarSearchMorphOrigin extends fr.Notifier<Rect?> {
+  @override
+  Rect? build() => null;
+
+  void set(Rect origin) => state = origin;
+
+  void clear() => state = null;
+}
+
+final calendarSearchMorphOriginProvider =
+    fr.NotifierProvider<CalendarSearchMorphOrigin, Rect?>(
+      CalendarSearchMorphOrigin.new,
     );
 
 /// Ob der globale Kalender-Suchmodus aktiv ist (Shell-Overlay + Bottom-Bar).

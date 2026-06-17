@@ -11,11 +11,11 @@ const AnimationStyle kAppModalSheetMotion = AnimationStyle(
   reverseCurve: Cubic(0.33, 0.0, 0.67, 1.0),
 );
 
-/// Einstellungen: ruhigeres Einblenden für Auswahl-Sheets — langsamer als
-/// [kAppModalSheetMotion], aber ohne träge zu wirken.
+/// Einstellungen: weiches Einblenden für Auswahl-Sheets, etwas langsamer als
+/// [kAppModalSheetMotion] für ruhigeres Auftreten.
 const AnimationStyle kSettingsChoiceSheetMotion = AnimationStyle(
-  duration: Duration(milliseconds: 420),
-  reverseDuration: Duration(milliseconds: 260),
+  duration: Duration(milliseconds: 300),
+  reverseDuration: Duration(milliseconds: 220),
   curve: Cubic(0.22, 1, 0.36, 1),
   reverseCurve: Cubic(0.4, 0, 1, 1),
 );

@@ -11,6 +11,7 @@ import '../haptics/app_haptics.dart';
 import 'app_glass_icon_button.dart';
 import 'app_hairline_divider.dart';
 import 'domspatzen_icon_metrics.dart';
+import 'ios_calendar_tab_icons_provider.dart';
 
 class MainNavigationBar extends ConsumerStatefulWidget {
   const MainNavigationBar({
@@ -25,9 +26,8 @@ class MainNavigationBar extends ConsumerStatefulWidget {
 }
 
 class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
-  Uint8List? _iosInactiveCalendarIcon;
-  Uint8List? _iosActiveCalendarIcon;
-  Brightness? _iosIconBrightness;
+  bool _iosCalendarIconLoadScheduled = false;
+  final GlobalKey _searchButtonKey = GlobalKey();
 
   static const _calendarPath = '/calendar';
   static const _homeworkPath = '/homework';
@@ -54,43 +54,28 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
 
   void _openSearchMode() {
     AppHaptics.light();
+    final searchContext = _searchButtonKey.currentContext;
+    if (searchContext != null) {
+      captureCalendarSearchMorphOrigin(ref, searchContext);
+    }
     ref.read(calendarSearchOpenProvider.notifier).open();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_useNativeIosTabBar()) {
-      _ensureIosCalendarIcons();
-    }
+    _scheduleIosCalendarIconLoad();
   }
 
-  Future<void> _ensureIosCalendarIcons() async {
-    final brightness = Theme.of(context).brightness;
-    if (_iosIconBrightness == brightness &&
-        _iosInactiveCalendarIcon != null &&
-        _iosActiveCalendarIcon != null) {
+  void _scheduleIosCalendarIconLoad() {
+    if (!_useNativeIosTabBar() || _iosCalendarIconLoadScheduled) {
       return;
     }
-
-    final inactiveColor = _tabIconColor(context, selected: false);
-    final activeColor = _tabIconColor(context, selected: true);
-    final results = await Future.wait([
-      DomspatzenIconMetrics.renderTabIconPngBytes(
-        color: inactiveColor,
-        glyphSize: _iosTabGlyphSize,
-      ),
-      DomspatzenIconMetrics.renderTabIconPngBytes(
-        color: activeColor,
-        glyphSize: _iosTabGlyphSize,
-      ),
-    ]);
-
-    if (!mounted || Theme.of(context).brightness != brightness) return;
-    setState(() {
-      _iosIconBrightness = brightness;
-      _iosInactiveCalendarIcon = results[0];
-      _iosActiveCalendarIcon = results[1];
+    _iosCalendarIconLoadScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _iosCalendarIconLoadScheduled = false;
+      if (!mounted || !_useNativeIosTabBar()) return;
+      ref.read(iosCalendarTabIconsProvider.notifier).ensureLoaded(context);
     });
   }
 
@@ -275,6 +260,7 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
             Padding(
               padding: const EdgeInsets.only(right: 12, bottom: 6),
               child: AppGlassIconButton(
+                key: _searchButtonKey,
                 icon: Icons.search,
                 tooltip: 'Suchen',
                 onPressed: _openSearchMode,
@@ -290,39 +276,38 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
     required BuildContext context,
     required String location,
     required int currentIndex,
+    required IosCalendarTabIconSet? tabIcons,
   }) {
     final iosSparrowAssetSize =
         DomspatzenIconMetrics.assetSizeForGlyph(_iosTabGlyphSize);
-    final inactiveIconColor = _tabIconColor(context, selected: false);
-    final activeIconColor = _tabIconColor(context, selected: true);
+    final inactiveBytes = tabIcons?.inactive;
+    final activeBytes = tabIcons?.active;
 
     final items = <CNTabBarItem>[
       CNTabBarItem(
         label: 'Kalender',
-        imageAsset: _iosInactiveCalendarIcon != null
+        icon: inactiveBytes == null
+            ? const CNSymbol('calendar', size: _iosTabGlyphSize)
+            : null,
+        activeIcon: activeBytes == null
+            ? const CNSymbol('calendar', size: _iosTabGlyphSize)
+            : null,
+        imageAsset: inactiveBytes != null
             ? CNImageAsset(
                 DomspatzenIconMetrics.assetPath,
                 size: iosSparrowAssetSize,
-                imageData: _iosInactiveCalendarIcon,
+                imageData: inactiveBytes,
                 imageFormat: 'png',
               )
-            : CNImageAsset(
-                DomspatzenIconMetrics.assetPath,
-                size: iosSparrowAssetSize,
-                color: inactiveIconColor,
-              ),
-        activeImageAsset: _iosActiveCalendarIcon != null
+            : null,
+        activeImageAsset: activeBytes != null
             ? CNImageAsset(
                 DomspatzenIconMetrics.assetPath,
                 size: iosSparrowAssetSize,
-                imageData: _iosActiveCalendarIcon,
+                imageData: activeBytes,
                 imageFormat: 'png',
               )
-            : CNImageAsset(
-                DomspatzenIconMetrics.assetPath,
-                size: iosSparrowAssetSize,
-                color: activeIconColor,
-              ),
+            : null,
       ),
       CNTabBarItem(
         label: 'Aufgaben',
@@ -338,7 +323,8 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
 
     return CNTabBar(
       key: ValueKey(
-        'main-nav-${_iosInactiveCalendarIcon != null}-${_iosActiveCalendarIcon != null}',
+        'main-nav-${tabIcons?.brightness.name}-'
+        '${inactiveBytes?.length}-${activeBytes?.length}',
       ),
       autoHideOnModal: false,
       labelFontSize: 10,
@@ -353,16 +339,20 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
       items: items,
       searchItem: CNTabBarSearchItem(
         placeholder: 'Finde den richtigen Termin',
-        automaticallyActivatesSearch: true,
+        automaticallyActivatesSearch: false,
         onSearchChanged: (query) {
           ref.read(calendarSearchQueryProvider.notifier).updateQuery(query);
         },
         onSearchActiveChanged: (active) {
           if (active) {
-            ref.read(calendarSearchOpenProvider.notifier).open();
-            ref
-                .read(calendarSearchInputFocusedProvider.notifier)
-                .update(true);
+            openCalendarSearchFromNativeTab(
+              ref,
+              searchController: widget.searchController,
+              morphContext: context,
+            );
+            return;
+          }
+          if (ref.read(calendarSearchNativeCollapseGuardProvider)) {
             return;
           }
           ref.read(calendarSearchInputFocusedProvider.notifier).dismiss();
@@ -394,10 +384,12 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
     final location = GoRouterState.of(context).uri.path;
     final currentIndex = _tabIndexFromLocation(location);
     if (_useNativeIosTabBar()) {
+      final tabIcons = ref.watch(iosCalendarTabIconsProvider);
       return _buildIosNavigationBar(
         context: context,
         location: location,
         currentIndex: currentIndex,
+        tabIcons: tabIcons,
       );
     }
     return _buildMaterialNavigationBar(
