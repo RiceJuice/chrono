@@ -55,6 +55,7 @@ abstract final class ScheduleLiveActivityResolver {
       currentScheduleId: current.id,
       currentTitle: current.title,
       currentSubtitle: current.location ?? '',
+      hasNext: next != null,
       nextTitle: next?.title ?? '',
       nextSubtitle: next?.location ?? '',
       segmentStartMs: segmentStart.millisecondsSinceEpoch,

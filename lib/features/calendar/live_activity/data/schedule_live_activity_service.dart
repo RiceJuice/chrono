@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:live_activities/live_activities.dart';
 import 'package:live_activities/models/activity_update.dart';
 
+import 'package:live_activities/models/url_scheme_data.dart';
+
 import '../domain/schedule_live_activity_snapshot.dart';
 import '../live_activity_constants.dart';
 
@@ -18,9 +20,11 @@ class ScheduleLiveActivityService {
 
   StreamSubscription<ActivityUpdate>? _activitySub;
   StreamSubscription<String>? _pushToStartSub;
+  StreamSubscription<UrlSchemeData>? _urlSchemeSub;
 
   void Function(String token)? onLiveActivityPushToken;
   void Function(String token)? onPushToStartToken;
+  void Function(UrlSchemeData data)? onUrlScheme;
 
   static bool get supportsLiveActivities =>
       !kIsWeb && (Platform.isIOS || Platform.isAndroid);
@@ -52,6 +56,10 @@ class ScheduleLiveActivityService {
       if (token.isNotEmpty) {
         onPushToStartToken?.call(token);
       }
+    });
+
+    _urlSchemeSub = _plugin.urlSchemeStream().listen((data) {
+      onUrlScheme?.call(data);
     });
 
     _initialized = true;
@@ -103,8 +111,10 @@ class ScheduleLiveActivityService {
   Future<void> dispose() async {
     await _activitySub?.cancel();
     await _pushToStartSub?.cancel();
+    await _urlSchemeSub?.cancel();
     _activitySub = null;
     _pushToStartSub = null;
+    _urlSchemeSub = null;
     if (_initialized) {
       await _plugin.dispose();
       _initialized = false;

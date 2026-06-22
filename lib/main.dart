@@ -51,7 +51,7 @@ Future<void> _registerPushListeners() async {
 
   try {
     await PushNotificationService().registerListeners();
-  } catch (e, st) {
+  } catch (e, st) { 
     if (kDebugMode) {
       debugPrint('[FCM] Push listener registration failed: $e\n$st');
     }
@@ -193,6 +193,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     ScheduleLiveActivityBootstrap.start(
       profileGate: widget.profileGateNotifier,
       ref: ref,
+      router: _appRouter.router,
     );
   }
 

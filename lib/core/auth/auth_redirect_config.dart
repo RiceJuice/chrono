@@ -36,7 +36,9 @@ String authOAuthRedirectTo() {
 /// True, wenn die URI wahrscheinlich ein Supabase-Auth-Callback ist
 /// (Apple-Schema oder Token/Code in Query/Fragment).
 bool uriLooksLikeSupabaseAuthCallback(Uri uri) {
-  if (uri.scheme == 'chronoapp') return true;
+  if (uri.scheme == 'chronoapp') {
+    return uri.host == 'auth-callback';
+  }
   final combined = '${uri.query}&${uri.fragment}';
   return combined.contains('access_token=') ||
       combined.contains('refresh_token=') ||

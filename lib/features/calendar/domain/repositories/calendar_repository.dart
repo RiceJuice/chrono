@@ -115,6 +115,29 @@ class CalendarRepository {
     return _watchMergedWindow(startUtc: startUtc, endExclusiveUtc: endUtc);
   }
 
+  Future<CalendarEntry?> entryById(String id) async {
+    final row = await _db.getOptional(
+      '''
+      SELECT
+          'event' AS source,
+          id, event_name, description, location, note, start_time, end_time, type,
+          choir, voices, schooltrack, class, diet, image_paths, series_id, recurrence_id,
+          NULL AS rrule, NULL AS series_start, NULL AS series_end,
+          NULL AS subject_id, NULL AS subject_name, NULL AS subject_default_color
+      FROM $kCalendarEventsTable
+      WHERE id = ?
+      LIMIT 1
+      ''',
+      [id],
+    );
+    if (row == null) return null;
+    try {
+      return CalendarEntryMapper.fromEventRow(row);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Stream<List<CalendarEntry>> _watchMergedWindow({
     required DateTime startUtc,
     required DateTime endExclusiveUtc,

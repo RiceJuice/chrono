@@ -18,6 +18,15 @@ void main() {
     );
   });
 
+  test('uriLooksLikeSupabaseAuthCallback ignoriert Ablaufplan-Deep-Link', () {
+    expect(
+      uriLooksLikeSupabaseAuthCallback(
+        Uri.parse('chronoapp://schedule?eventId=abc'),
+      ),
+      isFalse,
+    );
+  });
+
   test('uriLooksLikeSupabaseAuthCallback ignoriert fremde URLs', () {
     expect(
       uriLooksLikeSupabaseAuthCallback(Uri.parse('https://domspatzen.de/')),

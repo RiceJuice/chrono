@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/calendar/live_activity/live_activity_constants.dart';
+import '../../features/calendar/live_activity/presentation/schedule_live_activity_deep_link_pending.dart';
 import '../../features/calendar/presentation/pages/calendar_page.dart';
 import '../../features/login/presentation/providers/profile_gate_notifier.dart';
 import '../../features/login/presentation/routes/login_flow_specs.dart';
@@ -60,7 +62,20 @@ class AppRouter {
     observers: [CNTabBarRouteObserver()],
     refreshListenable: _refresh,
     initialLocation: '/loading',
+    onException: (context, state, router) {
+      final eventId = parseScheduleLiveActivityEventId(state.uri);
+      if (eventId != null) {
+        ScheduleLiveActivityDeepLinkPending.set(eventId);
+        router.go('/calendar');
+        return;
+      }
+    },
     redirect: (context, state) {
+      final scheduleEventId = parseScheduleLiveActivityEventId(state.uri);
+      if (scheduleEventId != null) {
+        ScheduleLiveActivityDeepLinkPending.set(scheduleEventId);
+      }
+
       final loc = state.matchedLocation;
       final isLoadingRoute = loc == '/loading';
       final session = Supabase.instance.client.auth.currentSession;
@@ -117,6 +132,9 @@ class AppRouter {
       final requiredPath = _gate.requiredPath;
 
       if (requiredPath == null) {
+        if (scheduleEventId != null && !isLoadingRoute) {
+          return '/calendar';
+        }
         if (isLoadingRoute) return '/calendar';
         if (loc == LoginPaths.success) return null;
         if (loc.startsWith(LoginPaths.login)) return '/calendar';
@@ -163,6 +181,17 @@ class AppRouter {
           key: state.pageKey,
           child: NoConnectionPage(connectivity: _connectivity),
         ),
+      ),
+      GoRoute(
+        path: '/schedule',
+        redirect: (context, state) {
+          final eventId = parseScheduleLiveActivityEventId(state.uri) ??
+              state.uri.queryParameters['eventId']?.trim();
+          if (eventId != null && eventId.isNotEmpty) {
+            ScheduleLiveActivityDeepLinkPending.set(eventId);
+          }
+          return '/calendar';
+        },
       ),
       StatefulShellRoute.indexedStack(
         pageBuilder: (context, state, navigationShell) => NoTransitionPage(

@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:background="@color/live_activity_bg"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="24dp">
 
     <LinearLayout
         android:layout_width="match_parent"

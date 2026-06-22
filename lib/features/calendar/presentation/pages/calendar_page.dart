@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
+import 'package:chronoapp/features/calendar/live_activity/presentation/schedule_live_activity_deep_link_pending.dart';
+import 'package:chronoapp/features/calendar/live_activity/presentation/schedule_live_activity_open_request_provider.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/base_bottom_modal.dart';
 import 'package:chronoapp/features/calendar/data/calendar_signed_url_cache.dart';
 import 'package:chronoapp/features/calendar/event_editor/presentation/pages/calendar_event_form_page.dart';
 import 'package:chronoapp/features/calendar/event_editor/presentation/providers/is_admin_provider.dart';
@@ -87,6 +90,16 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(CalendarSignedUrlCache.shared.ensureLoaded());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _consumePendingScheduleDeepLink();
+    });
+  }
+
+  void _consumePendingScheduleDeepLink() {
+    if (!mounted) return;
+    final pending = ScheduleLiveActivityDeepLinkPending.consume();
+    if (pending == null || pending.isEmpty) return;
+    ref.read(scheduleLiveActivityOpenRequestProvider.notifier).open(pending);
   }
 
   @override
@@ -235,8 +248,31 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     super.dispose();
   }
 
+  Future<void> _openScheduleFromLiveActivity(String eventId) async {
+    ref.read(scheduleLiveActivityOpenRequestProvider.notifier).clear();
+
+    final entry = await ref.read(calendarRepositoryProvider).entryById(eventId);
+    if (!mounted || entry == null) return;
+
+    ref.read(selectedDayProvider.notifier).update(
+          entry.startTime,
+          haptic: false,
+          origin: CalendarDaySelectionOrigin.external,
+        );
+
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    if (AppModalSheetTracker.depth.value > 0) return;
+
+    await BaseBottomModal.show(context, entry: entry);
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<String?>(scheduleLiveActivityOpenRequestProvider, (prev, next) {
+      if (next == null || next.isEmpty) return;
+      unawaited(_openScheduleFromLiveActivity(next));
+    });
     ref.listen(syncedProfileProvider, (_, next) {
       next.whenData((profile) {
         WidgetsBinding.instance.addPostFrameCallback((_) {

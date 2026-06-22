@@ -6,6 +6,7 @@ class ScheduleLiveActivitySnapshot {
     required this.currentScheduleId,
     required this.currentTitle,
     required this.currentSubtitle,
+    required this.hasNext,
     required this.nextTitle,
     required this.nextSubtitle,
     required this.segmentStartMs,
@@ -17,6 +18,7 @@ class ScheduleLiveActivitySnapshot {
   final String currentScheduleId;
   final String currentTitle;
   final String currentSubtitle;
+  final bool hasNext;
   final String nextTitle;
   final String nextSubtitle;
   final int segmentStartMs;
@@ -36,6 +38,7 @@ class ScheduleLiveActivitySnapshot {
     return {
       'currentTitle': currentTitle,
       'currentSubtitle': currentSubtitle,
+      'hasNext': hasNext,
       'nextTitle': nextTitle,
       'nextSubtitle': nextSubtitle,
       'segmentStartMs': segmentStartMs,

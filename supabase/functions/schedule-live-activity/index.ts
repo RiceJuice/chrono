@@ -60,6 +60,7 @@ type Snapshot = {
   currentScheduleId: string;
   currentTitle: string;
   currentSubtitle: string;
+  hasNext: boolean;
   nextTitle: string;
   nextSubtitle: string;
   segmentStartMs: number;
@@ -183,6 +184,7 @@ function buildSnapshot(
       currentScheduleId: last.id,
       currentTitle: last.title,
       currentSubtitle: last.location ?? "",
+      hasNext: false,
       nextTitle: "",
       nextSubtitle: "",
       segmentStartMs: new Date(last.start_time).getTime(),
@@ -209,6 +211,7 @@ function buildSnapshot(
     currentScheduleId: current.id,
     currentTitle: current.title,
     currentSubtitle: current.location ?? "",
+    hasNext: next != null,
     nextTitle: next?.title ?? "",
     nextSubtitle: next?.location ?? "",
     segmentStartMs: new Date(current.start_time).getTime(),
@@ -424,6 +427,7 @@ Deno.serve(async (req) => {
       const contentState = {
         currentTitle: snapshot.currentTitle,
         currentSubtitle: snapshot.currentSubtitle,
+        hasNext: snapshot.hasNext,
         nextTitle: snapshot.nextTitle,
         nextSubtitle: snapshot.nextSubtitle,
         segmentStartMs: snapshot.segmentStartMs,

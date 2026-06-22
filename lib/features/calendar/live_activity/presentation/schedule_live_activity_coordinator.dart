@@ -12,6 +12,7 @@ import 'package:chronoapp/features/calendar/domain/filter/event_schedule_filter.
 import 'package:chronoapp/features/calendar/live_activity/presentation/schedule_list_filter_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:live_activities/models/url_scheme_data.dart';
 
 /// Steuert Start/Update/Ende der Live Activities aus lokaler DB + Timer.
 class ScheduleLiveActivityCoordinator {
@@ -38,9 +39,17 @@ class ScheduleLiveActivityCoordinator {
   StreamSubscription<void>? _dbSub;
   bool _running = false;
 
+  /// Verhindert überlappende Sync-Läufe (Timer, DB-Watch, Refresh, Aktivierung).
+  /// Diese sind die Ursache doppelter/dreifacher Banner: laufen sie gleichzeitig,
+  /// sieht jeder „noch keine Activity vorhanden“ und legt eine neue an.
+  bool _syncRunning = false;
+  bool _syncAgain = false;
+
+  bool get isRunning => _running;
+
   static ScheduleLiveActivityCoordinator? instance;
 
-  Future<void> start() async {
+  Future<void> start({void Function(UrlSchemeData data)? onUrlScheme}) async {
     if (_running) return;
     final enabled = await _service.init();
     if (!enabled) return;
@@ -51,6 +60,7 @@ class ScheduleLiveActivityCoordinator {
     _service.onPushToStartToken = (token) {
       unawaited(_repository.syncPushToStartToken(token));
     };
+    _service.onUrlScheme = onUrlScheme;
 
     await _localScheduler.init(
       onPayload: handleLocalNotificationPayload,
@@ -66,6 +76,12 @@ class ScheduleLiveActivityCoordinator {
     });
 
     unawaited(_refresh());
+  }
+
+  /// Erneuter Sync, z. B. nach App-Resume oder Hot-Restart.
+  Future<void> refreshNow() async {
+    if (!_running) return;
+    await _refresh();
   }
 
   Future<void> dispose() async {
@@ -119,6 +135,22 @@ class ScheduleLiveActivityCoordinator {
   }
 
   Future<void> _syncActiveActivities() async {
+    if (_syncRunning) {
+      _syncAgain = true;
+      return;
+    }
+    _syncRunning = true;
+    try {
+      do {
+        _syncAgain = false;
+        await _syncActiveActivitiesLocked();
+      } while (_syncAgain && _running);
+    } finally {
+      _syncRunning = false;
+    }
+  }
+
+  Future<void> _syncActiveActivitiesLocked() async {
     if (!_running) return;
 
     final now = DateTime.now();
@@ -175,6 +207,11 @@ class ScheduleLiveActivityCoordinator {
   }
 
   Future<void> _activateForEvent(String eventId) async {
+    // Läuft gerade ein Sync, übernimmt dieser die Erstellung – erneut anstoßen.
+    if (_syncRunning) {
+      _syncAgain = true;
+      return;
+    }
     final schedules = await _dataSource.schedulesForEvent(eventId);
     final filters = _ref.read(calendarFiltersProvider);
     final listFilter = _ref.read(scheduleListFilterProvider).value ??
@@ -199,15 +236,12 @@ class ScheduleLiveActivityCoordinator {
 
 final scheduleLiveActivityCoordinatorProvider =
     Provider<ScheduleLiveActivityCoordinator>((ref) {
-  final coordinator = ScheduleLiveActivityCoordinator(
+  ref.keepAlive();
+  return ScheduleLiveActivityCoordinator(
     dataSource: ScheduleLiveActivityDataSource(ref.watch(dbProvider)),
     service: ScheduleLiveActivityService(),
     repository: ScheduleLiveActivityRepository(),
     localScheduler: ScheduleLiveActivityLocalScheduler(),
     ref: ref,
   );
-  ref.onDispose(() {
-    unawaited(coordinator.dispose());
-  });
-  return coordinator;
 });

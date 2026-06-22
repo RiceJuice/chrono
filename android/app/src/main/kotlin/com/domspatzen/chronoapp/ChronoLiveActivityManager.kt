@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.RemoteViews
 import com.istornz.live_activities.LiveActivityManager
 import java.text.SimpleDateFormat
@@ -18,14 +19,22 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
     private val remoteViews = RemoteViews(appContext.packageName, R.layout.live_activity)
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.GERMANY)
 
-    private val pendingIntent = PendingIntent.getActivity(
-        appContext,
-        200,
-        Intent(appContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-        },
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-    )
+    private fun pendingIntentFor(eventId: String): PendingIntent {
+        val intent = Intent(appContext, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            if (eventId.isNotEmpty()) {
+                data = Uri.parse(
+                    "chronoapp://schedule?eventId=${Uri.encode(eventId)}",
+                )
+            }
+        }
+        return PendingIntent.getActivity(
+            appContext,
+            eventId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
 
     private fun updateRemoteViews(data: Map<String, Any>) {
         val currentTitle = data["currentTitle"] as? String ?: ""
@@ -69,11 +78,12 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
     ): Notification {
         updateRemoteViews(data)
         val currentTitle = data["currentTitle"] as? String ?: "Ablaufplan"
+        val eventId = data["eventId"] as? String ?: ""
         return notification
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setContentTitle(currentTitle)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(pendingIntentFor(eventId))
             .setStyle(Notification.DecoratedCustomViewStyle())
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(remoteViews)
