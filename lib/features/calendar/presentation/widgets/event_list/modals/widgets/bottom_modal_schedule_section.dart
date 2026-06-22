@@ -4,6 +4,7 @@ import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/core/widgets/event_schedule_scroll_coordinator.dart';
+import 'package:chronoapp/features/calendar/live_activity/presentation/schedule_list_filter_provider.dart';
 import 'package:chronoapp/features/calendar/domain/filter/event_schedule_filter.dart';
 import 'package:chronoapp/features/calendar/domain/models/event_schedule.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
@@ -90,6 +91,10 @@ class _BottomModalScheduleSectionState
     );
     widget.scrollCoordinator?.onUserScroll = _cancelPendingAnchorJump;
     _attachActiveScrollListener();
+    final persisted = ref.read(scheduleListFilterProvider).value;
+    if (persisted != null) {
+      _filter = persisted;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _tryScheduleInitialAnchorJump();
     });
@@ -254,6 +259,7 @@ class _BottomModalScheduleSectionState
   void _setFilter(EventScheduleListFilter next) {
     if (_filter == next) return;
     AppHaptics.light();
+    unawaited(ref.read(scheduleListFilterProvider.notifier).setFilter(next));
     setState(() {
       _filter = next;
       _didInitialScroll = false;

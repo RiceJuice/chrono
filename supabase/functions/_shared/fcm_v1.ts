@@ -120,6 +120,103 @@ export async function sendFcmToToken(
   };
 }
 
+export type LiveActivityFcmEvent = "start" | "update" | "end";
+
+export type LiveActivityFcmPayload = {
+  token: string;
+  platform: string;
+  event: LiveActivityFcmEvent;
+  activityId: string;
+  contentState: Record<string, string | number>;
+  liveActivityToken?: string | null;
+  pushToStartToken?: string | null;
+  eventId: string;
+};
+
+export async function sendLiveActivityFcm(
+  serviceAccount: FirebaseServiceAccount,
+  payload: LiveActivityFcmPayload,
+): Promise<FcmSendResult> {
+  const accessToken = await fetchAccessToken(serviceAccount);
+  const url = FCM_SEND_URL.replace("{projectId}", serviceAccount.project_id);
+  const nowMs = Date.now();
+  const nowSec = Math.floor(nowMs / 1000);
+
+  const contentStateJson = JSON.stringify(payload.contentState);
+  const data: Record<string, string> = {
+    timestamp: String(nowMs),
+    event: payload.event,
+    "content-state": contentStateJson,
+    "activity-id": payload.activityId,
+    activity_id: payload.activityId,
+    type: "schedule_live_activity",
+    event_id: payload.eventId,
+  };
+
+  const message: Record<string, unknown> = {
+    token: payload.token,
+    data,
+    android: { priority: "high" },
+  };
+
+  if (payload.platform === "ios") {
+    const aps: Record<string, unknown> = {
+      timestamp: nowSec,
+      event: payload.event,
+      "content-state": payload.contentState,
+      "attributes-type": "LiveActivitiesAppAttributes",
+      attributes: {},
+    };
+    if (payload.event === "end") {
+      aps["dismissal-date"] = nowSec;
+    }
+
+    const apns: Record<string, unknown> = {
+      headers: { "apns-priority": "10" },
+      payload: { aps },
+    };
+
+    const liveToken = payload.event === "start"
+      ? payload.pushToStartToken
+      : payload.liveActivityPushToken;
+    if (liveToken && liveToken.trim().length > 0) {
+      apns.live_activity_token = liveToken.trim();
+    }
+
+    message.apns = apns;
+  } else {
+    message.notification = {
+      title: String(payload.contentState.currentTitle ?? "Ablaufplan"),
+      body: String(payload.contentState.currentSubtitle ?? ""),
+    };
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  if (res.ok) {
+    return { ok: true };
+  }
+
+  const errBody = (await res.json().catch(() => ({}))) as {
+    error?: { message?: string; status?: string; details?: Array<{ errorCode?: string }> };
+  };
+  const details = errBody.error?.details ?? [];
+  const errorCode = details.find((d) => d.errorCode)?.errorCode ??
+    errBody.error?.status;
+  return {
+    ok: false,
+    errorCode,
+    errorMessage: errBody.error?.message ?? await res.text(),
+  };
+}
+
 export function parseServiceAccountJson(raw: string): FirebaseServiceAccount {
   const parsed = JSON.parse(raw) as FirebaseServiceAccount;
   if (!parsed.project_id || !parsed.client_email || !parsed.private_key) {

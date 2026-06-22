@@ -18,19 +18,23 @@ COMMENT ON TABLE public.profile_push_devices IS
 
 ALTER TABLE public.profile_push_devices ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS profile_push_devices_select_own ON public.profile_push_devices;
 CREATE POLICY profile_push_devices_select_own ON public.profile_push_devices
   FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS profile_push_devices_insert_own ON public.profile_push_devices;
 CREATE POLICY profile_push_devices_insert_own ON public.profile_push_devices
   FOR INSERT
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS profile_push_devices_update_own ON public.profile_push_devices;
 CREATE POLICY profile_push_devices_update_own ON public.profile_push_devices
   FOR UPDATE
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS profile_push_devices_delete_own ON public.profile_push_devices;
 CREATE POLICY profile_push_devices_delete_own ON public.profile_push_devices
   FOR DELETE
   USING (user_id = auth.uid());

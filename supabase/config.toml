@@ -7,5 +7,8 @@ verify_jwt = false
 [functions.notify-event-change]
 verify_jwt = true
 
+[functions.schedule-live-activity]
+verify_jwt = false
+
 [functions.delete-account]
 verify_jwt = true

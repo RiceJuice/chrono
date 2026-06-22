@@ -47,6 +47,8 @@ class PushDeviceRepository {
     return null;
   }
 
+  Future<String> deviceInstallId() => _deviceInstallId();
+
   Future<void> saveToken(String token) async {
     final userId = _client.auth.currentUser?.id;
     final platform = _platformLabel();

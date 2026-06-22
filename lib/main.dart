@@ -27,6 +27,7 @@ import 'core/startup/calendar_startup_state.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
 import 'features/calendar/presentation/providers/calendar_view_options.dart';
+import 'features/calendar/live_activity/presentation/schedule_live_activity_bootstrap.dart';
 import 'features/login/presentation/providers/profile_gate_notifier.dart';
 import 'features/login/presentation/providers/profile_gate_provider.dart';
 
@@ -187,7 +188,17 @@ class _MyAppState extends ConsumerState<MyApp> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    ScheduleLiveActivityBootstrap.start(
+      profileGate: widget.profileGateNotifier,
+      ref: ref,
+    );
+  }
+
+  @override
   void dispose() {
+    ScheduleLiveActivityBootstrap.disposeInstance();
     unawaited(PushNotificationBootstrap.disposeInstance());
     PowerSyncAuthBinding.dispose();
     widget.authSessionNotifier.dispose();

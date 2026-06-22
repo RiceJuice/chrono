@@ -178,6 +178,65 @@ supabase functions deploy notify-event-change
 
 `verify_jwt = true` — nur authentifizierte Admins.
 
+## 10. Ablaufplan Live Activities (`schedule-live-activity`)
+
+**Auslöser:** pg_cron (jede Minute) → Edge Function → FCM mit Live-Activity-Payload.
+
+**Lokal in der App:** `flutter_local_notifications` plant Segmentstarts; Coordinator startet/aktualisiert die Activity über `live_activities`.
+
+### Deploy
+
+```bash
+supabase db push
+supabase functions deploy schedule-live-activity --no-verify-jwt
+```
+
+### Secrets
+
+```bash
+# 1) Edge Function Secret (CLI)
+supabase secrets set SCHEDULE_LIVE_ACTIVITY_CRON_SECRET="<generierter-hex-string>"
+```
+
+**2) Postgres/pg_cron:** `ALTER DATABASE SET` ist auf Supabase Hosted **nicht erlaubt**.  
+Stattdessen Secret im **Vault** speichern — SQL Editor:
+
+```sql
+SELECT vault.create_secret(
+  '<derselbe-hex-string>',
+  'schedule_live_activity_cron_secret',
+  'Cron secret für schedule-live-activity'
+);
+```
+
+Falls die Migration schon ohne Vault lief: komplettes Setup-Skript  
+[`backend/SCHEDULE_LIVE_ACTIVITY_CRON_SETUP.sql`](SCHEDULE_LIVE_ACTIVITY_CRON_SETUP.sql) im SQL Editor ausführen (Secret-Wert anpassen).
+
+Der pg_cron-Job liest das Secret aus `vault.decrypted_secrets`.
+
+### Test (curl)
+
+```bash
+curl -X POST "https://chrbvfaknykaycwumuba.supabase.co/functions/v1/schedule-live-activity" \
+  -H "Content-Type: application/json" \
+  -H "x-cron-secret: <SCHEDULE_LIVE_ACTIVITY_CRON_SECRET>" \
+  -d '{}'
+```
+
+Erwartung: `{"processed":0,"sent":0,...}` oder Sends bei laufendem Ablaufplan.
+
+Ohne Secret: HTTP `401`.
+
+### iOS
+
+- Widget Extension `ChronoWidgetExtension` in Xcode (bereits im Repo)
+- App Group: `group.com.domspatzen.chronoapp`
+- Push-to-Start-/Activity-Tokens in `profile_push_devices`
+
+### Android
+
+- `ChronoLiveActivityManager` + `res/layout/live_activity.xml`
+
 ## 8. Troubleshooting
 
 | Symptom | Ursache / Fix |

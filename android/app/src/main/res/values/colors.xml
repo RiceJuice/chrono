@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#111827</color>
+    <color name="live_activity_bg">#000000</color>
+    <color name="live_activity_text_primary">#FFFFFF</color>
+    <color name="live_activity_text_secondary">#AAAAAA</color>
+    <color name="live_activity_progress_track">#2A2A2A</color>
+    <color name="live_activity_progress_fill">#3B4C6B</color>
 </resources>

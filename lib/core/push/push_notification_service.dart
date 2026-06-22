@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../features/calendar/live_activity/presentation/schedule_live_activity_coordinator.dart';
 import 'push_device_repository.dart';
 
 /// FCM-Token holen und in Supabase persistieren (nur mobile Plattformen).
@@ -27,9 +29,29 @@ class PushNotificationService {
     });
 
     FirebaseMessaging.onMessage.listen((message) {
+      final data = message.data;
+      if (data['type'] == 'schedule_live_activity') {
+        unawaited(
+          ScheduleLiveActivityCoordinator.instance?.handleFcmData(
+            data.map((k, v) => MapEntry(k, v.toString())),
+          ),
+        );
+        return;
+      }
       if (kDebugMode) {
         debugPrint(
           '[FCM] foreground: ${message.notification?.title}',
+        );
+      }
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      final data = message.data;
+      if (data['type'] == 'schedule_live_activity') {
+        unawaited(
+          ScheduleLiveActivityCoordinator.instance?.handleFcmData(
+            data.map((k, v) => MapEntry(k, v.toString())),
+          ),
         );
       }
     });
