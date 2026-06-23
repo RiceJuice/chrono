@@ -45,9 +45,6 @@ abstract final class ScheduleLiveActivityResolver {
     final segmentEnd = AppDateTime.toLocal(
       CalendarNowAnchor.scheduleEffectiveEnd(current),
     );
-    if (!segmentEnd.isAfter(clock) && segmentStart.isBefore(clock)) {
-      return null;
-    }
 
     return ScheduleLiveActivitySnapshot(
       eventId: eventId,

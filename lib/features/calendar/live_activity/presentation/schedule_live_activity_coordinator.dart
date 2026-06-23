@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:chronoapp/core/database/database_provider.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
@@ -8,6 +9,7 @@ import 'package:chronoapp/features/calendar/live_activity/data/schedule_live_act
 import 'package:chronoapp/features/calendar/live_activity/data/schedule_live_activity_service.dart';
 import 'package:chronoapp/features/calendar/live_activity/domain/schedule_live_activity_resolver.dart';
 import 'package:chronoapp/features/calendar/live_activity/domain/schedule_live_activity_snapshot.dart';
+import 'package:chronoapp/features/calendar/live_activity/live_activity_constants.dart';
 import 'package:chronoapp/features/calendar/domain/filter/event_schedule_filter.dart';
 import 'package:chronoapp/features/calendar/live_activity/presentation/schedule_list_filter_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
@@ -71,9 +73,12 @@ class ScheduleLiveActivityCoordinator {
       unawaited(_refresh());
     });
 
-    _tickTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      unawaited(_syncActiveActivities());
-    });
+    _tickTimer = Timer.periodic(
+      Duration(seconds: Platform.isAndroid ? 15 : 30),
+      (_) {
+        unawaited(_syncActiveActivities());
+      },
+    );
 
     unawaited(_refresh());
   }
@@ -168,6 +173,7 @@ class ScheduleLiveActivityCoordinator {
     final stillActive = <String>{};
 
     for (final eventId in eventIds) {
+      final customId = liveActivityCustomIdForEvent(eventId);
       final schedules = await _dataSource.schedulesForEvent(eventId);
       final snapshot = ScheduleLiveActivityResolver.resolve(
         eventId: eventId,
@@ -178,7 +184,7 @@ class ScheduleLiveActivityCoordinator {
       );
 
       if (snapshot != null) {
-        stillActive.add(snapshot.customId);
+        stillActive.add(customId);
         await _applySnapshot(snapshot);
         continue;
       }
@@ -190,10 +196,12 @@ class ScheduleLiveActivityCoordinator {
         now: now,
       );
       if (finished) {
-        final customId = 'event_$eventId';
         if (_activeCustomIds.contains(customId)) {
           await _service.end(customId);
         }
+      } else if (_activeCustomIds.contains(customId)) {
+        // Segmentwechsel oder kurze Lücke: bestehende Notification behalten.
+        stillActive.add(customId);
       }
     }
 

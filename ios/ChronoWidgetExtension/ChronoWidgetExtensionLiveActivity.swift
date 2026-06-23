@@ -226,7 +226,7 @@ private struct ScheduleLiveActivityView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: layout.sectionSpacing) {
-      HStack(alignment: .top, spacing: layout.columnSpacing) {
+      HStack(alignment: .center, spacing: layout.columnSpacing) {
         ScheduleColumn(
           title: data.currentTitle,
           subtitle: data.currentSubtitle,
@@ -234,6 +234,12 @@ private struct ScheduleLiveActivityView: View {
           titleSize: layout.titleSize,
           subtitleSize: layout.subtitleSize
         )
+        if data.hasNext {
+          Image(systemName: "arrow.right")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
+            .frame(width: 20)
+        }
         if data.hasNext {
           ScheduleNextColumn(
             data: data,
