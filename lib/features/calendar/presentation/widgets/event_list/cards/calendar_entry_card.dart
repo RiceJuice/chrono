@@ -20,6 +20,7 @@ class CalendarEntryCard extends StatelessWidget {
     this.timeColumnCollapse = 1,
     this.neighborGlassBlurSigma,
     this.neighborGlassTintAlpha,
+    this.homeWidgetSnapshot = false,
     super.key,
   });
 
@@ -44,6 +45,7 @@ class CalendarEntryCard extends StatelessWidget {
   final double timeColumnCollapse;
   final double? neighborGlassBlurSigma;
   final double? neighborGlassTintAlpha;
+  final bool homeWidgetSnapshot;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +90,7 @@ class CalendarEntryCard extends StatelessWidget {
           modalHeaderPreview: modalHeaderPreview,
           neighborGlassBlurSigma: neighborGlassBlurSigma,
           neighborGlassTintAlpha: neighborGlassTintAlpha,
+          homeWidgetSnapshot: homeWidgetSnapshot,
         );
       case CalendarEntryType.event:
         return EventCard(
@@ -100,6 +103,7 @@ class CalendarEntryCard extends StatelessWidget {
           modalHeaderPreview: modalHeaderPreview,
           neighborGlassBlurSigma: neighborGlassBlurSigma,
           neighborGlassTintAlpha: neighborGlassTintAlpha,
+          homeWidgetSnapshot: homeWidgetSnapshot,
         );
       case CalendarEntryType.breakType:
         return const SizedBox.shrink();

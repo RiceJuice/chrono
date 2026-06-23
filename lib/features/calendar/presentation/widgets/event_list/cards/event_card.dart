@@ -23,6 +23,7 @@ class EventCard extends StatefulWidget {
   final bool modalHeaderPreview;
   final double? neighborGlassBlurSigma;
   final double? neighborGlassTintAlpha;
+  final bool homeWidgetSnapshot;
 
   const EventCard({
     super.key,
@@ -35,6 +36,7 @@ class EventCard extends StatefulWidget {
     this.modalHeaderPreview = false,
     this.neighborGlassBlurSigma,
     this.neighborGlassTintAlpha,
+    this.homeWidgetSnapshot = false,
   });
 
   @override
@@ -73,9 +75,9 @@ class _EventCardState extends State<EventCard> {
     CalendarCardStyle style,
   ) {
     final scheme = theme.colorScheme;
-    final hasImageCandidate =
-        (entry.imageUrls?.isNotEmpty ?? false) ||
-        (entry.imagePaths?.isNotEmpty ?? false);
+    final hasImageCandidate = !widget.homeWidgetSnapshot &&
+        ((entry.imageUrls?.isNotEmpty ?? false) ||
+            (entry.imagePaths?.isNotEmpty ?? false));
     final wantTimeRange =
         widget.showInlineTimeRange ?? !widget.showTimeColumn;
     final trimmedLocation = (entry.location ?? '').trim();

@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
   figma_squircle: ^0.6.2
   table_calendar: ^3.2.0
@@ -74,6 +76,7 @@ dependencies:
   live_activities: ^2.4.9
   flutter_local_notifications: ^19.0.0
   timezone: ^0.10.0
+  home_widget: ^0.9.3
 
 dev_dependencies:
   flutter_test:

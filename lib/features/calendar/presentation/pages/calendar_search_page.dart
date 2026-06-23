@@ -4,15 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../../core/theme/theme_tokens.dart';
 import '../../../../core/time/app_date_time.dart';
 import '../../domain/models/calendar_entry.dart';
 import '../providers/calendar_providers.dart';
-import '../theme/calendar_presentation_theme.dart';
 import '../widgets/event_list/cards/calendar_entry_card.dart';
+import '../widgets/search_results/calendar_day_section_header.dart';
 import '../widgets/search_results/search_results_sections.dart';
 
 class CalendarSearchPage extends ConsumerStatefulWidget {
@@ -180,9 +179,9 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                                 final lastIndex = rows.length - 1;
                                 final Widget child;
                                 if (row.headerDay != null) {
-                                  child = _buildDayHeader(
-                                    context: context,
+                                  child = CalendarDaySectionHeader(
                                     day: row.headerDay!,
+                                    height: _stickyHeaderHeight,
                                   );
                                 } else {
                                   child = CalendarEntryCard(
@@ -222,9 +221,9 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                         child: IgnorePointer(
                           child: Transform.translate(
                             offset: Offset(0, _stickyHeaderPushOffset),
-                            child: _buildDayHeader(
-                              context: context,
+                            child: CalendarDaySectionHeader(
                               day: _stickyDay!,
+                              height: _stickyHeaderHeight,
                             ),
                           ),
                         ),
@@ -295,44 +294,11 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     );
   }
 
-  bool _isToday(DateTime day) {
-    return AppDateTime.isTodayLocal(day);
-  }
-
   void _dismissSearchKeyboard() {
     final inputFocus = ref.read(calendarSearchInputFocusedProvider);
     if (!inputFocus) return;
     FocusManager.instance.primaryFocus?.unfocus();
     ref.read(calendarSearchInputFocusedProvider.notifier).dismiss();
-  }
-
-  bool _isPastDay(DateTime day) {
-    return AppDateTime.isBeforeTodayLocal(day);
-  }
-
-  Widget _buildDayHeader({
-    required BuildContext context,
-    required DateTime day,
-  }) {
-    final baseStyle = Theme.of(context).textTheme.titleMedium;
-    final isToday = _isToday(day);
-    final isPastDay = _isPastDay(day);
-    final style = isToday
-        ? CalendarPresentationTheme.todayHeaderTextStyle(context, baseStyle)
-        : isPastDay
-        ? CalendarPresentationTheme.pastHeaderTextStyle(context, baseStyle)
-        : baseStyle;
-
-    return Container(
-      height: _stickyHeaderHeight,
-      color: Theme.of(context).colorScheme.surface,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Text(
-        DateFormat('EEEE, d. MMMM', 'de').format(day),
-        style: style?.copyWith(fontSize: 16),
-      ),
-    );
   }
 
   List<_SearchListRow> _buildRows(List<SearchDaySection> sections) {

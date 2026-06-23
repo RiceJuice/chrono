@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/calendar/home_widget/domain/calendar_home_widget_constants.dart';
 import '../../features/calendar/live_activity/live_activity_constants.dart';
 import '../../features/calendar/live_activity/presentation/schedule_live_activity_deep_link_pending.dart';
 import '../../features/calendar/presentation/pages/calendar_page.dart';
@@ -69,11 +70,18 @@ class AppRouter {
         router.go('/calendar');
         return;
       }
+      if (isCalendarHomeWidgetDeepLink(state.uri)) {
+        router.go('/calendar');
+        return;
+      }
     },
     redirect: (context, state) {
       final scheduleEventId = parseScheduleLiveActivityEventId(state.uri);
       if (scheduleEventId != null) {
         ScheduleLiveActivityDeepLinkPending.set(scheduleEventId);
+      }
+      if (isCalendarHomeWidgetDeepLink(state.uri)) {
+        return '/calendar';
       }
 
       final loc = state.matchedLocation;

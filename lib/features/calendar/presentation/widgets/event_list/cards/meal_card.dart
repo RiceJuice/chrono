@@ -22,6 +22,7 @@ class MealCard extends ConsumerWidget {
   final bool modalHeaderPreview;
   final double? neighborGlassBlurSigma;
   final double? neighborGlassTintAlpha;
+  final bool homeWidgetSnapshot;
 
   const MealCard({
     super.key,
@@ -34,6 +35,7 @@ class MealCard extends ConsumerWidget {
     this.modalHeaderPreview = false,
     this.neighborGlassBlurSigma,
     this.neighborGlassTintAlpha,
+    this.homeWidgetSnapshot = false,
   });
 
   @override
@@ -140,8 +142,9 @@ class MealCard extends ConsumerWidget {
                                 ),
                               ),
                             ),
-                            if ((entry.imageUrls?.isNotEmpty ?? false) ||
-                                (entry.imagePaths?.isNotEmpty ?? false))
+                            if (!homeWidgetSnapshot &&
+                                ((entry.imageUrls?.isNotEmpty ?? false) ||
+                                    (entry.imagePaths?.isNotEmpty ?? false)))
                               CalendarMealCardImageStrip(
                                 entry: entry,
                                 placeholderColor: Theme.of(context)

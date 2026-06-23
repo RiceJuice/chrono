@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
 import com.istornz.live_activities.LiveActivityManager
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -49,7 +50,34 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         }
     }
 
+    private fun color(resId: Int): Int =
+        ContextCompat.getColor(appContext, resId)
+
+    private fun applyThemeColors(views: RemoteViews, expanded: Boolean) {
+        val primary = color(R.color.live_activity_text_primary)
+        val secondary = color(R.color.live_activity_text_secondary)
+        val arrow = color(R.color.live_activity_arrow)
+
+        views.setTextColor(R.id.current_title, primary)
+        views.setTextColor(R.id.arrow_icon, arrow)
+        views.setTextColor(R.id.next_title, primary)
+        views.setTextColor(R.id.remaining_label, primary)
+
+        if (!expanded) return
+
+        views.setTextColor(R.id.current_subtitle, secondary)
+        views.setTextColor(R.id.next_subtitle, secondary)
+        views.setTextColor(R.id.segment_start, secondary)
+        views.setTextColor(R.id.segment_end, secondary)
+        views.setInt(
+            R.id.segment_progress,
+            "setProgressDrawable",
+            R.drawable.live_activity_progress,
+        )
+    }
+
     private fun updateRemoteViews(views: RemoteViews, data: Map<String, Any>, expanded: Boolean) {
+        applyThemeColors(views, expanded)
         val currentTitle = data["currentTitle"] as? String ?: ""
         val currentSubtitle = data["currentSubtitle"] as? String ?: ""
         val nextTitle = data["nextTitle"] as? String ?: ""

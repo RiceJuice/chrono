@@ -5,6 +5,7 @@ import WidgetKit
 @main
 struct ChronoWidgetExtensionBundle: WidgetBundle {
   var body: some Widget {
+    ChronoCalendarHomeWidget()
     if #available(iOS 16.1, *) {
       ChronoScheduleLiveActivity()
     }
