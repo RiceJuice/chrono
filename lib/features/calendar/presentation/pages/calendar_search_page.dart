@@ -1,9 +1,5 @@
 import 'dart:async';
 
-import 'package:chronoapp/core/theme/theme_tokens.dart';
-import 'package:chronoapp/core/time/app_date_time.dart';
-import 'package:chronoapp/core/widgets/app_native_glass.dart';
-import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
+import '../../../../core/theme/theme_tokens.dart';
+import '../../../../core/time/app_date_time.dart';
 import '../../domain/models/calendar_entry.dart';
 import '../providers/calendar_providers.dart';
 import '../theme/calendar_presentation_theme.dart';
@@ -33,7 +31,7 @@ class CalendarSearchPage extends ConsumerStatefulWidget {
 
 class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   static const double _stickyHeaderHeight = 40;
-  static const Duration _initialMorphWindow = Duration(milliseconds: 480);
+  static const Duration _initialMorphWindow = Duration(milliseconds: 520);
 
   double get _listTopPadding => _stickyHeaderHeight;
 
@@ -97,7 +95,13 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _buildEmptySearchIcon(context),
+                  Icon(
+                    Icons.search,
+                    size: 60,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
                   Text(
                     'Keine Treffer gefunden',
                     style: Theme.of(context).textTheme.titleMedium,
@@ -125,6 +129,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
           sectionIndex: sectionsResult.initialSectionIndex,
         );
 
+        final theme = Theme.of(context);
         return Listener(
           behavior: HitTestBehavior.translucent,
           onPointerDown: (_) => _dismissSearchKeyboard(),
@@ -139,7 +144,9 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                     LayoutBuilder(
                       builder: (context, constraints) {
                         _listViewportHeight = constraints.maxHeight;
-                        return NotificationListener<ScrollNotification>(
+                        return ColoredBox(
+                          color: theme.colorScheme.surface,
+                          child: NotificationListener<ScrollNotification>(
                             onNotification: (notification) {
                               if (notification is ScrollStartNotification ||
                                   notification is ScrollUpdateNotification ||
@@ -202,7 +209,8 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                                 );
                               },
                             ),
-                          );
+                          ),
+                        );
                       },
                     ),
                     if (_stickyDay != null &&
@@ -261,16 +269,16 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     final cappedIndex = index.clamp(0, 8);
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOutExpo,
       builder: (context, value, child) {
-        final start = (0.04 * cappedIndex).clamp(0.0, 0.3);
+        final start = (0.038 * cappedIndex).clamp(0.0, 0.32);
         final effectiveValue = ((value - start) / (1 - start)).clamp(0.0, 1.0);
         final eased = Curves.easeOutCubic.transform(effectiveValue);
         final settleValue = Curves.easeOut.transform(
-          ((effectiveValue - 0.8) / 0.2).clamp(0.0, 1.0),
+          ((effectiveValue - 0.78) / 0.22).clamp(0.0, 1.0),
         );
-        final scale = 0.968 + (0.034 * eased) - (0.003 * settleValue);
+        final scale = 0.965 + (0.039 * eased) - (0.004 * settleValue);
         return Opacity(
           opacity: eased,
           child: Transform.translate(
@@ -302,17 +310,6 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     return AppDateTime.isBeforeTodayLocal(day);
   }
 
-  Widget _buildEmptySearchIcon(BuildContext context) {
-    final color =
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
-    if (useNativeLiquidGlass()) {
-      return CNIcon(
-        symbol: CNSymbol('magnifyingglass', size: 60, color: color),
-      );
-    }
-    return Icon(Icons.search, size: 60, color: color);
-  }
-
   Widget _buildDayHeader({
     required BuildContext context,
     required DateTime day,
@@ -326,30 +323,15 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
         ? CalendarPresentationTheme.pastHeaderTextStyle(context, baseStyle)
         : baseStyle;
 
-    final label = Text(
-      DateFormat('EEEE, d. MMMM', 'de').format(day),
-      style: style?.copyWith(fontSize: 16),
-    );
-
-    if (useNativeLiquidGlass()) {
-      return AppGlassPinnedBar(
-        height: _stickyHeaderHeight,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: label,
-          ),
-        ),
-      );
-    }
-
     return Container(
       height: _stickyHeaderHeight,
       color: Theme.of(context).colorScheme.surface,
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: label,
+      child: Text(
+        DateFormat('EEEE, d. MMMM', 'de').format(day),
+        style: style?.copyWith(fontSize: 16),
+      ),
     );
   }
 

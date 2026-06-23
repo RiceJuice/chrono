@@ -11,6 +11,7 @@ import '../haptics/app_haptics.dart';
 import 'app_glass_icon_button.dart';
 import 'app_hairline_divider.dart';
 import 'domspatzen_icon_metrics.dart';
+import 'ios_calendar_tab_icons_provider.dart';
 
 class MainNavigationBar extends ConsumerStatefulWidget {
   const MainNavigationBar({
@@ -25,6 +26,7 @@ class MainNavigationBar extends ConsumerStatefulWidget {
 }
 
 class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
+  bool _iosCalendarIconLoadScheduled = false;
   final GlobalKey _searchButtonKey = GlobalKey();
 
   static const _calendarPath = '/calendar';
@@ -57,6 +59,24 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
       captureCalendarSearchMorphOrigin(ref, searchContext);
     }
     ref.read(calendarSearchOpenProvider.notifier).open();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scheduleIosCalendarIconLoad();
+  }
+
+  void _scheduleIosCalendarIconLoad() {
+    if (!_useNativeIosTabBar() || _iosCalendarIconLoadScheduled) {
+      return;
+    }
+    _iosCalendarIconLoadScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _iosCalendarIconLoadScheduled = false;
+      if (!mounted || !_useNativeIosTabBar()) return;
+      ref.read(iosCalendarTabIconsProvider.notifier).ensureLoaded(context);
+    });
   }
 
   void _onDestinationSelected({
@@ -256,25 +276,38 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
     required BuildContext context,
     required String location,
     required int currentIndex,
+    required IosCalendarTabIconSet? tabIcons,
   }) {
     final iosSparrowAssetSize =
         DomspatzenIconMetrics.assetSizeForGlyph(_iosTabGlyphSize);
-    final inactiveIconColor = _tabIconColor(context, selected: false);
-    final activeIconColor = _tabIconColor(context, selected: true);
+    final inactiveBytes = tabIcons?.inactive;
+    final activeBytes = tabIcons?.active;
 
     final items = <CNTabBarItem>[
       CNTabBarItem(
         label: 'Kalender',
-        imageAsset: CNImageAsset(
-          DomspatzenIconMetrics.assetPath,
-          size: iosSparrowAssetSize,
-          color: inactiveIconColor,
-        ),
-        activeImageAsset: CNImageAsset(
-          DomspatzenIconMetrics.assetPath,
-          size: iosSparrowAssetSize,
-          color: activeIconColor,
-        ),
+        icon: inactiveBytes == null
+            ? const CNSymbol('calendar', size: _iosTabGlyphSize)
+            : null,
+        activeIcon: activeBytes == null
+            ? const CNSymbol('calendar', size: _iosTabGlyphSize)
+            : null,
+        imageAsset: inactiveBytes != null
+            ? CNImageAsset(
+                DomspatzenIconMetrics.assetPath,
+                size: iosSparrowAssetSize,
+                imageData: inactiveBytes,
+                imageFormat: 'png',
+              )
+            : null,
+        activeImageAsset: activeBytes != null
+            ? CNImageAsset(
+                DomspatzenIconMetrics.assetPath,
+                size: iosSparrowAssetSize,
+                imageData: activeBytes,
+                imageFormat: 'png',
+              )
+            : null,
       ),
       CNTabBarItem(
         label: 'Aufgaben',
@@ -290,8 +323,8 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
 
     return CNTabBar(
       key: ValueKey(
-        'main-nav-${Theme.of(context).brightness.name}-'
-        '${inactiveIconColor.toARGB32()}-${activeIconColor.toARGB32()}',
+        'main-nav-${tabIcons?.brightness.name}-'
+        '${inactiveBytes?.length}-${activeBytes?.length}',
       ),
       autoHideOnModal: false,
       labelFontSize: 10,
@@ -335,7 +368,6 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
           searchBarHeight: 44,
           searchBarBorderRadius: 24,
           searchBarPadding: const EdgeInsets.only(left: 12, right: 44),
-          animationDuration: const Duration(milliseconds: 400),
         ),
       ),
       searchController: widget.searchController,
@@ -352,10 +384,12 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
     final location = GoRouterState.of(context).uri.path;
     final currentIndex = _tabIndexFromLocation(location);
     if (_useNativeIosTabBar()) {
+      final tabIcons = ref.watch(iosCalendarTabIconsProvider);
       return _buildIosNavigationBar(
         context: context,
         location: location,
         currentIndex: currentIndex,
+        tabIcons: tabIcons,
       );
     }
     return _buildMaterialNavigationBar(
