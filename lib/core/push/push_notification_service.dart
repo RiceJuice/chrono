@@ -5,18 +5,25 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../features/calendar/live_activity/presentation/schedule_live_activity_coordinator.dart';
+import '../../features/login/presentation/services/guardian_link_bootstrap.dart';
 import 'push_device_repository.dart';
+
+typedef GuardianLinkPushHandler = void Function(Map<String, String> data);
 
 /// FCM-Token holen und in Supabase persistieren (nur mobile Plattformen).
 class PushNotificationService {
   PushNotificationService({
     FirebaseMessaging? messaging,
     PushDeviceRepository? tokenRepository,
+    GuardianLinkPushHandler? onGuardianLinkPush,
   })  : _messaging = messaging ?? FirebaseMessaging.instance,
-        _tokenRepository = tokenRepository ?? PushDeviceRepository();
+        _tokenRepository = tokenRepository ?? PushDeviceRepository(),
+        _onGuardianLinkPush =
+            onGuardianLinkPush ?? GuardianLinkBootstrap.handlePushPayload;
 
   final FirebaseMessaging _messaging;
   final PushDeviceRepository _tokenRepository;
+  final GuardianLinkPushHandler _onGuardianLinkPush;
 
   static bool get supportsPush =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
@@ -28,33 +35,50 @@ class PushNotificationService {
       await _persistToken(token);
     });
 
-    FirebaseMessaging.onMessage.listen((message) {
-      final data = message.data;
-      if (data['type'] == 'schedule_live_activity') {
-        unawaited(
-          ScheduleLiveActivityCoordinator.instance?.handleFcmData(
-            data.map((k, v) => MapEntry(k, v.toString())),
-          ),
-        );
-        return;
-      }
-      if (kDebugMode) {
-        debugPrint(
-          '[FCM] foreground: ${message.notification?.title}',
-        );
-      }
-    });
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleOpenedMessage);
 
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final data = message.data;
-      if (data['type'] == 'schedule_live_activity') {
-        unawaited(
-          ScheduleLiveActivityCoordinator.instance?.handleFcmData(
-            data.map((k, v) => MapEntry(k, v.toString())),
-          ),
-        );
-      }
-    });
+    final initial = await _messaging.getInitialMessage();
+    if (initial != null) {
+      _handleOpenedMessage(initial);
+    }
+  }
+
+  void _handleForegroundMessage(RemoteMessage message) {
+    final data = _stringifyData(message.data);
+    if (_handleGuardianLinkData(data)) return;
+    if (data['type'] == 'schedule_live_activity') {
+      unawaited(
+        ScheduleLiveActivityCoordinator.instance?.handleFcmData(data),
+      );
+      return;
+    }
+    if (kDebugMode) {
+      debugPrint('[FCM] foreground: ${message.notification?.title}');
+    }
+  }
+
+  void _handleOpenedMessage(RemoteMessage message) {
+    final data = _stringifyData(message.data);
+    if (_handleGuardianLinkData(data)) return;
+    if (data['type'] == 'schedule_live_activity') {
+      unawaited(
+        ScheduleLiveActivityCoordinator.instance?.handleFcmData(data),
+      );
+    }
+  }
+
+  bool _handleGuardianLinkData(Map<String, String> data) {
+    final type = data['type'];
+    if (type != 'guardian_link_request' && type != 'guardian_link_confirmed') {
+      return false;
+    }
+    _onGuardianLinkPush(data);
+    return true;
+  }
+
+  Map<String, String> _stringifyData(Map<String, dynamic> data) {
+    return data.map((k, v) => MapEntry(k, v.toString()));
   }
 
   Future<void> syncTokenForCurrentUser() async {
@@ -72,7 +96,9 @@ class PushNotificationService {
 
     if (!authorized) {
       if (kDebugMode) {
-        debugPrint('[FCM] permission not granted: ${settings.authorizationStatus}');
+        debugPrint(
+          '[FCM] permission not granted: ${settings.authorizationStatus}',
+        );
       }
       return;
     }

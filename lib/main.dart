@@ -19,17 +19,20 @@ import 'firebase_options.dart';
 import 'core/database/calendar_events_debug_log.dart';
 import 'core/database/database_provider.dart';
 import 'core/database/powersync_auth_binding.dart';
+import 'core/database/powersync_schema.dart';
 import 'core/network/connectivity_notifier.dart';
 import 'core/router/app_router.dart';
-import 'core/database/powersync_schema.dart';
 import 'core/startup/calendar_filter_startup_state.dart';
 import 'core/startup/calendar_startup_state.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
 import 'features/calendar/presentation/providers/calendar_view_options.dart';
 import 'features/calendar/live_activity/presentation/schedule_live_activity_bootstrap.dart';
+import 'features/login/data/guardian_link_repository.dart';
+import 'features/login/presentation/services/guardian_link_bootstrap.dart';
 import 'features/login/presentation/providers/profile_gate_notifier.dart';
 import 'features/login/presentation/providers/profile_gate_provider.dart';
+import 'features/settings/data/models/profile_snapshot.dart';
 
 const String kSupabaseUrl = 'https://chrbvfaknykaycwumuba.supabase.co';
 const String kSupabaseAnonKey =
@@ -81,7 +84,10 @@ void main() async {
   final startupNotifier = AppStartupNotifier();
   final authSessionNotifier = AuthSessionNotifier();
   final connectivityNotifier = ConnectivityNotifier();
-  final profileGateNotifier = ProfileGateNotifier(localDb: powerSyncDb);
+  final profileGateNotifier = ProfileGateNotifier(
+    localDb: powerSyncDb,
+    guardianLinkRepository: GuardianLinkRepository(powerSyncDb),
+  );
 
   runApp(
     ProviderScope(
@@ -153,10 +159,28 @@ Future<void> _finishStartup({
     final diet = userId == null
         ? null
         : await _loadLocalProfileDiet(powerSyncDb, userId);
-    CalendarFilterStartupState.preload(gateData: gateData, diet: diet);
+    ProfileSnapshot? childProfile;
+    if (userId != null) {
+      childProfile = await CalendarFilterStartupState.loadChildProfileForStartup(
+        db: powerSyncDb,
+        gateData: gateData,
+        userId: userId,
+      );
+    }
+    CalendarFilterStartupState.preload(
+      gateData: gateData,
+      diet: diet,
+      childProfile: childProfile,
+    );
   }
 
   PushNotificationBootstrap.start(profileGate: profileGateNotifier);
+
+  GuardianLinkBootstrap.start(
+    profileGate: profileGateNotifier,
+    navigatorKey: rootNavigatorKey,
+    guardianLinkRepository: GuardianLinkRepository(powerSyncDb),
+  );
 
   startupNotifier.setReady();
 }
@@ -201,6 +225,7 @@ class _MyAppState extends ConsumerState<MyApp> {
   void dispose() {
     ScheduleLiveActivityBootstrap.disposeInstance();
     unawaited(PushNotificationBootstrap.disposeInstance());
+    GuardianLinkBootstrap.disposeInstance();
     PowerSyncAuthBinding.dispose();
     widget.authSessionNotifier.dispose();
     widget.profileGateNotifier.dispose();

@@ -28,6 +28,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/settings_profile_providers.dart';
+import '../widgets/guardian_children_section.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -164,8 +165,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     detail: error.toString(),
                   ),
                 ),
+                if (profileAsync.asData?.value?.role?.trim() == 'Elternteil') ...[
+                  const SettingsSectionLabel(title: 'Familie', top: 22),
+                  const GuardianChildrenSection(),
+                ],
                 ...profileAsync.maybeWhen(
-                  data: (profile) => [
+                  data: (profile) {
+                    if (profile?.role?.trim() == 'Elternteil') {
+                      return const <Widget>[];
+                    }
+                    return [
                     const SettingsSectionLabel(title: 'Schule', top: 22),
                     SettingsIsland(
                       children: [
@@ -262,7 +271,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         ),
                       ],
                     ),
-                  ],
+                  ];
+                  },
                   orElse: () => const [],
                 ),
                 const SettingsSectionLabel(title: 'Darstellung'),

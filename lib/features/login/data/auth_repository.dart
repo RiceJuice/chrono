@@ -419,6 +419,7 @@ class AuthRepository {
     String? diet,
     String? role,
     String? choir,
+    String? activeChildId,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -434,6 +435,7 @@ class AuthRepository {
     if (diet != null) updates['diet'] = diet;
     if (role != null) updates['role'] = role;
     if (choir != null) updates['choir'] = choir;
+    if (activeChildId != null) updates['active_child_id'] = activeChildId;
 
     if (updates.isEmpty) return true;
 

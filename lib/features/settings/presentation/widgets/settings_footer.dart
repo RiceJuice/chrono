@@ -1,5 +1,5 @@
 import 'package:chronoapp/features/settings/presentation/helpers/settings_app_metadata.dart';
-import 'package:chronoapp/features/settings/presentation/widgets/settings_buy_coffee_button.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_tuning_fork_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -42,7 +42,7 @@ class SettingsFooter extends ConsumerWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),
-          const SettingsBuyCoffeeButton(),
+          const SettingsTuningForkButton(),
         ],
       ),
     );

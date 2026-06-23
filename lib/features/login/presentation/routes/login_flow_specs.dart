@@ -1,17 +1,21 @@
 import '../../../../core/auth/profile_role_ids.dart';
+import '../../domain/models/login_flow_role_ids.dart';
 import '../../domain/models/profile_gate_data.dart';
 import 'login_paths.dart';
 
 /// Eine einzelne Station im Onboarding-Flow nach erfolgreichem Credentials-Step.
-/// Die Reihenfolge in [loginFlowSpecs] steuert Resolver und Slide-Richtung.
 class LoginFlowStepSpec {
   const LoginFlowStepSpec({
     required this.path,
     required this.isSatisfiedBy,
+    this.appliesTo,
   });
 
   final String path;
   final bool Function(ProfileGateData data) isSatisfiedBy;
+
+  /// `null` = für alle Rollen; sonst nur wenn Prädikat true ist.
+  final bool Function(ProfileGateData data)? appliesTo;
 }
 
 bool _isNonEmpty(String? value) => value != null && value.trim().isNotEmpty;
@@ -19,9 +23,13 @@ bool _isNonEmpty(String? value) => value != null && value.trim().isNotEmpty;
 bool _isAdminProfile(ProfileGateData data) =>
     data.role?.trim() == ProfileRoleIds.admin;
 
-/// Geordnete Liste aller Onboarding-Schritte. Neue Schritte einfach hier
-/// einhängen – Resolver, Router-Guard und Slide-Reihenfolge ziehen automatisch
-/// nach.
+bool _isGuardianProfile(ProfileGateData data) =>
+    data.role?.trim() == LoginFlowRoleIds.guardian;
+
+bool _isStudentProfile(ProfileGateData data) =>
+    !_isAdminProfile(data) && !_isGuardianProfile(data);
+
+/// Geordnete Liste aller Onboarding-Schritte.
 final List<LoginFlowStepSpec> loginFlowSpecs = <LoginFlowStepSpec>[
   LoginFlowStepSpec(
     path: LoginPaths.emailConfirmation,
@@ -31,8 +39,10 @@ final List<LoginFlowStepSpec> loginFlowSpecs = <LoginFlowStepSpec>[
     path: LoginPaths.role,
     isSatisfiedBy: (data) => _isNonEmpty(data.role),
   ),
+  // Schüler: vollständige persönliche Daten
   LoginFlowStepSpec(
     path: LoginPaths.personalData,
+    appliesTo: _isStudentProfile,
     isSatisfiedBy: (data) =>
         _isAdminProfile(data) ||
         (_isNonEmpty(data.firstName) &&
@@ -42,15 +52,39 @@ final List<LoginFlowStepSpec> loginFlowSpecs = <LoginFlowStepSpec>[
   ),
   LoginFlowStepSpec(
     path: LoginPaths.choir,
+    appliesTo: _isStudentProfile,
     isSatisfiedBy: (data) =>
         _isAdminProfile(data) ||
         (_isNonEmpty(data.voice) && _isNonEmpty(data.choir)),
   ),
+  // Elternteil: eigener Name
+  LoginFlowStepSpec(
+    path: LoginPaths.personalData,
+    appliesTo: _isGuardianProfile,
+    isSatisfiedBy: (data) =>
+        _isNonEmpty(data.firstName) && _isNonEmpty(data.lastName),
+  ),
+  // Elternteil: Kind auswählen (Anfrage gesendet)
+  LoginFlowStepSpec(
+    path: LoginPaths.selectChild,
+    appliesTo: _isGuardianProfile,
+    isSatisfiedBy: (data) => data.hasAnyGuardianLink,
+  ),
+  // Elternteil: Kind-Bestätigung abwarten
+  LoginFlowStepSpec(
+    path: LoginPaths.guardianPending,
+    appliesTo: _isGuardianProfile,
+    isSatisfiedBy: (data) => data.hasConfirmedGuardianLink,
+  ),
 ];
 
-/// Position eines Login-Pfads im Flow (Start/Credentials zuerst, dann die
-/// registrierten Specs in Reihenfolge). Wird von der Slide-Animation genutzt,
-/// um Richtung Vor/Zurück zu bestimmen. Liefert `-1` für unbekannte Pfade.
+List<LoginFlowStepSpec> _specsFor(ProfileGateData data) {
+  return loginFlowSpecs.where((spec) {
+    final applies = spec.appliesTo;
+    return applies == null || applies(data);
+  }).toList(growable: false);
+}
+
 int loginFlowOrderIndex(String path) {
   switch (path) {
     case LoginPaths.login:
@@ -67,18 +101,14 @@ int loginFlowOrderIndex(String path) {
   return -1;
 }
 
-/// Erste offene Onboarding-Route für einen eingeloggten Nutzer, oder `null`
-/// wenn das Profil vollständig ist. Für Sessions-lose Zustände ebenfalls `null`.
 String? resolveRequiredOnboardingPath(ProfileGateData data) {
   if (!data.hasSession) return null;
-  for (final spec in loginFlowSpecs) {
+  for (final spec in _specsFor(data)) {
     if (!spec.isSatisfiedBy(data)) return spec.path;
   }
   return null;
 }
 
-/// Gesamtmenge aller Login-Unterpfade, die der Router akzeptiert – inklusive
-/// Start- und Credentials-Seite.
 Set<String> get onboardingLoginPaths => <String>{
       LoginPaths.login,
       LoginPaths.credentials,

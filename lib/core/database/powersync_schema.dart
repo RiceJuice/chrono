@@ -8,6 +8,7 @@ const String kProfilesTable = 'profiles';
 const String kKlassenTable = 'klassen';
 const String kSubjectsTable = 'subjects';
 const String kEventSchedulesTable = 'event_schedules';
+const String kGuardianChildLinksTable = 'guardian_child_links';
 
 /// Client-Schema für [kCalendarEventsTable] — Spalten wie in Supabase/Postgres
 /// und [CalendarEntry]/[CalendarEntryMapper].
@@ -84,10 +85,32 @@ const powersyncSchema = Schema([
       Column.text('calendar_preferences'),
       Column.text('fcm_token'),
       Column.text('fcm_token_updated_at'),
+      Column.text('active_child_id'),
     ],
     indexes: [
       Index('profiles_class_name', [IndexedColumn('class_name')]),
       Index('profiles_updated_at', [IndexedColumn('updated_at')]),
+    ],
+  ),
+  Table(
+    kGuardianChildLinksTable,
+    [
+      Column.text('guardian_id'),
+      Column.text('child_id'),
+      Column.text('status'),
+      Column.text('created_at'),
+      Column.text('responded_at'),
+      Column.text('reminder_sent_at'),
+    ],
+    indexes: [
+      Index(
+        'guardian_child_links_guardian_id',
+        [IndexedColumn('guardian_id')],
+      ),
+      Index(
+        'guardian_child_links_child_id',
+        [IndexedColumn('child_id')],
+      ),
     ],
   ),
   Table(

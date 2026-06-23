@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 
-enum LoginFlowStep { credentials, role, personalData, choir }
+enum LoginFlowStep {
+  credentials,
+  role,
+  personalData,
+  choir,
+  selectChild,
+  guardianPending,
+}
 
 extension LoginFlowStepX on LoginFlowStep {
   int get stepNumber => switch (this) {
@@ -8,6 +15,8 @@ extension LoginFlowStepX on LoginFlowStep {
     LoginFlowStep.role => 2,
     LoginFlowStep.personalData => 3,
     LoginFlowStep.choir => 4,
+    LoginFlowStep.selectChild => 4,
+    LoginFlowStep.guardianPending => 4,
   };
 
   Color get accentColor => switch (this) {
@@ -15,13 +24,16 @@ extension LoginFlowStepX on LoginFlowStep {
     LoginFlowStep.role => const Color(0xFF0B5A38),
     LoginFlowStep.personalData => const Color(0xFFB33B0B),
     LoginFlowStep.choir => const Color(0xFF0B4AA5),
+    LoginFlowStep.selectChild => const Color(0xFF0B4AA5),
+    LoginFlowStep.guardianPending => const Color(0xFF0B4AA5),
   };
 
-  /// Standard-Schrittüberschrift (rollenabhängige Varianten setzt das Login-UI).
   String get title => switch (this) {
     LoginFlowStep.credentials => 'Zugangsdaten',
     LoginFlowStep.role => 'Wer bist du?',
     LoginFlowStep.personalData => 'Deine Daten',
     LoginFlowStep.choir => 'Dein Chor',
+    LoginFlowStep.selectChild => 'Kind auswählen',
+    LoginFlowStep.guardianPending => 'Bestätigung',
   };
 }

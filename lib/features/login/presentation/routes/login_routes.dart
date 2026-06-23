@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../pages/credentials/credentials_page.dart';
 import '../pages/credentials/widgets/account_auth_mode.dart';
 import '../pages/email_confirmation/email_confirmation_page.dart';
+import '../pages/guardian_pending/guardian_pending_page.dart';
 import '../pages/login_success/login_success_page.dart';
+import '../pages/select_child/select_child_page.dart';
 import '../pages/select_choir/select_choir.dart';
 import '../pages/select_personal_data/personal_data.dart';
 import '../pages/start_screen/start_screen_page.dart';
@@ -164,6 +166,20 @@ final List<RouteBase> loginRoutes = [
         pageBuilder: (context, state) => loginSlidePage(
               state: state,
               child: const ChoirPage(),
+            ),
+      ),
+      GoRoute(
+        path: LoginPaths.selectChild,
+        pageBuilder: (context, state) => loginSlidePage(
+              state: state,
+              child: const SelectChildPage(),
+            ),
+      ),
+      GoRoute(
+        path: LoginPaths.guardianPending,
+        pageBuilder: (context, state) => loginSlidePage(
+              state: state,
+              child: const GuardianPendingPage(),
             ),
       ),
       GoRoute(

@@ -35,6 +35,24 @@ streams:
     auto_subscribe: true
     query: SELECT * FROM profiles WHERE id = auth.user_id()
 
+  profile_linked_children:
+    auto_subscribe: true
+    query: |
+      SELECT id, first_name, last_name, class_name, schooltrack, voice, choir, diet, role,
+             created_at, updated_at, onboarding_completed_at
+      FROM profiles
+      WHERE id IN (
+        SELECT child_id FROM guardian_child_links
+        WHERE guardian_id = auth.user_id() AND status = 'confirmed'
+      )
+
+  guardian_links:
+    auto_subscribe: true
+    query: |
+      SELECT * FROM guardian_child_links
+      WHERE guardian_id = auth.user_id()
+         OR child_id = auth.user_id()
+
   reference_klassen:
     auto_subscribe: true
     query: SELECT class_name AS id, class_name FROM klassen

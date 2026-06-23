@@ -7,6 +7,9 @@ verify_jwt = false
 [functions.notify-event-change]
 verify_jwt = true
 
+[functions.notify-guardian-link]
+verify_jwt = true
+
 [functions.schedule-live-activity]
 verify_jwt = false
 

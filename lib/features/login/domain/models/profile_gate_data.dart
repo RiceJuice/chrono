@@ -12,6 +12,10 @@ class ProfileGateData {
     required this.voice,
     required this.choir,
     required this.onboardingCompletedAt,
+    required this.activeChildId,
+    required this.hasAnyGuardianLink,
+    required this.hasConfirmedGuardianLink,
+    required this.hasPendingGuardianLink,
   });
 
   const ProfileGateData.signedOut()
@@ -24,7 +28,11 @@ class ProfileGateData {
         role = null,
         voice = null,
         choir = null,
-        onboardingCompletedAt = null;
+        onboardingCompletedAt = null,
+        activeChildId = null,
+        hasAnyGuardianLink = false,
+        hasConfirmedGuardianLink = false,
+        hasPendingGuardianLink = false;
 
   final bool hasSession;
   final bool emailConfirmed;
@@ -36,6 +44,47 @@ class ProfileGateData {
   final String? voice;
   final String? choir;
   final DateTime? onboardingCompletedAt;
+  final String? activeChildId;
+  final bool hasAnyGuardianLink;
+  final bool hasConfirmedGuardianLink;
+  final bool hasPendingGuardianLink;
 
   bool get isOnboardingComplete => onboardingCompletedAt != null;
+
+  ProfileGateData copyWith({
+    bool? hasSession,
+    bool? emailConfirmed,
+    String? firstName,
+    String? lastName,
+    String? className,
+    String? schoolTrack,
+    String? role,
+    String? voice,
+    String? choir,
+    DateTime? onboardingCompletedAt,
+    String? activeChildId,
+    bool? hasAnyGuardianLink,
+    bool? hasConfirmedGuardianLink,
+    bool? hasPendingGuardianLink,
+  }) {
+    return ProfileGateData(
+      hasSession: hasSession ?? this.hasSession,
+      emailConfirmed: emailConfirmed ?? this.emailConfirmed,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      className: className ?? this.className,
+      schoolTrack: schoolTrack ?? this.schoolTrack,
+      role: role ?? this.role,
+      voice: voice ?? this.voice,
+      choir: choir ?? this.choir,
+      onboardingCompletedAt:
+          onboardingCompletedAt ?? this.onboardingCompletedAt,
+      activeChildId: activeChildId ?? this.activeChildId,
+      hasAnyGuardianLink: hasAnyGuardianLink ?? this.hasAnyGuardianLink,
+      hasConfirmedGuardianLink:
+          hasConfirmedGuardianLink ?? this.hasConfirmedGuardianLink,
+      hasPendingGuardianLink:
+          hasPendingGuardianLink ?? this.hasPendingGuardianLink,
+    );
+  }
 }

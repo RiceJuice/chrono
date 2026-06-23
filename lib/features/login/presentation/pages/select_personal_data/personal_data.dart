@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/auth_repository.dart';
+import '../../../domain/models/login_flow_role_ids.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../providers/klassen_provider.dart';
@@ -13,6 +14,7 @@ import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 import '../../utils/draft_text_controller.dart';
 import '../../utils/login_form_validation.dart';
+import '../../widgets/login_personal_name_fields.dart';
 import 'widgets/forms.dart';
 
 class PersonalDataPage extends ConsumerStatefulWidget {
@@ -34,6 +36,8 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
   String? _selectedClass;
   String? _selectedSchoolTrack;
   bool _busy = false;
+
+  bool get _isGuardian => _draft.role.trim() == LoginFlowRoleIds.guardian;
 
   @override
   void initState() {
@@ -66,7 +70,10 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
     return LoginStepScaffold(
       step: LoginFlowStep.personalData,
       titleOverride: roleUi.scaffoldTitle(LoginFlowStep.personalData),
-      nextPath: LoginPaths.choir,
+      subtitleOverride: _isGuardian
+          ? 'Wie heißt du? Dein Kind sieht diesen Namen bei der Verknüpfung.'
+          : null,
+      nextPath: _isGuardian ? LoginPaths.selectChild : LoginPaths.choir,
       submitBusy: _busy,
       contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
@@ -76,8 +83,8 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
         orderedFieldKeys: [
           _firstNameFieldKey,
           _lastNameFieldKey,
-          _classFieldKey,
-          _schoolTrackFieldKey,
+          if (!_isGuardian) _classFieldKey,
+          if (!_isGuardian) _schoolTrackFieldKey,
         ],
       ),
       onAsyncProceed: (goNext) async {
@@ -94,34 +101,41 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
             );
             throw const LoginStepErrorAlreadyShown();
           }
-          final className = _draft.schoolClass;
-          if (className == null || className.trim().isEmpty) {
-            if (!context.mounted) return;
-            showAppToast(
-              context,
-              'Bitte wähle eine Klasse aus.',
-              kind: AppToastKind.info,
-            );
-            throw const LoginStepErrorAlreadyShown();
-          }
-          final schoolTrack = _draft.schoolTrack;
-          if (schoolTrack == null || schoolTrack.trim().isEmpty) {
-            if (!context.mounted) return;
-            showAppToast(
-              context,
-              'Bitte waehle einen Schulzweig aus.',
-              kind: AppToastKind.info,
-            );
-            throw const LoginStepErrorAlreadyShown();
-          }
-          await ref
-              .read(authRepositoryProvider)
-              .updateProfile(
-                firstName: _draft.firstName,
-                lastName: _draft.lastName,
-                className: className,
-                schoolTrack: schoolTrack,
+
+          if (_isGuardian) {
+            await ref.read(authRepositoryProvider).updateProfile(
+                  firstName: _draft.firstName,
+                  lastName: _draft.lastName,
+                );
+          } else {
+            final className = _draft.schoolClass;
+            if (className == null || className.trim().isEmpty) {
+              if (!context.mounted) return;
+              showAppToast(
+                context,
+                'Bitte wähle eine Klasse aus.',
+                kind: AppToastKind.info,
               );
+              throw const LoginStepErrorAlreadyShown();
+            }
+            final schoolTrack = _draft.schoolTrack;
+            if (schoolTrack == null || schoolTrack.trim().isEmpty) {
+              if (!context.mounted) return;
+              showAppToast(
+                context,
+                'Bitte waehle einen Schulzweig aus.',
+                kind: AppToastKind.info,
+              );
+              throw const LoginStepErrorAlreadyShown();
+            }
+            await ref.read(authRepositoryProvider).updateProfile(
+                  firstName: _draft.firstName,
+                  lastName: _draft.lastName,
+                  className: className,
+                  schoolTrack: schoolTrack,
+                );
+          }
+
           await ref.read(profileGateProvider).refresh();
           if (!context.mounted) return;
           goNext();
@@ -135,25 +149,32 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
         padding: const EdgeInsets.only(top: 80),
         child: Form(
           key: _formKey,
-          child: LoginPersonalDataFields(
-            firstNameFieldKey: _firstNameFieldKey,
-            lastNameFieldKey: _lastNameFieldKey,
-            classFieldKey: _classFieldKey,
-            schoolTrackFieldKey: _schoolTrackFieldKey,
-            firstNameController: _firstNameController,
-            lastNameController: _lastNameController,
-            selectedClass: _selectedClass,
-            selectedSchoolTrack: _selectedSchoolTrack,
-            classOptions: classOptions,
-            onClassChanged: (value) => setState(() {
-              _selectedClass = value;
-              _draft.schoolClass = value;
-            }),
-            onSchoolTrackChanged: (value) => setState(() {
-              _selectedSchoolTrack = value;
-              _draft.schoolTrack = value;
-            }),
-          ),
+          child: _isGuardian
+              ? LoginPersonalNameFields(
+                  firstNameFieldKey: _firstNameFieldKey,
+                  lastNameFieldKey: _lastNameFieldKey,
+                  firstNameController: _firstNameController,
+                  lastNameController: _lastNameController,
+                )
+              : LoginPersonalDataFields(
+                  firstNameFieldKey: _firstNameFieldKey,
+                  lastNameFieldKey: _lastNameFieldKey,
+                  classFieldKey: _classFieldKey,
+                  schoolTrackFieldKey: _schoolTrackFieldKey,
+                  firstNameController: _firstNameController,
+                  lastNameController: _lastNameController,
+                  selectedClass: _selectedClass,
+                  selectedSchoolTrack: _selectedSchoolTrack,
+                  classOptions: classOptions,
+                  onClassChanged: (value) => setState(() {
+                    _selectedClass = value;
+                    _draft.schoolClass = value;
+                  }),
+                  onSchoolTrackChanged: (value) => setState(() {
+                    _selectedSchoolTrack = value;
+                    _draft.schoolTrack = value;
+                  }),
+                ),
         ),
       ),
     );

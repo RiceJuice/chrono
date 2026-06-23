@@ -96,6 +96,8 @@
 		<string>Chrono benötigt die Kamera, um Fotos für die Termin-Verarbeitung aufzunehmen.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Chrono benötigt Zugriff auf deine Fotos, um Bilder für die Termin-Verarbeitung auszuwählen.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Chrono benötigt das Mikrofon, um die Tonhöhe für die Stimmgabel zu erkennen.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 		<key>UIBackgroundModes</key>

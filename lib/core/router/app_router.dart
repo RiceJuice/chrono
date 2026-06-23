@@ -37,15 +37,19 @@ class AuthSessionNotifier extends ChangeNotifier {
 
 const String kNoConnectionPath = '/no-connection';
 
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 class AppRouter {
   AppRouter({
     required AppStartupNotifier startupNotifier,
     required AuthSessionNotifier authSessionNotifier,
     required ProfileGateNotifier profileGateNotifier,
     required ConnectivityNotifier connectivityNotifier,
+    GlobalKey<NavigatorState>? navigatorKey,
   })  : _startup = startupNotifier,
         _gate = profileGateNotifier,
         _connectivity = connectivityNotifier,
+        _navigatorKey = navigatorKey ?? rootNavigatorKey,
         _refresh = Listenable.merge([
           startupNotifier,
           authSessionNotifier,
@@ -56,9 +60,11 @@ class AppRouter {
   final AppStartupNotifier _startup;
   final ProfileGateNotifier _gate;
   final ConnectivityNotifier _connectivity;
+  final GlobalKey<NavigatorState> _navigatorKey;
   final Listenable _refresh;
 
   late final router = GoRouter(
+    navigatorKey: _navigatorKey,
     observers: [CNTabBarRouteObserver()],
     refreshListenable: _refresh,
     initialLocation: '/loading',

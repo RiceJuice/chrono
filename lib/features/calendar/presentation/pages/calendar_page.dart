@@ -18,7 +18,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:chronoapp/features/settings/presentation/providers/settings_profile_providers.dart';
+import 'package:chronoapp/features/settings/presentation/providers/effective_calendar_profile_provider.dart';
 
 import '../widgets/calendar_header/calendar_header.dart';
 import '../widgets/calendar_header/calendar_view_mode_overlay.dart';
@@ -273,7 +273,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
       if (next == null || next.isEmpty) return;
       unawaited(_openScheduleFromLiveActivity(next));
     });
-    ref.listen(syncedProfileProvider, (_, next) {
+    ref.listen(effectiveCalendarProfileProvider, (_, next) {
       next.whenData((profile) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!context.mounted) return;

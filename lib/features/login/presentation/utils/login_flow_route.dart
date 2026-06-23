@@ -17,6 +17,10 @@ abstract final class LoginFlowRoute {
         return LoginPaths.role;
       case LoginPaths.choir:
         return LoginPaths.personalData;
+      case LoginPaths.selectChild:
+        return LoginPaths.personalData;
+      case LoginPaths.guardianPending:
+        return LoginPaths.selectChild;
       case LoginPaths.success:
         return null;
       default:
@@ -37,6 +41,9 @@ abstract final class LoginFlowRoute {
         return LoginFlowStep.personalData.stepNumber;
       case LoginPaths.choir:
         return LoginFlowStep.choir.stepNumber;
+      case LoginPaths.selectChild:
+      case LoginPaths.guardianPending:
+        return LoginFlowStep.selectChild.stepNumber;
       case LoginPaths.success:
         return null;
       default:

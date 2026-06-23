@@ -4,7 +4,6 @@ import '../../domain/models/login_flow_step.dart';
 enum _LoginFlowRoleKind {
   student,
   guardian,
-  /// Unbekannte oder künftige API-Strings: konservativ wie [student] behandeln.
   other,
   ;
 
@@ -20,10 +19,6 @@ enum _LoginFlowRoleKind {
   }
 }
 
-/// Rollenabhängige Texte und später weitere Anpassungen im Login-Onboarding.
-///
-/// Neue Rolle: Konstante in [LoginFlowRoleIds], Zuordnung in [_LoginFlowRoleKind.fromStoredLabel],
-/// dann hier `switch (_kind)` / weitere Getter (Feldbeschriftungen, Toasts, …) ergänzen.
 final class LoginFlowRoleUi {
   const LoginFlowRoleUi._(this._kind);
 
@@ -37,22 +32,25 @@ final class LoginFlowRoleUi {
 
   bool get isGuardian => _kind == _LoginFlowRoleKind.guardian;
 
-  /// Titel im [LoginStepScaffold]; sonst Standard aus [LoginFlowStep.title].
   String scaffoldTitle(LoginFlowStep step) {
     switch (_kind) {
       case _LoginFlowRoleKind.guardian:
-        switch (step) {
-          case LoginFlowStep.personalData:
-            return 'Mein Kind';
-          case LoginFlowStep.choir:
-            return 'Der Chor';
-          case LoginFlowStep.credentials:
-          case LoginFlowStep.role:
-            return step.title;
-        }
+        return switch (step) {
+          LoginFlowStep.personalData => 'Deine Daten',
+          LoginFlowStep.selectChild => 'Kind auswählen',
+          LoginFlowStep.guardianPending => 'Bestätigung ausstehend',
+          LoginFlowStep.credentials ||
+          LoginFlowStep.role ||
+          LoginFlowStep.choir =>
+            step.title,
+        };
       case _LoginFlowRoleKind.student:
       case _LoginFlowRoleKind.other:
-        return step.title;
+        return switch (step) {
+          LoginFlowStep.personalData => 'Deine Daten',
+          LoginFlowStep.choir => 'Dein Chor',
+          _ => step.title,
+        };
     }
   }
 }

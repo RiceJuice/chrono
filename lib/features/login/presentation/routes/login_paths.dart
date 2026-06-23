@@ -9,4 +9,6 @@ abstract final class LoginPaths {
   static const choir = '/login/choir';
   static const emailConfirmation = '/login/email-confirmation';
   static const success = '/login/success';
+  static const selectChild = '/login/select-child';
+  static const guardianPending = '/login/guardian-pending';
 }

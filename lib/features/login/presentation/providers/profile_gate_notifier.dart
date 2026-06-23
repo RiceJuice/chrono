@@ -5,6 +5,9 @@ import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/database/powersync_schema.dart';
+import '../../data/guardian_link_repository.dart';
+import '../../domain/models/guardian_child_link.dart';
+import '../../domain/models/login_flow_role_ids.dart';
 import '../../domain/models/profile_gate_data.dart';
 import '../routes/login_flow_specs.dart';
 
@@ -15,8 +18,10 @@ class ProfileGateNotifier extends ChangeNotifier {
   ProfileGateNotifier({
     SupabaseClient? client,
     PowerSyncDatabase? localDb,
+    GuardianLinkRepository? guardianLinkRepository,
   })  : _client = client ?? Supabase.instance.client,
-        _localDb = localDb {
+        _localDb = localDb,
+        _guardianLinks = guardianLinkRepository {
     _authSub = _client.auth.onAuthStateChange.listen(_handleAuthEvent);
     _attachSyncListener();
 
@@ -32,6 +37,7 @@ class ProfileGateNotifier extends ChangeNotifier {
 
   final SupabaseClient _client;
   final PowerSyncDatabase? _localDb;
+  final GuardianLinkRepository? _guardianLinks;
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<SyncStatus>? _syncSub;
   DateTime? _lastHandledSyncAt;
@@ -42,7 +48,6 @@ class ProfileGateNotifier extends ChangeNotifier {
   bool get isReady => _ready;
   ProfileGateData get data => _data;
 
-  /// Wartet bis Gate-Daten verfügbar sind (z. B. vor Verlassen des Ladescreens).
   Future<void> waitUntilReady({
     Duration timeout = const Duration(seconds: 3),
   }) async {
@@ -52,6 +57,7 @@ class ProfileGateNotifier extends ChangeNotifier {
       await Future<void>.delayed(const Duration(milliseconds: 16));
     }
   }
+
   String? get requiredPath => resolveRequiredOnboardingPath(_data);
   bool get isOnboardingComplete => _data.isOnboardingComplete;
 
@@ -61,8 +67,6 @@ class ProfileGateNotifier extends ChangeNotifier {
       case AuthChangeEvent.userUpdated:
       case AuthChangeEvent.tokenRefreshed:
       case AuthChangeEvent.initialSession:
-        // Synchron: Router darf nicht kurz mit altem signedOut + neuer Session
-        // laufen (siehe AppRouter-Redirect), bevor `_refresh()` Daten geladen hat.
         if (_client.auth.currentSession != null && !_data.hasSession) {
           _ready = false;
           notifyListeners();
@@ -77,8 +81,6 @@ class ProfileGateNotifier extends ChangeNotifier {
     }
   }
 
-  /// Erzwingt einen Refresh des Gate-Zustands, z. B. nach einem erfolgreichen
-  /// `updateProfile`. Parallele Aufrufe warten auf denselben Lauf.
   Future<void> refresh() {
     return _inFlightRefresh ??= _runRefresh().whenComplete(() {
       _inFlightRefresh = null;
@@ -98,13 +100,13 @@ class ProfileGateNotifier extends ChangeNotifier {
     });
   }
 
-  /// Lokales Profil sofort laden, damit Offline-Start nicht aufs Netz wartet.
   Future<void> _bootstrapWithSession() async {
     final user = _client.auth.currentUser;
     if (user != null) {
       final localRow = await _loadLocalProfileRow(user.id);
       if (localRow != null) {
-        _setData(_profileDataFromRow(user, localRow));
+        final linkSummary = await _loadGuardianLinkSummary(user.id);
+        _setData(_profileDataFromRow(user, localRow, linkSummary));
       }
     }
     await refresh();
@@ -118,6 +120,7 @@ class ProfileGateNotifier extends ChangeNotifier {
     }
 
     final localFuture = _loadLocalProfileRow(user.id);
+    final linkFuture = _loadGuardianLinkSummary(user.id);
     Map<String, dynamic>? row;
     try {
       row = await _fetchRemoteProfileRow(user.id)
@@ -127,8 +130,9 @@ class ProfileGateNotifier extends ChangeNotifier {
     }
 
     row ??= await localFuture;
+    final linkSummary = await linkFuture;
 
-    _setData(_profileDataFromRow(user, row));
+    _setData(_profileDataFromRow(user, row, linkSummary));
   }
 
   Future<Map<String, dynamic>?> _fetchRemoteProfileRow(String userId) async {
@@ -136,16 +140,70 @@ class ProfileGateNotifier extends ChangeNotifier {
         .from('profiles')
         .select(
           'first_name, last_name, class_name, schooltrack, voice, role, choir, '
-          'onboarding_completed_at',
+          'onboarding_completed_at, active_child_id',
         )
         .eq('id', userId)
         .maybeSingle();
   }
 
+  Future<GuardianLinkSummary> _loadGuardianLinkSummary(String userId) async {
+    final repo = _guardianLinks;
+    if (repo == null) {
+      return _loadGuardianLinkSummaryLocal(userId);
+    }
+    try {
+      return await repo.loadSummaryForGuardian(userId);
+    } catch (_) {
+      return _loadGuardianLinkSummaryLocal(userId);
+    }
+  }
+
+  Future<GuardianLinkSummary> _loadGuardianLinkSummaryLocal(
+    String userId,
+  ) async {
+    final db = _localDb;
+    if (db == null) {
+      return const GuardianLinkSummary(
+        confirmedLinks: [],
+        pendingLinks: [],
+      );
+    }
+    try {
+      final rows = await db.getAll(
+        '''
+        SELECT id, guardian_id, child_id, status
+        FROM $kGuardianChildLinksTable
+        WHERE guardian_id = ?
+        ''',
+        [userId],
+      );
+      final links = rows
+          .map((row) => GuardianChildLink.fromRow(
+                Map<String, dynamic>.from(row),
+              ))
+          .toList(growable: false);
+      return GuardianLinkSummary(
+        confirmedLinks:
+            links.where((l) => l.isConfirmed).toList(growable: false),
+        pendingLinks:
+            links.where((l) => l.isPending).toList(growable: false),
+      );
+    } catch (_) {
+      return const GuardianLinkSummary(
+        confirmedLinks: [],
+        pendingLinks: [],
+      );
+    }
+  }
+
   ProfileGateData _profileDataFromRow(
     User user,
     Map<String, dynamic>? row,
+    GuardianLinkSummary linkSummary,
   ) {
+    final role = _asString(row?['role']);
+    final isGuardian = role?.trim() == LoginFlowRoleIds.guardian;
+
     return ProfileGateData(
       hasSession: true,
       emailConfirmed: user.emailConfirmedAt != null,
@@ -153,10 +211,14 @@ class ProfileGateNotifier extends ChangeNotifier {
       lastName: _asString(row?['last_name']),
       className: _asString(row?['class_name']),
       schoolTrack: _asString(row?['schooltrack']),
-      role: _asString(row?['role']),
+      role: role,
       voice: _asString(row?['voice']),
       choir: _asString(row?['choir']),
       onboardingCompletedAt: _asDateTime(row?['onboarding_completed_at']),
+      activeChildId: _asString(row?['active_child_id']),
+      hasAnyGuardianLink: isGuardian && linkSummary.hasAnyLink,
+      hasConfirmedGuardianLink: isGuardian && linkSummary.hasConfirmedLink,
+      hasPendingGuardianLink: isGuardian && linkSummary.hasPendingLink,
     );
   }
 
@@ -167,7 +229,7 @@ class ProfileGateNotifier extends ChangeNotifier {
       final sqliteRow = await db.getOptional(
         '''
         SELECT first_name, last_name, class_name, schooltrack, voice, role, choir,
-               onboarding_completed_at
+               onboarding_completed_at, active_child_id
         FROM $kProfilesTable
         WHERE id = ?
         LIMIT 1
