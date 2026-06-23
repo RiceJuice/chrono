@@ -1,7 +1,11 @@
 import 'dart:async';
 
+import 'package:chronoapp/core/widgets/app_glass_icon_button.dart';
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
+import 'package:chronoapp/core/widgets/app_native_glass.dart';
 import 'package:chronoapp/features/calendar/presentation/pages/calendar_search_page.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_filter_bottom_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/search_results/calendar_search_active_filters_bar.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/search/calendar_search_entrance_transition.dart';
 import 'package:cupertino_native_better/cupertino_native_better.dart';
@@ -13,7 +17,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/haptics/app_haptics.dart';
-import '../../../../../core/widgets/app_hairline_divider.dart';
 import '../../../../../core/widgets/domspatzen_icon_metrics.dart';
 
 /// Metriken für den fixierten Such-Header (Titel + Filter-Chips).
@@ -98,6 +101,7 @@ class _CalendarSearchLayerState extends ConsumerState<CalendarSearchLayer> {
     );
     final entrance = widget.entranceAnimation;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final nativeGlass = useNativeLiquidGlass();
 
     return PopScope(
       canPop: false,
@@ -106,8 +110,8 @@ class _CalendarSearchLayerState extends ConsumerState<CalendarSearchLayer> {
         unawaited(dismissAppKeyboard());
         widget.onClose();
       },
-      child: Material(
-        color: scheme.surface,
+      child: ColoredBox(
+        color: nativeGlass ? Colors.transparent : scheme.surface,
         child: SafeArea(
           bottom: false,
           child: Stack(
@@ -133,6 +137,8 @@ class _CalendarSearchLayerState extends ConsumerState<CalendarSearchLayer> {
                   filters: filters,
                   entranceAnimation: entrance,
                   reduceMotion: reduceMotion,
+                  showHeaderActions: nativeGlass,
+                  onClose: widget.onClose,
                   onClearFilters: filtersNotifier.resetToDefaults,
                   onRemoveChoir: filtersNotifier.removeChoir,
                   onRemoveVoice: filtersNotifier.removeVoice,
@@ -160,8 +166,10 @@ class _SearchPinnedHeader extends StatelessWidget {
     required this.onRemoveClass,
     required this.onRemoveSchoolTrack,
     required this.onRemoveDiet,
+    required this.onClose,
     this.entranceAnimation,
     this.reduceMotion = false,
+    this.showHeaderActions = false,
   });
 
   final ColorScheme scheme;
@@ -173,13 +181,32 @@ class _SearchPinnedHeader extends StatelessWidget {
   final ValueChanged<String> onRemoveClass;
   final ValueChanged<String> onRemoveSchoolTrack;
   final ValueChanged<String> onRemoveDiet;
+  final VoidCallback onClose;
   final Animation<double>? entranceAnimation;
   final bool reduceMotion;
+  final bool showHeaderActions;
+
+  Future<void> _openSearchFilters(BuildContext context) async {
+    HapticFeedback.heavyImpact();
+    await AppModalSheet.show<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const CalendarFilterBottomSheet(
+        mode: CalendarFilterBottomSheetMode.searchFilter,
+      ),
+    );
+  }
+
+  void _handleClose() {
+    AppHaptics.light();
+    onClose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final titleRow = Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
       child: Row(
         children: [
           Text(
@@ -193,15 +220,29 @@ class _SearchPinnedHeader extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Opacity(
-            opacity: 0.32,
-            child: SvgPicture.asset(
-              DomspatzenIconMetrics.assetPath,
-              height: sparrowSize,
-              width: sparrowSize,
-              fit: BoxFit.contain,
+          if (showHeaderActions) ...[
+            AppGlassIconButton(
+              icon: Icons.filter_list_rounded,
+              tooltip: 'Filter',
+              iconSize: 18,
+              glassEffectUnionId: kCalendarSearchGlassUnionId,
+              onPressed: () => _openSearchFilters(context),
             ),
-          ),
+            const SizedBox(width: 4),
+            _SearchHeaderCloseButton(
+              sparrowSize: DomspatzenIconMetrics.assetSizeForGlyph(18),
+              onPressed: _handleClose,
+            ),
+          ] else
+            Opacity(
+              opacity: 0.32,
+              child: SvgPicture.asset(
+                DomspatzenIconMetrics.assetPath,
+                height: sparrowSize,
+                width: sparrowSize,
+                fit: BoxFit.contain,
+              ),
+            ),
         ],
       ),
     );
@@ -231,16 +272,81 @@ class _SearchPinnedHeader extends StatelessWidget {
             child: filtersRow,
           );
 
-    return Material(
+    final headerContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        animatedTitle,
+        animatedFilters,
+      ],
+    );
+
+    if (showHeaderActions) {
+      return AppGlassPinnedBar(
+        includeBottomHairline: true,
+        child: headerContent,
+      );
+    }
+
+    return ColoredBox(
       color: scheme.surface,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          animatedTitle,
-          animatedFilters,
-          const AppHairlineDivider.horizontal(),
+          headerContent,
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: scheme.onSurface.withValues(alpha: 0.08),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _SearchHeaderCloseButton extends StatelessWidget {
+  const _SearchHeaderCloseButton({
+    required this.sparrowSize,
+    required this.onPressed,
+  });
+
+  final double sparrowSize;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = SvgPicture.asset(
+      DomspatzenIconMetrics.assetPath,
+      height: sparrowSize,
+      width: sparrowSize,
+      fit: BoxFit.contain,
+    );
+
+    if (!useNativeLiquidGlass()) {
+      return IconButton(
+        tooltip: 'Suche beenden',
+        onPressed: onPressed,
+        icon: icon,
+      );
+    }
+
+    return LiquidGlassContainer(
+      config: searchGlassConfig(
+        context,
+        shape: CNGlassEffectShape.capsule,
+        cornerRadius: 22,
+      ),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: IconButton(
+          tooltip: 'Suche beenden',
+          onPressed: onPressed,
+          padding: EdgeInsets.zero,
+          icon: icon,
+        ),
       ),
     );
   }
@@ -267,6 +373,7 @@ const _mainShellNavigationBarHeight = 56.0;
 
 /// Speichert die globale Position eines Widgets als Morph-Startpunkt der Lupe.
 void captureCalendarSearchMorphOrigin(WidgetRef ref, BuildContext context) {
+  if (useNativeLiquidGlass()) return;
   final box = context.findRenderObject() as RenderBox?;
   if (box == null || !box.hasSize) return;
   ref
@@ -276,6 +383,7 @@ void captureCalendarSearchMorphOrigin(WidgetRef ref, BuildContext context) {
 
 /// Geschätzte Tab-Lupen-Position (iOS [CNTabBar], wenn kein RenderBox verfügbar).
 void estimateCalendarSearchMorphOrigin(WidgetRef ref, BuildContext context) {
+  if (useNativeLiquidGlass()) return;
   final size = MediaQuery.sizeOf(context);
   final padding = MediaQuery.paddingOf(context);
   const buttonSize = 44.0;
@@ -312,26 +420,15 @@ void exitCalendarSearchToCalendarTab(
 
 /// Öffnet den Flutter-Suchmodus nach Tap auf die native iOS-Tab-Lupe.
 ///
-/// Klappt die native Tab-Bar-Such-Morph sofort ein, damit nur
-/// [CalendarSearchBottomBar] (Liquid Glass) sichtbar bleibt.
+/// Die native Tab-Bar-Such-Morph bleibt sichtbar — UIKit übernimmt die
+/// Expand-Animation.
 void openCalendarSearchFromNativeTab(
   WidgetRef ref, {
   required CNTabBarSearchController searchController,
   BuildContext? morphContext,
 }) {
   AppHaptics.light();
-  if (morphContext != null) {
-    estimateCalendarSearchMorphOrigin(ref, morphContext);
-  }
   ref.read(calendarSearchOpenProvider.notifier).open();
-
-  ref.read(calendarSearchNativeCollapseGuardProvider.notifier).arm();
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (searchController.isActive) {
-      searchController.deactivateSearch();
-    }
-    ref.read(calendarSearchNativeCollapseGuardProvider.notifier).disarm();
-  });
 }
 
 /// Schließt den Suchmodus und setzt zugehörigen State zurück.

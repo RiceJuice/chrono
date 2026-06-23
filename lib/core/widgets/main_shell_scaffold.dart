@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'app_native_glass.dart';
 import 'calendar_search_bottom_bar.dart';
-import 'ios_calendar_tab_icons_provider.dart';
 import 'main_navigation_bar.dart';
 
 /// Höhe der Tab-Leiste in [MainNavigationBar] (ohne System-Safe-Area).
@@ -60,10 +60,6 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
     );
     AppModalSheetTracker.depth.addListener(_onModalDepthChanged);
     _modalOpen = AppModalSheetTracker.depth.value > 0;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_useNativeIosTabBar) return;
-      ref.read(iosCalendarTabIconsProvider.notifier).ensureLoaded(context);
-    });
   }
 
   @override
@@ -137,7 +133,10 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
               left: 0,
               right: 0,
               bottom: 0,
-              child: CalendarSearchBottomBar(onClose: _closeSearch),
+              child: CalendarSearchBottomBar(
+                onClose: _closeSearch,
+                showTrailingActions: !useNativeLiquidGlass(),
+              ),
             ),
         ],
       ),
@@ -180,11 +179,15 @@ class _NavBarWithOverlay extends ConsumerWidget {
         defaultTargetPlatform == TargetPlatform.iOS ? 0.12 : 0.18;
 
     final Widget bar;
-    if (searchBarVisible) {
-      // Native CNTabBar feuert nur searchActiveChanged — keine sichtbare
-      // Suchleiste. CalendarSearchBottomBar nutzt LiquidGlassContainer.
+    if (searchBarVisible && useNativeIosTabBar) {
+      // Native CNTabBar-Suche bleibt expanded — Morph-Animation von UIKit.
+      bar = MainNavigationBar(
+        searchController: searchController,
+      );
+    } else if (searchBarVisible) {
       bar = CalendarSearchBottomBar(
         onClose: onSearchClose,
+        showTrailingActions: !useNativeLiquidGlass(),
       );
     } else {
       bar = MainNavigationBar(
