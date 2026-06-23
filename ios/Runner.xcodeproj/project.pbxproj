@@ -19,6 +19,7 @@
 		B79D3E74316EE2429563C66F /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 52658AEC1919016D2CF485D9 /* Pods_Runner.framework */; };
 		A1B2C3D401234567890AB01 /* ChronoWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D401234567890AB04 /* ChronoWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1B2C3D401234567890AB0F /* ChronoWidgetExtensionLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D401234567890AB07 /* ChronoWidgetExtensionLiveActivity.swift */; };
+		A1B2C3D401234567890AB16 /* ChronoCalendarHomeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D401234567890AB17 /* ChronoCalendarHomeWidget.swift */; };
 		A1B2C3D401234567890AB10 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D401234567890AB09 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -93,6 +94,7 @@
 		A1B2C3D401234567890AB04 /* ChronoWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChronoWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D401234567890AB05 /* ChronoWidgetExtensionExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChronoWidgetExtensionExtension.entitlements; sourceTree = "<group>"; };
 		A1B2C3D401234567890AB07 /* ChronoWidgetExtensionLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronoWidgetExtensionLiveActivity.swift; sourceTree = "<group>"; };
+		A1B2C3D401234567890AB17 /* ChronoCalendarHomeWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronoCalendarHomeWidget.swift; sourceTree = "<group>"; };
 		A1B2C3D401234567890AB08 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1B2C3D401234567890AB09 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1B2C3D401234567890AB15 /* WidgetExtension.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = WidgetExtension.xcconfig; sourceTree = "<group>"; };
@@ -184,6 +186,7 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D401234567890AB07 /* ChronoWidgetExtensionLiveActivity.swift */,
+				A1B2C3D401234567890AB17 /* ChronoCalendarHomeWidget.swift */,
 				A1B2C3D401234567890AB08 /* Info.plist */,
 				A1B2C3D401234567890AB09 /* Assets.xcassets */,
 				A1B2C3D401234567890AB15 /* WidgetExtension.xcconfig */,
@@ -491,6 +494,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C3D401234567890AB0F /* ChronoWidgetExtensionLiveActivity.swift in Sources */,
+				A1B2C3D401234567890AB16 /* ChronoCalendarHomeWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

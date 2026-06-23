@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="live_activity_arrow_description">Nächster Ablaufplanpunkt</string>
+    <string name="calendar_widget_label">Termine</string>
+    <string name="calendar_widget_description">Deine nächsten Termine im Kalender-Look.</string>
+    <string name="calendar_widget_placeholder">Chrono</string>
+    <string name="calendar_widget_content_description">Kalender-Termine</string>
 </resources>

@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
   figma_squircle: ^0.6.2
   table_calendar: ^3.2.0
@@ -77,6 +79,7 @@ dependencies:
   record: ^6.0.0
   pitch_detector_dart: ^0.0.7
   audioplayers: ^6.4.0
+  home_widget: ^0.9.3
 
 dev_dependencies:
   flutter_test:

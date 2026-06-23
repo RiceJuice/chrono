@@ -24,7 +24,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="2"
-                android:textColor="?android:attr/textColorPrimary"
+                android:textColor="@color/live_activity_text_primary"
                 android:textSize="19sp"
                 android:textStyle="bold" />
 
@@ -35,7 +35,7 @@
                 android:layout_marginTop="3dp"
                 android:ellipsize="end"
                 android:maxLines="2"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/live_activity_text_secondary"
                 android:textSize="15sp" />
         </LinearLayout>
 
@@ -47,7 +47,7 @@
             android:gravity="center"
             android:minWidth="28dp"
             android:text="→"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textColor="@color/live_activity_arrow"
             android:textSize="24sp"
             android:textStyle="bold" />
 
@@ -67,7 +67,7 @@
                 android:gravity="end"
                 android:maxLines="2"
                 android:textAlignment="viewEnd"
-                android:textColor="?android:attr/textColorPrimary"
+                android:textColor="@color/live_activity_text_primary"
                 android:textSize="19sp"
                 android:textStyle="bold" />
 
@@ -80,7 +80,7 @@
                 android:gravity="end"
                 android:maxLines="2"
                 android:textAlignment="viewEnd"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/live_activity_text_secondary"
                 android:textSize="15sp" />
         </LinearLayout>
     </LinearLayout>
@@ -100,7 +100,7 @@
                 android:id="@+id/segment_start"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/live_activity_text_secondary"
                 android:textSize="15sp" />
 
             <TextView
@@ -109,7 +109,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:textColor="?android:attr/textColorPrimary"
+                android:textColor="@color/live_activity_text_primary"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
@@ -117,7 +117,7 @@
                 android:id="@+id/segment_end"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/live_activity_text_secondary"
                 android:textSize="15sp" />
         </LinearLayout>
 
