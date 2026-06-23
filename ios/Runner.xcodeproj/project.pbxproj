@@ -95,6 +95,7 @@
 		A1B2C3D401234567890AB07 /* ChronoWidgetExtensionLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronoWidgetExtensionLiveActivity.swift; sourceTree = "<group>"; };
 		A1B2C3D401234567890AB08 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1B2C3D401234567890AB09 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A1B2C3D401234567890AB15 /* WidgetExtension.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = WidgetExtension.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -185,6 +186,7 @@
 				A1B2C3D401234567890AB07 /* ChronoWidgetExtensionLiveActivity.swift */,
 				A1B2C3D401234567890AB08 /* Info.plist */,
 				A1B2C3D401234567890AB09 /* Assets.xcassets */,
+				A1B2C3D401234567890AB15 /* WidgetExtension.xcconfig */,
 			);
 			path = ChronoWidgetExtension;
 			sourceTree = "<group>";
@@ -828,7 +830,7 @@
 		};
 		A1B2C3D401234567890AB12 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
+			baseConfigurationReference = A1B2C3D401234567890AB15 /* WidgetExtension.xcconfig */;
 			buildSettings = {
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -845,7 +847,6 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.domspatzen.chronoapp.ChronoWidgetExtension;
@@ -859,7 +860,7 @@
 		};
 		A1B2C3D401234567890AB13 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			baseConfigurationReference = A1B2C3D401234567890AB15 /* WidgetExtension.xcconfig */;
 			buildSettings = {
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -876,7 +877,6 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.domspatzen.chronoapp.ChronoWidgetExtension;
@@ -890,7 +890,7 @@
 		};
 		A1B2C3D401234567890AB14 /* Profile */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			baseConfigurationReference = A1B2C3D401234567890AB15 /* WidgetExtension.xcconfig */;
 			buildSettings = {
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -907,7 +907,6 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.domspatzen.chronoapp.ChronoWidgetExtension;

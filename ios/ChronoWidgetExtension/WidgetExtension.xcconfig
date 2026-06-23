@@ -1,0 +1,3 @@
+// Nur Build-Metadaten (Versionen) aus Flutter – keine Pods/Linker-Flags.
+#include "../Flutter/Generated.xcconfig"
+IPHONEOS_DEPLOYMENT_TARGET = 16.1
