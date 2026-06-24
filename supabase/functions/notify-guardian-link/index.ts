@@ -19,7 +19,7 @@ const corsHeaders = {
 
 type NotifyBody = {
   link_id?: string;
-  action?: "request" | "confirmed" | "reminder";
+  action?: "request" | "confirmed" | "reminder" | "rejected";
 };
 
 type LinkRow = {
@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "link_id and action are required" }, 400);
   }
 
-  if (!["request", "confirmed", "reminder"].includes(action)) {
+  if (!["request", "confirmed", "reminder", "rejected"].includes(action)) {
     return jsonResponse({ error: "Invalid action" }, 400);
   }
 
@@ -189,6 +189,15 @@ Deno.serve(async (req) => {
     }
     if (linkRow.status !== "confirmed") {
       return jsonResponse({ error: "Link is not confirmed" }, 400);
+    }
+  }
+
+  if (action === "rejected") {
+    if (linkRow.child_id !== callerId) {
+      return jsonResponse({ error: "Forbidden" }, 403);
+    }
+    if (linkRow.status !== "rejected") {
+      return jsonResponse({ error: "Link is not rejected" }, 400);
     }
   }
 
@@ -235,6 +244,23 @@ Deno.serve(async (req) => {
         .update({ reminder_sent_at: new Date().toISOString() })
         .eq("id", linkId);
     }
+
+    return jsonResponse(result);
+  }
+
+  if (action === "rejected") {
+    const result = await sendToUserDevices(
+      supabase,
+      serviceAccount,
+      linkRow.guardian_id,
+      "Verknüpfung abgelehnt",
+      `${childName} hat die Verknüpfung abgelehnt.`,
+      {
+        type: "guardian_link_rejected",
+        link_id: linkId,
+        child_name: childName,
+      },
+    );
 
     return jsonResponse(result);
   }

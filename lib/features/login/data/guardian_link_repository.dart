@@ -17,6 +17,42 @@ class GuardianLinkRepositoryException implements Exception {
   String toString() => message;
 }
 
+class NotifyLinkResult {
+  const NotifyLinkResult({
+    required this.pushDelivered,
+    this.sent = 0,
+    this.failed = 0,
+  });
+
+  final bool pushDelivered;
+  final int sent;
+  final int failed;
+}
+
+class RequestLinksResult {
+  const RequestLinksResult({
+    required this.createdLinks,
+    required this.skippedChildIds,
+    required this.anyPushFailed,
+  });
+
+  final List<GuardianChildLink> createdLinks;
+  final List<String> skippedChildIds;
+  final bool anyPushFailed;
+
+  bool get hasCreatedLinks => createdLinks.isNotEmpty;
+}
+
+class GuardianLinkRequestResult {
+  const GuardianLinkRequestResult({
+    required this.link,
+    required this.notifyResult,
+  });
+
+  final GuardianChildLink link;
+  final NotifyLinkResult notifyResult;
+}
+
 class GuardianLinkRepository {
   GuardianLinkRepository(
     this._db, {
@@ -210,7 +246,7 @@ class GuardianLinkRepository {
     return 'Schüler-Suche fehlgeschlagen: ${e.message}';
   }
 
-  Future<GuardianChildLink> requestLink(String childId) async {
+  Future<GuardianLinkRequestResult> requestLink(String childId) async {
     final userId = _userId;
     if (userId == null) {
       throw GuardianLinkRepositoryException('Nicht angemeldet.');
@@ -231,9 +267,9 @@ class GuardianLinkRepository {
         Map<String, dynamic>.from(inserted),
       );
 
-      unawaited(_notifyLinkAction(link.id, 'request'));
+      final notifyResult = await _notifyLinkAction(link.id, 'request');
 
-      return link;
+      return GuardianLinkRequestResult(link: link, notifyResult: notifyResult);
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         throw GuardianLinkRepositoryException(
@@ -243,12 +279,53 @@ class GuardianLinkRepository {
       throw GuardianLinkRepositoryException(
         'Verknüpfungsanfrage fehlgeschlagen. Bitte erneut versuchen.',
       );
+    } on GuardianLinkRepositoryException {
+      rethrow;
     } catch (e) {
-      if (e is GuardianLinkRepositoryException) rethrow;
       throw GuardianLinkRepositoryException(
         'Verknüpfungsanfrage fehlgeschlagen. Bitte erneut versuchen.',
       );
     }
+  }
+
+  Future<RequestLinksResult> requestLinks(List<String> childIds) async {
+    if (childIds.isEmpty) {
+      throw GuardianLinkRepositoryException(
+        'Bitte mindestens ein Kind auswählen.',
+      );
+    }
+
+    final createdLinks = <GuardianChildLink>[];
+    final skippedChildIds = <String>[];
+    var anyPushFailed = false;
+
+    for (final childId in childIds) {
+      try {
+        final result = await requestLink(childId);
+        createdLinks.add(result.link);
+        if (!result.notifyResult.pushDelivered) {
+          anyPushFailed = true;
+        }
+      } on GuardianLinkRepositoryException catch (e) {
+        if (e.message.contains('bereits gesendet')) {
+          skippedChildIds.add(childId);
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    if (createdLinks.isEmpty && skippedChildIds.length == childIds.length) {
+      throw GuardianLinkRepositoryException(
+        'Anfragen an alle ausgewählten Kinder wurden bereits gesendet.',
+      );
+    }
+
+    return RequestLinksResult(
+      createdLinks: createdLinks,
+      skippedChildIds: skippedChildIds,
+      anyPushFailed: anyPushFailed,
+    );
   }
 
   Future<void> respondToLink({
@@ -264,7 +341,7 @@ class GuardianLinkRepository {
         accept ? GuardianLinkStatus.confirmed : GuardianLinkStatus.rejected;
 
     try {
-      await _supabase
+      final updated = await _supabase
           .from('guardian_child_links')
           .update({
             'status': status,
@@ -272,11 +349,23 @@ class GuardianLinkRepository {
           })
           .eq('id', linkId)
           .eq('child_id', userId)
-          .eq('status', GuardianLinkStatus.pending);
+          .eq('status', GuardianLinkStatus.pending)
+          .select('id')
+          .maybeSingle();
+
+      if (updated == null) {
+        throw GuardianLinkRepositoryException(
+          'Antwort konnte nicht gespeichert werden.',
+        );
+      }
 
       if (accept) {
         unawaited(_notifyLinkAction(linkId, 'confirmed'));
+      } else {
+        unawaited(_notifyLinkAction(linkId, 'rejected'));
       }
+    } on GuardianLinkRepositoryException {
+      rethrow;
     } catch (_) {
       throw GuardianLinkRepositoryException(
         'Antwort konnte nicht gespeichert werden.',
@@ -393,18 +482,36 @@ class GuardianLinkRepository {
     return await _fetchLinkRemote(linkId) ?? await _fetchLinkLocal(linkId);
   }
 
-  Future<void> _notifyLinkAction(String linkId, String action) async {
+  Future<NotifyLinkResult> _notifyLinkAction(String linkId, String action) async {
     try {
-      await _supabase.functions.invoke(
+      final response = await _supabase.functions.invoke(
         'notify-guardian-link',
         body: {
           'link_id': linkId,
           'action': action,
         },
       );
+
+      final data = response.data;
+      if (data is Map) {
+        final sent = _parseInt(data['sent']);
+        final failed = _parseInt(data['failed']);
+        return NotifyLinkResult(
+          pushDelivered: sent > 0,
+          sent: sent,
+          failed: failed,
+        );
+      }
+
+      return const NotifyLinkResult(pushDelivered: true);
     } catch (_) {
-      // Push ist best-effort; Verknüpfung bleibt gültig.
+      return const NotifyLinkResult(pushDelivered: false);
     }
+  }
+
+  int _parseInt(Object? value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   Future<GuardianChildLink?> _fetchLinkRemote(String linkId) async {

@@ -70,7 +70,9 @@ class PushNotificationService {
 
   bool _handleGuardianLinkData(Map<String, String> data) {
     final type = data['type'];
-    if (type != 'guardian_link_request' && type != 'guardian_link_confirmed') {
+    if (type != 'guardian_link_request' &&
+        type != 'guardian_link_confirmed' &&
+        type != 'guardian_link_rejected') {
       return false;
     }
     _onGuardianLinkPush(data);

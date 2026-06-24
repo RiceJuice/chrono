@@ -29,6 +29,7 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
   final _draft = LoginFlowDraft.instance;
   final _searchController = TextEditingController();
   List<StudentSearchResult> _results = const [];
+  final Map<String, StudentSearchResult> _selected = {};
   bool _searching = false;
   bool _submitting = false;
   String _lastQuery = '';
@@ -72,14 +73,32 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     }
   }
 
-  Future<void> _confirmAndRequest(StudentSearchResult student) async {
+  void _toggleStudent(StudentSearchResult student) {
+    setState(() {
+      if (_selected.containsKey(student.id)) {
+        _selected.remove(student.id);
+      } else {
+        _selected[student.id] = student;
+      }
+    });
+  }
+
+  Future<void> _confirmAndRequestAll() async {
+    if (_selected.isEmpty) return;
+
+    final count = _selected.length;
+    final names = _selected.values.map((s) => s.displayName).join(', ');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Kind verknüpfen'),
+        title: Text(count == 1 ? 'Kind verknüpfen' : '$count Kinder verknüpfen'),
         content: Text(
-          'Möchtest du eine Verknüpfungsanfrage an ${student.displaySubtitle} senden? '
-          'Das Kind muss die Anfrage in der App bestätigen.',
+          count == 1
+              ? 'Möchtest du eine Verknüpfungsanfrage an $names senden? '
+                  'Das Kind muss die Anfrage in der App bestätigen.'
+              : 'Möchtest du Verknüpfungsanfragen an folgende Kinder senden?\n\n'
+                  '$names\n\n'
+                  'Jedes Kind muss die Anfrage einzeln in der App bestätigen.',
         ),
         actions: [
           TextButton(
@@ -88,7 +107,7 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Anfrage senden'),
+            child: Text(count == 1 ? 'Anfrage senden' : 'Anfragen senden'),
           ),
         ],
       ),
@@ -98,14 +117,28 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
 
     setState(() => _submitting = true);
     try {
-      await ref.read(guardianLinkRepositoryProvider).requestLink(student.id);
+      final result = await ref
+          .read(guardianLinkRepositoryProvider)
+          .requestLinks(_selected.keys.toList(growable: false));
       await ref.read(profileGateProvider).refresh();
       if (!mounted) return;
-      showAppToast(
-        context,
-        'Anfrage gesendet. Wir warten auf die Bestätigung.',
-        kind: AppToastKind.success,
-      );
+
+      if (result.anyPushFailed) {
+        showAppToast(
+          context,
+          'Anfragen gespeichert. Push konnte nicht an alle Kinder zugestellt werden.',
+          kind: AppToastKind.info,
+        );
+      } else {
+        showAppToast(
+          context,
+          count == 1
+              ? 'Anfrage gesendet. Wir warten auf die Bestätigung.'
+              : '$count Anfragen gesendet. Wir warten auf die Bestätigungen.',
+          kind: AppToastKind.success,
+        );
+      }
+
       if (widget.onLinkRequested != null) {
         widget.onLinkRequested!();
         Navigator.of(context).pop();
@@ -124,18 +157,89 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
   Widget build(BuildContext context) {
     final roleUi = LoginFlowRoleUi.fromStoredRoleLabel(_draft.role);
     final theme = Theme.of(context);
+    final selectedCount = _selected.length;
 
     return LoginStepScaffold(
       step: LoginFlowStep.selectChild,
       titleOverride: roleUi.scaffoldTitle(LoginFlowStep.selectChild),
       subtitleOverride:
-          'Suche den Profilnamen deines Kindes (Vor- und Nachname aus der App).',
+          'Suche deine Kinder und wähle alle aus, die du verknüpfen möchtest.',
       showPrimaryButton: false,
+      footer: selectedCount > 0
+          ? Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: FilledButton(
+                onPressed: _submitting ? null : _confirmAndRequestAll,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        selectedCount == 1
+                            ? 'Anfrage senden'
+                            : 'Anfragen senden ($selectedCount)',
+                      ),
+              ),
+            )
+          : null,
       child: Padding(
-        padding: const EdgeInsets.only(top: 48),
+        padding: const EdgeInsets.only(top: 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Du kannst mehrere Kinder auswählen. Jedes Kind '
+                      'bestätigt die Anfrage einzeln in der App.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_selected.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Ausgewählt',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _selected.values.map((student) {
+                  return InputChip(
+                    label: Text(student.displaySubtitle),
+                    onDeleted: _submitting
+                        ? null
+                        : () => _toggleStudent(student),
+                    deleteIcon: const Icon(Icons.close, size: 18),
+                  );
+                }).toList(growable: false),
+              ),
+            ],
+            const SizedBox(height: 20),
             TextField(
               controller: _searchController,
               enabled: !_submitting,
@@ -173,41 +277,46 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
                 ),
               ),
             ..._results.map(
-              (student) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Material(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(12),
-                  child: InkWell(
+              (student) {
+                final isSelected = _selected.containsKey(student.id);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: isSelected
+                        ? theme.colorScheme.primaryContainer
+                            .withValues(alpha: 0.45)
+                        : theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
-                    onTap: _submitting
-                        ? null
-                        : () => unawaited(_confirmAndRequest(student)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              student.displaySubtitle,
-                              style: theme.textTheme.bodyLarge,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _submitting ? null : () => _toggleStudent(student),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: isSelected,
+                              onChanged: _submitting
+                                  ? null
+                                  : (_) => _toggleStudent(student),
                             ),
-                          ),
-                          Icon(
-                            Icons.chevron_right,
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.4),
-                          ),
-                        ],
+                            Expanded(
+                              child: Text(
+                                student.displaySubtitle,
+                                style: theme.textTheme.bodyLarge,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ],
         ),
