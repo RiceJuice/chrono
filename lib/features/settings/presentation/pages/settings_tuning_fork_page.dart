@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:chronoapp/core/widgets/app_glass_back_button.dart';
+import 'package:chronoapp/features/settings/domain/tuning_pitch_label.dart';
 import 'package:chronoapp/features/settings/presentation/services/tuning_audio_session.dart';
 import 'package:chronoapp/features/settings/presentation/services/tuning_pitch_detector.dart';
 import 'package:chronoapp/features/settings/presentation/services/tuning_reference_tone_player.dart';
@@ -82,7 +83,7 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
     if (!mounted) return;
     setState(() {
       _isPlayingReference = true;
-      _liveFrequencyHz = _referenceFrequencyHz.toDouble();
+      _liveFrequencyHz = _referenceFrequencyHz;
     });
 
     try {
@@ -109,9 +110,10 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
     await _startListening();
   }
 
-  String get _displayLabel {
-    if (_liveFrequencyHz == null) return '—';
-    return '${_liveFrequencyHz!.round()} Hz';
+  TuningPitchLabel? get _pitchLabel {
+    final frequency = _liveFrequencyHz;
+    if (frequency == null) return null;
+    return tuningPitchLabelForFrequency(frequency);
   }
 
   @override
@@ -131,6 +133,7 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
     final forkColor = scheme.onSurface.withValues(
       alpha: scheme.brightness == Brightness.dark ? 0.78 : 0.68,
     );
+    final pitchLabel = _pitchLabel;
 
     return Scaffold(
       backgroundColor: bg,
@@ -153,15 +156,10 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                _displayLabel,
-                style: theme.textTheme.displayMedium?.copyWith(
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: -1.5,
-                  color: scheme.onSurface.withValues(alpha: 0.88),
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-                textAlign: TextAlign.center,
+              _FrequencyDisplay(
+                pitchLabel: pitchLabel,
+                theme: theme,
+                scheme: scheme,
               ),
               if (_micPermissionDenied) ...[
                 const SizedBox(height: 12),
@@ -189,6 +187,64 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _FrequencyDisplay extends StatelessWidget {
+  const _FrequencyDisplay({
+    required this.pitchLabel,
+    required this.theme,
+    required this.scheme,
+  });
+
+  final TuningPitchLabel? pitchLabel;
+  final ThemeData theme;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    if (pitchLabel == null) {
+      return Text(
+        '—',
+        style: theme.textTheme.displayMedium?.copyWith(
+          fontWeight: FontWeight.w300,
+          letterSpacing: -1.5,
+          color: scheme.onSurface.withValues(alpha: 0.88),
+        ),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    final baseStyle = theme.textTheme.displayMedium?.copyWith(
+      fontWeight: FontWeight.w300,
+      letterSpacing: -1.5,
+      color: scheme.onSurface.withValues(alpha: 0.88),
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+
+    final noteStyle = theme.textTheme.displaySmall?.copyWith(
+      fontWeight: FontWeight.w400,
+      color: scheme.onSurface.withValues(alpha: 0.62),
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+
+    final symbolStyle = noteStyle?.copyWith(
+      color: scheme.primary.withValues(alpha: 0.78),
+      fontWeight: FontWeight.w500,
+    );
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text('${pitchLabel!.frequencyHz} Hz', style: baseStyle),
+        const SizedBox(width: 14),
+        Text(pitchLabel!.noteWithOctave, style: noteStyle),
+        if (pitchLabel!.tuningSymbol != null)
+          Text(pitchLabel!.tuningSymbol!, style: symbolStyle),
+      ],
     );
   }
 }

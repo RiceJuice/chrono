@@ -84,6 +84,7 @@ class GuardianChildLink {
 
   bool get isPending => status == GuardianLinkStatus.pending;
   bool get isConfirmed => status == GuardianLinkStatus.confirmed;
+  bool get isRejected => status == GuardianLinkStatus.rejected;
 
   String get childDisplayName {
     final parts = [childFirstName, childLastName]

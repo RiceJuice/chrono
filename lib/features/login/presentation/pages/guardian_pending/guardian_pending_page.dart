@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chronoapp/core/auth/auth_user_id_provider.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,7 @@ import '../../widgets/login_step_layout.dart';
 import '../../widgets/login_step_scaffold.dart';
 import '../credentials/credentials_page.dart';
 import '../email_confirmation/widgets/email_confirmation_ui.dart';
+import 'guardian_pending_status_list.dart';
 import 'widgets/guardian_pending_body.dart';
 import 'widgets/guardian_pending_footer.dart';
 
@@ -68,6 +70,19 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
     if (state == AppLifecycleState.resumed) {
       unawaited(_runAdvanceCheck());
     }
+  }
+
+  List<GuardianChildLink> _ownLinks(
+    List<GuardianChildLink> links,
+    String? userId,
+  ) {
+    if (userId == null) return const [];
+    return links.where((l) => l.guardianId == userId).toList(growable: false);
+  }
+
+  bool _allRejected(List<GuardianChildLink> ownLinks) {
+    if (ownLinks.isEmpty) return false;
+    return ownLinks.every((l) => l.isRejected);
   }
 
   List<GuardianChildLink> _pendingLinks(List<GuardianChildLink> links) {
@@ -138,12 +153,15 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
   @override
   Widget build(BuildContext context) {
     final linksAsync = ref.watch(guardianLinksProvider);
+    final userId = ref.watch(authUserIdProvider).value;
     final metrics = EmailConfirmationLayoutMetrics.fromContext(context);
     final styles = EmailConfirmationTextStyles.fromContext(context);
-    final pending = linksAsync.maybeWhen(
-      data: _pendingLinks,
+    final ownLinks = linksAsync.maybeWhen(
+      data: (links) => _ownLinks(links, userId),
       orElse: () => const <GuardianChildLink>[],
     );
+    final allRejected = _allRejected(ownLinks);
+    final pending = _pendingLinks(ownLinks);
     final childNames = _resolveChildNames(pending);
 
     ref.listen(guardianLinksProvider, (prev, next) {
@@ -156,10 +174,13 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
 
     return LoginStepScaffold(
       step: LoginFlowStep.guardianPending,
-      titleOverride: 'Bestätigung ausstehend',
-      subtitleOverride: childNames.isEmpty
-          ? 'Wir warten auf die Bestätigung durch deine Kinder.'
-          : 'Wir warten auf die Bestätigung durch ${childNames.join(', ')}.',
+      titleOverride:
+          allRejected ? 'Verknüpfung abgelehnt' : 'Bestätigung ausstehend',
+      subtitleOverride: allRejected
+          ? 'Keines deiner Kinder hat die Anfrage bestätigt.'
+          : childNames.isEmpty
+              ? 'Wir warten auf die Bestätigung durch deine Kinder.'
+              : 'Wir warten auf die Bestätigung durch ${childNames.join(', ')}.',
       showPrimaryButton: false,
       contentMaxWidth: CredentialsPage.maxFormWidth,
       bottomBehavior: LoginBottomBehavior.footerInScroll,
@@ -175,12 +196,25 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
         onSelectOther: () => context.go(LoginPaths.selectChild),
         onAddChild: () => context.go(LoginPaths.selectChild),
       ),
-      child: GuardianPendingBody(
-        childNames: childNames,
-        metrics: metrics,
-        styles: styles,
-        isSending: _coordinator.isSending,
-        sendError: _coordinator.errorMessage,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GuardianPendingBody(
+            childNames: childNames,
+            metrics: metrics,
+            styles: styles,
+            isSending: _coordinator.isSending,
+            sendError: _coordinator.errorMessage,
+          ),
+          if (ownLinks.isNotEmpty) ...[
+            const SizedBox(height: 28),
+            GuardianPendingStatusList(
+              links: ownLinks,
+              reminderBusyLinkId: _reminderBusyLinkId,
+              onSendReminder: allRejected ? null : _sendReminder,
+            ),
+          ],
+        ],
       ),
     );
   }

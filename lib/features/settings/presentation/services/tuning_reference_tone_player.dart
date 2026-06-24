@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 class TuningReferenceTonePlayer {
   TuningReferenceTonePlayer({AudioPlayer? player}) : _player = player ?? AudioPlayer();
 
-  static const referenceFrequencyHz = 440;
+  static const referenceFrequencyHz = 440.0;
   static const assetPath = 'audio/piano_a440.wav';
   static const _fallbackDuration = Duration(seconds: 4);
 

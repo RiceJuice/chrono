@@ -129,16 +129,38 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
         .toList(growable: false);
   }
 
+  void _showRequestResultToast(RequestLinksResult result, int requestedCount) {
+    if (!mounted) return;
+
+    if (result.anyPushFailed) {
+      showAppToast(
+        context,
+        'Anfragen gespeichert. Push konnte nicht an alle Kinder zugestellt werden.',
+        kind: AppToastKind.info,
+      );
+      return;
+    }
+
+    final createdCount = result.createdLinks.length;
+    showAppToast(
+      context,
+      createdCount <= 1
+          ? 'Anfrage wurde gesendet.'
+          : '$createdCount Anfragen wurden gesendet.',
+      kind: AppToastKind.success,
+    );
+  }
+
   Future<void> _sendRequestsInBackground(List<String> childIds) async {
     final coordinator = GuardianLinkRequestCoordinator.instance;
     coordinator.markSending();
     try {
-      final links = await ref
+      final result = await ref
           .read(guardianLinkRepositoryProvider)
           .requestLinks(childIds);
       await ref.read(profileGateProvider).refresh();
       coordinator.markDone();
-      if (links.isEmpty && childIds.isNotEmpty) {
+      if (!result.hasCreatedLinks && childIds.isNotEmpty) {
         coordinator.markFailed(
           'Für die ausgewählten Kinder liegen bereits Anfragen vor.',
         );
@@ -162,19 +184,13 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     if (_isSettingsMode) {
       setState(() => _submitting = true);
       try {
-        final links = await ref
+        final result = await ref
             .read(guardianLinkRepositoryProvider)
             .requestLinks(childIds);
         await ref.read(profileGateProvider).refresh();
         if (!mounted) return;
         widget.onLinkRequested!();
-        showAppToast(
-          context,
-          links.length <= 1
-              ? 'Anfrage wurde gesendet.'
-              : '${links.length} Anfragen wurden gesendet.',
-          kind: AppToastKind.success,
-        );
+        _showRequestResultToast(result, childIds.length);
         Navigator.of(context).pop();
       } on GuardianLinkRepositoryException catch (e) {
         if (!mounted) return;

@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/auth/auth_user_id_provider.dart';
 import 'package:chronoapp/core/database/backend_connector.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:chronoapp/core/theme/theme_mode_provider.dart';
@@ -6,6 +7,8 @@ import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/search/search_filters_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
+import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart';
+import 'package:chronoapp/features/login/presentation/providers/guardian_link_providers.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
@@ -27,7 +30,9 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/profile_snapshot.dart';
 import '../providers/settings_profile_providers.dart';
+import '../widgets/guardian_child_switch_banners.dart';
 import '../widgets/guardian_children_section.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -48,6 +53,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// 0–1 für den Top-Blur — erst nach weggescrollter Profilkarte.
   double _topBlurLinear = 0;
 
+  /// Zusätzliche Höhe durch Kind-Wechsel-Banner unter der Profilkarte.
+  double _childSwitchBannersHeight = 0;
+
   /// Scroll-Offset, ab dem der AppBar-Titel sichtbar wird / voll sichtbar ist.
   static const _appBarTitleFadeStart = 28.0;
   static const _appBarTitleFadeEnd = 88.0;
@@ -56,12 +64,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   static const _largeTitleBlockHeight = 75.0;
   static const _profileCardTopGap = 18.0;
   static const _profileHeaderCardHeight = 92.0;
-  static const _profileCardBottomOffset =
-      _largeTitleBlockHeight + _profileCardTopGap + _profileHeaderCardHeight;
 
-  /// Blur erst, wenn große Überschrift + Profilkarte vollständig weggescrollt sind.
-  static const _topBlurFadeStart = _profileCardBottomOffset;
-  static const _topBlurFadeEnd = _profileCardBottomOffset + 44.0;
+  double get _profileCardBottomOffset =>
+      _largeTitleBlockHeight +
+      _profileCardTopGap +
+      _profileHeaderCardHeight +
+      _childSwitchBannersHeight;
+
+  double get _topBlurFadeStart => _profileCardBottomOffset;
+
+  double get _topBlurFadeEnd => _profileCardBottomOffset + 44.0;
 
   static const _roleOptions = <String>['Schüler', 'Elternteil'];
   static const _voiceOptions = <String>['Sopran', 'Alt', 'Tenor', 'Bass'];
@@ -106,11 +118,36 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     });
   }
 
+  double _resolveChildSwitchBannersHeight(
+    AsyncValue<ProfileSnapshot?> profileAsync,
+    AsyncValue<List<GuardianChildLink>> linksAsync,
+  ) {
+    final profile = profileAsync.asData?.value;
+    if (profile?.role?.trim() != 'Elternteil') return 0;
+
+    final userId = ref.read(authUserIdProvider).value;
+    if (userId == null) return 0;
+
+    final links = linksAsync.asData?.value;
+    if (links == null) return 0;
+
+    final activeChildId = ref.read(profileGateProvider).data.activeChildId;
+    final inactive = inactiveConfirmedGuardianLinks(
+      links: links,
+      guardianId: userId,
+      activeChildId: activeChildId,
+    );
+    return guardianChildSwitchBannersBlockHeight(inactive.length);
+  }
+
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(syncedProfileProvider);
+    final linksAsync = ref.watch(guardianLinksProvider);
     final classesAsync = ref.watch(availableClassesProvider);
     final themeMode = ref.watch(appThemeModeProvider);
+    _childSwitchBannersHeight =
+        _resolveChildSwitchBannersHeight(profileAsync, linksAsync);
 
     final theme = Theme.of(context);
     final bg = theme.scaffoldBackgroundColor;
@@ -165,6 +202,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     detail: error.toString(),
                   ),
                 ),
+                if (profileAsync.asData?.value?.role?.trim() == 'Elternteil')
+                  const GuardianChildSwitchBanners(),
                 if (profileAsync.asData?.value?.role?.trim() == 'Elternteil') ...[
                   const SettingsSectionLabel(title: 'Familie', top: 22),
                   const GuardianChildrenSection(),
