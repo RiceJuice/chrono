@@ -26,8 +26,14 @@ class ScheduleLiveActivityLocalScheduler {
   ScheduleLiveActivityNotificationHandler? _onPayload;
   bool _initialized = false;
 
+  static const String endPayloadMarker = 'end';
+
   static int notificationIdFor(String eventId, String scheduleId) {
     return Object.hash(eventId, scheduleId) & 0x7fffffff;
+  }
+
+  static int notificationIdForDayEnd(String eventId) {
+    return Object.hash('schedule_day_end', eventId) & 0x7fffffff;
   }
 
   Future<void> init({
@@ -130,6 +136,59 @@ class ScheduleLiveActivityLocalScheduler {
       } catch (e, st) {
         if (kDebugMode) {
           debugPrint('[LiveActivity] schedule failed: $e\n$st');
+        }
+      }
+    }
+  }
+
+  Future<void> rescheduleDayEnds({
+    required List<({String eventId, DateTime end})> ends,
+  }) async {
+    if (!_initialized) return;
+
+    final now = DateTime.now();
+    final rangeEnd = AppDateTime.addLocalCalendarDays(
+      AppDateTime.localDay(now),
+      2,
+    );
+
+    for (final entry in ends) {
+      final localEnd = AppDateTime.toLocal(entry.end);
+      if (!localEnd.isAfter(now)) continue;
+      if (!localEnd.isBefore(rangeEnd)) continue;
+
+      final tzTime = tz.TZDateTime.from(localEnd, tz.local);
+      final id = notificationIdForDayEnd(entry.eventId);
+      final payload = '${entry.eventId}|$endPayloadMarker';
+
+      try {
+        await _plugin.zonedSchedule(
+          id,
+          null,
+          null,
+          tzTime,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              channelId,
+              channelName,
+              importance: Importance.low,
+              priority: Priority.low,
+              playSound: false,
+              silent: true,
+              channelShowBadge: false,
+            ),
+            iOS: const DarwinNotificationDetails(
+              presentAlert: false,
+              presentSound: false,
+              presentBadge: false,
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          payload: payload,
+        );
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[LiveActivity] day-end schedule failed: $e\n$st');
         }
       }
     }

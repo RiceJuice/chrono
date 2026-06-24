@@ -58,8 +58,17 @@ private func formatTime(_ date: Date) -> String {
   return formatter.string(from: date)
 }
 
-private func remainingMinutes(until end: Date, now: Date = Date()) -> Int {
-  max(0, Int(ceil(end.timeIntervalSince(now) / 60)))
+private func nextMinuteBoundary(from now: Date = Date()) -> Date {
+  let calendar = Calendar.current
+  let floored = calendar.date(bySetting: .second, value: 0, of: now) ?? now
+  return calendar.date(byAdding: .minute, value: 1, to: floored) ?? floored
+}
+
+private func remainingMinutes(until end: Date, now: Date) -> Int {
+  let calendar = Calendar.current
+  let flooredNow = calendar.date(bySetting: .second, value: 0, of: now) ?? now
+  let seconds = max(0, Int(end.timeIntervalSince(flooredNow)))
+  return (seconds + 59) / 60
 }
 
 private func compactTitle(_ title: String) -> String {
@@ -126,22 +135,45 @@ private struct ScheduleNextColumn: View {
   }
 }
 
+/// Proportionen wie [CalendarDayMarkerPill]: Außenhöhe 9, Inset 1.5, Innenhöhe 6.
+@available(iOSApplicationExtension 16.1, *)
+private struct PillProgressMetrics {
+  let outerHeight: CGFloat
+
+  var contentInset: CGFloat { outerHeight * (1.5 / 9.0) }
+  var innerHeight: CGFloat { outerHeight - contentInset * 2 }
+}
+
 @available(iOSApplicationExtension 16.1, *)
 private struct ScheduleProgressBar: View {
   let progress: Double
-  var height: CGFloat = 8
+  var outerHeight: CGFloat = 15
+
+  private var metrics: PillProgressMetrics { PillProgressMetrics(outerHeight: outerHeight) }
+
+  /// surfaceContainerHighest mit leichtem Weiß-Anteil, analog zur Kalender-Pille.
+  private var trackColor: Color {
+    Color(red: 50 / 255, green: 50 / 255, blue: 50 / 255)
+  }
 
   var body: some View {
+    let inset = metrics.contentInset
+    let innerHeight = metrics.innerHeight
+    let clampedProgress = min(max(progress, 0), 1)
+
     GeometryReader { geo in
+      let innerWidth = max(0, geo.size.width - inset * 2)
+
       ZStack(alignment: .leading) {
         Capsule()
-          .fill(Color(red: 0.16, green: 0.16, blue: 0.16))
+          .fill(trackColor)
         Capsule()
           .fill(Color(red: 0.23, green: 0.30, blue: 0.42))
-          .frame(width: max(0, geo.size.width * min(max(progress, 0), 1)))
+          .frame(width: max(0, innerWidth * clampedProgress), height: innerHeight)
+          .padding(.leading, inset)
       }
     }
-    .frame(height: height)
+    .frame(height: outerHeight)
   }
 }
 
@@ -149,7 +181,7 @@ private struct ScheduleProgressBar: View {
 private struct ScheduleProgressSection: View {
   let data: ScheduleLiveData
   var timeFontSize: CGFloat = 13
-  var barHeight: CGFloat = 8
+  var barOuterHeight: CGFloat = 15
   var horizontalPadding: CGFloat = 0
 
   var body: some View {
@@ -159,7 +191,7 @@ private struct ScheduleProgressSection: View {
           .font(.system(size: timeFontSize, weight: .regular))
           .foregroundColor(.white)
         Spacer()
-        TimelineView(.periodic(from: .now, by: 30)) { timeline in
+        TimelineView(.periodic(from: nextMinuteBoundary(), by: 60)) { timeline in
           Text("Noch \(remainingMinutes(until: data.segmentEnd, now: timeline.date)) Min.")
             .font(.system(size: timeFontSize, weight: .regular))
             .foregroundColor(.white)
@@ -169,11 +201,11 @@ private struct ScheduleProgressSection: View {
           .font(.system(size: timeFontSize, weight: .regular))
           .foregroundColor(.white)
       }
-      TimelineView(.periodic(from: .now, by: 15)) { timeline in
+      TimelineView(.periodic(from: data.segmentStart, by: 1.0)) { timeline in
         let total = data.segmentEnd.timeIntervalSince(data.segmentStart)
         let elapsed = timeline.date.timeIntervalSince(data.segmentStart)
         let p = total > 0 ? min(max(elapsed / total, 0), 1) : 1
-        ScheduleProgressBar(progress: p, height: barHeight)
+        ScheduleProgressBar(progress: p, outerHeight: barOuterHeight)
       }
     }
     .padding(.horizontal, horizontalPadding)
@@ -187,7 +219,7 @@ private struct ScheduleLiveActivityLayout {
   let titleSize: CGFloat
   let subtitleSize: CGFloat
   let timeFontSize: CGFloat
-  let barHeight: CGFloat
+  let barOuterHeight: CGFloat
   let horizontalPadding: CGFloat
   let verticalPadding: CGFloat
   let showsBackground: Bool
@@ -198,7 +230,7 @@ private struct ScheduleLiveActivityLayout {
     titleSize: 19,
     subtitleSize: 16,
     timeFontSize: 15,
-    barHeight: 9,
+    barOuterHeight: 15,
     horizontalPadding: 30,
     verticalPadding: 32,
     showsBackground: true
@@ -213,7 +245,7 @@ private struct ScheduleLiveActivityLayout {
     titleSize: 17,
     subtitleSize: 14,
     timeFontSize: 13,
-    barHeight: 8,
+    barOuterHeight: 12,
     horizontalPadding: 10,
     verticalPadding: 6,
     showsBackground: false
@@ -253,7 +285,7 @@ private struct ScheduleLiveActivityView: View {
       ScheduleProgressSection(
         data: data,
         timeFontSize: layout.timeFontSize,
-        barHeight: layout.barHeight
+        barOuterHeight: layout.barOuterHeight
       )
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -311,7 +343,7 @@ struct ChronoScheduleLiveActivity: Widget {
             .minimumScaleFactor(0.75)
         }
       } compactTrailing: {
-        TimelineView(.periodic(from: .now, by: 30)) { timeline in
+        TimelineView(.periodic(from: nextMinuteBoundary(), by: 60)) { timeline in
           Text("\(remainingMinutes(until: data.segmentEnd, now: timeline.date))m")
             .font(.footnote.monospacedDigit().weight(.semibold))
             .foregroundColor(.white)

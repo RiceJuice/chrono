@@ -34,6 +34,21 @@ class ScheduleLiveActivitySnapshot {
     return (nowMs - start) / (end - start);
   }
 
+  /// Verbleibende Minuten, synchron an Minutengrenzen (wie iOS-Widget).
+  int remainingMinutesAt(DateTime now) {
+    final end = DateTime.fromMillisecondsSinceEpoch(segmentEndMs);
+    final flooredNow = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+    );
+    final seconds = end.difference(flooredNow).inSeconds;
+    if (seconds <= 0) return 0;
+    return (seconds + 59) ~/ 60;
+  }
+
   Map<String, dynamic> toActivityPayload() {
     return {
       'currentTitle': currentTitle,
@@ -46,4 +61,9 @@ class ScheduleLiveActivitySnapshot {
       'eventId': eventId,
     };
   }
+
+  /// Fingerabdruck für Inhaltsänderungen (Titel, Zeiten, nächstes Segment).
+  String get contentFingerprint =>
+      '$currentScheduleId|$currentTitle|$currentSubtitle|$hasNext|'
+      '$nextTitle|$nextSubtitle|$segmentStartMs|$segmentEndMs';
 }

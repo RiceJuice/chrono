@@ -106,6 +106,7 @@ String? resolveRequiredOnboardingPath(ProfileGateData data) {
   for (final spec in _specsFor(data)) {
     if (!spec.isSatisfiedBy(data)) return spec.path;
   }
+  if (!data.isOnboardingComplete) return LoginPaths.success;
   return null;
 }
 

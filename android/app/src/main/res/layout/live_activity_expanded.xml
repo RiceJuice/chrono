@@ -103,8 +103,8 @@
                 android:textColor="@color/live_activity_text_secondary"
                 android:textSize="15sp" />
 
-            <TextView
-                android:id="@+id/remaining_label"
+            <Chronometer
+                android:id="@+id/remaining_chronometer"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -125,7 +125,7 @@
             android:id="@+id/segment_progress"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="8dp"
+            android:layout_height="15dp"
             android:layout_marginTop="10dp"
             android:max="1000"
             android:progressDrawable="@drawable/live_activity_progress" />

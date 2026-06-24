@@ -180,9 +180,11 @@ supabase functions deploy notify-event-change
 
 ## 10. Ablaufplan Live Activities (`schedule-live-activity`)
 
-**Auslöser:** pg_cron (jede Minute) → Edge Function → FCM mit Live-Activity-Payload.
+**Auslöser:**
+- pg_cron (jede Minute) → Segmentgrenzen (`start` / `end`)
+- **DB-Trigger** auf `calendar_events` (UPDATE/DELETE) und `event_schedules` (INSERT/UPDATE/DELETE) → sofortiger FCM `update` oder `end` bei laufender Live Activity
 
-**Lokal in der App:** `flutter_local_notifications` plant Segmentstarts; Coordinator startet/aktualisiert die Activity über `live_activities`.
+**Lokal in der App:** `flutter_local_notifications` + Einmal-Timer planen Segmentstarts und Tagesende; Coordinator startet/beendet die Activity über `live_activities`. FCM `update` aktualisiert Inhalte (Titel, Zeiten, Zielgruppe).
 
 ### Deploy
 
@@ -190,6 +192,8 @@ supabase functions deploy notify-event-change
 supabase db push
 supabase functions deploy schedule-live-activity --no-verify-jwt
 ```
+
+Migration `*_schedule_live_activity_change_trigger.sql` legt Postgres-Trigger an, die bei Termin-/Ablaufplan-Änderungen die Edge Function mit `{ "mode": "change", "event_id": "…" }` aufrufen (Vault-Secret muss gesetzt sein).
 
 ### Secrets
 

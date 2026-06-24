@@ -48,8 +48,8 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/remaining_label"
+    <Chronometer
+        android:id="@+id/remaining_chronometer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"

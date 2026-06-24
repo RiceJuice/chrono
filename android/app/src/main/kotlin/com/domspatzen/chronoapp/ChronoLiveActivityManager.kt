@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
@@ -12,7 +13,6 @@ import com.istornz.live_activities.LiveActivityManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import kotlin.math.max
 import kotlin.math.min
 
@@ -61,7 +61,7 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         views.setTextColor(R.id.current_title, primary)
         views.setTextColor(R.id.arrow_icon, arrow)
         views.setTextColor(R.id.next_title, primary)
-        views.setTextColor(R.id.remaining_label, primary)
+        views.setTextColor(R.id.remaining_chronometer, primary)
 
         if (!expanded) return
 
@@ -76,6 +76,16 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         )
     }
 
+    private fun applyCountdownChronometer(views: RemoteViews, endMs: Long) {
+        val now = System.currentTimeMillis()
+        val remainingMs = max(0L, endMs - now)
+        val base = SystemClock.elapsedRealtime() + remainingMs
+
+        views.setChronometerCountDown(R.id.remaining_chronometer, true)
+        views.setChronometer(R.id.remaining_chronometer, base, "Noch %s", true)
+        views.setViewVisibility(R.id.remaining_chronometer, View.VISIBLE)
+    }
+
     private fun updateRemoteViews(views: RemoteViews, data: Map<String, Any>, expanded: Boolean) {
         applyThemeColors(views, expanded)
         val currentTitle = data["currentTitle"] as? String ?: ""
@@ -87,15 +97,8 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         val now = System.currentTimeMillis()
         val hasNext = nextTitle.isNotBlank()
 
-        val remainingMinutes = max(
-            0,
-            TimeUnit.MILLISECONDS.toMinutes(endMs - now).toInt() +
-                if ((endMs - now) % 60_000L > 0) 1 else 0,
-        )
-        val remainingText = "Noch $remainingMinutes Min."
-
         views.setTextViewText(R.id.current_title, currentTitle)
-        views.setTextViewText(R.id.remaining_label, remainingText)
+        applyCountdownChronometer(views, endMs)
 
         if (hasNext) {
             views.setViewVisibility(R.id.arrow_icon, View.VISIBLE)

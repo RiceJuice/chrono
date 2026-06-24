@@ -37,7 +37,7 @@ final class LoginFlowRoleUi {
       case _LoginFlowRoleKind.guardian:
         return switch (step) {
           LoginFlowStep.personalData => 'Deine Daten',
-          LoginFlowStep.selectChild => 'Kind auswählen',
+          LoginFlowStep.selectChild => 'Kinder auswählen',
           LoginFlowStep.guardianPending => 'Bestätigung ausstehend',
           LoginFlowStep.credentials ||
           LoginFlowStep.role ||

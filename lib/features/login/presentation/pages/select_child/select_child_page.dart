@@ -12,14 +12,22 @@ import '../../copy/login_flow_role_ui.dart';
 import '../../providers/guardian_link_providers.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
+import '../../services/guardian_link_request_coordinator.dart';
 import '../../state/login_flow_draft.dart';
 import '../../widgets/login_step_scaffold.dart';
 
 class SelectChildPage extends ConsumerStatefulWidget {
-  const SelectChildPage({super.key, this.onLinkRequested});
+  const SelectChildPage({
+    super.key,
+    this.onLinkRequested,
+    this.classNamesOverride,
+  });
 
   /// Wenn gesetzt (z. B. aus Einstellungen), kein Onboarding-Redirect.
   final VoidCallback? onLinkRequested;
+
+  /// Session-Klassenfilter (Einstellungen); sonst Draft.
+  final List<String>? classNamesOverride;
 
   @override
   ConsumerState<SelectChildPage> createState() => _SelectChildPageState();
@@ -29,10 +37,16 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
   final _draft = LoginFlowDraft.instance;
   final _searchController = TextEditingController();
   List<StudentSearchResult> _results = const [];
+  final Set<String> _selectedChildIds = {};
   bool _searching = false;
   bool _submitting = false;
   String _lastQuery = '';
   Timer? _searchDebounce;
+
+  bool get _isSettingsMode => widget.onLinkRequested != null;
+
+  List<String> get _classNames =>
+      widget.classNamesOverride ?? _draft.guardianChildClasses;
 
   @override
   void dispose() {
@@ -41,9 +55,31 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     super.dispose();
   }
 
+  GuardianChildLink? _existingLinkFor(String childId) {
+    final links = ref.read(guardianLinksProvider);
+    return links.maybeWhen(
+      data: (items) {
+        for (final link in items) {
+          if (link.childId == childId) return link;
+        }
+        return null;
+      },
+      orElse: () => null,
+    );
+  }
+
   Future<void> _runSearch(String query) async {
     final trimmed = query.trim();
     if (trimmed.length < 2) {
+      setState(() {
+        _results = const [];
+        _searching = false;
+        _lastQuery = trimmed;
+      });
+      return;
+    }
+
+    if (_classNames.isEmpty) {
       setState(() {
         _results = const [];
         _searching = false;
@@ -58,8 +94,9 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     });
 
     try {
-      final results =
-          await ref.read(guardianLinkRepositoryProvider).searchStudents(trimmed);
+      final results = await ref
+          .read(guardianLinkRepositoryProvider)
+          .searchStudents(trimmed, classNames: _classNames);
       if (!mounted || _searchController.text.trim() != trimmed) return;
       setState(() {
         _results = results;
@@ -72,52 +109,86 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     }
   }
 
-  Future<void> _confirmAndRequest(StudentSearchResult student) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Kind verknüpfen'),
-        content: Text(
-          'Möchtest du eine Verknüpfungsanfrage an ${student.displaySubtitle} senden? '
-          'Das Kind muss die Anfrage in der App bestätigen.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Anfrage senden'),
-          ),
-        ],
-      ),
-    );
+  void _toggleSelection(StudentSearchResult student) {
+    final existing = _existingLinkFor(student.id);
+    if (existing != null) return;
 
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _submitting = true);
-    try {
-      await ref.read(guardianLinkRepositoryProvider).requestLink(student.id);
-      await ref.read(profileGateProvider).refresh();
-      if (!mounted) return;
-      showAppToast(
-        context,
-        'Anfrage gesendet. Wir warten auf die Bestätigung.',
-        kind: AppToastKind.success,
-      );
-      if (widget.onLinkRequested != null) {
-        widget.onLinkRequested!();
-        Navigator.of(context).pop();
-        return;
+    setState(() {
+      if (_selectedChildIds.contains(student.id)) {
+        _selectedChildIds.remove(student.id);
+      } else {
+        _selectedChildIds.add(student.id);
       }
-      context.go(LoginPaths.guardianPending);
+    });
+  }
+
+  List<String> _selectedDisplayNames() {
+    return _results
+        .where((s) => _selectedChildIds.contains(s.id))
+        .map((s) => s.displaySubtitle)
+        .toList(growable: false);
+  }
+
+  Future<void> _sendRequestsInBackground(List<String> childIds) async {
+    final coordinator = GuardianLinkRequestCoordinator.instance;
+    coordinator.markSending();
+    try {
+      final links = await ref
+          .read(guardianLinkRepositoryProvider)
+          .requestLinks(childIds);
+      await ref.read(profileGateProvider).refresh();
+      coordinator.markDone();
+      if (links.isEmpty && childIds.isNotEmpty) {
+        coordinator.markFailed(
+          'Für die ausgewählten Kinder liegen bereits Anfragen vor.',
+        );
+      }
     } on GuardianLinkRepositoryException catch (e) {
-      if (!mounted) return;
-      showAppToast(context, e.message, kind: AppToastKind.error);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+      coordinator.markFailed(e.message);
+    } catch (_) {
+      coordinator.markFailed(
+        'Verknüpfungsanfragen konnten nicht gesendet werden.',
+      );
     }
+  }
+
+  Future<void> _submitRequests(void Function() goNext) async {
+    if (_selectedChildIds.isEmpty) return;
+
+    final names = _selectedDisplayNames();
+    _draft.pendingChildDisplayName = names.join(', ');
+    final childIds = _selectedChildIds.toList(growable: false);
+
+    if (_isSettingsMode) {
+      setState(() => _submitting = true);
+      try {
+        final links = await ref
+            .read(guardianLinkRepositoryProvider)
+            .requestLinks(childIds);
+        await ref.read(profileGateProvider).refresh();
+        if (!mounted) return;
+        widget.onLinkRequested!();
+        showAppToast(
+          context,
+          links.length <= 1
+              ? 'Anfrage wurde gesendet.'
+              : '${links.length} Anfragen wurden gesendet.',
+          kind: AppToastKind.success,
+        );
+        Navigator.of(context).pop();
+      } on GuardianLinkRepositoryException catch (e) {
+        if (!mounted) return;
+        showAppToast(context, e.message, kind: AppToastKind.error);
+      } finally {
+        if (mounted) setState(() => _submitting = false);
+      }
+      return;
+    }
+
+    GuardianLinkRequestCoordinator.instance.markSending();
+    if (!mounted) return;
+    context.go(LoginPaths.guardianPending);
+    unawaited(_sendRequestsInBackground(childIds));
   }
 
   @override
@@ -128,17 +199,52 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     return LoginStepScaffold(
       step: LoginFlowStep.selectChild,
       titleOverride: roleUi.scaffoldTitle(LoginFlowStep.selectChild),
-      subtitleOverride:
-          'Suche den Profilnamen deines Kindes (Vor- und Nachname aus der App).',
-      showPrimaryButton: false,
+      subtitleOverride: _isSettingsMode
+          ? 'Wähle ein oder mehrere Kinder aus der Liste. Du kannst jederzeit '
+              'weitere Kinder hinzufügen.'
+          : 'Wähle ein oder mehrere Kinder aus der Liste und sende die '
+              'Verknüpfungsanfragen.',
+      showPrimaryButton: true,
+      submitLabel: 'Anfragen senden',
+      submitBusy: _submitting,
+      contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
+      primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
+      validateBeforeProceed: () {
+        if (_classNames.isEmpty) {
+          showAppToast(
+            context,
+            'Bitte wähle zuerst mindestens eine Klasse aus.',
+            kind: AppToastKind.info,
+          );
+          return false;
+        }
+        if (_selectedChildIds.isEmpty) {
+          showAppToast(
+            context,
+            'Bitte wähle mindestens ein Kind aus.',
+            kind: AppToastKind.info,
+          );
+          return false;
+        }
+        return true;
+      },
+      onAsyncProceed: (goNext) async => _submitRequests(goNext),
       child: Padding(
-        padding: const EdgeInsets.only(top: 48),
+        padding: const EdgeInsets.only(top: 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _ClassFilterBanner(
+              classNames: _classNames,
+              showChangeLink: !_isSettingsMode,
+              onChangeClasses: !_isSettingsMode
+                  ? () => context.go(LoginPaths.personalData)
+                  : null,
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _searchController,
-              enabled: !_submitting,
+              enabled: !_submitting && _classNames.isNotEmpty,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 hintText: 'z. B. Vorname, Nachname oder beides',
@@ -163,54 +269,140 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
               },
               onSubmitted: _runSearch,
             ),
-            const SizedBox(height: 16),
-            if (_lastQuery.length >= 2 && !_searching && _results.isEmpty)
+            const SizedBox(height: 12),
+            if (_classNames.isEmpty)
               Text(
-                'Niemand mit diesem Profilnamen gefunden. '
-                'Bitte den Namen prüfen, den dein Kind in der App hinterlegt hat.',
+                'Keine Klassen ausgewählt. Bitte zuerst die Klassen deiner '
+                'Kinder festlegen.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.error.withValues(alpha: 0.85),
+                ),
+              ),
+            if (_lastQuery.length >= 2 &&
+                !_searching &&
+                _results.isEmpty &&
+                _classNames.isNotEmpty)
+              Text(
+                'Niemand mit diesem Namen in den gewählten Klassen gefunden.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
-            ..._results.map(
-              (student) => Padding(
+            ..._results.map((student) {
+              final existing = _existingLinkFor(student.id);
+              final isSelected = _selectedChildIds.contains(student.id);
+              final isLinked = existing != null;
+
+              return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Material(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: isSelected
+                      ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
+                      : theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
-                    onTap: _submitting
+                    onTap: _submitting || isLinked
                         ? null
-                        : () => unawaited(_confirmAndRequest(student)),
+                        : () => _toggleSelection(student),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
+                        horizontal: 12,
+                        vertical: 12,
                       ),
                       child: Row(
                         children: [
+                          if (!isLinked)
+                            Checkbox(
+                              value: isSelected,
+                              onChanged: _submitting
+                                  ? null
+                                  : (_) => _toggleSelection(student),
+                            )
+                          else
+                            const SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              student.displaySubtitle,
-                              style: theme.textTheme.bodyLarge,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  student.displaySubtitle,
+                                  style: theme.textTheme.bodyLarge,
+                                ),
+                                if (isLinked)
+                                  Text(
+                                    existing.isConfirmed
+                                        ? 'Bereits verknüpft'
+                                        : existing.isPending
+                                            ? 'Anfrage ausstehend'
+                                            : 'Abgelehnt',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                              ],
                             ),
-                          ),
-                          Icon(
-                            Icons.chevron_right,
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.4),
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            }),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ClassFilterBanner extends StatelessWidget {
+  const _ClassFilterBanner({
+    required this.classNames,
+    required this.showChangeLink,
+    this.onChangeClasses,
+  });
+
+  final List<String> classNames;
+  final bool showChangeLink;
+  final VoidCallback? onChangeClasses;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Suche in Klassen',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            classNames.isEmpty
+                ? 'Noch keine Klassen gewählt'
+                : classNames.join(', '),
+            style: theme.textTheme.bodyMedium,
+          ),
+          if (showChangeLink && onChangeClasses != null) ...[
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: onChangeClasses,
+              child: const Text('Klassen ändern'),
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -16,6 +16,7 @@ import '../../utils/draft_text_controller.dart';
 import '../../utils/login_form_validation.dart';
 import '../../widgets/login_personal_name_fields.dart';
 import 'widgets/forms.dart';
+import 'widgets/guardian_child_classes_field.dart';
 
 class PersonalDataPage extends ConsumerStatefulWidget {
   const PersonalDataPage({super.key});
@@ -35,6 +36,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
   late final DraftTextController _lastNameController;
   String? _selectedClass;
   String? _selectedSchoolTrack;
+  List<String> _selectedChildClasses = [];
   bool _busy = false;
 
   bool get _isGuardian => _draft.role.trim() == LoginFlowRoleIds.guardian;
@@ -52,6 +54,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
     );
     _selectedClass = _draft.schoolClass;
     _selectedSchoolTrack = _draft.schoolTrack;
+    _selectedChildClasses = List<String>.from(_draft.guardianChildClasses);
   }
 
   @override
@@ -71,7 +74,8 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
       step: LoginFlowStep.personalData,
       titleOverride: roleUi.scaffoldTitle(LoginFlowStep.personalData),
       subtitleOverride: _isGuardian
-          ? 'Wie heißt du? Dein Kind sieht diesen Namen bei der Verknüpfung.'
+          ? 'Wie heißt du? Gib außerdem die Klassen deiner Kinder an — '
+              'so findest du sie schneller in der Suche.'
           : null,
       nextPath: _isGuardian ? LoginPaths.selectChild : LoginPaths.choir,
       submitBusy: _busy,
@@ -103,6 +107,16 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
           }
 
           if (_isGuardian) {
+            if (_selectedChildClasses.isEmpty) {
+              if (!context.mounted) return;
+              showAppToast(
+                context,
+                'Bitte wähle mindestens eine Klasse aus.',
+                kind: AppToastKind.info,
+              );
+              throw const LoginStepErrorAlreadyShown();
+            }
+            _draft.guardianChildClasses = List<String>.from(_selectedChildClasses);
             await ref.read(authRepositoryProvider).updateProfile(
                   firstName: _draft.firstName,
                   lastName: _draft.lastName,
@@ -150,11 +164,25 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
         child: Form(
           key: _formKey,
           child: _isGuardian
-              ? LoginPersonalNameFields(
-                  firstNameFieldKey: _firstNameFieldKey,
-                  lastNameFieldKey: _lastNameFieldKey,
-                  firstNameController: _firstNameController,
-                  lastNameController: _lastNameController,
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LoginPersonalNameFields(
+                      firstNameFieldKey: _firstNameFieldKey,
+                      lastNameFieldKey: _lastNameFieldKey,
+                      firstNameController: _firstNameController,
+                      lastNameController: _lastNameController,
+                    ),
+                    GuardianChildClassesField(
+                      classOptions: classOptions,
+                      selectedClasses: _selectedChildClasses,
+                      onChanged: (value) => setState(() {
+                        _selectedChildClasses = value;
+                        _draft.guardianChildClasses = List<String>.from(value);
+                      }),
+                    ),
+                  ],
                 )
               : LoginPersonalDataFields(
                   firstNameFieldKey: _firstNameFieldKey,
