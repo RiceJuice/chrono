@@ -4,9 +4,9 @@ import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/features/login/data/guardian_link_repository.dart';
 import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart';
 import 'package:chronoapp/features/login/presentation/pages/select_child/select_child_page.dart';
-import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/guardian_link_providers.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_active_child_switch.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,11 +25,7 @@ class _GuardianChildrenSectionState
   Future<void> _switchActiveChild(GuardianChildLink link) async {
     setState(() => _switching = true);
     try {
-      await ref.read(guardianLinkRepositoryProvider).setActiveChild(link.childId);
-      await ref.read(authRepositoryProvider).updateProfile(
-            activeChildId: link.childId,
-          );
-      await ref.read(profileGateProvider).refresh();
+      await switchGuardianActiveChild(ref, link);
       if (!mounted) return;
       showAppToast(
         context,
