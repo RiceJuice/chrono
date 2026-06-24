@@ -1,16 +1,14 @@
 import 'dart:async';
 
-import 'package:chronoapp/core/auth/profile_role_ids.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/features/login/data/guardian_link_repository.dart';
 import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart';
+import 'package:chronoapp/core/auth/profile_role_ids.dart';
 import 'package:chronoapp/features/login/domain/models/login_flow_role_ids.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_notifier.dart';
-import 'package:chronoapp/features/login/presentation/routes/login_paths.dart';
 import 'package:chronoapp/features/login/presentation/services/guardian_link_push_queue.dart';
 import 'package:chronoapp/features/login/presentation/widgets/guardian_link_confirm_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Zeigt ausstehende Eltern-Verknüpfungsanfragen für Schüler und Admins.
@@ -88,51 +86,8 @@ class GuardianLinkBootstrap {
       }
       return;
     }
-    if (type == 'guardian_link_confirmed') {
-      final linkId = data['link_id']?.trim();
-      final childName = data['child_name']?.trim();
-      unawaited(_instance?._handleGuardianConfirmed(
-        linkId: linkId,
-        childName: childName,
-      ));
-      return;
-    }
-    if (type == 'guardian_link_rejected') {
+    if (type == 'guardian_link_confirmed' || type == 'guardian_link_rejected') {
       unawaited(_instance?._profileGate.refresh());
-    }
-  }
-
-  Future<void> _handleGuardianConfirmed({
-    String? linkId,
-    String? childName,
-  }) async {
-    final role = _profileGate.data.role?.trim();
-    if (role != LoginFlowRoleIds.guardian && role != ProfileRoleIds.admin) {
-      return;
-    }
-
-    GuardianChildLink? confirmed;
-    try {
-      confirmed = await _guardianLinks.tryApplyConfirmedLink(linkId: linkId);
-    } catch (_) {
-      // Fallback: nur Gate aktualisieren.
-    }
-
-    await _profileGate.refresh();
-
-    final context = _navigatorKey.currentContext;
-    if (context == null || !context.mounted) return;
-
-    final name = confirmed?.childDisplayName ??
-        (childName != null && childName.isNotEmpty ? childName : 'Dein Kind');
-    showAppToast(
-      context,
-      '$name hat die Verknüpfung bestätigt.',
-      kind: AppToastKind.success,
-    );
-
-    if (confirmed != null && !_profileGate.data.isOnboardingComplete) {
-      context.go(LoginPaths.success);
     }
   }
 

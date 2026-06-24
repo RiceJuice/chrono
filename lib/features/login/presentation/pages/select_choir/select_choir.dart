@@ -8,7 +8,6 @@ import '../../providers/auth_repository_provider.dart';
 import '../../copy/login_flow_role_ui.dart';
 import '../../widgets/login_step_scaffold.dart';
 import '../../providers/profile_gate_provider.dart';
-import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 import 'login_choir_options.dart';
 import 'provider/select_choir_provider.dart';
@@ -61,7 +60,6 @@ class _ChoirPageState extends ConsumerState<ChoirPage> {
     return LoginStepScaffold(
       step: LoginFlowStep.choir,
       titleOverride: roleUi.scaffoldTitle(LoginFlowStep.choir),
-      nextPath: LoginPaths.success,
       headerPadding: const EdgeInsets.symmetric(horizontal: 20),
       submitBusy: _busy,
       contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,

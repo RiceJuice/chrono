@@ -31,7 +31,6 @@ import 'features/calendar/home_widget/presentation/calendar_home_widget_bootstra
 import 'features/calendar/live_activity/presentation/schedule_live_activity_bootstrap.dart';
 import 'features/login/data/guardian_link_repository.dart';
 import 'features/login/presentation/services/guardian_link_bootstrap.dart';
-import 'features/login/presentation/services/guardian_pending_bootstrap.dart';
 import 'features/login/presentation/providers/profile_gate_notifier.dart';
 import 'features/login/presentation/providers/profile_gate_provider.dart';
 import 'features/settings/data/models/profile_snapshot.dart';
@@ -184,12 +183,6 @@ Future<void> _finishStartup({
     guardianLinkRepository: GuardianLinkRepository(powerSyncDb),
   );
 
-  GuardianPendingBootstrap.start(
-    profileGate: profileGateNotifier,
-    navigatorKey: rootNavigatorKey,
-    guardianLinkRepository: GuardianLinkRepository(powerSyncDb),
-  );
-
   startupNotifier.setReady();
 }
 
@@ -239,7 +232,6 @@ class _MyAppState extends ConsumerState<MyApp> {
     CalendarHomeWidgetBootstrap.disposeInstance();
     unawaited(PushNotificationBootstrap.disposeInstance());
     GuardianLinkBootstrap.disposeInstance();
-    GuardianPendingBootstrap.disposeInstance();
     PowerSyncAuthBinding.dispose();
     widget.authSessionNotifier.dispose();
     widget.profileGateNotifier.dispose();

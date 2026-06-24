@@ -64,10 +64,7 @@ class GuardianLinkRepository {
 
   String? get _userId => _supabase.auth.currentUser?.id;
 
-  Future<List<StudentSearchResult>> searchStudents(
-    String query, {
-    List<String> classNames = const [],
-  }) async {
+  Future<List<StudentSearchResult>> searchStudents(String query) async {
     final trimmed = query.trim();
     if (trimmed.length < 2) return const [];
 
@@ -75,23 +72,16 @@ class GuardianLinkRepository {
       throw GuardianLinkRepositoryException('Nicht angemeldet.');
     }
 
-    final normalizedClasses = classNames
-        .map((c) => c.trim())
-        .where((c) => c.isNotEmpty)
-        .toList(growable: false);
-
     try {
       await _ensureCallerIsGuardian();
 
-      final fromRpc = await _searchViaRpc(trimmed, normalizedClasses);
+      final fromRpc = await _searchViaRpc(trimmed);
       if (fromRpc.isNotEmpty) return fromRpc;
 
-      final fromList =
-          await _searchViaListAndFilter(trimmed, normalizedClasses);
+      final fromList = await _searchViaListAndFilter(trimmed);
       if (fromList.isNotEmpty) return fromList;
 
-      final fromRest =
-          await _searchViaRestAndFilter(trimmed, normalizedClasses);
+      final fromRest = await _searchViaRestAndFilter(trimmed);
       if (fromRest.isNotEmpty) return fromRest;
 
       return const [];
@@ -106,60 +96,35 @@ class GuardianLinkRepository {
     }
   }
 
-  Future<List<StudentSearchResult>> _searchViaRpc(
-    String query,
-    List<String> classNames,
-  ) async {
-    final params = <String, dynamic>{'p_query': query};
-    if (classNames.isNotEmpty) {
-      params['p_class_names'] = classNames;
-    }
+  Future<List<StudentSearchResult>> _searchViaRpc(String query) async {
     final rows = await _supabase.rpc(
       'search_students_for_guardian',
-      params: params,
+      params: {'p_query': query},
     );
     return _parseStudentRows(rows);
   }
 
-  Future<List<StudentSearchResult>> _searchViaListAndFilter(
-    String query,
-    List<String> classNames,
-  ) async {
-    final params = classNames.isNotEmpty
-        ? <String, dynamic>{'p_class_names': classNames}
-        : null;
-    final rows = params == null
-        ? await _supabase.rpc('list_searchable_students_for_guardian')
-        : await _supabase.rpc(
-            'list_searchable_students_for_guardian',
-            params: params,
-          );
-    return _filterStudents(_parseStudentRows(rows), query, classNames);
+  Future<List<StudentSearchResult>> _searchViaListAndFilter(String query) async {
+    final rows = await _supabase.rpc('list_searchable_students_for_guardian');
+    return _filterStudents(_parseStudentRows(rows), query);
   }
 
-  Future<List<StudentSearchResult>> _searchViaRestAndFilter(
-    String query,
-    List<String> classNames,
-  ) async {
-    var builder = _supabase
+  Future<List<StudentSearchResult>> _searchViaRestAndFilter(String query) async {
+    final rows = await _supabase
         .from('profiles')
         .select('id, first_name, last_name, class_name')
         .inFilter('role', [
           LoginFlowRoleIds.student,
           ProfileRoleIds.admin,
         ])
-        .not('onboarding_completed_at', 'is', null);
-    if (classNames.isNotEmpty) {
-      builder = builder.inFilter('class_name', classNames);
-    }
-    final rows = await builder.limit(200);
-    return _filterStudents(_parseStudentRows(rows), query, classNames);
+        .not('onboarding_completed_at', 'is', null)
+        .limit(200);
+    return _filterStudents(_parseStudentRows(rows), query);
   }
 
   List<StudentSearchResult> _filterStudents(
     List<StudentSearchResult> students,
     String query,
-    List<String> classNames,
   ) {
     final words = query
         .split(RegExp(r'\s+'))
@@ -323,14 +288,8 @@ class GuardianLinkRepository {
     }
   }
 
-  /// Sendet Verknüpfungsanfragen an mehrere Kinder.
   Future<RequestLinksResult> requestLinks(List<String> childIds) async {
-    final uniqueIds = childIds
-        .map((id) => id.trim())
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList(growable: false);
-    if (uniqueIds.isEmpty) {
+    if (childIds.isEmpty) {
       throw GuardianLinkRepositoryException(
         'Bitte mindestens ein Kind auswählen.',
       );
@@ -340,7 +299,7 @@ class GuardianLinkRepository {
     final skippedChildIds = <String>[];
     var anyPushFailed = false;
 
-    for (final childId in uniqueIds) {
+    for (final childId in childIds) {
       try {
         final result = await requestLink(childId);
         createdLinks.add(result.link);
@@ -356,7 +315,7 @@ class GuardianLinkRepository {
       }
     }
 
-    if (createdLinks.isEmpty && skippedChildIds.length == uniqueIds.length) {
+    if (createdLinks.isEmpty && skippedChildIds.length == childIds.length) {
       throw GuardianLinkRepositoryException(
         'Anfragen an alle ausgewählten Kinder wurden bereits gesendet.',
       );
@@ -508,21 +467,6 @@ class GuardianLinkRepository {
 
   Future<GuardianLinkSummary> loadSummaryForGuardian(String guardianId) async {
     final links = await _loadLinksLocal(guardianId);
-    return _summaryFromLinks(links, guardianId);
-  }
-
-  /// Lädt den Verknüpfungsstatus direkt vom Server (unabhängig von PowerSync).
-  Future<GuardianLinkSummary> loadSummaryForGuardianRemote(
-    String guardianId,
-  ) async {
-    final links = await _loadLinksRemote(guardianId);
-    return _summaryFromLinks(links, guardianId);
-  }
-
-  GuardianLinkSummary _summaryFromLinks(
-    List<GuardianChildLink> links,
-    String guardianId,
-  ) {
     final confirmed =
         links.where((l) => l.isConfirmed && l.guardianId == guardianId);
     final pending =
@@ -532,35 +476,6 @@ class GuardianLinkRepository {
       confirmedLinks: confirmed.toList(growable: false),
       pendingLinks: pending.toList(growable: false),
     );
-  }
-
-  /// Prüft serverseitig, ob ein Kind die Verknüpfung bestätigt hat, und setzt
-  /// ggf. das aktive Kind. Gibt die bestätigte Verknüpfung zurück.
-  Future<GuardianChildLink?> tryApplyConfirmedLink({
-    String? linkId,
-    String? guardianId,
-  }) async {
-    final userId = guardianId ?? _userId;
-    if (userId == null) return null;
-
-    GuardianChildLink? confirmed;
-    if (linkId != null && linkId.isNotEmpty) {
-      final link = await _fetchLinkRemote(linkId);
-      if (link != null &&
-          link.guardianId == userId &&
-          link.isConfirmed) {
-        confirmed = link;
-      }
-    }
-
-    confirmed ??= (await loadSummaryForGuardianRemote(userId))
-        .confirmedLinks
-        .firstOrNull;
-
-    if (confirmed == null) return null;
-
-    await setActiveChild(confirmed.childId);
-    return confirmed;
   }
 
   Future<GuardianChildLink?> fetchLinkById(String linkId) async {

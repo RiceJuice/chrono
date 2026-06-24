@@ -12,15 +12,8 @@ import '../../../domain/models/login_flow_step.dart';
 import '../../providers/guardian_link_providers.dart';
 import '../../providers/profile_gate_provider.dart';
 import '../../routes/login_routes.dart';
-import '../../services/guardian_link_request_coordinator.dart';
-import '../../state/login_flow_draft.dart';
-import '../../widgets/login_step_layout.dart';
 import '../../widgets/login_step_scaffold.dart';
-import '../credentials/credentials_page.dart';
-import '../email_confirmation/widgets/email_confirmation_ui.dart';
 import 'guardian_pending_status_list.dart';
-import 'widgets/guardian_pending_body.dart';
-import 'widgets/guardian_pending_footer.dart';
 
 class GuardianPendingPage extends ConsumerStatefulWidget {
   const GuardianPendingPage({super.key});
@@ -31,45 +24,27 @@ class GuardianPendingPage extends ConsumerStatefulWidget {
 }
 
 class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
-    with WidgetsBindingObserver {
-  static const _pollInterval = Duration(seconds: 5);
-
-  final _coordinator = GuardianLinkRequestCoordinator.instance;
-
-  Timer? _pollTimer;
-  bool _advancing = false;
+    with SingleTickerProviderStateMixin {
   String? _reminderBusyLinkId;
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _coordinator.addListener(_onCoordinatorChanged);
-    _pollTimer = Timer.periodic(_pollInterval, (_) {
-      unawaited(_runAdvanceCheck());
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_runAdvanceCheck());
-    });
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.45, end: 1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
-    _coordinator.removeListener(_onCoordinatorChanged);
-    WidgetsBinding.instance.removeObserver(this);
-    _pollTimer?.cancel();
+    _pulseController.dispose();
     super.dispose();
-  }
-
-  void _onCoordinatorChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      unawaited(_runAdvanceCheck());
-    }
   }
 
   List<GuardianChildLink> _ownLinks(
@@ -85,51 +60,8 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
     return ownLinks.every((l) => l.isRejected);
   }
 
-  List<GuardianChildLink> _pendingLinks(List<GuardianChildLink> links) {
-    return links.where((l) => l.isPending).toList(growable: false);
-  }
-
-  List<String> _resolveChildNames(List<GuardianChildLink> pending) {
-    if (pending.isNotEmpty) {
-      return pending.map((l) => l.childDisplayName).toList(growable: false);
-    }
-    final fromDraft = LoginFlowDraft.instance.pendingChildDisplayName.trim();
-    if (fromDraft.isNotEmpty) {
-      return fromDraft
-          .split(',')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    }
-    return const [];
-  }
-
-  Future<void> _runAdvanceCheck() async {
-    if (!mounted || _advancing) return;
-    _advancing = true;
-    try {
-      final confirmed = await ref
-          .read(guardianLinkRepositoryProvider)
-          .tryApplyConfirmedLink();
-      if (confirmed == null || !mounted) return;
-
-      _coordinator.reset();
-      await ref.read(profileGateProvider).refresh();
-      if (!mounted) return;
-
-      showAppToast(
-        context,
-        '${confirmed.childDisplayName} hat die Verknüpfung bestätigt.',
-        kind: AppToastKind.success,
-      );
-      context.go(LoginPaths.success);
-    } on GuardianLinkRepositoryException {
-      if (!mounted) return;
-    } catch (_) {
-      if (!mounted) return;
-    } finally {
-      _advancing = false;
-    }
+  bool _hasPending(List<GuardianChildLink> ownLinks) {
+    return ownLinks.any((l) => l.isPending);
   }
 
   Future<void> _sendReminder(GuardianChildLink link) async {
@@ -139,7 +71,7 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
       if (!mounted) return;
       showAppToast(
         context,
-        'Erinnerung wurde an ${link.childDisplayName} gesendet.',
+        'Erinnerung an ${link.childDisplayName} wurde gesendet.',
         kind: AppToastKind.success,
       );
     } on GuardianLinkRepositoryException catch (e) {
@@ -150,71 +82,128 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
     }
   }
 
+  Future<void> _onLinksChanged(List<GuardianChildLink> links) async {
+    if (!context.mounted) return;
+    final router = GoRouter.of(context);
+    final userId = ref.read(authUserIdProvider).value;
+    final ownLinks = _ownLinks(links, userId);
+    if (ownLinks.isEmpty) return;
+
+    final confirmed = ownLinks.where((l) => l.isConfirmed).toList();
+    if (confirmed.isNotEmpty) {
+      await ref
+          .read(guardianLinkRepositoryProvider)
+          .setActiveChild(confirmed.first.childId);
+      await ref.read(profileGateProvider).refresh();
+      router.go(LoginPaths.success);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final linksAsync = ref.watch(guardianLinksProvider);
     final userId = ref.watch(authUserIdProvider).value;
-    final metrics = EmailConfirmationLayoutMetrics.fromContext(context);
-    final styles = EmailConfirmationTextStyles.fromContext(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    ref.listen(guardianLinksProvider, (prev, next) {
+      next.whenData((links) => unawaited(_onLinksChanged(links)));
+    });
+
     final ownLinks = linksAsync.maybeWhen(
       data: (links) => _ownLinks(links, userId),
       orElse: () => const <GuardianChildLink>[],
     );
     final allRejected = _allRejected(ownLinks);
-    final pending = _pendingLinks(ownLinks);
-    final childNames = _resolveChildNames(pending);
-
-    ref.listen(guardianLinksProvider, (prev, next) {
-      next.whenData((links) {
-        if (links.any((l) => l.isConfirmed)) {
-          unawaited(_runAdvanceCheck());
-        }
-      });
-    });
+    final hasPending = _hasPending(ownLinks);
+    final pendingCount = ownLinks.where((l) => l.isPending).length;
 
     return LoginStepScaffold(
       step: LoginFlowStep.guardianPending,
-      titleOverride:
-          allRejected ? 'Verknüpfung abgelehnt' : 'Bestätigung ausstehend',
+      titleOverride: allRejected
+          ? 'Verknüpfung abgelehnt'
+          : 'Bestätigung ausstehend',
       subtitleOverride: allRejected
           ? 'Keines deiner Kinder hat die Anfrage bestätigt.'
-          : childNames.isEmpty
-              ? 'Wir warten auf die Bestätigung durch deine Kinder.'
-              : 'Wir warten auf die Bestätigung durch ${childNames.join(', ')}.',
+          : pendingCount <= 1
+              ? 'Wir warten auf die Bestätigung durch dein Kind.'
+              : 'Wir warten auf Bestätigungen von $pendingCount Kindern.',
       showPrimaryButton: false,
-      contentMaxWidth: CredentialsPage.maxFormWidth,
-      bottomBehavior: LoginBottomBehavior.footerInScroll,
-      footerSpacing: LoginFooterSpacing(
-        lead: metrics.footerLead,
-        tail: metrics.footerTail,
-      ),
-      footer: GuardianPendingFooter(
-        styles: styles,
-        pendingLinks: pending,
-        reminderBusyLinkId: _reminderBusyLinkId,
-        onReminder: (link) => unawaited(_sendReminder(link)),
-        onSelectOther: () => context.go(LoginPaths.selectChild),
-        onAddChild: () => context.go(LoginPaths.selectChild),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GuardianPendingBody(
-            childNames: childNames,
-            metrics: metrics,
-            styles: styles,
-            isSending: _coordinator.isSending,
-            sendError: _coordinator.errorMessage,
-          ),
-          if (ownLinks.isNotEmpty) ...[
-            const SizedBox(height: 28),
-            GuardianPendingStatusList(
-              links: ownLinks,
-              reminderBusyLinkId: _reminderBusyLinkId,
-              onSendReminder: allRejected ? null : _sendReminder,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: FadeTransition(
+                opacity: _pulseAnimation,
+                child: Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: allRejected
+                        ? scheme.errorContainer.withValues(alpha: 0.5)
+                        : scheme.primaryContainer.withValues(alpha: 0.55),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    allRejected
+                        ? Icons.link_off_rounded
+                        : Icons.hourglass_top_rounded,
+                    size: 42,
+                    color: allRejected
+                        ? scheme.onErrorContainer
+                        : scheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
             ),
+            const SizedBox(height: 24),
+            if (!allRejected && hasPending)
+              FadeTransition(
+                opacity: _pulseAnimation,
+                child: Text(
+                  'Warte auf Bestätigung …',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            if (!allRejected && hasPending) const SizedBox(height: 12),
+            Text(
+              allRejected
+                  ? 'Du kannst ein anderes Kind wählen oder es später erneut versuchen.'
+                  : 'Deine Kinder erhalten eine Push-Benachrichtigung und können '
+                      'die Verknüpfung direkt in der App bestätigen.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: scheme.onSurface.withValues(alpha: 0.75),
+              ),
+            ),
+            if (ownLinks.isNotEmpty) ...[
+              const SizedBox(height: 28),
+              GuardianPendingStatusList(
+                links: ownLinks,
+                reminderBusyLinkId: _reminderBusyLinkId,
+                onSendReminder: allRejected ? null : _sendReminder,
+              ),
+            ],
+            const SizedBox(height: 16),
+            if (allRejected)
+              FilledButton(
+                onPressed: () => context.go(LoginPaths.selectChild),
+                child: const Text('Andere Kinder wählen'),
+              )
+            else ...[
+              OutlinedButton(
+                onPressed: () => context.go(LoginPaths.selectChild),
+                child: const Text('Weitere Kinder hinzufügen'),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

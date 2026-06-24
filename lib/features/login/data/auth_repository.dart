@@ -459,38 +459,4 @@ class AuthRepository {
       );
     }
   }
-
-  /// Schließt das Onboarding serverseitig ab (setzt u. a. onboarding_completed_at).
-  Future<bool> completeOnboarding({String? activeChildId}) async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      throw AuthRepositoryException('Nicht angemeldet.');
-    }
-
-    try {
-      final result = await _client.rpc(
-        'complete_user_onboarding',
-        params: {
-          if (activeChildId != null && activeChildId.isNotEmpty)
-            'p_active_child_id': activeChildId,
-        },
-      );
-      if (result == true) return true;
-      throw AuthRepositoryException(
-        'Onboarding konnte nicht abgeschlossen werden. Bitte alle Schritte prüfen.',
-      );
-    } on AuthRepositoryException {
-      rethrow;
-    } on PostgrestException catch (e) {
-      throw AuthRepositoryException(
-        e.message.trim().isNotEmpty
-            ? e.message
-            : 'Onboarding konnte nicht abgeschlossen werden.',
-      );
-    } catch (_) {
-      throw AuthRepositoryException(
-        'Onboarding konnte nicht abgeschlossen werden. Bitte erneut versuchen.',
-      );
-    }
-  }
 }

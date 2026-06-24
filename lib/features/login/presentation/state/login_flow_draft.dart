@@ -15,8 +15,6 @@ class LoginFlowDraft {
   String? schoolTrack;
   int choirPage = 1;
   String voice = '';
-  String pendingChildDisplayName = '';
-  List<String> guardianChildClasses = [];
 
   void reset() {
     email = '';
@@ -29,7 +27,5 @@ class LoginFlowDraft {
     schoolTrack = null;
     choirPage = 1;
     voice = '';
-    pendingChildDisplayName = '';
-    guardianChildClasses = [];
   }
 }

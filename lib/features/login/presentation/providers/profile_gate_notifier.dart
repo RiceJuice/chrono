@@ -152,14 +152,7 @@ class ProfileGateNotifier extends ChangeNotifier {
       return _loadGuardianLinkSummaryLocal(userId);
     }
     try {
-      final local = await repo.loadSummaryForGuardian(userId);
-      if (local.hasConfirmedLink) return local;
-
-      // Push kann vor PowerSync-Sync eintreffen – serverseitig nachziehen.
-      final remote = await repo.loadSummaryForGuardianRemote(userId);
-      if (remote.hasConfirmedLink) return remote;
-
-      return local;
+      return await repo.loadSummaryForGuardian(userId);
     } catch (_) {
       return _loadGuardianLinkSummaryLocal(userId);
     }

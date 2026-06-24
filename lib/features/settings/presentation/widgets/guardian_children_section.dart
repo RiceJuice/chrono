@@ -5,9 +5,7 @@ import 'package:chronoapp/features/login/data/guardian_link_repository.dart';
 import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart';
 import 'package:chronoapp/features/login/presentation/pages/select_child/select_child_page.dart';
 import 'package:chronoapp/features/login/presentation/providers/guardian_link_providers.dart';
-import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
-import 'package:chronoapp/features/login/presentation/widgets/guardian_child_classes_picker_sheet.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_active_child_switch.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,17 +41,9 @@ class _GuardianChildrenSectionState
   }
 
   Future<void> _openAddChildSheet() async {
-    final classOptions =
-        ref.read(availableClassesProvider).asData?.value ?? const <String>[];
-    final selectedClasses = await showGuardianChildClassesPicker(
-      context: context,
-      classOptions: classOptions,
-    );
-    if (!mounted || selectedClasses == null || selectedClasses.isEmpty) return;
-
     await AppModalSheet.show<void>(
       context: context,
-      builder: (context) => _AddChildSheet(classNames: selectedClasses),
+      builder: (context) => const _AddChildSheet(),
     );
   }
 
@@ -68,9 +58,10 @@ class _GuardianChildrenSectionState
 
     return linksAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
       data: (links) {
         final ownLinks = links.where((l) => l.guardianId == userId).toList();
+        if (ownLinks.isEmpty) return const SizedBox.shrink();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,16 +75,6 @@ class _GuardianChildrenSectionState
                 ),
               ),
             ),
-            if (ownLinks.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Noch keine Kinder verknüpft.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
             ...ownLinks.map((link) {
               final isActive =
                   link.isConfirmed && link.childId == activeChildId;
@@ -132,17 +113,9 @@ class _GuardianChildrenSectionState
             }),
             TextButton(
               onPressed: _openAddChildSheet,
-              child: const Text('Weiteres Kind hinzufügen'),
+              child: const Text('Kind hinzufügen'),
             ),
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 8),
-              child: Text(
-                'Du kannst jederzeit weitere Kinder hinzufügen.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-                ),
-              ),
-            ),
+            const SizedBox(height: 8),
           ],
         );
       },
@@ -151,9 +124,7 @@ class _GuardianChildrenSectionState
 }
 
 class _AddChildSheet extends StatelessWidget {
-  const _AddChildSheet({required this.classNames});
-
-  final List<String> classNames;
+  const _AddChildSheet();
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +142,6 @@ class _AddChildSheet extends StatelessWidget {
           Expanded(
             child: SelectChildPage(
               onLinkRequested: () {},
-              classNamesOverride: classNames,
             ),
           ),
         ],
