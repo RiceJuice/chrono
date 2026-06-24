@@ -64,15 +64,9 @@ final List<LoginFlowStepSpec> loginFlowSpecs = <LoginFlowStepSpec>[
     isSatisfiedBy: (data) =>
         _isNonEmpty(data.firstName) && _isNonEmpty(data.lastName),
   ),
-  // Elternteil: Kind auswählen (Anfrage gesendet)
+  // Elternteil: Kind auswählen und auf Bestätigung warten
   LoginFlowStepSpec(
     path: LoginPaths.selectChild,
-    appliesTo: _isGuardianProfile,
-    isSatisfiedBy: (data) => data.hasAnyGuardianLink,
-  ),
-  // Elternteil: Kind-Bestätigung abwarten
-  LoginFlowStepSpec(
-    path: LoginPaths.guardianPending,
     appliesTo: _isGuardianProfile,
     isSatisfiedBy: (data) => data.hasConfirmedGuardianLink,
   ),

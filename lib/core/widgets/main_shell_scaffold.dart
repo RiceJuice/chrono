@@ -3,6 +3,7 @@ import 'package:chronoapp/features/calendar/presentation/providers/calendar_prov
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/search/calendar_search_entrance_transition.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/search/calendar_search_layer.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/guardian_calendar_filter_sync.dart';
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -113,7 +114,8 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
         calendarUsePhoneLandscapeChrome(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    return Scaffold(
+    return GuardianCalendarFilterSync(
+      child: Scaffold(
       extendBody: true,
       body: Stack(
         fit: StackFit.expand,
@@ -151,6 +153,7 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
               useNativeIosTabBar: _useNativeIosTabBar,
               onSearchClose: _closeSearch,
             ),
+    ),
     );
   }
 }

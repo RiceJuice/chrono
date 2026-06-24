@@ -11,10 +11,13 @@ abstract final class SettingsIcons {
   static IconData get role => PhosphorIcons.identificationBadge(_style);
   static IconData get schoolClass => PhosphorIcons.student(_style);
   static IconData get schoolTrack => PhosphorIcons.signpost(_style);
+  static IconData get calendar => PhosphorIcons.calendarBlank(_style);
   static IconData get choir => PhosphorIcons.musicNotes(_style);
   static IconData get voice => PhosphorIcons.microphoneStage(_style);
   static IconData get diet => PhosphorIcons.forkKnife(_style);
   static IconData get appearance => PhosphorIcons.palette(_style);
+  static IconData get family => PhosphorIcons.usersThree(_style);
+  static IconData get addChild => PhosphorIcons.userPlus(_style);
   static IconData get password => PhosphorIcons.lockKey(_style);
   static IconData get deleteAccount => PhosphorIcons.warningOctagon(_style);
   static IconData get chevron => PhosphorIcons.caretRight(_style);

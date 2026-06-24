@@ -1,14 +1,12 @@
-import 'package:chronoapp/core/auth/auth_user_id_provider.dart';
 import 'package:chronoapp/core/database/backend_connector.dart';
-import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:chronoapp/core/theme/theme_mode_provider.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/calendar_defaults_display.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/search/search_filters_provider.dart';
+import 'package:chronoapp/features/login/domain/models/login_flow_role_ids.dart';
 import 'package:chronoapp/features/login/presentation/providers/auth_repository_provider.dart';
-import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart';
-import 'package:chronoapp/features/login/presentation/providers/guardian_link_providers.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
 import 'package:chronoapp/features/login/presentation/providers/klassen_provider.dart';
 import 'package:chronoapp/features/login/data/auth_repository.dart';
@@ -20,6 +18,12 @@ import 'package:chronoapp/features/settings/presentation/widgets/settings_footer
 import 'package:chronoapp/features/settings/presentation/widgets/settings_island.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_logout_button.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_profile_header_card.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_calendar_defaults_update.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_calendar_viewer.dart';
+import 'package:chronoapp/features/settings/presentation/providers/effective_calendar_profile_provider.dart';
+import 'package:chronoapp/features/settings/data/settings_profile_repository.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_calendar_defaults_section.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_profile_sections.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_section_label.dart';
 import 'package:chronoapp/features/settings/presentation/pages/settings_profile_page.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_scroll_top_blur.dart';
@@ -30,9 +34,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/models/profile_snapshot.dart';
 import '../providers/settings_profile_providers.dart';
-import '../widgets/guardian_child_switch_banners.dart';
 import '../widgets/guardian_children_section.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -53,9 +55,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// 0–1 für den Top-Blur — erst nach weggescrollter Profilkarte.
   double _topBlurLinear = 0;
 
-  /// Zusätzliche Höhe durch Kind-Wechsel-Banner unter der Profilkarte.
-  double _childSwitchBannersHeight = 0;
-
   /// Scroll-Offset, ab dem der AppBar-Titel sichtbar wird / voll sichtbar ist.
   static const _appBarTitleFadeStart = 28.0;
   static const _appBarTitleFadeEnd = 88.0;
@@ -66,25 +65,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   static const _profileHeaderCardHeight = 92.0;
 
   double get _profileCardBottomOffset =>
-      _largeTitleBlockHeight +
-      _profileCardTopGap +
-      _profileHeaderCardHeight +
-      _childSwitchBannersHeight;
+      _largeTitleBlockHeight + _profileCardTopGap + _profileHeaderCardHeight;
 
   double get _topBlurFadeStart => _profileCardBottomOffset;
 
   double get _topBlurFadeEnd => _profileCardBottomOffset + 44.0;
-
-  static const _roleOptions = <String>['Schüler', 'Elternteil'];
-  static const _voiceOptions = <String>['Sopran', 'Alt', 'Tenor', 'Bass'];
-  static final _schoolTrackOptions = BackendSchoolTrack.values
-      .where((item) => item != BackendSchoolTrack.unknown)
-      .map((item) => item.displayLabel)
-      .toList(growable: false);
-  static final _dietOptions = <String>[
-    BackendDiet.noRestriction.displayLabel,
-    BackendDiet.vegetarian.displayLabel,
-  ];
 
   @override
   void initState() {
@@ -118,36 +103,29 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     });
   }
 
-  double _resolveChildSwitchBannersHeight(
-    AsyncValue<ProfileSnapshot?> profileAsync,
-    AsyncValue<List<GuardianChildLink>> linksAsync,
-  ) {
-    final profile = profileAsync.asData?.value;
-    if (profile?.role?.trim() != 'Elternteil') return 0;
-
-    final userId = ref.read(authUserIdProvider).value;
-    if (userId == null) return 0;
-
-    final links = linksAsync.asData?.value;
-    if (links == null) return 0;
-
-    final activeChildId = ref.read(profileGateProvider).data.activeChildId;
-    final inactive = inactiveConfirmedGuardianLinks(
-      links: links,
-      guardianId: userId,
-      activeChildId: activeChildId,
-    );
-    return guardianChildSwitchBannersBlockHeight(inactive.length);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final profileAsync = ref.watch(syncedProfileProvider);
-    final linksAsync = ref.watch(guardianLinksProvider);
+    final ownProfileAsync = ref.watch(syncedProfileProvider);
+    final gateData = ref.watch(profileGateDataProvider);
+    final ownProfile = ownProfileAsync.asData?.value;
     final classesAsync = ref.watch(availableClassesProvider);
     final themeMode = ref.watch(appThemeModeProvider);
-    _childSwitchBannersHeight =
-        _resolveChildSwitchBannersHeight(profileAsync, linksAsync);
+    final isGuardianViewer = isGuardianCalendarViewer(
+      gate: gateData,
+      ownProfile: ownProfile,
+    );
+    final isGuardianRole =
+        gateData.role?.trim() == LoginFlowRoleIds.guardian;
+    final calendarFilters = ref.watch(calendarFiltersProvider);
+    final effectiveCalendarProfile =
+        ref.watch(effectiveCalendarProfileProvider).asData?.value;
+    final calendarProfile =
+        isGuardianViewer ? effectiveCalendarProfile : ownProfile;
+    final calendarEditValues = resolveCalendarDefaultsEditValues(
+      profile: calendarProfile,
+      gate: isGuardianViewer ? null : gateData,
+      filters: calendarFilters,
+    );
 
     final theme = Theme.of(context);
     final bg = theme.scaffoldBackgroundColor;
@@ -188,148 +166,114 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
                 sliver: SliverList.list(
                   children: [
-                const SizedBox(height: 18),
-                profileAsync.when(
-                  data: (profile) => SettingsProfileHeaderCard(
-                    profile: profile,
-                    onTap: _openProfile,
-                  ),
-                  loading: () => const _SettingsLoadingIsland(
-                    message: 'Profil wird geladen...',
-                  ),
-                  error: (error, _) => _SettingsErrorIsland(
-                    message: 'Profil konnte nicht geladen werden',
-                    detail: error.toString(),
-                  ),
-                ),
-                if (profileAsync.asData?.value?.role?.trim() == 'Elternteil')
-                  const GuardianChildSwitchBanners(),
-                if (profileAsync.asData?.value?.role?.trim() == 'Elternteil') ...[
-                  const SettingsSectionLabel(title: 'Familie', top: 22),
-                  const GuardianChildrenSection(),
-                ],
-                ...profileAsync.maybeWhen(
-                  data: (profile) {
-                    if (profile?.role?.trim() == 'Elternteil') {
-                      return const <Widget>[];
-                    }
-                    return [
-                    const SettingsSectionLabel(title: 'Schule', top: 22),
-                    SettingsIsland(
-                      children: [
-                        SettingsTile(
-                          title: 'Rolle',
-                          subtitle: settingsValueOrFallback(profile?.role),
-                          icon: SettingsIcons.role,
-                          enabled: !_saving,
-                          onTap: () => _editChoiceField(
-                            title: 'Rolle auswählen',
-                            initialValue: profile?.role,
-                            options: _roleOptions,
-                            onSave: (value) => _updateProfile(role: value),
-                          ),
-                        ),
-                        SettingsTile(
-                          title: 'Klasse',
-                          subtitle: settingsValueOrFallback(profile?.className),
-                          icon: SettingsIcons.schoolClass,
-                          enabled: !_saving,
-                          onTap: () => _editChoiceField(
-                            title: 'Klasse auswählen',
-                            initialValue: profile?.className,
-                            options: classesAsync.maybeWhen(
-                              data: (classes) => classes,
-                              orElse: () => const [],
+                    const SizedBox(height: 18),
+                    ownProfileAsync.when(
+                      data: (profile) => SettingsProfileHeaderCard(
+                        profile: profile,
+                        onTap: _openProfile,
+                      ),
+                      loading: () => const _SettingsLoadingIsland(
+                        message: 'Profil wird geladen...',
+                      ),
+                      error: (error, _) => _SettingsErrorIsland(
+                        message: 'Profil konnte nicht geladen werden',
+                        detail: error.toString(),
+                      ),
+                    ),
+                    if (isGuardianRole) ...[
+                      const SettingsSectionLabel(title: 'Familie', top: 22),
+                      const GuardianChildProfileCards(),
+                    ],
+                    if (!isGuardianViewer)
+                      ...ownProfileAsync.when(
+                        data: (profile) => [
+                          SettingsProfileSections(
+                            profile: profile,
+                            readOnly: _saving,
+                            showCalendarDefaults: false,
+                            onEditRole: () => _editChoiceField(
+                              title: 'Rolle auswählen',
+                              initialValue: profile?.role,
+                              options: settingsRoleOptions,
+                              onSave: (value) => _updateProfile(role: value),
                             ),
-                            onSave: (value) => _updateProfile(className: value),
                           ),
+                        ],
+                        loading: () => const [
+                          SettingsSectionLabel(title: 'Schule', top: 22),
+                          _SettingsLoadingIsland(
+                            message: 'Profildaten werden geladen...',
+                          ),
+                        ],
+                        error: (error, _) => [
+                          const SettingsSectionLabel(title: 'Schule', top: 22),
+                          _SettingsErrorIsland(
+                            message: 'Profildaten konnten nicht geladen werden',
+                            detail: error.toString(),
+                          ),
+                        ],
+                      ),
+                    SettingsCalendarDefaultsSection(
+                      readOnly: _saving,
+                      onEditClassName: () => _editChoiceField(
+                        title: 'Klasse auswählen',
+                        initialValue: calendarEditValues.className,
+                        options: classesAsync.maybeWhen(
+                          data: (classes) => classes,
+                          orElse: () => const [],
                         ),
-                        SettingsTile(
-                          title: 'Schulzweig',
-                          subtitle: settingsValueOrFallback(
-                            schoolTrackDisplayLabel(profile?.schoolTrack),
-                          ),
-                          icon: SettingsIcons.schoolTrack,
-                          enabled: !_saving,
-                          onTap: () => _editChoiceField(
-                            title: 'Schulzweig auswählen',
-                            initialValue: schoolTrackDisplayLabel(
-                              profile?.schoolTrack,
-                            ),
-                            options: _schoolTrackOptions,
-                            onSave: (value) =>
-                                _updateProfile(schoolTrack: value),
-                          ),
+                        onSave: (value) => _updateCalendarDefaults(
+                          className: value,
                         ),
-                      ],
+                      ),
+                      onEditSchoolTrack: () => _editChoiceField(
+                        title: 'Schulzweig auswählen',
+                        initialValue: schoolTrackDisplayLabel(
+                          calendarEditValues.schoolTrack,
+                        ),
+                        options: settingsSchoolTrackOptions,
+                        onSave: (value) => _updateCalendarDefaults(
+                          schoolTrack: value,
+                        ),
+                      ),
+                      onEditChoir: () => _editChoirField(
+                        initialChoirLabel:
+                            choirDisplayLabel(calendarEditValues.choir),
+                      ),
+                      onEditVoice: () => _editChoiceField(
+                        title: 'Stimme auswählen',
+                        initialValue: calendarEditValues.voice,
+                        options: settingsVoiceOptions,
+                        onSave: (value) => _updateCalendarDefaults(
+                          voice: value,
+                        ),
+                      ),
+                      onEditDiet: () => _editChoiceField(
+                        title: 'Ernährung auswählen',
+                        initialValue:
+                            dietDisplayLabel(calendarEditValues.diet),
+                        options: settingsDietOptions,
+                        onSave: (value) => _updateCalendarDefaults(
+                          diet: value,
+                        ),
+                      ),
                     ),
-                    const SettingsSectionLabel(title: 'Chor'),
+                    const SettingsSectionLabel(title: 'Darstellung'),
                     SettingsIsland(
                       children: [
                         SettingsTile(
-                          title: 'Chor',
-                          subtitle: settingsValueOrFallback(
-                            choirDisplayLabel(profile?.choir),
-                          ),
-                          icon: SettingsIcons.choir,
-                          enabled: !_saving,
-                          onTap: () => _editChoirField(
-                            initialChoirLabel: choirDisplayLabel(profile?.choir),
-                          ),
-                        ),
-                        SettingsTile(
-                          title: 'Stimme',
-                          subtitle: settingsValueOrFallback(profile?.voice),
-                          icon: SettingsIcons.voice,
-                          enabled: !_saving,
-                          onTap: () => _editChoiceField(
-                            title: 'Stimme auswählen',
-                            initialValue: profile?.voice,
-                            options: _voiceOptions,
-                            onSave: (value) => _updateProfile(voice: value),
-                          ),
+                          title: 'Design',
+                          icon: SettingsIcons.appearance,
+                          subtitle: _themeModeLabel(themeMode),
+                          onTap: () => _editThemeMode(themeMode),
                         ),
                       ],
                     ),
-                    const SettingsSectionLabel(title: 'Sonstiges'),
-                    SettingsIsland(
-                      children: [
-                        SettingsTile(
-                          title: 'Ernährung',
-                          subtitle: settingsValueOrFallback(
-                            dietDisplayLabel(profile?.diet),
-                          ),
-                          icon: SettingsIcons.diet,
-                          enabled: !_saving,
-                          onTap: () => _editChoiceField(
-                            title: 'Ernährung auswählen',
-                            initialValue: dietDisplayLabel(profile?.diet),
-                            options: _dietOptions,
-                            onSave: (value) => _updateProfile(diet: value),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 30),
+                    SettingsLogoutButton(
+                      onPressed: () => BackendConnector.logout(context),
                     ),
-                  ];
-                  },
-                  orElse: () => const [],
-                ),
-                const SettingsSectionLabel(title: 'Darstellung'),
-                SettingsIsland(
-                  children: [
-                    SettingsTile(
-                      title: 'Design',
-                      icon: SettingsIcons.appearance,
-                      subtitle: _themeModeLabel(themeMode),
-                      onTap: () => _editThemeMode(themeMode),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 30),
-                SettingsLogoutButton(
-                  onPressed: () => BackendConnector.logout(context),
-                ),
-                const SettingsFooter(),
+                    const SettingsFooter(),
                   ],
                 ),
               ),
@@ -374,7 +318,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
 
     if (value == null || value == initialChoirLabel) return;
-    await _updateProfile(choir: value);
+    await _updateCalendarDefaults(choir: value);
   }
 
   Future<void> _editChoiceField({
@@ -407,6 +351,72 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     if (value == null) return;
     await onSave(value);
+  }
+
+  Future<void> _updateCalendarDefaults({
+    String? className,
+    String? schoolTrack,
+    String? voice,
+    String? diet,
+    String? choir,
+  }) async {
+    final gateData = ref.read(profileGateDataProvider);
+    final ownProfile = ref.read(syncedProfileProvider).asData?.value;
+    final isGuardianViewer = isGuardianCalendarViewer(
+      gate: gateData,
+      ownProfile: ownProfile,
+    );
+
+    if (isGuardianViewer) {
+      await _updateActiveChildCalendarDefaults(
+        className: className,
+        schoolTrack: schoolTrack,
+        voice: voice,
+        diet: diet,
+        choir: choir,
+      );
+      return;
+    }
+
+    await _updateProfile(
+      className: className,
+      schoolTrack: schoolTrack,
+      voice: voice,
+      diet: diet,
+      choir: choir,
+    );
+  }
+
+  Future<void> _updateActiveChildCalendarDefaults({
+    String? className,
+    String? schoolTrack,
+    String? voice,
+    String? diet,
+    String? choir,
+  }) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+
+    try {
+      await updateGuardianActiveChildCalendarDefaults(
+        ref,
+        className: className,
+        schoolTrack: schoolTrack,
+        voice: voice,
+        diet: diet,
+        choir: choir,
+      );
+    } on SettingsProfileRepositoryException catch (e) {
+      if (!mounted) return;
+      _showErrorSnackBar(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      _showErrorSnackBar(
+        'Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.',
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _updateProfile({
@@ -444,6 +454,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             voice: voice,
             className: className,
             schoolTrack: schoolTrack,
+            diet: diet,
           );
       ref
           .read(searchFiltersProvider.notifier)

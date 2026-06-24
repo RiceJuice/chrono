@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/database/powersync_schema.dart';
 import '../../data/guardian_link_repository.dart';
 import '../../domain/models/guardian_child_link.dart';
-import '../../domain/models/login_flow_role_ids.dart';
 import '../../domain/models/profile_gate_data.dart';
 import '../routes/login_flow_specs.dart';
 
@@ -202,7 +201,6 @@ class ProfileGateNotifier extends ChangeNotifier {
     GuardianLinkSummary linkSummary,
   ) {
     final role = _asString(row?['role']);
-    final isGuardian = role?.trim() == LoginFlowRoleIds.guardian;
 
     return ProfileGateData(
       hasSession: true,
@@ -216,9 +214,9 @@ class ProfileGateNotifier extends ChangeNotifier {
       choir: _asString(row?['choir']),
       onboardingCompletedAt: _asDateTime(row?['onboarding_completed_at']),
       activeChildId: _asString(row?['active_child_id']),
-      hasAnyGuardianLink: isGuardian && linkSummary.hasAnyLink,
-      hasConfirmedGuardianLink: isGuardian && linkSummary.hasConfirmedLink,
-      hasPendingGuardianLink: isGuardian && linkSummary.hasPendingLink,
+      hasAnyGuardianLink: linkSummary.hasAnyLink,
+      hasConfirmedGuardianLink: linkSummary.hasConfirmedLink,
+      hasPendingGuardianLink: linkSummary.hasPendingLink,
     );
   }
 

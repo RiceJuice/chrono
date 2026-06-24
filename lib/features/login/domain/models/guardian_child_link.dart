@@ -86,6 +86,23 @@ class GuardianChildLink {
   bool get isConfirmed => status == GuardianLinkStatus.confirmed;
   bool get isRejected => status == GuardianLinkStatus.rejected;
 
+  GuardianChildLink copyWithStatus(String status) {
+    return GuardianChildLink(
+      id: id,
+      guardianId: guardianId,
+      childId: childId,
+      status: status,
+      createdAt: createdAt,
+      respondedAt: respondedAt,
+      reminderSentAt: reminderSentAt,
+      childFirstName: childFirstName,
+      childLastName: childLastName,
+      childClassName: childClassName,
+      guardianFirstName: guardianFirstName,
+      guardianLastName: guardianLastName,
+    );
+  }
+
   String get childDisplayName {
     final parts = [childFirstName, childLastName]
         .map((p) => p?.trim())
@@ -107,7 +124,7 @@ class GuardianChildLink {
       id: row['id']?.toString() ?? '',
       guardianId: row['guardian_id']?.toString() ?? '',
       childId: row['child_id']?.toString() ?? '',
-      status: row['status']?.toString() ?? GuardianLinkStatus.pending,
+      status: _normalizeStatus(row['status']?.toString()),
       createdAt: _parseDateTime(row['created_at']),
       respondedAt: _parseDateTime(row['responded_at']),
       reminderSentAt: _parseDateTime(row['reminder_sent_at']),
@@ -117,6 +134,21 @@ class GuardianChildLink {
       guardianFirstName: row['guardian_first_name']?.toString(),
       guardianLastName: row['guardian_last_name']?.toString(),
     );
+  }
+
+  static String _normalizeStatus(String? raw) {
+    switch (raw?.trim().toLowerCase()) {
+      case GuardianLinkStatus.confirmed:
+        return GuardianLinkStatus.confirmed;
+      case GuardianLinkStatus.rejected:
+        return GuardianLinkStatus.rejected;
+      case GuardianLinkStatus.revoked:
+        return GuardianLinkStatus.revoked;
+      case GuardianLinkStatus.pending:
+        return GuardianLinkStatus.pending;
+      default:
+        return GuardianLinkStatus.pending;
+    }
   }
 
   static DateTime? _parseDateTime(Object? value) {

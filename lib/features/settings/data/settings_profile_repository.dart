@@ -7,6 +7,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/database/powersync_schema.dart';
 import 'models/profile_snapshot.dart';
 
+class SettingsProfileRepositoryException implements Exception {
+  SettingsProfileRepositoryException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class _ProfileRowBundle {
   const _ProfileRowBundle({required this.snapshot, this.updatedAt});
 
@@ -152,17 +161,14 @@ class SettingsProfileRepository {
 
     final localUpdated = local.updatedAt;
     final remoteUpdated = remote.updatedAt;
-    if (remoteUpdated != null &&
-        (localUpdated == null || remoteUpdated.isAfter(localUpdated))) {
-      return remote;
-    }
-    if (_isProfileEmpty(local.snapshot)) {
-      return _ProfileRowBundle(
-        snapshot: _coalesceSnapshots(local.snapshot, remote.snapshot),
-        updatedAt: remoteUpdated ?? localUpdated,
-      );
-    }
-    return local;
+    final mergedUpdated = localUpdated != null && remoteUpdated != null
+        ? (localUpdated.isAfter(remoteUpdated) ? localUpdated : remoteUpdated)
+        : (localUpdated ?? remoteUpdated);
+
+    return _ProfileRowBundle(
+      snapshot: _coalesceSnapshots(local.snapshot, remote.snapshot),
+      updatedAt: mergedUpdated,
+    );
   }
 
   ProfileSnapshot _coalesceSnapshots(
@@ -210,5 +216,39 @@ class SettingsProfileRepository {
     if (value == null) return null;
     if (value is DateTime) return value;
     return DateTime.tryParse(value.toString());
+  }
+
+  /// Aktualisiert Kalender-Standardwerte eines verknüpften Kindes (nur bestätigte Links).
+  Future<void> updateLinkedChildCalendarDefaults({
+    required String childId,
+    String? className,
+    String? schoolTrack,
+    String? voice,
+    String? diet,
+    String? choir,
+  }) async {
+    if (childId.trim().isEmpty) {
+      throw SettingsProfileRepositoryException('Kein Kind ausgewählt.');
+    }
+
+    final params = <String, dynamic>{'p_child_id': childId};
+    if (className != null) params['p_class_name'] = className;
+    if (schoolTrack != null) params['p_schooltrack'] = schoolTrack;
+    if (voice != null) params['p_voice'] = voice;
+    if (diet != null) params['p_diet'] = diet;
+    if (choir != null) params['p_choir'] = choir;
+
+    if (params.length == 1) return;
+
+    try {
+      await _supabase.rpc(
+        'update_linked_child_calendar_defaults',
+        params: params,
+      );
+    } catch (_) {
+      throw SettingsProfileRepositoryException(
+        'Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.',
+      );
+    }
   }
 }

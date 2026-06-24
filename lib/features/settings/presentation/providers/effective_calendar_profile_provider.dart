@@ -1,7 +1,10 @@
 import 'package:chronoapp/core/auth/auth_user_id_provider.dart';
-import 'package:chronoapp/features/login/domain/models/login_flow_role_ids.dart';
+import 'package:chronoapp/features/login/domain/guardian_active_child_picker.dart';
+import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart';
 import 'package:chronoapp/features/login/presentation/providers/guardian_link_providers.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_calendar_viewer.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_profile_display.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/profile_snapshot.dart';
@@ -17,14 +20,28 @@ final linkedChildProfileProvider =
       .watchProfileByUserId(childId);
 });
 
+GuardianChildLink _activeGuardianChildLink({
+  required List<GuardianChildLink> confirmed,
+  required String? activeChildId,
+}) {
+  if (activeChildId != null) {
+    for (final link in confirmed) {
+      if (link.childId == activeChildId) return link;
+    }
+  }
+  return pickGuardianActiveChild(confirmed);
+}
+
 final effectiveCalendarProfileProvider =
     Provider<AsyncValue<ProfileSnapshot?>>((ref) {
   final ownAsync = ref.watch(syncedProfileProvider);
+  final gate = ref.watch(profileGateDataProvider);
+
   return ownAsync.when(
     loading: () => ownAsync,
     error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
     data: (own) {
-      if (own?.role?.trim() != LoginFlowRoleIds.guardian) {
+      if (!isGuardianCalendarViewer(gate: gate, ownProfile: own)) {
         return AsyncValue.data(own);
       }
 
@@ -41,14 +58,24 @@ final effectiveCalendarProfileProvider =
               .toList(growable: false);
           if (confirmed.isEmpty) return const AsyncValue.data(null);
 
-          final activeChildId =
-              ref.read(profileGateProvider).data.activeChildId;
-          final childId = activeChildId != null &&
-                  confirmed.any((link) => link.childId == activeChildId)
-              ? activeChildId
-              : confirmed.first.childId;
+          final activeChildId = gate.activeChildId;
+          final activeLink = _activeGuardianChildLink(
+            confirmed: confirmed,
+            activeChildId: activeChildId,
+          );
 
-          return ref.watch(linkedChildProfileProvider(childId));
+          final profileAsync =
+              ref.watch(linkedChildProfileProvider(activeLink.childId));
+          return profileAsync.when(
+            loading: () => const AsyncValue.loading(),
+            error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
+            data: (loaded) => AsyncValue.data(
+              guardianChildProfileSnapshot(
+                link: activeLink,
+                loaded: loaded,
+              ),
+            ),
+          );
         },
       );
     },

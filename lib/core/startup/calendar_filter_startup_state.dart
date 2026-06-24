@@ -1,6 +1,5 @@
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filter_defaults.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
-import 'package:chronoapp/features/login/domain/models/login_flow_role_ids.dart';
 import 'package:chronoapp/features/login/domain/models/profile_gate_data.dart';
 import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
 import 'package:powersync/powersync.dart';
@@ -20,7 +19,7 @@ class CalendarFilterStartupState {
   }) {
     if (!gateData.hasSession) return;
 
-    if (gateData.role?.trim() == LoginFlowRoleIds.guardian) {
+    if (gateData.hasConfirmedGuardianLink) {
       if (childProfile == null) return;
       _bootstrapped = calendarFiltersStateFromProfileFields(
         choir: childProfile.choir,
@@ -46,7 +45,7 @@ class CalendarFilterStartupState {
     required ProfileGateData gateData,
     required String userId,
   }) async {
-    if (gateData.role?.trim() != LoginFlowRoleIds.guardian) return null;
+    if (!gateData.hasConfirmedGuardianLink) return null;
     if (!gateData.hasConfirmedGuardianLink) return null;
 
     var childId = gateData.activeChildId;

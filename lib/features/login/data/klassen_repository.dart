@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/utils/class_name_order.dart';
 import 'package:powersync/powersync.dart';
 import 'package:sqlite3/common.dart';
 
@@ -7,8 +8,6 @@ class KlassenRepository {
   KlassenRepository(this._db);
 
   final PowerSyncDatabase _db;
-
-  static final RegExp _numberPattern = RegExp(r'\d+');
 
   Stream<List<String>> watchClasses() {
     return _db
@@ -36,22 +35,7 @@ class KlassenRepository {
       seen.add(className);
       out.add(className);
     }
-    out.sort(_compareClassNames);
+    out.sort(compareClassNames);
     return out;
-  }
-
-  int _compareClassNames(String a, String b) {
-    final aMatch = _numberPattern.firstMatch(a);
-    final bMatch = _numberPattern.firstMatch(b);
-
-    if (aMatch != null && bMatch != null) {
-      final aNumber = int.tryParse(aMatch.group(0)!);
-      final bNumber = int.tryParse(bMatch.group(0)!);
-      if (aNumber != null && bNumber != null && aNumber != bNumber) {
-        return aNumber.compareTo(bNumber);
-      }
-    }
-
-    return a.toLowerCase().compareTo(b.toLowerCase());
   }
 }

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/auth/profile_role_ids.dart';
 import '../../../core/database/powersync_schema.dart';
+import '../domain/guardian_link_status.dart';
 import '../domain/models/guardian_child_link.dart';
 import '../domain/models/login_flow_role_ids.dart';
 
@@ -465,16 +466,32 @@ class GuardianLinkRepository {
     );
   }
 
+  Future<List<GuardianChildLink>> loadLinksRemote(String userId) =>
+      _loadLinksRemote(userId);
+
   Future<GuardianLinkSummary> loadSummaryForGuardian(String guardianId) async {
-    final links = await _loadLinksLocal(guardianId);
-    final confirmed =
-        links.where((l) => l.isConfirmed && l.guardianId == guardianId);
-    final pending =
-        links.where((l) => l.isPending && l.guardianId == guardianId);
+    final localLinks = await _loadLinksLocal(guardianId);
+    final localOwn = localLinks
+        .where((link) => link.guardianId == guardianId)
+        .toList(growable: false);
+
+    List<GuardianChildLink> remoteOwn;
+    try {
+      final remoteLinks = await _loadLinksRemote(guardianId);
+      remoteOwn = remoteLinks
+          .where((link) => link.guardianId == guardianId)
+          .toList(growable: false);
+    } catch (_) {
+      remoteOwn = const [];
+    }
+
+    final merged = mergeGuardianLinkCollections(localOwn, remoteOwn);
 
     return GuardianLinkSummary(
-      confirmedLinks: confirmed.toList(growable: false),
-      pendingLinks: pending.toList(growable: false),
+      confirmedLinks:
+          merged.where((link) => link.isConfirmed).toList(growable: false),
+      pendingLinks:
+          merged.where((link) => link.isPending).toList(growable: false),
     );
   }
 

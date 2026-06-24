@@ -15,10 +15,14 @@ class SettingsProfileHeaderCard extends StatelessWidget {
     super.key,
     required this.profile,
     this.onTap,
+    this.subtitleOverride,
+    this.compact = false,
   });
 
   final ProfileSnapshot? profile;
   final VoidCallback? onTap;
+  final String? subtitleOverride;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -27,55 +31,69 @@ class SettingsProfileHeaderCard extends StatelessWidget {
     final tappable = onTap != null;
 
     final content = Padding(
-      padding: const EdgeInsets.all(18),
+      padding: compact
+          ? const EdgeInsets.symmetric(horizontal: 14, vertical: 10)
+          : const EdgeInsets.all(18),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 28,
+            radius: compact ? 18 : 28,
             backgroundColor: scheme.primaryContainer,
             foregroundColor: scheme.onPrimaryContainer,
             child: Text(
               initials,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              style: (compact
+                      ? Theme.of(context).textTheme.bodyMedium
+                      : Theme.of(context).textTheme.titleMedium)
+                  ?.copyWith(fontWeight: FontWeight.w800),
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: compact ? 12 : 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  settingsProfileName(profile),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+            child: compact
+                ? Text(
+                    settingsProfileName(profile),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        settingsProfileName(profile),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitleOverride ??
+                            (tappable
+                                ? _tapHint(profile)
+                                : settingsProfileSubtitle(profile)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  tappable
-                      ? _tapHint(profile)
-                      : settingsProfileSubtitle(profile),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: compact ? 8 : 10),
           if (tappable)
             PhosphorIcon(
               SettingsIcons.chevron,
-              size: 18,
+              size: compact ? 16 : 18,
               color: scheme.onSurfaceVariant,
             )
-          else
+          else if (!compact)
             Opacity(
               opacity: 0.3,
               child: SvgPicture.asset(
@@ -95,14 +113,16 @@ class SettingsProfileHeaderCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: ShapeDecoration(
-        color: scheme.surfaceContainerHigh,
-        shape: AppSquircle.shape(AppRadius.xl),
+        color: compact ? scheme.surfaceContainer : scheme.surfaceContainerHigh,
+        shape: AppSquircle.shape(compact ? AppRadius.l : AppRadius.xl),
       ),
       child: tappable
           ? Material(
               type: MaterialType.transparency,
               child: InkWell(
-                customBorder: AppSquircle.shape(AppRadius.xl),
+                customBorder: AppSquircle.shape(
+                  compact ? AppRadius.l : AppRadius.xl,
+                ),
                 onTap: () {
                   HapticFeedback.selectionClick();
                   onTap!();

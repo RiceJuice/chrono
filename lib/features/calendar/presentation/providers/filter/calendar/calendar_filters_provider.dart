@@ -34,6 +34,19 @@ class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
     );
   }
 
+  /// Ersetzt aktive und Default-Filter vollständig — z. B. beim Kindwechsel
+  /// für Elternteile, damit keine manuellen Overrides vom vorherigen Kind bleiben.
+  void replaceFromProfile(ProfileSnapshot? profile) {
+    final next = calendarFiltersStateFromProfileFields(
+      choir: profile?.choir,
+      voice: profile?.voice,
+      className: profile?.className,
+      schoolTrack: profile?.schoolTrack,
+      diet: profile?.diet,
+    );
+    state = next;
+  }
+
   /// Uebernimmt Profil-Aenderungen sofort in aktive und Default-Filter.
   /// So sind Kalender- und Suchfilter direkt konsistent mit den Einstellungen.
   void applyProfileFilterChanges({
