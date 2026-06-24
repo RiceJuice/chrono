@@ -1,5 +1,26 @@
 -- Eltern dürfen Kalender-relevante Profilfelder bestätigter Kinder aktualisieren.
 
+DROP POLICY IF EXISTS profiles_update_linked_children_for_guardian ON public.profiles;
+
+CREATE POLICY profiles_update_linked_children_for_guardian ON public.profiles
+  FOR UPDATE
+  USING (
+    id IN (
+      SELECT gcl.child_id
+      FROM public.guardian_child_links gcl
+      WHERE gcl.guardian_id = auth.uid()
+        AND gcl.status = 'confirmed'
+    )
+  )
+  WITH CHECK (
+    id IN (
+      SELECT gcl.child_id
+      FROM public.guardian_child_links gcl
+      WHERE gcl.guardian_id = auth.uid()
+        AND gcl.status = 'confirmed'
+    )
+  );
+
 CREATE OR REPLACE FUNCTION public.update_linked_child_calendar_defaults(
   p_child_id uuid,
   p_class_name text DEFAULT NULL,

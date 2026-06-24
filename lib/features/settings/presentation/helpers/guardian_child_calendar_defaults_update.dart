@@ -1,6 +1,5 @@
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filters_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/search/search_filters_provider.dart';
-import 'package:chronoapp/features/settings/data/settings_profile_repository.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_active_child_id.dart';
 import 'package:chronoapp/features/settings/presentation/providers/effective_calendar_profile_provider.dart';
 import 'package:chronoapp/features/settings/presentation/providers/settings_profile_providers.dart';
@@ -14,10 +13,7 @@ Future<void> updateGuardianActiveChildCalendarDefaults(
   String? diet,
   String? choir,
 }) async {
-  final childId = ref.read(activeGuardianChildIdProvider);
-  if (childId == null || childId.isEmpty) {
-    throw SettingsProfileRepositoryException('Kein aktives Kind ausgewählt.');
-  }
+  final childId = await requireActiveGuardianChildId(ref);
 
   await ref.read(settingsProfileRepositoryProvider).updateLinkedChildCalendarDefaults(
         childId: childId,

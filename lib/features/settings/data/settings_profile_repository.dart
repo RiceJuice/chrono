@@ -231,21 +231,27 @@ class SettingsProfileRepository {
       throw SettingsProfileRepositoryException('Kein Kind ausgewählt.');
     }
 
-    final params = <String, dynamic>{'p_child_id': childId};
-    if (className != null) params['p_class_name'] = className;
-    if (schoolTrack != null) params['p_schooltrack'] = schoolTrack;
-    if (voice != null) params['p_voice'] = voice;
-    if (diet != null) params['p_diet'] = diet;
-    if (choir != null) params['p_choir'] = choir;
+    final updates = <String, dynamic>{};
+    if (className != null) updates['class_name'] = className;
+    if (schoolTrack != null) updates['schooltrack'] = schoolTrack;
+    if (voice != null) updates['voice'] = voice;
+    if (diet != null) updates['diet'] = diet;
+    if (choir != null) updates['choir'] = choir;
 
-    if (params.length == 1) return;
+    if (updates.isEmpty) return;
 
     try {
-      await _supabase.rpc(
-        'update_linked_child_calendar_defaults',
-        params: params,
+      final updatedRows = await _supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', childId)
+          .select('id');
+      if (updatedRows.isNotEmpty) return;
+      throw SettingsProfileRepositoryException(
+        'Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.',
       );
-    } catch (_) {
+    } catch (e) {
+      if (e is SettingsProfileRepositoryException) rethrow;
       throw SettingsProfileRepositoryException(
         'Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.',
       );

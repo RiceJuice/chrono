@@ -57,5 +57,15 @@ void main() {
         'child-b',
       );
     });
+
+    test('liefert null wenn keine bestätigten Links vorhanden sind', () {
+      expect(
+        resolveActiveGuardianChildId(
+          gate: _gate,
+          confirmed: const [],
+        ),
+        isNull,
+      );
+    });
   });
 }

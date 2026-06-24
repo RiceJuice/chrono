@@ -1,8 +1,7 @@
 import 'package:chronoapp/core/auth/auth_user_id_provider.dart';
-import 'package:chronoapp/features/login/domain/guardian_active_child_picker.dart';
-import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart';
 import 'package:chronoapp/features/login/presentation/providers/guardian_link_providers.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_active_child_id.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_calendar_viewer.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_profile_display.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,18 +18,6 @@ final linkedChildProfileProvider =
       .watch(settingsProfileRepositoryProvider)
       .watchProfileByUserId(childId);
 });
-
-GuardianChildLink _activeGuardianChildLink({
-  required List<GuardianChildLink> confirmed,
-  required String? activeChildId,
-}) {
-  if (activeChildId != null) {
-    for (final link in confirmed) {
-      if (link.childId == activeChildId) return link;
-    }
-  }
-  return pickGuardianActiveChild(confirmed);
-}
 
 final effectiveCalendarProfileProvider =
     Provider<AsyncValue<ProfileSnapshot?>>((ref) {
@@ -53,15 +40,13 @@ final effectiveCalendarProfileProvider =
         loading: () => const AsyncValue.loading(),
         error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
         data: (links) {
-          final confirmed = links
-              .where((link) => link.isConfirmed && link.guardianId == userId)
-              .toList(growable: false);
+          final confirmed =
+              confirmedGuardianOwnLinks(links: links, guardianId: userId);
           if (confirmed.isEmpty) return const AsyncValue.data(null);
 
-          final activeChildId = gate.activeChildId;
-          final activeLink = _activeGuardianChildLink(
+          final activeLink = resolveActiveGuardianChildLink(
             confirmed: confirmed,
-            activeChildId: activeChildId,
+            activeChildId: gate.activeChildId,
           );
 
           final profileAsync =
