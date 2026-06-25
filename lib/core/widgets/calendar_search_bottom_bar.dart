@@ -31,7 +31,8 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
     with SingleTickerProviderStateMixin {
   static const _morphDuration = Duration(milliseconds: 380);
   static const _barHeight = 52.0;
-  static const _closeButtonSize = 52.0;
+  static const _closeButtonSize = 56.0;
+  static const _closeButtonGlyphSize = 20.0;
   static const _gapBetweenCloseAndBar = 8.0;
   static const _glyphSize = 18.0;
   static const _fieldFontSize = 16.0;
@@ -39,10 +40,6 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   static const _leadingIconSlotWidth = 40.0;
   static const _trailingIconSlotWidth = 44.0;
   static const _materialSearchTrailingInset = 34.0;
-  static const _bottomBarInsetReduction = 12.0;
-
-  /// Icons und Text wirken in der Pill sonst optisch zu tief.
-  static const _visualContentLift = -3.0;
 
   late final AnimationController _morphController;
   late final Animation<double> _morphCurve;
@@ -126,7 +123,10 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
     return isApple && PlatformVersion.shouldUseNativeGlass;
   }
 
-  Widget _buildCalendarCloseButton({required double sparrowAssetSize}) {
+  Widget _buildCalendarCloseButton({
+    required double sparrowAssetSize,
+    required bool useNativeGlass,
+  }) {
     final icon = SvgPicture.asset(
       DomspatzenIconMetrics.assetPath,
       height: sparrowAssetSize,
@@ -150,7 +150,7 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
       ),
     );
 
-    if (!_useNativeGlass()) {
+    if (!useNativeGlass) {
       final scheme = Theme.of(context).colorScheme;
       return Material(
         color: scheme.surface.withValues(alpha: 0.92),
@@ -173,8 +173,11 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
     );
   }
 
-  Widget _buildGlassShell({required Widget child}) {
-    if (_useNativeGlass()) {
+  Widget _buildGlassShell({
+    required Widget child,
+    required bool useNativeGlass,
+  }) {
+    if (useNativeGlass) {
       final isDark = Theme.of(context).brightness == Brightness.dark;
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -209,7 +212,8 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final sparrowAssetSize = DomspatzenIconMetrics.assetSizeForGlyph(_glyphSize);
+    final sparrowAssetSize =
+        DomspatzenIconMetrics.assetSizeForGlyph(_closeButtonGlyphSize);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final inputFocused = ref.watch(calendarSearchInputFocusedProvider);
     final keyboardInset =
@@ -227,12 +231,14 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
               12,
               0,
               12,
-              (bottomInset - 6 - _bottomBarInsetReduction).clamp(4.0, double.infinity),
+              (bottomInset - 6).clamp(6.0, double.infinity),
             ),
             child: AnimatedBuilder(
               animation: _morphCurve,
               builder: (context, child) {
                 final t = _morphCurve.value;
+                final morphComplete = t >= 1.0;
+                final useNativeGlass = _useNativeGlass() && morphComplete;
                 final dotOpacity = t.clamp(0.0, 1.0);
                 final fieldFlex = 0.15 + 0.85 * t;
 
@@ -250,148 +256,152 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
                         (1.0 - (t - 0.92) / 0.08).clamp(0.0, 1.0);
 
                     return SizedBox(
-                      height: _barHeight,
-                      child: Transform.translate(
-                        offset: const Offset(0, _visualContentLift),
-                        child: Row(
-                          children: [
-                            FadeTransition(
-                              opacity: AlwaysStoppedAnimation(dotOpacity),
-                              child: _buildCalendarCloseButton(
-                                sparrowAssetSize: sparrowAssetSize,
+                      height: _closeButtonSize,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              FadeTransition(
+                                opacity: AlwaysStoppedAnimation(dotOpacity),
+                                child: _buildCalendarCloseButton(
+                                  sparrowAssetSize: sparrowAssetSize,
+                                  useNativeGlass: useNativeGlass,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: _gapBetweenCloseAndBar),
-                            Expanded(
-                              flex: (fieldFlex * 100).round().clamp(1, 100),
-                              child: _buildGlassShell(
-                                child: SizedBox(
-                                  height: _barHeight,
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          SizedBox(
-                                            width: _leadingIconSlotWidth,
-                                            height: _barHeight,
-                                            child: t >= 0.92
-                                                ? IgnorePointer(
-                                                    child: Opacity(
-                                                      opacity: ((t - 0.92) /
-                                                              0.08)
-                                                          .clamp(0.0, 1.0),
-                                                      child: Center(
-                                                        child: Icon(
-                                                          Icons.search_rounded,
-                                                          size: _glyphSize,
-                                                          color: scheme
-                                                              .onSurfaceVariant,
+                              const SizedBox(width: _gapBetweenCloseAndBar),
+                              Expanded(
+                                flex: (fieldFlex * 100).round().clamp(1, 100),
+                                child: _buildGlassShell(
+                                  useNativeGlass: useNativeGlass,
+                                  child: SizedBox(
+                                    height: _barHeight,
+                                    child: Stack(
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            SizedBox(
+                                              width: _leadingIconSlotWidth,
+                                              height: _barHeight,
+                                              child: t >= 0.92
+                                                  ? IgnorePointer(
+                                                      child: Opacity(
+                                                        opacity: ((t - 0.92) /
+                                                                0.08)
+                                                            .clamp(0.0, 1.0),
+                                                        child: Center(
+                                                          child: Icon(
+                                                            Icons.search_rounded,
+                                                            size: _glyphSize,
+                                                            color: scheme
+                                                                .onSurfaceVariant,
+                                                          ),
                                                         ),
                                                       ),
-                                                    ),
-                                                  )
-                                                : const SizedBox.shrink(),
-                                          ),
-                                          Expanded(
-                                            child: TextField(
-                                              controller: _textController,
-                                              focusNode: _focusNode,
-                                              textInputAction:
-                                                  TextInputAction.search,
-                                              textAlignVertical:
-                                                  TextAlignVertical.center,
-                                              style: TextStyle(
-                                                fontSize: _fieldFontSize,
-                                                height: 1.0,
-                                                color: scheme.onSurface
-                                                    .withValues(alpha: 0.96),
-                                              ),
-                                              decoration: InputDecoration(
-                                                isDense: true,
-                                                filled: false,
-                                                fillColor: Colors.transparent,
-                                                border: InputBorder.none,
-                                                enabledBorder: InputBorder.none,
-                                                focusedBorder: InputBorder.none,
-                                                hintText:
-                                                    'Finde den richtigen Termin',
-                                                hintStyle: TextStyle(
+                                                    )
+                                                  : const SizedBox.shrink(),
+                                            ),
+                                            Expanded(
+                                              child: TextField(
+                                                controller: _textController,
+                                                focusNode: _focusNode,
+                                                textInputAction:
+                                                    TextInputAction.search,
+                                                textAlignVertical:
+                                                    TextAlignVertical.center,
+                                                style: TextStyle(
                                                   fontSize: _fieldFontSize,
                                                   height: 1.0,
                                                   color: scheme.onSurface
-                                                      .withValues(alpha: 0.7),
+                                                      .withValues(alpha: 0.96),
                                                 ),
-                                                contentPadding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 2,
+                                                decoration: InputDecoration(
+                                                  isDense: true,
+                                                  filled: false,
+                                                  fillColor: Colors.transparent,
+                                                  border: InputBorder.none,
+                                                  enabledBorder:
+                                                      InputBorder.none,
+                                                  focusedBorder:
+                                                      InputBorder.none,
+                                                  hintText:
+                                                      'Finde den richtigen Termin',
+                                                  hintStyle: TextStyle(
+                                                    fontSize: _fieldFontSize,
+                                                    height: 1.0,
+                                                    color: scheme.onSurface
+                                                        .withValues(alpha: 0.7),
+                                                  ),
+                                                  contentPadding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 2,
+                                                    vertical: 14,
+                                                  ),
                                                 ),
-                                              ),
-                                              onChanged: (value) {
-                                                ref
-                                                    .read(
-                                                      calendarSearchQueryProvider
-                                                          .notifier,
-                                                    )
-                                                    .updateQuery(value);
-                                              },
-                                            ),
-                                          ),
-                                          SizedBox(
-                                            width: _trailingIconSlotWidth,
-                                            height: _barHeight,
-                                            child: IconButton(
-                                              tooltip: 'Filter',
-                                              onPressed: _openSearchFilters,
-                                              padding: EdgeInsets.zero,
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              iconSize: _glyphSize,
-                                              style: IconButton.styleFrom(
-                                                tapTargetSize:
-                                                    MaterialTapTargetSize
-                                                        .shrinkWrap,
-                                              ),
-                                              icon: Icon(
-                                                Icons.filter_list_rounded,
-                                                size: _glyphSize,
-                                                color:
-                                                    scheme.onSurfaceVariant,
+                                                onChanged: (value) {
+                                                  ref
+                                                      .read(
+                                                        calendarSearchQueryProvider
+                                                            .notifier,
+                                                      )
+                                                      .updateQuery(value);
+                                                },
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (t < 0.92)
-                                        Positioned(
-                                          left: magnifierCenterX -
-                                              _closeButtonSize -
-                                              _gapBetweenCloseAndBar -
-                                              flyingIconSize / 2,
-                                          top: 0,
-                                          bottom: 0,
-                                          child: IgnorePointer(
-                                            child: Opacity(
-                                              opacity: flyingOpacity,
-                                              child: Center(
-                                                child: Icon(
-                                                  Icons.search_rounded,
-                                                  size: flyingIconSize,
-                                                  color: scheme.onSurfaceVariant,
+                                            SizedBox(
+                                              width: _trailingIconSlotWidth,
+                                              height: _barHeight,
+                                              child: IconButton(
+                                                tooltip: 'Filter',
+                                                onPressed: _openSearchFilters,
+                                                padding: EdgeInsets.zero,
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                iconSize: _glyphSize,
+                                                style: IconButton.styleFrom(
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
+                                                ),
+                                                icon: Icon(
+                                                  Icons.filter_list_rounded,
+                                                  size: _glyphSize,
+                                                  color: scheme
+                                                      .onSurfaceVariant,
                                                 ),
                                               ),
                                             ),
-                                          ),
+                                          ],
                                         ),
-                                    ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (t < 0.92)
+                            Positioned(
+                              left: magnifierCenterX - flyingIconSize / 2,
+                              top: 0,
+                              bottom: 0,
+                              child: IgnorePointer(
+                                child: Opacity(
+                                  opacity: flyingOpacity,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.search_rounded,
+                                      size: flyingIconSize,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                        ],
                       ),
                     );
                   },
