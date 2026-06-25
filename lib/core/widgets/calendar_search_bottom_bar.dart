@@ -13,8 +13,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 
-import 'app_hairline_divider.dart';
-
 /// Liquid-Glass-Suchleiste im Suchmodus (ersetzt die Tab-Bar).
 class CalendarSearchBottomBar extends ConsumerStatefulWidget {
   const CalendarSearchBottomBar({
@@ -220,9 +218,13 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const AppHairlineDivider.horizontal(),
           Padding(
-            padding: EdgeInsets.fromLTRB(12, 8, 12, bottomInset + 8),
+            padding: EdgeInsets.fromLTRB(
+              12,
+              0,
+              12,
+              (bottomInset - 6).clamp(6.0, double.infinity),
+            ),
             child: AnimatedBuilder(
               animation: _morphCurve,
               builder: (context, child) {

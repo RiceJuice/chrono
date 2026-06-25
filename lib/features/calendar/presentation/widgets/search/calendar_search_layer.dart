@@ -8,23 +8,18 @@ import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/haptics/app_haptics.dart';
-import '../../../../../core/widgets/app_hairline_divider.dart';
-import '../../../../../core/widgets/domspatzen_icon_metrics.dart';
 
 /// Metriken für den fixierten Such-Header (Titel + Filter-Chips).
 abstract final class CalendarSearchLayerMetrics {
   static const double titleBlockHeight = 44;
   static const double filtersBlockHeight = 38;
 
-  static const double hairlineHeight = 1;
-
   static double pinnedHeaderHeight(CalendarFiltersState filters) {
-    var height = titleBlockHeight + hairlineHeight;
+    var height = titleBlockHeight;
     if (filters.hasVisibleDeviationChips) {
       height += filtersBlockHeight;
     }
@@ -90,9 +85,9 @@ class _CalendarSearchLayerState extends ConsumerState<CalendarSearchLayer> {
     });
 
     final scheme = Theme.of(context).colorScheme;
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
     final filters = ref.watch(searchFiltersProvider);
     final filtersNotifier = ref.read(searchFiltersProvider.notifier);
-    final sparrowSize = DomspatzenIconMetrics.assetSizeForGlyph(22);
     final pinnedHeaderHeight = CalendarSearchLayerMetrics.pinnedHeaderHeight(
       filters,
     );
@@ -107,7 +102,7 @@ class _CalendarSearchLayerState extends ConsumerState<CalendarSearchLayer> {
         widget.onClose();
       },
       child: Material(
-        color: scheme.surface,
+        color: backgroundColor,
         child: SafeArea(
           bottom: false,
           child: Stack(
@@ -129,7 +124,7 @@ class _CalendarSearchLayerState extends ConsumerState<CalendarSearchLayer> {
                 right: 0,
                 child: _SearchPinnedHeader(
                   scheme: scheme,
-                  sparrowSize: sparrowSize,
+                  backgroundColor: backgroundColor,
                   filters: filters,
                   entranceAnimation: entrance,
                   reduceMotion: reduceMotion,
@@ -152,7 +147,7 @@ class _CalendarSearchLayerState extends ConsumerState<CalendarSearchLayer> {
 class _SearchPinnedHeader extends StatelessWidget {
   const _SearchPinnedHeader({
     required this.scheme,
-    required this.sparrowSize,
+    required this.backgroundColor,
     required this.filters,
     required this.onClearFilters,
     required this.onRemoveChoir,
@@ -165,7 +160,7 @@ class _SearchPinnedHeader extends StatelessWidget {
   });
 
   final ColorScheme scheme;
-  final double sparrowSize;
+  final Color backgroundColor;
   final CalendarFiltersState filters;
   final VoidCallback onClearFilters;
   final ValueChanged<String> onRemoveChoir;
@@ -180,29 +175,15 @@ class _SearchPinnedHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final titleRow = Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-      child: Row(
-        children: [
-          Text(
-            'Suchen',
-            style: GoogleFonts.libreBaskerville(
-              textStyle: Theme.of(context).textTheme.headlineLarge,
-              fontSize: 26,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-              color: scheme.onSurface,
-            ),
-          ),
-          const Spacer(),
-          Opacity(
-            opacity: 0.32,
-            child: SvgPicture.asset(
-              DomspatzenIconMetrics.assetPath,
-              height: sparrowSize,
-              width: sparrowSize,
-              fit: BoxFit.contain,
-            ),
-          ),
-        ],
+      child: Text(
+        'Suchen',
+        style: GoogleFonts.libreBaskerville(
+          textStyle: Theme.of(context).textTheme.headlineLarge,
+          fontSize: 26,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+          color: scheme.onSurface,
+        ),
       ),
     );
 
@@ -232,14 +213,13 @@ class _SearchPinnedHeader extends StatelessWidget {
           );
 
     return Material(
-      color: scheme.surface,
+      color: backgroundColor,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           animatedTitle,
           animatedFilters,
-          const AppHairlineDivider.horizontal(),
         ],
       ),
     );
