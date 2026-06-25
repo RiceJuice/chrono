@@ -1,7 +1,9 @@
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filter_defaults.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
+import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart';
 import 'package:chronoapp/features/login/domain/models/profile_gate_data.dart';
 import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_profile_display.dart';
 import 'package:powersync/powersync.dart';
 
 import '../../../core/database/powersync_schema.dart';
@@ -46,7 +48,6 @@ class CalendarFilterStartupState {
     required String userId,
   }) async {
     if (!gateData.hasConfirmedGuardianLink) return null;
-    if (!gateData.hasConfirmedGuardianLink) return null;
 
     var childId = gateData.activeChildId;
     if (childId == null || childId.isEmpty) {
@@ -63,7 +64,53 @@ class CalendarFilterStartupState {
       if (childId == null || childId.isEmpty) return null;
     }
 
-    return _readChildSnapshot(db, childId);
+    final link = await _readActiveChildLink(db, userId, childId);
+    final loaded = await _readChildSnapshot(db, childId);
+    if (link == null && loaded == null) return null;
+    if (link != null) {
+      return guardianChildProfileSnapshot(link: link, loaded: loaded);
+    }
+    return loaded;
+  }
+
+  static Future<GuardianChildLink?> _readActiveChildLink(
+    PowerSyncDatabase db,
+    String guardianId,
+    String childId,
+  ) async {
+    try {
+      final row = await db.getOptional(
+        '''
+        SELECT
+          gcl.id,
+          gcl.guardian_id,
+          gcl.child_id,
+          gcl.status,
+          gcl.created_at,
+          gcl.responded_at,
+          gcl.reminder_sent_at,
+          cp.first_name AS child_first_name,
+          cp.last_name AS child_last_name,
+          cp.class_name AS child_class_name,
+          cp.choir AS child_choir,
+          cp.voice AS child_voice,
+          cp.schooltrack AS child_schooltrack,
+          cp.diet AS child_diet,
+          gp.first_name AS guardian_first_name,
+          gp.last_name AS guardian_last_name
+        FROM $kGuardianChildLinksTable gcl
+        LEFT JOIN $kProfilesTable cp ON cp.id = gcl.child_id
+        LEFT JOIN $kProfilesTable gp ON gp.id = gcl.guardian_id
+        WHERE gcl.guardian_id = ? AND gcl.child_id = ? AND gcl.status = 'confirmed'
+        LIMIT 1
+        ''',
+        [guardianId, childId],
+      );
+      if (row == null) return null;
+      return GuardianChildLink.fromRow(Map<String, dynamic>.from(row));
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<ProfileSnapshot?> _readChildSnapshot(

@@ -14,6 +14,7 @@ import '../../../domain/models/login_flow_step.dart';
 import '../../copy/login_flow_role_ui.dart';
 import '../../providers/guardian_link_providers.dart';
 import '../../providers/profile_gate_provider.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_active_child_switch.dart';
 import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 import '../../widgets/login_step_scaffold.dart';
@@ -299,10 +300,7 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage>
     }
 
     final activeChild = pickGuardianActiveChild(confirmed);
-    await ref
-        .read(guardianLinkRepositoryProvider)
-        .setActiveChild(activeChild.childId);
-    await ref.read(profileGateProvider).refresh();
+    await activateGuardianChildAndSyncFilters(ref, activeChild: activeChild);
     if (!mounted) return;
     router.go(LoginPaths.success);
   }

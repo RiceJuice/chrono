@@ -22,3 +22,6 @@ bool matchesFilters({
     hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
   );
 }
+
+bool shouldHideUnknownCalendarEntries(CalendarFiltersState filters) =>
+    filters.hasInitializedDefaults && filters.hasActiveFilters;

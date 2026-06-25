@@ -11,7 +11,7 @@ import '../../../domain/guardian_active_child_picker.dart';
 import '../../../domain/models/guardian_child_link.dart';
 import '../../../domain/models/login_flow_step.dart';
 import '../../providers/guardian_link_providers.dart';
-import '../../providers/profile_gate_provider.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_active_child_switch.dart';
 import '../../routes/login_routes.dart';
 import '../../widgets/login_step_scaffold.dart';
 import 'guardian_pending_status_list.dart';
@@ -231,10 +231,7 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
     }
 
     final activeChild = pickGuardianActiveChild(confirmed);
-    await ref
-        .read(guardianLinkRepositoryProvider)
-        .setActiveChild(activeChild.childId);
-    await ref.read(profileGateProvider).refresh();
+    await activateGuardianChildAndSyncFilters(ref, activeChild: activeChild);
     if (!mounted) return;
     router.go(LoginPaths.success);
   }

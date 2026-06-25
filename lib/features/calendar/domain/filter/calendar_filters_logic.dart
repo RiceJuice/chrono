@@ -20,7 +20,7 @@ bool calendarEntryMatchesFilters({
     return false;
   }
 
-  if (filters.choirs.isNotEmpty) {
+  if (filters.choirs.isNotEmpty && _isChoirCategoryEntry(entry.type)) {
     final value = normalizeCalendarFilterText(entry.choir.toBackend());
     if (!_matchesCategory(
       selectedValues: filters.choirs,
@@ -32,7 +32,7 @@ bool calendarEntryMatchesFilters({
     }
   }
 
-  if (filters.voices.isNotEmpty) {
+  if (filters.voices.isNotEmpty && _isChoirCategoryEntry(entry.type)) {
     final values = entry.voices
         .map((voice) => normalizeCalendarFilterText(voice.toBackend()))
         .whereType<String>()
@@ -49,7 +49,7 @@ bool calendarEntryMatchesFilters({
     }
   }
 
-  if (filters.classNames.isNotEmpty) {
+  if (filters.classNames.isNotEmpty && _isSchoolCategoryEntry(entry.type)) {
     final value = normalizeCalendarFilterText(entry.className);
     if (!_matchesCategory(
       selectedValues: filters.classNames,
@@ -61,7 +61,7 @@ bool calendarEntryMatchesFilters({
     }
   }
 
-  if (filters.schoolTracks.isNotEmpty) {
+  if (filters.schoolTracks.isNotEmpty && _isSchoolCategoryEntry(entry.type)) {
     final value = normalizeCalendarFilterText(entry.schoolTrack.toBackend());
     if (!_matchesCategory(
       selectedValues: filters.schoolTracks,
@@ -86,6 +86,14 @@ bool calendarEntryMatchesFilters({
   }
 
   return true;
+}
+
+bool _isChoirCategoryEntry(CalendarEntryType type) {
+  return type == CalendarEntryType.choir || type == CalendarEntryType.event;
+}
+
+bool _isSchoolCategoryEntry(CalendarEntryType type) {
+  return type == CalendarEntryType.lesson;
 }
 
 bool _isEntryCalendarVisible({

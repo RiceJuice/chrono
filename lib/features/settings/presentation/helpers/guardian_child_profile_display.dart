@@ -36,10 +36,10 @@ ProfileSnapshot guardianChildProfileSnapshot({
     firstName: loaded?.firstName ?? link.childFirstName,
     lastName: loaded?.lastName ?? link.childLastName,
     className: loaded?.className ?? link.childClassName,
-    schoolTrack: loaded?.schoolTrack,
-    voice: loaded?.voice,
+    schoolTrack: loaded?.schoolTrack ?? link.childSchoolTrack,
+    voice: loaded?.voice ?? link.childVoice,
     role: loaded?.role,
-    choir: loaded?.choir,
-    diet: loaded?.diet,
+    choir: loaded?.choir ?? link.childChoir,
+    diet: loaded?.diet ?? link.childDiet,
   );
 }

@@ -65,6 +65,10 @@ class GuardianChildLink {
     this.childFirstName,
     this.childLastName,
     this.childClassName,
+    this.childChoir,
+    this.childVoice,
+    this.childSchoolTrack,
+    this.childDiet,
     this.guardianFirstName,
     this.guardianLastName,
   });
@@ -79,6 +83,10 @@ class GuardianChildLink {
   final String? childFirstName;
   final String? childLastName;
   final String? childClassName;
+  final String? childChoir;
+  final String? childVoice;
+  final String? childSchoolTrack;
+  final String? childDiet;
   final String? guardianFirstName;
   final String? guardianLastName;
 
@@ -98,6 +106,10 @@ class GuardianChildLink {
       childFirstName: childFirstName,
       childLastName: childLastName,
       childClassName: childClassName,
+      childChoir: childChoir,
+      childVoice: childVoice,
+      childSchoolTrack: childSchoolTrack,
+      childDiet: childDiet,
       guardianFirstName: guardianFirstName,
       guardianLastName: guardianLastName,
     );
@@ -131,6 +143,10 @@ class GuardianChildLink {
       childFirstName: row['child_first_name']?.toString(),
       childLastName: row['child_last_name']?.toString(),
       childClassName: row['child_class_name']?.toString(),
+      childChoir: row['child_choir']?.toString(),
+      childVoice: row['child_voice']?.toString(),
+      childSchoolTrack: row['child_schooltrack']?.toString(),
+      childDiet: row['child_diet']?.toString(),
       guardianFirstName: row['guardian_first_name']?.toString(),
       guardianLastName: row['guardian_last_name']?.toString(),
     );

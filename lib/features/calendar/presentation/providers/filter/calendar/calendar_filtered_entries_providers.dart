@@ -4,6 +4,7 @@ import '../../../../domain/filter/calendar_filters_logic.dart';
 import '../../../../domain/filter/calendar_search_effective_filters.dart';
 import '../../../../domain/models/calendar_entry.dart';
 import '../../calendar_providers.dart';
+import 'calendar_filter_utils.dart';
 
 final filteredCalendarEntriesForDayProvider =
     fr.Provider.family<fr.AsyncValue<List<CalendarEntry>>, DateTime>((
@@ -12,13 +13,14 @@ final filteredCalendarEntriesForDayProvider =
     ) {
       final source = ref.watch(calendarEntriesForDayProvider(day));
       final filters = ref.watch(calendarFiltersProvider);
+      final hideUnknown = shouldHideUnknownCalendarEntries(filters);
       return source.whenData((entries) {
         return entries
             .where(
               (entry) => calendarEntryVisibleInEventList(
                 entry: entry,
                 filters: filters,
-                hideUnknownWhenFilterActive: false,
+                hideUnknownWhenFilterActive: hideUnknown,
               ),
             )
             .toList(growable: false);
@@ -29,13 +31,14 @@ final filteredCalendarAllEntriesProvider =
     fr.Provider<fr.AsyncValue<List<CalendarEntry>>>((ref) {
       final source = ref.watch(calendarAllEntriesProvider);
       final filters = ref.watch(calendarFiltersProvider);
+      final hideUnknown = shouldHideUnknownCalendarEntries(filters);
       return source.whenData((entries) {
         return entries
             .where(
               (entry) => calendarEntryMatchesFilters(
                 entry: entry,
                 filters: filters,
-                hideUnknownWhenFilterActive: false,
+                hideUnknownWhenFilterActive: hideUnknown,
               ),
             )
             .toList(growable: false);
@@ -49,13 +52,14 @@ final filteredCalendarEntriesInLocalRangeProvider =
     >((ref, range) {
       final source = ref.watch(calendarEntriesInLocalRangeProvider(range));
       final filters = ref.watch(calendarFiltersProvider);
+      final hideUnknown = shouldHideUnknownCalendarEntries(filters);
       return source.whenData((entries) {
         return entries
             .where(
               (entry) => calendarEntryMatchesFilters(
                 entry: entry,
                 filters: filters,
-                hideUnknownWhenFilterActive: false,
+                hideUnknownWhenFilterActive: hideUnknown,
               ),
             )
             .toList(growable: false);

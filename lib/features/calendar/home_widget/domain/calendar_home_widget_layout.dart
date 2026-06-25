@@ -2,6 +2,7 @@ import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 
 import '../../domain/filter/calendar_filters_logic.dart';
+import '../../presentation/providers/filter/calendar/calendar_filter_utils.dart';
 import '../../domain/filter/calendar_filters_state.dart';
 import '../../domain/models/calendar_entry.dart';
 import '../../presentation/widgets/search_results/search_results_sections.dart';
@@ -48,7 +49,8 @@ class CalendarHomeWidgetLayout {
           (entry) => calendarEntryMatchesFilters(
             entry: entry,
             filters: filters,
-            hideUnknownWhenFilterActive: false,
+            hideUnknownWhenFilterActive:
+                shouldHideUnknownCalendarEntries(filters),
           ),
         )
         .toList(growable: false);

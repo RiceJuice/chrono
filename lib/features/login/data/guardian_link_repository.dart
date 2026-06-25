@@ -623,6 +623,10 @@ class GuardianLinkRepository {
           cp.first_name AS child_first_name,
           cp.last_name AS child_last_name,
           cp.class_name AS child_class_name,
+          cp.choir AS child_choir,
+          cp.voice AS child_voice,
+          cp.schooltrack AS child_schooltrack,
+          cp.diet AS child_diet,
           gp.first_name AS guardian_first_name,
           gp.last_name AS guardian_last_name
         FROM $kGuardianChildLinksTable gcl
