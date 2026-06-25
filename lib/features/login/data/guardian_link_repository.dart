@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -464,6 +465,22 @@ class GuardianLinkRepository {
     return watchLinksForUser(childId).map(
       (links) => links.where((l) => l.isPending).toList(growable: false),
     );
+  }
+
+  Future<List<GuardianChildLink>> loadPendingLinksForChild(String childId) async {
+    final links = await _loadLinksRemote(childId);
+    return pendingLinksForChild(links, childId);
+  }
+
+  /// Filtert aus einer Link-Liste die ausstehenden Anfragen für ein Kind.
+  @visibleForTesting
+  static List<GuardianChildLink> pendingLinksForChild(
+    List<GuardianChildLink> links,
+    String childId,
+  ) {
+    return links
+        .where((link) => link.childId == childId && link.isPending)
+        .toList(growable: false);
   }
 
   Future<List<GuardianChildLink>> loadLinksRemote(String userId) =>

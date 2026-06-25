@@ -11,8 +11,24 @@ import 'package:chronoapp/features/login/presentation/widgets/guardian_link_conf
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Fügt ausstehende Links in [queue] ein oder entfernt nicht mehr pending Einträge.
+@visibleForTesting
+List<GuardianChildLink> mergePendingGuardianLinks(
+  List<GuardianChildLink> queue,
+  Iterable<GuardianChildLink> incoming,
+) {
+  final merged = List<GuardianChildLink>.from(queue);
+  for (final link in incoming) {
+    merged.removeWhere((existing) => existing.id == link.id);
+    if (link.isPending) {
+      merged.add(link);
+    }
+  }
+  return merged;
+}
+
 /// Zeigt ausstehende Eltern-Verknüpfungsanfragen für Schüler und Admins.
-class GuardianLinkBootstrap {
+class GuardianLinkBootstrap with WidgetsBindingObserver {
   GuardianLinkBootstrap({
     required ProfileGateNotifier profileGate,
     required GlobalKey<NavigatorState> navigatorKey,
@@ -26,9 +42,11 @@ class GuardianLinkBootstrap {
         _supabase = supabase ?? Supabase.instance.client,
         _pushQueue = pushQueue ?? GuardianLinkPushQueue(),
         _deferredPushQueue = deferredPushQueue ?? _sharedDeferredPushQueue {
+    WidgetsBinding.instance.addObserver(this);
     _profileGate.addListener(_onProfileGateChanged);
     _deferredPushQueue.transferAllTo(_pushQueue);
     _onProfileGateChanged();
+    unawaited(_refreshPendingFromRemote());
     unawaited(_processQueue());
   }
 
@@ -43,8 +61,9 @@ class GuardianLinkBootstrap {
   final List<GuardianChildLink> _queue = [];
   bool _dialogOpen = false;
   int _navigatorRetryCount = 0;
+  bool _refreshInFlight = false;
 
-  static const int _maxNavigatorRetries = 5;
+  static const int _maxNavigatorRetryDelayMs = 5000;
   static GuardianLinkBootstrap? _instance;
   static final GuardianLinkPushQueue _sharedDeferredPushQueue =
       GuardianLinkPushQueue();
@@ -80,6 +99,7 @@ class GuardianLinkBootstrap {
       final instance = _instance;
       if (instance != null) {
         instance._pushQueue.enqueue(payload);
+        instance._navigatorRetryCount = 0;
         unawaited(instance._processQueue());
       } else {
         _sharedDeferredPushQueue.enqueue(payload);
@@ -88,6 +108,13 @@ class GuardianLinkBootstrap {
     }
     if (type == 'guardian_link_confirmed' || type == 'guardian_link_rejected') {
       unawaited(_instance?._profileGate.refresh());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshPendingFromRemote());
     }
   }
 
@@ -109,11 +136,42 @@ class GuardianLinkBootstrap {
     if (userId == null) return;
 
     _linksSub ??= _guardianLinks.watchPendingForChild(userId).listen((links) {
+      final merged = mergePendingGuardianLinks(_queue, links);
       _queue
         ..clear()
-        ..addAll(links);
+        ..addAll(merged);
       unawaited(_processQueue());
     });
+    unawaited(_refreshPendingFromRemote());
+  }
+
+  Future<void> _refreshPendingFromRemote() async {
+    if (_refreshInFlight) return;
+    if (!_profileGate.isReady || !_profileGate.data.hasSession) return;
+
+    final role = _profileGate.data.role?.trim();
+    if (role != LoginFlowRoleIds.student && role != ProfileRoleIds.admin) {
+      return;
+    }
+
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    _refreshInFlight = true;
+    try {
+      final pending = await _guardianLinks.loadPendingLinksForChild(userId);
+      if (pending.isEmpty) return;
+
+      _queue
+        ..clear()
+        ..addAll(mergePendingGuardianLinks(_queue, pending));
+      _navigatorRetryCount = 0;
+      unawaited(_processQueue());
+    } catch (_) {
+      // Offline oder langsames Netz: nächster Resume-/Sync-Versuch.
+    } finally {
+      _refreshInFlight = false;
+    }
   }
 
   Future<void> _processQueue() async {
@@ -121,15 +179,8 @@ class GuardianLinkBootstrap {
 
     final context = _navigatorKey.currentContext;
     if (context == null || !context.mounted) {
-      if (_hasWork() && _navigatorRetryCount < _maxNavigatorRetries) {
-        _navigatorRetryCount++;
-        final delayMs = 200 * _navigatorRetryCount;
-        unawaited(
-          Future<void>.delayed(
-            Duration(milliseconds: delayMs),
-            _processQueue,
-          ),
-        );
+      if (_hasWork()) {
+        _scheduleNavigatorRetry();
       }
       return;
     }
@@ -137,34 +188,36 @@ class GuardianLinkBootstrap {
 
     final pushPayload = _pushQueue.peek();
     GuardianChildLink? link;
+    GuardianLinkPushPayload? resolvedPushPayload;
+
     if (pushPayload != null) {
       link = await _guardianLinks.fetchLinkById(pushPayload.linkId);
-      if (link == null || !link.isPending) {
+      if (link == null) {
+        _scheduleProcessRetry();
+        return;
+      }
+      if (!link.isPending) {
         _pushQueue.remove(pushPayload.linkId);
+        link = null;
+      } else {
+        resolvedPushPayload = pushPayload;
       }
     }
+
     link ??= _queue.isNotEmpty ? _queue.first : null;
     if (link == null || !link.isPending) return;
 
-    final guardianNameOverride = pushPayload?.guardianName;
-    if (pushPayload != null) {
-      _pushQueue.remove(pushPayload.linkId);
+    final guardianNameOverride = resolvedPushPayload?.guardianName;
+    if (resolvedPushPayload != null) {
+      _pushQueue.remove(resolvedPushPayload.linkId);
     }
 
     final dialogContext = _navigatorKey.currentContext;
     if (dialogContext == null || !dialogContext.mounted) {
-      if (pushPayload != null) {
-        _pushQueue.enqueue(pushPayload);
+      if (resolvedPushPayload != null) {
+        _pushQueue.enqueue(resolvedPushPayload);
       }
-      if (_navigatorRetryCount < _maxNavigatorRetries) {
-        _navigatorRetryCount++;
-        unawaited(
-          Future<void>.delayed(
-            Duration(milliseconds: 200 * _navigatorRetryCount),
-            _processQueue,
-          ),
-        );
-      }
+      _scheduleNavigatorRetry();
       return;
     }
 
@@ -214,9 +267,40 @@ class GuardianLinkBootstrap {
     }
   }
 
+  void _scheduleNavigatorRetry() {
+    if (!_hasWork()) return;
+    _navigatorRetryCount++;
+    final delayMs = (200 * _navigatorRetryCount).clamp(
+      200,
+      _maxNavigatorRetryDelayMs,
+    );
+    unawaited(
+      Future<void>.delayed(
+        Duration(milliseconds: delayMs),
+        _processQueue,
+      ),
+    );
+  }
+
+  void _scheduleProcessRetry() {
+    if (!_hasWork()) return;
+    _navigatorRetryCount++;
+    final delayMs = (200 * _navigatorRetryCount).clamp(
+      200,
+      _maxNavigatorRetryDelayMs,
+    );
+    unawaited(
+      Future<void>.delayed(
+        Duration(milliseconds: delayMs),
+        _processQueue,
+      ),
+    );
+  }
+
   bool _hasWork() => _queue.isNotEmpty || !_pushQueue.isEmpty;
 
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _profileGate.removeListener(_onProfileGateChanged);
     unawaited(_linksSub?.cancel());
     _linksSub = null;

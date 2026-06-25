@@ -42,5 +42,16 @@ void main() {
       expect(queue.length, 1);
       expect(queue.peek()?.linkId, 'link-2');
     });
+
+    test('behält Payload bei peek bis zur expliziten Entfernung', () {
+      final queue = GuardianLinkPushQueue();
+      queue.enqueue(const GuardianLinkPushPayload(linkId: 'link-1'));
+
+      expect(queue.peek()?.linkId, 'link-1');
+      expect(queue.length, 1);
+
+      expect(queue.peek()?.linkId, 'link-1');
+      expect(queue.length, 1);
+    });
   });
 }
