@@ -40,6 +40,8 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   static const _leadingIconSlotWidth = 40.0;
   static const _trailingIconSlotWidth = 44.0;
   static const _materialSearchTrailingInset = 34.0;
+  /// Zusätzlicher Versatz Richtung unterer Bildschirmrand.
+  static const _bottomBarDownshift = 8.0;
 
   late final AnimationController _morphController;
   late final Animation<double> _morphCurve;
@@ -231,7 +233,7 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
               12,
               0,
               12,
-              (bottomInset - 6).clamp(6.0, double.infinity),
+              (bottomInset - 6 - _bottomBarDownshift).clamp(4.0, double.infinity),
             ),
             child: AnimatedBuilder(
               animation: _morphCurve,
