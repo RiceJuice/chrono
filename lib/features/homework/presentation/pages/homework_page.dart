@@ -1,154 +1,103 @@
+import 'package:chronoapp/core/haptics/app_haptics.dart';
+import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
+import 'package:chronoapp/core/widgets/main_shell_scaffold.dart';
+import 'package:chronoapp/features/calendar/domain/models/calendar_subject.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/subjects_providers.dart';
+import 'package:chronoapp/features/homework/presentation/providers/homework_providers.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_page_header.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_task_form_sheet.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_task_tile.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Platzhalter für den Bereich Hausaufgaben.
-class HomeworkPage extends StatelessWidget {
+class HomeworkPage extends ConsumerWidget {
   const HomeworkPage({super.key});
 
+  Future<void> _openCreateSheet(BuildContext context) async {
+    if (AppModalSheetTracker.depth.value > 0) return;
+    AppHaptics.light();
+    await HomeworkTaskFormSheet.show(context);
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? Colors.black : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tasksAsync = ref.watch(homeworkTasksProvider);
+    final subjectsAsync = ref.watch(subjectsListProvider);
+    final subjectsById = subjectsAsync.asData?.value == null
+        ? <String, CalendarSubject>{}
+        : {
+            for (final subject in subjectsAsync.asData!.value)
+              subject.id: subject,
+          };
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Center(
+      body: SafeArea(
+        bottom: false,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'work in progress.',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-              textAlign: TextAlign.center,
+            HomeworkPageHeader(
+              onAddPressed: () => _openCreateSheet(context),
             ),
-            const SizedBox(height: 28),
-            _TodoListSketchIcon(
-              color: textColor.withValues(alpha: 0.45),
-              size: 52,
+            Expanded(
+              child: tasksAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, _) => Center(
+                  child: Text(
+                    'Aufgaben konnten nicht geladen werden.',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                data: (tasks) {
+                  if (tasks.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xl,
+                        ),
+                        child: Text(
+                          'Noch keine Aufgaben.',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: EdgeInsets.only(
+                      bottom: mainShellBottomContentInset(context) + AppSpacing.l,
+                    ),
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      final task = tasks[index];
+                      final subject = task.subjectId == null
+                          ? null
+                          : subjectsById[task.subjectId];
+
+                      return HomeworkTaskTile(
+                        task: task,
+                        subject: subject,
+                        onToggleCompleted: (_) {
+                          ref
+                              .read(homeworkTasksProvider.notifier)
+                              .toggleCompleted(task.id);
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-}
-
-/// Kleines handgezeichnet wirkendes Todo-Listen-Symbol.
-class _TodoListSketchIcon extends StatelessWidget {
-  const _TodoListSketchIcon({
-    required this.color,
-    required this.size,
-  });
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size * 1.15),
-      painter: _TodoListSketchPainter(color: color),
-    );
-  }
-}
-
-class _TodoListSketchPainter extends CustomPainter {
-  _TodoListSketchPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.shortestSide * 0.045
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final w = size.width;
-    final h = size.height;
-
-    _drawSketchPath(
-      canvas,
-      paint,
-      [
-        Offset(w * 0.12, h * 0.08),
-        Offset(w * 0.9, h * 0.06),
-        Offset(w * 0.92, h * 0.94),
-        Offset(w * 0.1, h * 0.96),
-        Offset(w * 0.08, h * 0.14),
-      ],
-      close: true,
-    );
-
-    const rowYs = [0.28, 0.5, 0.72];
-    for (var i = 0; i < rowYs.length; i++) {
-      final y = h * rowYs[i];
-      _drawSketchPath(
-        canvas,
-        paint,
-        [
-          Offset(w * 0.2, y - h * 0.04),
-          Offset(w * 0.28, y - h * 0.05),
-          Offset(w * 0.29, y + h * 0.04),
-          Offset(w * 0.21, y + h * 0.05),
-          Offset(w * 0.19, y),
-        ],
-        close: true,
-      );
-
-      if (i == 0) {
-        _drawSketchPath(
-          canvas,
-          paint,
-          [
-            Offset(w * 0.21, y + h * 0.01),
-            Offset(w * 0.24, y + h * 0.04),
-            Offset(w * 0.3, y - h * 0.03),
-          ],
-        );
-      }
-
-      final lineEnd = i == 2 ? w * 0.72 : w * 0.82;
-      _drawSketchPath(
-        canvas,
-        paint,
-        [
-          Offset(w * 0.36, y + h * 0.01),
-          Offset(w * 0.55, y - h * 0.01),
-          Offset(lineEnd, y + h * 0.015),
-        ],
-      );
-    }
-  }
-
-  void _drawSketchPath(
-    Canvas canvas,
-    Paint paint,
-    List<Offset> points, {
-    bool close = false,
-  }) {
-    if (points.length < 2) return;
-
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (var i = 1; i < points.length; i++) {
-      final prev = points[i - 1];
-      final curr = points[i];
-      final mid = Offset((prev.dx + curr.dx) / 2, (prev.dy + curr.dy) / 2);
-      path.quadraticBezierTo(prev.dx, prev.dy, mid.dx, mid.dy);
-    }
-    final last = points.last;
-    path.lineTo(last.dx, last.dy);
-    if (close) path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _TodoListSketchPainter oldDelegate) {
-    return oldDelegate.color != color;
   }
 }

@@ -19,7 +19,7 @@ import '../../routes/login_routes.dart';
 import '../../state/login_flow_draft.dart';
 import '../../widgets/login_step_scaffold.dart';
 import '../guardian_pending/guardian_pending_status_list.dart';
-import 'widgets/animated_circle_checkbox.dart';
+import 'package:chronoapp/core/widgets/animated_circle_checkbox.dart';
 
 class SelectChildPage extends ConsumerStatefulWidget {
   const SelectChildPage({super.key, this.onLinkRequested});

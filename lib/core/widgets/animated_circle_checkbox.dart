@@ -111,10 +111,29 @@ class _CircleCheckPainter extends CustomPainter {
   final Color fillColor;
   final Color checkColor;
 
+  Path _checkPath(Size size) {
+    return Path()
+      ..moveTo(size.width * 0.28, size.height * 0.52)
+      ..lineTo(size.width * 0.44, size.height * 0.68)
+      ..lineTo(size.width * 0.74, size.height * 0.34);
+  }
+
+  Path _animatedCheckPath(Size size) {
+    final checkPath = _checkPath(size);
+    if (checkProgress <= 0) return Path();
+
+    final metrics = checkPath.computeMetrics().first;
+    return metrics.extractPath(0, metrics.length * checkProgress);
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 1.5;
+    final bounds = Rect.fromLTWH(0, 0, size.width, size.height);
+    final animatedCheck = _animatedCheckPath(size);
+
+    canvas.saveLayer(bounds, Paint());
 
     final borderPaint = Paint()
       ..style = PaintingStyle.stroke
@@ -133,24 +152,28 @@ class _CircleCheckPainter extends CustomPainter {
       );
     }
 
-    if (checkProgress <= 0) return;
+    if (checkProgress > 0) {
+      final cutPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.6
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..blendMode = BlendMode.dstOut
+        ..color = const Color(0xFFFFFFFF);
 
-    final checkPath = Path()
-      ..moveTo(size.width * 0.28, size.height * 0.52)
-      ..lineTo(size.width * 0.44, size.height * 0.68)
-      ..lineTo(size.width * 0.74, size.height * 0.34);
+      canvas.drawPath(animatedCheck, cutPaint);
 
-    final metrics = checkPath.computeMetrics().first;
-    final drawPath = metrics.extractPath(0, metrics.length * checkProgress);
+      final checkPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.1
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = checkColor.withValues(alpha: checkProgress);
 
-    final checkPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.1
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..color = checkColor.withValues(alpha: checkProgress);
+      canvas.drawPath(animatedCheck, checkPaint);
+    }
 
-    canvas.drawPath(drawPath, checkPaint);
+    canvas.restore();
   }
 
   @override
