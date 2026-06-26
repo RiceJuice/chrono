@@ -30,18 +30,15 @@ class CalendarSearchBottomBar extends ConsumerStatefulWidget {
 class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBar>
     with SingleTickerProviderStateMixin {
   static const _morphDuration = Duration(milliseconds: 380);
-  static const _barHeight = 52.0;
-  static const _closeButtonSize = 56.0;
-  static const _closeButtonGlyphSize = 20.0;
+  static const _barHeight = 48.0;
+  static const _closeButtonSize = 48.0;
   static const _gapBetweenCloseAndBar = 8.0;
+  static const _cornerRadius = 24.0;
   static const _glyphSize = 18.0;
-  static const _fieldFontSize = 16.0;
+  static const _fieldFontSize = 17.0;
 
-  static const _leadingIconSlotWidth = 40.0;
-  static const _trailingIconSlotWidth = 44.0;
+  static const _fieldPrefixInset = 12.0;
   static const _materialSearchTrailingInset = 34.0;
-  /// Zusätzlicher Versatz Richtung unterer Bildschirmrand.
-  static const _bottomBarDownshift = 8.0;
 
   late final AnimationController _morphController;
   late final Animation<double> _morphCurve;
@@ -79,7 +76,10 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   }
 
   double _morphEndCenterX() =>
-      _closeButtonSize + _gapBetweenCloseAndBar + _leadingIconSlotWidth / 2;
+      _closeButtonSize +
+      _gapBetweenCloseAndBar +
+      _fieldPrefixInset +
+      _glyphSize / 2;
 
   void _syncSearchInputFocus() {
     if (!mounted) return;
@@ -125,10 +125,7 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
     return isApple && PlatformVersion.shouldUseNativeGlass;
   }
 
-  Widget _buildCalendarCloseButton({
-    required double sparrowAssetSize,
-    required bool useNativeGlass,
-  }) {
+  Widget _buildCalendarCloseButton({required double sparrowAssetSize}) {
     final icon = SvgPicture.asset(
       DomspatzenIconMetrics.assetPath,
       height: sparrowAssetSize,
@@ -136,23 +133,18 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
       fit: BoxFit.contain,
     );
 
-    final button = Tooltip(
-      message: 'Suche beenden',
-      child: SizedBox(
-        width: _closeButtonSize,
-        height: _closeButtonSize,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: _handleClose,
-            child: Center(child: icon),
-          ),
-        ),
+    final button = SizedBox(
+      width: _closeButtonSize,
+      height: _closeButtonSize,
+      child: IconButton(
+        tooltip: 'Suche beenden',
+        onPressed: _handleClose,
+        padding: EdgeInsets.zero,
+        icon: icon,
       ),
     );
 
-    if (!useNativeGlass) {
+    if (!_useNativeGlass()) {
       final scheme = Theme.of(context).colorScheme;
       return Material(
         color: scheme.surface.withValues(alpha: 0.92),
@@ -166,7 +158,8 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
     return LiquidGlassContainer(
       config: LiquidGlassConfig(
         effect: CNGlassEffect.regular,
-        shape: CNGlassEffectShape.circle,
+        shape: CNGlassEffectShape.capsule,
+        cornerRadius: _closeButtonSize / 2,
         tint: isDark
             ? Colors.white.withValues(alpha: 0.05)
             : Colors.white.withValues(alpha: 0.42),
@@ -175,11 +168,8 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
     );
   }
 
-  Widget _buildGlassShell({
-    required Widget child,
-    required bool useNativeGlass,
-  }) {
-    if (useNativeGlass) {
+  Widget _buildGlassShell({required Widget child}) {
+    if (_useNativeGlass()) {
       final isDark = Theme.of(context).brightness == Brightness.dark;
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -187,7 +177,8 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
         child: LiquidGlassContainer(
           config: LiquidGlassConfig(
             effect: CNGlassEffect.regular,
-            shape: CNGlassEffectShape.capsule,
+            shape: CNGlassEffectShape.rect,
+            cornerRadius: _cornerRadius,
             tint: isDark
                 ? Colors.white.withValues(alpha: 0.05)
                 : Colors.white.withValues(alpha: 0.42),
@@ -204,7 +195,7 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(_barHeight / 2),
+          borderRadius: BorderRadius.circular(_cornerRadius),
         ),
         child: child,
       ),
@@ -214,8 +205,7 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final sparrowAssetSize =
-        DomspatzenIconMetrics.assetSizeForGlyph(_closeButtonGlyphSize);
+    final sparrowAssetSize = DomspatzenIconMetrics.assetSizeForGlyph(_glyphSize);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final inputFocused = ref.watch(calendarSearchInputFocusedProvider);
     final keyboardInset =
@@ -229,189 +219,162 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              12,
-              0,
-              12,
-              (bottomInset - 6 - _bottomBarDownshift).clamp(4.0, double.infinity),
-            ),
+            padding: EdgeInsets.fromLTRB(12, 8, 12, bottomInset + 8),
             child: AnimatedBuilder(
               animation: _morphCurve,
               builder: (context, child) {
-                final t = _morphCurve.value;
-                final morphComplete = t >= 1.0;
-                final useNativeGlass = _useNativeGlass() && morphComplete;
-                final dotOpacity = t.clamp(0.0, 1.0);
-                final fieldFlex = 0.15 + 0.85 * t;
+              final t = _morphCurve.value;
+              final dotOpacity = t.clamp(0.0, 1.0);
+              final fieldFlex = 0.15 + 0.85 * t;
 
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final rowWidth = constraints.maxWidth;
-                    final rowBox = context.findRenderObject() as RenderBox?;
-                    final startCenterX = _morphStartCenterX(rowWidth, rowBox);
-                    final endCenterX = _morphEndCenterX();
-                    final magnifierCenterX =
-                        lerpDouble(startCenterX, endCenterX, t)!;
-                    final flyingIconSize =
-                        lerpDouble(_glyphSize + 2, _glyphSize + 1, t)!;
-                    final flyingOpacity =
-                        (1.0 - (t - 0.92) / 0.08).clamp(0.0, 1.0);
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final rowWidth = constraints.maxWidth;
+                  final rowBox = context.findRenderObject() as RenderBox?;
+                  final startCenterX = _morphStartCenterX(rowWidth, rowBox);
+                  final endCenterX = _morphEndCenterX();
+                  final magnifierCenterX =
+                      lerpDouble(startCenterX, endCenterX, t)!;
+                  final flyingIconSize =
+                      lerpDouble(_glyphSize + 2, _glyphSize + 1, t)!;
+                  final flyingOpacity = (1.0 - (t - 0.92) / 0.08).clamp(0.0, 1.0);
 
-                    return SizedBox(
-                      height: _closeButtonSize,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              FadeTransition(
-                                opacity: AlwaysStoppedAnimation(dotOpacity),
-                                child: _buildCalendarCloseButton(
-                                  sparrowAssetSize: sparrowAssetSize,
-                                  useNativeGlass: useNativeGlass,
-                                ),
+                  return SizedBox(
+                    height: _barHeight,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Row(
+                          children: [
+                            FadeTransition(
+                              opacity: AlwaysStoppedAnimation(dotOpacity),
+                              child: _buildCalendarCloseButton(
+                                sparrowAssetSize: sparrowAssetSize,
                               ),
-                              const SizedBox(width: _gapBetweenCloseAndBar),
-                              Expanded(
-                                flex: (fieldFlex * 100).round().clamp(1, 100),
-                                child: _buildGlassShell(
-                                  useNativeGlass: useNativeGlass,
-                                  child: SizedBox(
-                                    height: _barHeight,
-                                    child: Stack(
-                                      children: [
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            SizedBox(
-                                              width: _leadingIconSlotWidth,
-                                              height: _barHeight,
-                                              child: t >= 0.92
-                                                  ? IgnorePointer(
-                                                      child: Opacity(
-                                                        opacity: ((t - 0.92) /
-                                                                0.08)
-                                                            .clamp(0.0, 1.0),
-                                                        child: Center(
-                                                          child: Icon(
-                                                            Icons.search_rounded,
-                                                            size: _glyphSize,
-                                                            color: scheme
-                                                                .onSurfaceVariant,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    )
-                                                  : const SizedBox.shrink(),
-                                            ),
-                                            Expanded(
-                                              child: TextField(
-                                                controller: _textController,
-                                                focusNode: _focusNode,
-                                                textInputAction:
-                                                    TextInputAction.search,
-                                                textAlignVertical:
-                                                    TextAlignVertical.center,
-                                                style: TextStyle(
-                                                  fontSize: _fieldFontSize,
-                                                  height: 1.0,
-                                                  color: scheme.onSurface
-                                                      .withValues(alpha: 0.96),
-                                                ),
-                                                decoration: InputDecoration(
-                                                  isDense: true,
-                                                  filled: false,
-                                                  fillColor: Colors.transparent,
-                                                  border: InputBorder.none,
-                                                  enabledBorder:
-                                                      InputBorder.none,
-                                                  focusedBorder:
-                                                      InputBorder.none,
-                                                  hintText:
-                                                      'Finde den richtigen Termin',
-                                                  hintStyle: TextStyle(
-                                                    fontSize: _fieldFontSize,
-                                                    height: 1.0,
-                                                    color: scheme.onSurface
-                                                        .withValues(alpha: 0.7),
-                                                  ),
-                                                  contentPadding:
-                                                      const EdgeInsets.symmetric(
-                                                    horizontal: 2,
-                                                    vertical: 14,
-                                                  ),
-                                                ),
-                                                onChanged: (value) {
-                                                  ref
-                                                      .read(
-                                                        calendarSearchQueryProvider
-                                                            .notifier,
-                                                      )
-                                                      .updateQuery(value);
-                                                },
-                                              ),
-                                            ),
-                                            SizedBox(
-                                              width: _trailingIconSlotWidth,
-                                              height: _barHeight,
-                                              child: IconButton(
-                                                tooltip: 'Filter',
-                                                onPressed: _openSearchFilters,
-                                                padding: EdgeInsets.zero,
-                                                visualDensity:
-                                                    VisualDensity.compact,
-                                                iconSize: _glyphSize,
-                                                style: IconButton.styleFrom(
-                                                  tapTargetSize:
-                                                      MaterialTapTargetSize
-                                                          .shrinkWrap,
-                                                ),
-                                                icon: Icon(
-                                                  Icons.filter_list_rounded,
-                                                  size: _glyphSize,
-                                                  color: scheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                            ),
+                            const SizedBox(width: _gapBetweenCloseAndBar),
+                            Expanded(
+                              flex: (fieldFlex * 100).round().clamp(1, 100),
+                              child: _buildGlassShell(
+                                child: SizedBox(
+                                  height: _barHeight,
+                                  child: Stack(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 12,
+                                          right: 4,
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (t < 0.92)
-                            Positioned(
-                              left: magnifierCenterX - flyingIconSize / 2,
-                              top: 0,
-                              bottom: 0,
-                              child: IgnorePointer(
-                                child: Opacity(
-                                  opacity: flyingOpacity,
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.search_rounded,
-                                      size: flyingIconSize,
-                                      color: scheme.onSurfaceVariant,
-                                    ),
+                                        child: TextField(
+                                          controller: _textController,
+                                          focusNode: _focusNode,
+                                          textInputAction: TextInputAction.search,
+                                          style: TextStyle(
+                                            fontSize: _fieldFontSize,
+                                            color: scheme.onSurface.withValues(
+                                              alpha: 0.96,
+                                            ),
+                                          ),
+                                          decoration: InputDecoration(
+                                            isDense: true,
+                                            filled: false,
+                                            fillColor: Colors.transparent,
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            hintText: 'Finde den richtigen Termin',
+                                            hintStyle: TextStyle(
+                                              fontSize: _fieldFontSize,
+                                              color: scheme.onSurface.withValues(
+                                                alpha: 0.7,
+                                              ),
+                                            ),
+                                            contentPadding: const EdgeInsets.only(
+                                              left: 28,
+                                              right: 36,
+                                              top: 12,
+                                              bottom: 12,
+                                            ),
+                                          ),
+                                          onChanged: (value) {
+                                            ref
+                                                .read(
+                                                  calendarSearchQueryProvider
+                                                      .notifier,
+                                                )
+                                                .updateQuery(value);
+                                          },
+                                        ),
+                                      ),
+                                      Positioned(
+                                        right: 0,
+                                        top: 0,
+                                        bottom: 0,
+                                        child: IconButton(
+                                          tooltip: 'Filter',
+                                          onPressed: _openSearchFilters,
+                                          padding: EdgeInsets.zero,
+                                          visualDensity: VisualDensity.compact,
+                                          iconSize: _glyphSize,
+                                          icon: Icon(
+                                            Icons.filter_list_rounded,
+                                            size: _glyphSize,
+                                            color: scheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ),
+                                      if (t >= 0.92)
+                                        Positioned(
+                                          left: _fieldPrefixInset,
+                                          top: 0,
+                                          bottom: 0,
+                                          child: IgnorePointer(
+                                            child: Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Opacity(
+                                                opacity: ((t - 0.92) / 0.08)
+                                                    .clamp(0.0, 1.0),
+                                                child: Icon(
+                                                  Icons.search_rounded,
+                                                  size: _glyphSize + 1,
+                                                  color: scheme.onSurfaceVariant,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                          ],
+                        ),
+                        if (t < 0.92)
+                          Positioned(
+                            left: magnifierCenterX - flyingIconSize / 2,
+                            top: 0,
+                            bottom: 0,
+                            child: IgnorePointer(
+                              child: Opacity(
+                                opacity: flyingOpacity,
+                                child: Icon(
+                                  Icons.search_rounded,
+                                  size: flyingIconSize,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
           ),
-        ],
+        ),
+      ],
       ),
     );
   }

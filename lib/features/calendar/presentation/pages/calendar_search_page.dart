@@ -30,12 +30,16 @@ class CalendarSearchPage extends ConsumerStatefulWidget {
 
 class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   static const double _stickyHeaderHeight = 40;
-  static const Duration _initialMorphWindow = Duration(milliseconds: 280);
+  static const Duration _initialMorphWindow = Duration(milliseconds: 520);
 
   double get _listTopPadding => _stickyHeaderHeight;
 
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
+  DateTime? _stickyDay;
+  double _stickyHeaderPushOffset = 0;
+  double _listViewportHeight = 0;
+  List<_SearchListRow> _rowsForSticky = const <_SearchListRow>[];
   bool _hasUserInteractedWithList = false;
   bool _playInitialMorph = false;
   Timer? _initialMorphTimer;
@@ -45,12 +49,17 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     super.initState();
     _playInitialMorph = widget.playInitialMorph;
     _scheduleInitialMorphEnd();
+    _itemPositionsListener.itemPositions.addListener(
+      _updateStickyDayFromPositions,
+    );
   }
 
   @override
   void didUpdateWidget(covariant CalendarSearchPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query != widget.query) {
+      _stickyDay = null;
+      _stickyHeaderPushOffset = 0;
       _hasUserInteractedWithList = false;
     }
     if (!oldWidget.playInitialMorph && widget.playInitialMorph) {
@@ -61,6 +70,9 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   @override
   void dispose() {
     _initialMorphTimer?.cancel();
+    _itemPositionsListener.itemPositions.removeListener(
+      _updateStickyDayFromPositions,
+    );
     super.dispose();
   }
 
@@ -110,6 +122,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
 
         final sectionsResult = buildSearchResultsSections(entries: entries);
         final rows = _buildRows(sectionsResult.sections);
+        _rowsForSticky = rows;
         final targetRowIndex = _firstRowIndexForSection(
           rows: rows,
           sectionIndex: sectionsResult.initialSectionIndex,
@@ -122,83 +135,99 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              
               Expanded(
                 child: Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
-                    ColoredBox(
-                      color: theme.scaffoldBackgroundColor,
-                      child: NotificationListener<ScrollNotification>(
-                        onNotification: (notification) {
-                          if (notification is ScrollStartNotification) {
-                            _dismissSearchKeyboard();
-                          }
-                          if (_hasUserInteractedWithList) return false;
-                          if (notification is ScrollUpdateNotification &&
-                              notification.dragDetails != null) {
-                            setState(() => _hasUserInteractedWithList = true);
-                          } else if (notification is UserScrollNotification &&
-                              notification.direction !=
-                                  ScrollDirection.idle) {
-                            setState(() => _hasUserInteractedWithList = true);
-                          }
-                          return false;
-                        },
-                        child: ScrollablePositionedList.builder(
-                          key: ValueKey(
-                            'search-list-${widget.query}-${_filtersSignature(filters)}',
-                          ),
-                          itemPositionsListener: _itemPositionsListener,
-                          padding: EdgeInsets.only(
-                            top: _listTopPadding,
-                            bottom: AppSpacing.l,
-                          ),
-                          itemCount: rows.length,
-                          initialScrollIndex: targetRowIndex,
-                          itemBuilder: (context, index) {
-                            final row = rows[index];
-                            final lastIndex = rows.length - 1;
-                            final Widget child;
-                            if (row.headerDay != null) {
-                              child = CalendarDaySectionHeader(
-                                day: row.headerDay!,
-                                height: _stickyHeaderHeight,
-                              );
-                            } else {
-                              child = CalendarEntryCard(
-                                key: ValueKey<String>(
-                                  'calendar-entry-${row.entry!.id}',
-                                ),
-                                entry: row.entry!,
-                                applyPastStyling: true,
-                              );
-                            }
-                            final morphedChild = _wrapInitialMorph(
-                              child: child,
-                              index: index,
-                            );
-                            return RepaintBoundary(
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  morphedChild,
-                                  if (index != lastIndex)
-                                    const SizedBox(height: AppSpacing.m),
-                                ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        _listViewportHeight = constraints.maxHeight;
+                        return ColoredBox(
+                          color: theme.colorScheme.surface,
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: (notification) {
+                              if (notification is ScrollStartNotification ||
+                                  notification is ScrollUpdateNotification ||
+                                  notification is UserScrollNotification) {
+                                _dismissSearchKeyboard();
+                              }
+                              if (_hasUserInteractedWithList) return false;
+                              if (notification is ScrollUpdateNotification &&
+                                  notification.dragDetails != null) {
+                                _hasUserInteractedWithList = true;
+                              } else if (notification is UserScrollNotification &&
+                                  notification.direction !=
+                                      ScrollDirection.idle) {
+                                _hasUserInteractedWithList = true;
+                              }
+                              return false;
+                            },
+                            child: ScrollablePositionedList.builder(
+                              key: ValueKey(
+                                'search-list-${widget.query}-${_filtersSignature(filters)}',
                               ),
-                            );
-                          },
+                              itemPositionsListener: _itemPositionsListener,
+                              padding: EdgeInsets.only(
+                                top: _listTopPadding,
+                                bottom: AppSpacing.l,
+                              ),
+                              itemCount: rows.length,
+                              initialScrollIndex: targetRowIndex,
+                              itemBuilder: (context, index) {
+                                final row = rows[index];
+                                final lastIndex = rows.length - 1;
+                                final Widget child;
+                                if (row.headerDay != null) {
+                                  child = CalendarDaySectionHeader(
+                                    day: row.headerDay!,
+                                    height: _stickyHeaderHeight,
+                                  );
+                                } else {
+                                  child = CalendarEntryCard(
+                                    key: ValueKey<String>(
+                                      'calendar-entry-${row.entry!.id}',
+                                    ),
+                                    entry: row.entry!,
+                                    applyPastStyling: true,
+                                  );
+                                }
+                                final morphedChild = _wrapInitialMorph(
+                                  child: child,
+                                  index: index,
+                                );
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    morphedChild,
+                                    if (index != lastIndex)
+                                      const SizedBox(height: AppSpacing.m),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    if (_stickyDay != null &&
+                        _stickyHeaderPushOffset > -_stickyHeaderHeight)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          child: Transform.translate(
+                            offset: Offset(0, _stickyHeaderPushOffset),
+                            child: CalendarDaySectionHeader(
+                              day: _stickyDay!,
+                              height: _stickyHeaderHeight,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    _SearchStickyDayOverlay(
-                      rows: rows,
-                      itemPositionsListener: _itemPositionsListener,
-                      stickyHeaderHeight: _stickyHeaderHeight,
-                      hasUserInteractedWithList: _hasUserInteractedWithList,
-                    ),
                   ],
                 ),
               ),
@@ -207,6 +236,8 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
         );
       },
       loading: () {
+        _stickyDay = null;
+        _stickyHeaderPushOffset = 0;
         return const _DebouncedLoadingIndicator();
       },
       error: (err, stack) => Center(child: Text('Fehler: $err')),
@@ -232,22 +263,30 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
   }
 
   Widget _wrapInitialMorph({required Widget child, required int index}) {
-    if (!_playInitialMorph || index > 5) return child;
+    if (!_playInitialMorph) return child;
 
-    final cappedIndex = index.clamp(0, 5);
+    final cappedIndex = index.clamp(0, 8);
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOutExpo,
       builder: (context, value, child) {
-        final start = (0.045 * cappedIndex).clamp(0.0, 0.22);
+        final start = (0.038 * cappedIndex).clamp(0.0, 0.32);
         final effectiveValue = ((value - start) / (1 - start)).clamp(0.0, 1.0);
         final eased = Curves.easeOutCubic.transform(effectiveValue);
+        final settleValue = Curves.easeOut.transform(
+          ((effectiveValue - 0.78) / 0.22).clamp(0.0, 1.0),
+        );
+        final scale = 0.965 + (0.039 * eased) - (0.004 * settleValue);
         return Opacity(
           opacity: eased,
           child: Transform.translate(
-            offset: Offset(0, (1 - eased) * 10),
-            child: child,
+            offset: Offset(0, (1 - eased) * 18),
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.topCenter,
+              child: child,
+            ),
           ),
         );
       },
@@ -292,70 +331,9 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
     return 0;
   }
 
-  String _filtersSignature(CalendarFiltersState filters) {
-    return [
-      ...filters.choirs,
-      '::',
-      ...filters.voices,
-      '::',
-      ...filters.classNames,
-      '::',
-      ...filters.schoolTracks,
-    ].join('|');
-  }
-}
-
-class _SearchStickyDayOverlay extends StatefulWidget {
-  const _SearchStickyDayOverlay({
-    required this.rows,
-    required this.itemPositionsListener,
-    required this.stickyHeaderHeight,
-    required this.hasUserInteractedWithList,
-  });
-
-  final List<_SearchListRow> rows;
-  final ItemPositionsListener itemPositionsListener;
-  final double stickyHeaderHeight;
-  final bool hasUserInteractedWithList;
-
-  @override
-  State<_SearchStickyDayOverlay> createState() =>
-      _SearchStickyDayOverlayState();
-}
-
-class _SearchStickyDayOverlayState extends State<_SearchStickyDayOverlay> {
-  DateTime? _stickyDay;
-  double _stickyHeaderPushOffset = 0;
-  double _listViewportHeight = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.itemPositionsListener.itemPositions.addListener(
-      _updateStickyDayFromPositions,
-    );
-  }
-
-  @override
-  void didUpdateWidget(covariant _SearchStickyDayOverlay oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.rows != widget.rows) {
-      _stickyDay = null;
-      _stickyHeaderPushOffset = 0;
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.itemPositionsListener.itemPositions.removeListener(
-      _updateStickyDayFromPositions,
-    );
-    super.dispose();
-  }
-
   void _updateStickyDayFromPositions() {
-    if (!mounted || widget.rows.isEmpty) return;
-    final positions = widget.itemPositionsListener.itemPositions.value;
+    if (!mounted || _rowsForSticky.isEmpty) return;
+    final positions = _itemPositionsListener.itemPositions.value;
     if (positions.isEmpty) return;
 
     final visible = positions
@@ -367,7 +345,7 @@ class _SearchStickyDayOverlayState extends State<_SearchStickyDayOverlay> {
 
     int? contentTopIndex;
     for (final v in visible) {
-      if (v.index >= widget.rows.length) continue;
+      if (v.index >= _rowsForSticky.length) continue;
       contentTopIndex = v.index;
       break;
     }
@@ -377,10 +355,10 @@ class _SearchStickyDayOverlayState extends State<_SearchStickyDayOverlay> {
 
     if (contentTopIndex != null) {
       final topIndex = contentTopIndex;
-      nextStickyDay = widget.rows[topIndex].headerDay;
+      nextStickyDay = _rowsForSticky[topIndex].headerDay;
       if (nextStickyDay == null) {
         for (var i = topIndex; i >= 0; i--) {
-          final candidate = widget.rows[i].headerDay;
+          final candidate = _rowsForSticky[i].headerDay;
           if (candidate != null) {
             nextStickyDay = candidate;
             break;
@@ -394,19 +372,19 @@ class _SearchStickyDayOverlayState extends State<_SearchStickyDayOverlay> {
                 .where(
                   (p) =>
                       p.index > topIndex &&
-                      widget.rows[p.index].headerDay != null,
+                      _rowsForSticky[p.index].headerDay != null,
                 )
                 .toList()
               ..sort((a, b) => a.index.compareTo(b.index));
         if (nextHeaderPosition.isNotEmpty) {
           final leadingPx =
               nextHeaderPosition.first.itemLeadingEdge * _listViewportHeight;
-          if (leadingPx < widget.stickyHeaderHeight) {
-            pushOffset = leadingPx - widget.stickyHeaderHeight;
+          if (leadingPx < _stickyHeaderHeight) {
+            pushOffset = leadingPx - _stickyHeaderHeight;
           }
         }
 
-        if (pushOffset <= -widget.stickyHeaderHeight) {
+        if (pushOffset <= -_stickyHeaderHeight) {
           nextStickyDay = null;
           pushOffset = 0;
         }
@@ -417,15 +395,15 @@ class _SearchStickyDayOverlayState extends State<_SearchStickyDayOverlay> {
         (_stickyDay == null) != (nextStickyDay == null) ||
         (nextStickyDay != null &&
             _stickyDay != null &&
-            !AppDateTime.isSameLocalDay(_stickyDay!, nextStickyDay));
+            !_isSameDay(_stickyDay!, nextStickyDay));
     if (stickyDayChanged &&
-        widget.hasUserInteractedWithList &&
+        _hasUserInteractedWithList &&
         nextStickyDay != null) {
       HapticFeedback.mediumImpact();
     }
 
     if (stickyDayChanged ||
-        (_stickyHeaderPushOffset - pushOffset).abs() > 0.25) {
+        (_stickyHeaderPushOffset - pushOffset).abs() > 0.1) {
       setState(() {
         _stickyDay = nextStickyDay;
         _stickyHeaderPushOffset = pushOffset;
@@ -433,31 +411,20 @@ class _SearchStickyDayOverlayState extends State<_SearchStickyDayOverlay> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _listViewportHeight = constraints.maxHeight;
-        if (_stickyDay == null ||
-            _stickyHeaderPushOffset <= -widget.stickyHeaderHeight) {
-          return const SizedBox.shrink();
-        }
-        return Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: IgnorePointer(
-            child: Transform.translate(
-              offset: Offset(0, _stickyHeaderPushOffset),
-              child: CalendarDaySectionHeader(
-                day: _stickyDay!,
-                height: widget.stickyHeaderHeight,
-              ),
-            ),
-          ),
-        );
-      },
-    );
+  bool _isSameDay(DateTime a, DateTime b) {
+    return AppDateTime.isSameLocalDay(a, b);
+  }
+
+  String _filtersSignature(CalendarFiltersState filters) {
+    return [
+      ...filters.choirs,
+      '::',
+      ...filters.voices,
+      '::',
+      ...filters.classNames,
+      '::',
+      ...filters.schoolTracks,
+    ].join('|');
   }
 }
 

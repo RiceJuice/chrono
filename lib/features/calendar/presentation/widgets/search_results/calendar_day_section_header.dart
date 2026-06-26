@@ -28,7 +28,7 @@ class CalendarDaySectionHeader extends StatelessWidget {
 
     return Container(
       height: height,
-      color: Theme.of(context).scaffoldBackgroundColor,
+      color: Theme.of(context).colorScheme.surface,
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Text(

@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 
 /// Ein-/Ausblend-Animation für den Kalender-Suchmodus (Shell-Overlay).
 abstract final class CalendarSearchEntranceTransition {
-  static const duration = Duration(milliseconds: 260);
-  static const reverseDuration = Duration(milliseconds: 220);
+  static const duration = Duration(milliseconds: 440);
+  static const reverseDuration = Duration(milliseconds: 360);
 
   /// Snappy ease-out — wirkt lebendig, ohne zu springen.
-  static const curve = Cubic(0.22, 1.0, 0.36, 1.0);
-  static const reverseCurve = Cubic(0.4, 0.0, 0.8, 1.0);
+  static const curve = Cubic(0.16, 1.0, 0.3, 1.0);
+  static const reverseCurve = Cubic(0.4, 0.0, 0.6, 1.0);
 
   static double _t(Animation<double> animation) =>
       animation.value.clamp(0.0, 1.0);
@@ -58,8 +58,8 @@ abstract final class CalendarSearchEntranceTransition {
       builder: (context, child) {
         final t = _t(animation);
         final slide = curve.transform(t);
-        final fade = const Interval(0.0, 0.55, curve: Curves.easeOut).transform(t);
-        final reveal = lerpDouble(0.92, 1.0, slide)!;
+        final fade = const Interval(0.0, 0.7, curve: Curves.easeOut).transform(t);
+        final reveal = lerpDouble(0.88, 1.0, slide)!;
 
         return Opacity(
           opacity: fade,
@@ -68,7 +68,7 @@ abstract final class CalendarSearchEntranceTransition {
               alignment: Alignment.bottomCenter,
               heightFactor: reveal,
               child: Transform.translate(
-                offset: Offset(0, (1 - slide) * 20),
+                offset: Offset(0, (1 - slide) * 32),
                 child: Transform.scale(
                   scale: lerpDouble(0.982, 1.0, slide)!,
                   alignment: Alignment.bottomCenter,
@@ -94,12 +94,12 @@ abstract final class CalendarSearchEntranceTransition {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
-        final t = const Interval(0.08, 0.75, curve: Curves.easeOutCubic)
+        final t = const Interval(0.16, 0.9, curve: Curves.easeOutCubic)
             .transform(_t(animation));
         return Opacity(
           opacity: t,
           child: Transform.translate(
-            offset: Offset(0, (1 - t) * -10),
+            offset: Offset(0, (1 - t) * -16),
             child: child,
           ),
         );
@@ -119,12 +119,12 @@ abstract final class CalendarSearchEntranceTransition {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
-        final t = const Interval(0.14, 0.85, curve: Curves.easeOutCubic)
+        final t = const Interval(0.26, 1.0, curve: Curves.easeOutCubic)
             .transform(_t(animation));
         return Opacity(
           opacity: t,
           child: Transform.translate(
-            offset: Offset(0, (1 - t) * -8),
+            offset: Offset(0, (1 - t) * -12),
             child: child,
           ),
         );
