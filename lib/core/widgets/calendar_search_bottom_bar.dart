@@ -3,7 +3,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
-import 'package:chronoapp/core/widgets/domspatzen_icon_metrics.dart';
+import 'package:chronoapp/core/widgets/domspatzen_icon.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_header/calendar_filter_bottom_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/search/calendar_search_layer.dart';
@@ -12,7 +12,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
 
 /// Liquid-Glass-Suchleiste im Suchmodus (ersetzt die Tab-Bar).
 class CalendarSearchBottomBar extends ConsumerStatefulWidget {
@@ -132,14 +131,12 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   }
 
   Widget _buildCalendarCloseButton({
-    required double sparrowAssetSize,
     required bool useNativeGlass,
   }) {
-    final icon = SvgPicture.asset(
-      DomspatzenIconMetrics.assetPath,
-      height: sparrowAssetSize,
-      width: sparrowAssetSize,
-      fit: BoxFit.contain,
+    final scheme = Theme.of(context).colorScheme;
+    final icon = DomspatzenIcon(
+      glyphSize: _glyphSize,
+      color: scheme.onSurface,
     );
 
     final button = SizedBox(
@@ -154,7 +151,6 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
     );
 
     if (!useNativeGlass) {
-      final scheme = Theme.of(context).colorScheme;
       return Material(
         color: scheme.surface.withValues(alpha: 0.92),
         shape: const CircleBorder(),
@@ -307,7 +303,6 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final sparrowAssetSize = DomspatzenIconMetrics.assetSizeForGlyph(_glyphSize);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final inputFocused = ref.watch(calendarSearchInputFocusedProvider);
     final keyboardInset =
@@ -346,7 +341,6 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _buildCalendarCloseButton(
-                        sparrowAssetSize: sparrowAssetSize,
                         useNativeGlass: _useNativeGlass(),
                       ),
                       const SizedBox(width: _gapBetweenCloseAndBar),

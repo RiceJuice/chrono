@@ -19,6 +19,7 @@ void main() {
     test('no symbol when close to tempered pitch', () {
       final label = tuningPitchLabelForFrequency(440);
       expect(label.noteWithOctave, 'A4');
+      expect(label.noteLetter, 'a');
       expect(label.tuningSymbol, isNull);
     });
   });

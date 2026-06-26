@@ -34,6 +34,9 @@ class TuningPitchLabel {
 
   String get noteWithOctave => '$noteName$octave';
 
+  /// Nur der Tonbuchstabe ohne Oktavzahl, z. B. „a“ statt „A4“.
+  String get noteLetter => noteName.toLowerCase();
+
   bool get hasTuningSymbol => tuningSymbol != null;
 }
 

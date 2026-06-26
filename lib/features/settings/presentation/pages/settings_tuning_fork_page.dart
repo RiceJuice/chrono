@@ -241,7 +241,7 @@ class _FrequencyDisplay extends StatelessWidget {
       children: [
         Text('${pitchLabel!.frequencyHz} Hz', style: baseStyle),
         const SizedBox(width: 14),
-        Text(pitchLabel!.noteWithOctave, style: noteStyle),
+        Text(pitchLabel!.noteLetter, style: noteStyle),
         if (pitchLabel!.tuningSymbol != null)
           Text(pitchLabel!.tuningSymbol!, style: symbolStyle),
       ],
