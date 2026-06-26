@@ -31,6 +31,8 @@ class CalendarSearchBottomBar extends ConsumerStatefulWidget {
 class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBar>
     with SingleTickerProviderStateMixin {
   static const _morphDuration = Duration(milliseconds: 420);
+  /// Entspricht [kMainShellNavigationBarHeight] — dupliziert wegen Zirkelimport.
+  static const _shellBarHeight = 56.0;
   static const _barHeight = 48.0;
   static const _closeButtonSize = 48.0;
   static const _searchButtonSize = 44.0;
@@ -76,7 +78,7 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
       return Rect.fromPoints(topLeft, bottomRight);
     }
 
-    final top = (_barHeight - _searchButtonSize) / 2;
+    final top = (_shellBarHeight - _searchButtonSize) / 2;
     return Rect.fromLTWH(
       slotWidth - _searchButtonSize,
       top,
@@ -320,7 +322,7 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(12, 8, 12, bottomInset + 8),
+            padding: EdgeInsets.fromLTRB(12, 0, 12, bottomInset),
             child: AnimatedBuilder(
               animation: _morphCurve,
               builder: (context, child) {
@@ -339,8 +341,9 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
                 ).transform(t);
 
                 return SizedBox(
-                  height: _barHeight,
+                  height: _shellBarHeight,
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _buildCalendarCloseButton(
                         sparrowAssetSize: sparrowAssetSize,
@@ -370,8 +373,8 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
                             )!;
                             final fieldLeft = fieldRight - fieldWidth;
                             final fieldTop = lerpDouble(
-                              startRect.top.clamp(0.0, _barHeight),
-                              0.0,
+                              startRect.top.clamp(0.0, _shellBarHeight),
+                              (_shellBarHeight - _barHeight) / 2,
                               t,
                             )!;
                             final fieldHeight = lerpDouble(
