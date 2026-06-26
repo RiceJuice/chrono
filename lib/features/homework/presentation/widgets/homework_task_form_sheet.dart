@@ -2,16 +2,13 @@ import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
-import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/event_form_island.dart';
-import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/pickers/event_inline_date_picker.dart';
-import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/sections/event_form_text_field.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filtered_entries_providers.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
 import 'package:chronoapp/features/homework/domain/next_lesson_for_subject.dart';
 import 'package:chronoapp/features/homework/presentation/providers/homework_due_providers.dart';
 import 'package:chronoapp/features/homework/presentation/providers/homework_providers.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_due_section.dart';
-import 'package:chronoapp/features/homework/presentation/widgets/homework_subject_section.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_form_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -135,128 +132,90 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final showDatePicker = _dueMode == HomeworkDueMode.customDate;
+    final fieldDecoration = InputDecoration(
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      filled: false,
+      isDense: true,
+      contentPadding: EdgeInsets.zero,
+      hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+    );
 
     return SafeArea(
       top: false,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           AppSpacing.xl,
-          AppSpacing.m,
+          AppSpacing.s,
           AppSpacing.xl,
-          AppSpacing.l + bottomInset,
+          AppSpacing.m + bottomInset,
         ),
         child: Form(
           key: _formKey,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Neue Aufgabe',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              const HomeworkFormHeader(title: 'Neue Aufgabe'),
               const SizedBox(height: AppSpacing.m),
-              EventFormIsland(
+              HomeworkFormGroup(
                 children: [
-                  TextFormField(
-                    controller: _titleController,
-                    textInputAction: TextInputAction.next,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                    decoration: InputDecoration(
-                      hintText: 'Titel (Pflicht)',
-                      hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.l,
-                        vertical: AppSpacing.m + 2,
+                  HomeworkFormField(
+                    child: TextFormField(
+                      controller: _titleController,
+                      textInputAction: TextInputAction.next,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      decoration: fieldDecoration.copyWith(
+                        hintText: 'Titel',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Bitte einen Titel eingeben.';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  HomeworkFormField(
+                    child: TextFormField(
+                      controller: _descriptionController,
+                      maxLines: 1,
+                      textInputAction: TextInputAction.done,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      decoration: fieldDecoration.copyWith(
+                        hintText: 'Beschreibung (optional)',
                       ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Bitte einen Titel eingeben.';
-                      }
-                      return null;
-                    },
                   ),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.m),
-              EventFormIsland(
-                children: [
-                  EventFormTextField(
-                    hint: 'Beschreibung',
-                    controller: _descriptionController,
-                    maxLines: 2,
-                    textInputAction: TextInputAction.newline,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.m),
-              HomeworkSubjectSection(
-                selectedSubjectId: _selectedSubjectId,
-                onSubjectChanged: _onSubjectChanged,
               ),
               const SizedBox(height: AppSpacing.m),
               HomeworkDueSection(
                 selectedSubjectId: _selectedSubjectId,
+                onSubjectChanged: _onSubjectChanged,
                 mode: _dueMode,
                 onModeChanged: (mode) => setState(() => _dueMode = mode),
+                customDueDate: _customDueDate,
+                onCustomDueDateChanged: (date) {
+                  setState(() => _customDueDate = date);
+                },
               ),
-              if (showDatePicker) ...[
-                const SizedBox(height: AppSpacing.s),
-                Expanded(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(AppRadius.l),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.l),
-                      child: EventInlineDatePicker(
-                        value: _customDueDate,
-                        onChanged: (date) {
-                          setState(() => _customDueDate = date);
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ] else
-                const Spacer(),
-              const SizedBox(height: AppSpacing.m),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _saving
-                          ? null
-                          : () {
-                              AppHaptics.selection();
-                              Navigator.of(context).pop();
-                            },
-                      child: const Text('Abbrechen'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.m),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _saving || !_canCreate ? null : _onCreate,
-                      child: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Erstellen'),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: AppSpacing.l),
+              HomeworkFormFooter(
+                busy: _saving,
+                submitEnabled: _canCreate,
+                submitLabel: 'Aufgabe erstellen',
+                onCancel: () {
+                  AppHaptics.selection();
+                  Navigator.of(context).pop();
+                },
+                onSubmit: () {
+                  AppHaptics.light();
+                  _onCreate();
+                },
               ),
             ],
           ),

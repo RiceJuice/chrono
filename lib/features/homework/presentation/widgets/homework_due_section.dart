@@ -1,9 +1,14 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/pickers/event_date_time_pickers.dart';
+import 'package:chronoapp/features/calendar/event_editor/presentation/widgets/pickers/event_inline_date_picker.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
 import 'package:chronoapp/features/homework/presentation/helpers/homework_due_display.dart';
 import 'package:chronoapp/features/homework/presentation/providers/homework_due_providers.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_form_shell.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_subject_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,153 +22,236 @@ class HomeworkDueSection extends ConsumerWidget {
   const HomeworkDueSection({
     super.key,
     required this.selectedSubjectId,
+    required this.onSubjectChanged,
     required this.mode,
     required this.onModeChanged,
+    required this.customDueDate,
+    required this.onCustomDueDateChanged,
   });
 
   final String? selectedSubjectId;
+  final ValueChanged<String?> onSubjectChanged;
   final HomeworkDueMode mode;
   final ValueChanged<HomeworkDueMode> onModeChanged;
+  final DateTime customDueDate;
+  final ValueChanged<DateTime> onCustomDueDateChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-    final chipBg = scheme.surfaceContainerHighest;
     final hasSubject =
         selectedSubjectId != null && selectedSubjectId!.trim().isNotEmpty;
     final nextLessonAsync = hasSubject
         ? ref.watch(nextLessonForSubjectProvider(selectedSubjectId))
         : const AsyncData<CalendarEntry?>(null);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return HomeworkFormGroup(
       children: [
-        Text(
-          'Fällig bis',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
+        HomeworkSubjectPickerRow(
+          selectedSubjectId: selectedSubjectId,
+          onSubjectChanged: onSubjectChanged,
         ),
-        const SizedBox(height: AppSpacing.s),
-        Wrap(
-          spacing: AppSpacing.s,
-          runSpacing: AppSpacing.s,
-          children: [
-            _DueModeChip(
-              label: 'Keine',
-              selected: mode == HomeworkDueMode.none,
-              chipBackgroundColor: chipBg,
-              onSelected: () => onModeChanged(HomeworkDueMode.none),
-            ),
-            _DueModeChip(
-              label: 'Nächste Stunde',
-              selected: mode == HomeworkDueMode.nextLesson,
-              enabled: hasSubject,
-              chipBackgroundColor: chipBg,
-              onSelected: hasSubject
-                  ? () => onModeChanged(HomeworkDueMode.nextLesson)
-                  : null,
-            ),
-            _DueModeChip(
-              label: 'Datum wählen',
-              selected: mode == HomeworkDueMode.customDate,
-              chipBackgroundColor: chipBg,
-              onSelected: () => onModeChanged(HomeworkDueMode.customDate),
-            ),
-          ],
-        ),
-        if (mode == HomeworkDueMode.nextLesson) ...[
-          const SizedBox(height: AppSpacing.s),
-          nextLessonAsync.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            ),
-            error: (_, _) => Text(
-              'Kalender konnte nicht geladen werden.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.error,
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.l),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              HomeworkFormSegmentedControl<HomeworkDueMode>(
+                value: mode,
+                onChanged: (next) {
+                  AppHaptics.selection();
+                  onModeChanged(next);
+                },
+                segments: [
+                  const HomeworkFormSegment(
+                    value: HomeworkDueMode.none,
+                    label: 'Keine',
                   ),
-            ),
-            data: (lesson) {
-              if (lesson == null) {
-                return Text(
-                  'Keine kommende Stunde für dieses Fach gefunden.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.error,
-                      ),
-                );
-              }
+                  HomeworkFormSegment(
+                    value: HomeworkDueMode.nextLesson,
+                    label: 'Nächste Stunde',
+                    enabled: hasSubject,
+                  ),
+                  const HomeworkFormSegment(
+                    value: HomeworkDueMode.customDate,
+                    label: 'Datum',
+                  ),
+                ],
+              ),
+              if (mode == HomeworkDueMode.nextLesson) ...[
+                const SizedBox(height: AppSpacing.m),
+                nextLessonAsync.when(
+                  loading: () => const _CompactDueHint(
+                    icon: Icons.schedule_rounded,
+                    message: 'Stunde wird gesucht …',
+                  ),
+                  error: (_, _) => const _CompactDueHint(
+                    icon: Icons.error_outline_rounded,
+                    message: 'Kalender nicht geladen',
+                    isError: true,
+                  ),
+                  data: (lesson) {
+                    if (lesson == null) {
+                      return const _CompactDueHint(
+                        icon: Icons.event_busy_rounded,
+                        message: 'Keine kommende Stunde',
+                        isError: true,
+                      );
+                    }
 
-              final preview = formatHomeworkDueLabel(
-                dueAt: lesson.startTime,
-                dueSource: HomeworkDueSource.nextLesson,
-              );
-              return Text(
-                preview,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-              );
-            },
+                    final preview = formatHomeworkDueLabel(
+                      dueAt: lesson.startTime,
+                      dueSource: HomeworkDueSource.nextLesson,
+                    );
+                    return _CompactDueHint(
+                      icon: Icons.schedule_rounded,
+                      message: 'Fällig vor $preview',
+                    );
+                  },
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
+        if (mode == HomeworkDueMode.customDate)
+          HomeworkFormPickerRow(
+            label: 'Fällig am',
+            value: EventDateTimePickers.formatDate(customDueDate),
+            onTap: () => _HomeworkDatePickerSheet.show(
+              context,
+              initialDate: customDueDate,
+              onChanged: onCustomDueDateChanged,
+            ),
+          ),
       ],
     );
   }
 }
 
-class _DueModeChip extends StatelessWidget {
-  const _DueModeChip({
-    required this.label,
-    required this.selected,
-    required this.chipBackgroundColor,
-    required this.onSelected,
-    this.enabled = true,
+class _CompactDueHint extends StatelessWidget {
+  const _CompactDueHint({
+    required this.icon,
+    required this.message,
+    this.isError = false,
   });
 
-  final String label;
-  final bool selected;
-  final Color chipBackgroundColor;
-  final VoidCallback? onSelected;
-  final bool enabled;
+  final IconData icon;
+  final String message;
+  final bool isError;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final color = isError ? scheme.error : scheme.onSurfaceVariant;
 
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      showCheckmark: false,
-      labelStyle: TextStyle(
-        color: enabled
-            ? scheme.onSurface
-            : scheme.onSurface.withValues(alpha: 0.38),
-        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: AppSpacing.s),
+        Expanded(
+          child: Text(
+            message,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeworkDatePickerSheet extends StatefulWidget {
+  const _HomeworkDatePickerSheet({
+    required this.initialDate,
+    required this.onChanged,
+  });
+
+  final DateTime initialDate;
+  final ValueChanged<DateTime> onChanged;
+
+  static Future<void> show(
+    BuildContext context, {
+    required DateTime initialDate,
+    required ValueChanged<DateTime> onChanged,
+  }) {
+    return AppModalSheet.show<void>(
+      context: context,
+      showDragHandle: true,
+      sheetAnimationStyle: kSettingsChoiceSheetMotion,
+      builder: (sheetContext) {
+        return AppModalSheetChrome(
+          child: _HomeworkDatePickerSheet(
+            initialDate: initialDate,
+            onChanged: onChanged,
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  State<_HomeworkDatePickerSheet> createState() =>
+      _HomeworkDatePickerSheetState();
+}
+
+class _HomeworkDatePickerSheetState extends State<_HomeworkDatePickerSheet> {
+  late DateTime _value = widget.initialDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              AppSpacing.m,
+              AppSpacing.xl,
+              AppSpacing.s,
+            ),
+            child: Text(
+              'Fälligkeitsdatum',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+          EventInlineDatePicker(
+            value: _value,
+            onChanged: (date) => setState(() => _value = date),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              AppSpacing.s,
+              AppSpacing.xl,
+              AppSpacing.m + bottomInset,
+            ),
+            child: FilledButton(
+              onPressed: () {
+                AppHaptics.light();
+                widget.onChanged(_value);
+                Navigator.of(context).pop();
+              },
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.l),
+                ),
+              ),
+              child: const Text('Übernehmen'),
+            ),
+          ),
+        ],
       ),
-      color: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return Color.lerp(chipBackgroundColor, scheme.primary, 0.35)!;
-        }
-        return chipBackgroundColor;
-      }),
-      side: BorderSide.none,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: 6),
-      onSelected: enabled && onSelected != null
-          ? (_) {
-              AppHaptics.selection();
-              onSelected!();
-            }
-          : null,
     );
   }
 }
