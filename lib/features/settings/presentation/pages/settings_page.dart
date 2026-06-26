@@ -197,6 +197,25 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               options: settingsRoleOptions,
                               onSave: (value) => _updateProfile(role: value),
                             ),
+                            onEditClassName: () => _editChoiceField(
+                              title: 'Klasse auswählen',
+                              initialValue: profile?.className,
+                              options: classesAsync.maybeWhen(
+                                data: (classes) => classes,
+                                orElse: () => const [],
+                              ),
+                              onSave: (value) =>
+                                  _updateProfile(className: value),
+                            ),
+                            onEditSchoolTrack: () => _editChoiceField(
+                              title: 'Schulzweig auswählen',
+                              initialValue: schoolTrackDisplayLabel(
+                                profile?.schoolTrack,
+                              ),
+                              options: settingsSchoolTrackOptions,
+                              onSave: (value) =>
+                                  _updateProfile(schoolTrack: value),
+                            ),
                           ),
                         ],
                         loading: () => const [
