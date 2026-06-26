@@ -85,6 +85,7 @@ class _CalendarSearchLayerState extends ConsumerState<CalendarSearchLayer> {
     });
 
     final scheme = Theme.of(context).colorScheme;
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
     final filters = ref.watch(searchFiltersProvider);
     final filtersNotifier = ref.read(searchFiltersProvider.notifier);
     final pinnedHeaderHeight = CalendarSearchLayerMetrics.pinnedHeaderHeight(
@@ -101,7 +102,7 @@ class _CalendarSearchLayerState extends ConsumerState<CalendarSearchLayer> {
         widget.onClose();
       },
       child: Material(
-        color: scheme.surface,
+        color: backgroundColor,
         child: SafeArea(
           bottom: false,
           child: Stack(
@@ -209,7 +210,7 @@ class _SearchPinnedHeader extends StatelessWidget {
           );
 
     return Material(
-      color: scheme.surface,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

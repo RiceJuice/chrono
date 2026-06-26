@@ -144,7 +144,7 @@ class _CalendarSearchPageState extends ConsumerState<CalendarSearchPage> {
                       builder: (context, constraints) {
                         _listViewportHeight = constraints.maxHeight;
                         return ColoredBox(
-                          color: theme.colorScheme.surface,
+                          color: theme.scaffoldBackgroundColor,
                           child: NotificationListener<ScrollNotification>(
                             onNotification: (notification) {
                               if (notification is ScrollStartNotification ||
