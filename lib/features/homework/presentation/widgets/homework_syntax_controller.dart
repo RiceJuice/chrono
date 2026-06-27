@@ -8,7 +8,10 @@ class HomeworkSyntaxController extends TextEditingController {
     List<HomeworkFragment> fragments = const [],
     String activeText = '',
   }) : _fragments = List<HomeworkFragment>.from(fragments) {
-    text = activeText;
+    super.value = TextEditingValue(
+      text: activeText,
+      selection: TextSelection.collapsed(offset: activeText.length),
+    );
   }
 
   List<HomeworkFragment> _fragments;
@@ -20,14 +23,20 @@ class HomeworkSyntaxController extends TextEditingController {
     required String activeText,
   }) {
     _fragments = List<HomeworkFragment>.from(fragments);
-    if (text != activeText) {
-      value = TextEditingValue(
-        text: activeText,
-        selection: TextSelection.collapsed(offset: activeText.length),
-      );
-    } else {
-      notifyListeners();
-    }
+    value = TextEditingValue(
+      text: activeText,
+      selection: TextSelection.collapsed(offset: activeText.length),
+    );
+  }
+
+  @override
+  set value(TextEditingValue newValue) {
+    final text = newValue.text;
+    super.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+      composing: TextRange.empty,
+    );
   }
 
   @override
@@ -39,12 +48,13 @@ class HomeworkSyntaxController extends TextEditingController {
     final children = <InlineSpan>[];
 
     for (final fragment in _fragments) {
+      final chipFragment = _inlineChipFragment(fragment);
       children.add(
         WidgetSpan(
           alignment: PlaceholderAlignment.middle,
           child: Padding(
             padding: const EdgeInsets.only(right: 4, bottom: 1),
-            child: HomeworkFragmentChip(fragment: fragment, compact: true),
+            child: HomeworkFragmentChip(fragment: chipFragment, compact: true),
           ),
         ),
       );
@@ -53,5 +63,15 @@ class HomeworkSyntaxController extends TextEditingController {
     children.add(TextSpan(text: value.text, style: style));
 
     return TextSpan(style: style, children: children);
+  }
+
+  HomeworkFragment _inlineChipFragment(HomeworkFragment fragment) {
+    if (fragment.kind != HomeworkFragmentKind.book) return fragment;
+    if (fragment.fields['page'] != null) return fragment;
+
+    final code = fragment.fields['code'] as String? ?? fragment.displayText;
+    if (code == fragment.displayText) return fragment;
+
+    return fragment.copyWith(displayText: code);
   }
 }

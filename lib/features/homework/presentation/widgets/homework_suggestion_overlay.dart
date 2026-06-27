@@ -6,48 +6,22 @@ import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const double kHomeworkSuggestionItemHeight = 44;
-const int kHomeworkSuggestionVisibleCount = 3;
 
-class HomeworkSuggestionOverlay extends StatefulWidget {
+class HomeworkSuggestionOverlay extends StatelessWidget {
   const HomeworkSuggestionOverlay({
     super.key,
-    required this.suggestions,
-    required this.onSelected,
+    required this.primarySuggestion,
     required this.onAddCustom,
     this.width = 280,
   });
 
-  final List<HomeworkSyntaxSuggestion> suggestions;
-  final ValueChanged<HomeworkSyntaxSuggestion> onSelected;
+  final HomeworkSyntaxSuggestion? primarySuggestion;
   final VoidCallback onAddCustom;
   final double width;
 
   @override
-  State<HomeworkSuggestionOverlay> createState() =>
-      _HomeworkSuggestionOverlayState();
-}
-
-class _HomeworkSuggestionOverlayState extends State<HomeworkSuggestionOverlay> {
-  late final ScrollController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final listHeight = kHomeworkSuggestionItemHeight * kHomeworkSuggestionVisibleCount;
-    final totalItems = widget.suggestions.length + 1;
-    final showScrollbar = totalItems > kHomeworkSuggestionVisibleCount;
 
     return Material(
       elevation: 6,
@@ -55,55 +29,47 @@ class _HomeworkSuggestionOverlayState extends State<HomeworkSuggestionOverlay> {
       shape: AppSquircle.shape(AppRadius.l),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        width: widget.width,
-        child: Scrollbar(
-          controller: _scrollController,
-          thumbVisibility: showScrollbar,
-          child: SizedBox(
-            height: listHeight,
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: EdgeInsets.zero,
-              itemExtent: kHomeworkSuggestionItemHeight,
-              itemCount: totalItems,
-              itemBuilder: (context, index) {
-                if (index == widget.suggestions.length) {
-                  return ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    leading: Icon(
-                      PhosphorIcons.plus(PhosphorIconsStyle.bold),
-                      color: scheme.primary,
-                      size: 20,
-                    ),
-                    title: Text(
-                      'Eigene Abkürzung hinzufügen',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                    onTap: widget.onAddCustom,
-                  );
-                }
-
-                final suggestion = widget.suggestions[index];
-                return ListTile(
+        width: width,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (primarySuggestion != null)
+              SizedBox(
+                height: kHomeworkSuggestionItemHeight,
+                child: ListTile(
                   dense: true,
                   visualDensity: VisualDensity.compact,
                   title: Text(
-                    '${suggestion.shorthand} — ${suggestion.label}',
+                    '${primarySuggestion!.shorthand} — ${primarySuggestion!.label}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
-                  onTap: () => widget.onSelected(suggestion),
-                );
-              },
+                ),
+              ),
+            SizedBox(
+              height: kHomeworkSuggestionItemHeight,
+              child: ListTile(
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                leading: Icon(
+                  PhosphorIcons.plus(PhosphorIconsStyle.bold),
+                  color: scheme.primary,
+                  size: 20,
+                ),
+                title: Text(
+                  'Eigene Abkürzung hinzufügen',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                onTap: onAddCustom,
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -194,33 +160,28 @@ void applySuggestionToLine({
   required HomeworkSyntaxSuggestion suggestion,
   required void Function(List<HomeworkFragment> fragments, String activeText) onChanged,
 }) {
-  final insert = suggestion.resolveInsertText();
-  final combined = activeText.isEmpty ? insert : '$insert$activeText';
-  final parsed = parser.parse(
+  final committed = parser.commitActiveText(
     committedFragments: committedFragments,
-    activeText: combined,
+    activeText: '${suggestion.shorthand} ',
   );
 
-  var nextCommitted = parsed.committedFragments;
-  var nextActive = parsed.activeText;
-
-  if (nextCommitted.length == committedFragments.length) {
-    final fragment = HomeworkFragment(
-      kind: switch (suggestion.category) {
-        'book' => HomeworkFragmentKind.book,
-        'worksheet' => HomeworkFragmentKind.worksheet,
-        'notebook' => HomeworkFragmentKind.notebook,
-        'online' => HomeworkFragmentKind.online,
-        _ => HomeworkFragmentKind.format,
-      },
-      canonicalKey: '${suggestion.category}:${suggestion.shorthand.toLowerCase()}',
-      displayText: suggestion.shorthand,
-      chipColorKey: suggestion.chipColorKey,
-      fields: {'code': suggestion.shorthand},
-    );
-    nextCommitted = [...committedFragments, fragment];
-    nextActive = '';
+  if (committed != null) {
+    onChanged(committed.committedFragments, committed.activeText);
+    return;
   }
 
-  onChanged(nextCommitted, nextActive);
+  final fragment = HomeworkFragment(
+    kind: switch (suggestion.category) {
+      'book' => HomeworkFragmentKind.book,
+      'worksheet' => HomeworkFragmentKind.worksheet,
+      'notebook' => HomeworkFragmentKind.notebook,
+      'online' => HomeworkFragmentKind.online,
+      _ => HomeworkFragmentKind.format,
+    },
+    canonicalKey: '${suggestion.category}:${suggestion.shorthand.toLowerCase()}',
+    displayText: suggestion.shorthand,
+    chipColorKey: suggestion.chipColorKey,
+    fields: {'code': suggestion.shorthand},
+  );
+  onChanged([...committedFragments, fragment], '');
 }

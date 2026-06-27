@@ -15,8 +15,8 @@ final dbProvider = Provider<PowerSyncDatabase>((ref) {
 
 Future<PowerSyncDatabase> initializeDatabase() async {
   final dir = await getApplicationDocumentsDirectory();
-  // v15: homework_syntax_suggestions, homework_contributions, homework_tasks.
-  final path = p.join(dir.path, 'chrono_powersync_v15.db');
+  // v16: homework_peer_dismissals für abgelehnte Klassen-Vorschläge.
+  final path = p.join(dir.path, 'chrono_powersync_v16.db');
   final db = PowerSyncDatabase(schema: powersyncSchema, path: path);
   await db.initialize();
   return db;

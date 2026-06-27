@@ -122,18 +122,53 @@ class HomeworkContributionRepository {
     final hashes = fragmentHashesFor(merged);
     final now = DateTime.now().toUtc().toIso8601String();
     final date = formatLessonDate(lessonDate);
-    final id = existing?.id ?? generateHomeworkId();
+    final id = existing?.id ??
+        homeworkContributionId(
+          profileId: profileId,
+          className: className,
+          schooltrack: schooltrack,
+          subjectId: subjectId,
+          lessonDate: lessonDate,
+        );
     final fragmentsJson = encodeFragmentsJson(merged);
     final hashesJson = jsonEncode(hashes);
+    var resultId = id;
 
     await _db.writeTransaction((tx) async {
       if (existing == null) {
+        final conflicting = await _findRowByNaturalKey(
+          tx: tx,
+          profileId: profileId,
+          className: className,
+          schooltrack: schooltrack,
+          subjectId: subjectId,
+          lessonDate: date,
+        );
+
+        if (conflicting != null) {
+          final conflictingId = conflicting['id'] as String;
+          await tx.execute(
+            '''
+            UPDATE $kHomeworkContributionsTable
+            SET fragments = ?, fragment_hashes = ?, updated_at = ?
+            WHERE id = ?
+            ''',
+            [fragmentsJson, hashesJson, now, conflictingId],
+          );
+          resultId = conflictingId;
+          return;
+        }
+
         await tx.execute(
           '''
           INSERT INTO $kHomeworkContributionsTable
             (id, profile_id, class_name, schooltrack, subject_id, lesson_date,
              fragments, fragment_hashes, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            fragments = excluded.fragments,
+            fragment_hashes = excluded.fragment_hashes,
+            updated_at = excluded.updated_at
           ''',
           [
             id,
@@ -160,7 +195,47 @@ class HomeworkContributionRepository {
       }
     });
 
-    return id;
+    return resultId;
+  }
+
+  Future<Map<String, Object?>?> _findRowByNaturalKey({
+    required dynamic tx,
+    required String profileId,
+    required String className,
+    String? schooltrack,
+    required String subjectId,
+    required String lessonDate,
+  }) async {
+    final rows = schooltrack == null || schooltrack.isEmpty
+        ? await tx.getAll(
+            '''
+            SELECT id
+            FROM $kHomeworkContributionsTable
+            WHERE profile_id = ?
+              AND class_name = ?
+              AND subject_id = ?
+              AND lesson_date = ?
+              AND (schooltrack IS NULL OR schooltrack = '')
+            LIMIT 1
+            ''',
+            [profileId, className, subjectId, lessonDate],
+          )
+        : await tx.getAll(
+            '''
+            SELECT id
+            FROM $kHomeworkContributionsTable
+            WHERE profile_id = ?
+              AND class_name = ?
+              AND schooltrack = ?
+              AND subject_id = ?
+              AND lesson_date = ?
+            LIMIT 1
+            ''',
+            [profileId, className, schooltrack, subjectId, lessonDate],
+          );
+
+    if (rows.isEmpty) return null;
+    return rows.first;
   }
 
   List<HomeworkContribution> _mapContributions(ResultSet rows) {

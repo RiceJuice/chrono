@@ -153,7 +153,21 @@ class BackendConnector extends PowerSyncBackendConnector {
 
       for (final op in transaction.crud) {
 
-        await _applyCrudOp(op);
+        final reconciledId = await _applyCrudOp(op, database);
+
+        if (reconciledId != null) {
+
+          await _reconcileHomeworkContributionId(
+
+            database: database,
+
+            localId: op.id,
+
+            serverId: reconciledId,
+
+          );
+
+        }
 
       }
 
@@ -181,7 +195,9 @@ class BackendConnector extends PowerSyncBackendConnector {
 
             op.table == kHomeworkTasksTable ||
 
-            op.table == kHomeworkContributionsTable,
+            op.table == kHomeworkContributionsTable ||
+
+            op.table == kHomeworkPeerDismissalsTable,
 
       );
 
@@ -225,7 +241,10 @@ class BackendConnector extends PowerSyncBackendConnector {
 
 
 
-  Future<void> _applyCrudOp(CrudEntry op) async {
+  Future<String?> _applyCrudOp(
+    CrudEntry op,
+    PowerSyncDatabase database,
+  ) async {
 
     final table = supabase.from(op.table);
 
@@ -253,6 +272,12 @@ class BackendConnector extends PowerSyncBackendConnector {
 
         );
 
+        if (op.table == kHomeworkContributionsTable) {
+
+          return _upsertHomeworkContribution(table, op, data);
+
+        }
+
         final inserted = await table.upsert(data).select('id');
 
         _ensureRowsAffected(
@@ -264,6 +289,8 @@ class BackendConnector extends PowerSyncBackendConnector {
           action: 'upsert',
 
         );
+
+        return null;
 
       case UpdateType.patch:
 
@@ -279,7 +306,7 @@ class BackendConnector extends PowerSyncBackendConnector {
               '[CalendarSync] skip empty patch ${op.table} id=${op.id}',
             );
           }
-          return;
+          return null;
         }
 
         final updated = await table.update(patch).eq('id', op.id).select('id');
@@ -293,6 +320,8 @@ class BackendConnector extends PowerSyncBackendConnector {
           action: 'update',
 
         );
+
+        return null;
 
       case UpdateType.delete:
 
@@ -310,7 +339,221 @@ class BackendConnector extends PowerSyncBackendConnector {
 
         );
 
+        return null;
+
     }
+
+  }
+
+
+
+  Future<String?> _upsertHomeworkContribution(
+
+    SupabaseQueryBuilder table,
+
+    CrudEntry op,
+
+    Map<String, dynamic> data,
+
+  ) async {
+
+    try {
+
+      final rows = await table
+
+          .upsert(
+
+            data,
+
+            onConflict:
+
+                'profile_id,class_name,schooltrack,subject_id,lesson_date',
+
+          )
+
+          .select('id');
+
+      _ensureRowsAffected(op: op, rows: rows, action: 'upsert');
+
+      final serverId = rows.first['id'] as String;
+
+      return serverId == op.id ? null : serverId;
+
+    } on PostgrestException catch (e) {
+
+      if (e.code != '23505') rethrow;
+
+      return _patchHomeworkContributionByNaturalKey(table, op, data, e);
+
+    }
+
+  }
+
+
+
+  Future<String?> _patchHomeworkContributionByNaturalKey(
+
+    SupabaseQueryBuilder table,
+
+    CrudEntry op,
+
+    Map<String, dynamic> data,
+
+    PostgrestException original,
+
+  ) async {
+
+    final schooltrack = data['schooltrack'];
+
+    var query = table
+
+        .select('id')
+
+        .eq('profile_id', data['profile_id'] as String)
+
+        .eq('class_name', data['class_name'] as String)
+
+        .eq('subject_id', data['subject_id'] as String)
+
+        .eq('lesson_date', data['lesson_date'] as String);
+
+
+
+    if (schooltrack == null || '$schooltrack'.trim().isEmpty) {
+
+      query = query.filter('schooltrack', 'is', null);
+
+    } else {
+
+      query = query.eq('schooltrack', schooltrack);
+
+    }
+
+
+
+    final existing = await query.maybeSingle();
+
+    if (existing == null) throw original;
+
+
+
+    final serverId = existing['id'] as String;
+
+    final patch = Map<String, dynamic>.from(data)..remove('id');
+
+    final updated = await table.update(patch).eq('id', serverId).select('id');
+
+    _ensureRowsAffected(op: op, rows: updated, action: 'update');
+
+    return serverId == op.id ? null : serverId;
+
+  }
+
+
+
+  Future<void> _reconcileHomeworkContributionId({
+
+    required PowerSyncDatabase database,
+
+    required String localId,
+
+    required String serverId,
+
+  }) async {
+
+    if (localId == serverId) return;
+
+
+
+    await database.writeTransaction((tx) async {
+
+      final rows = await tx.getAll(
+
+        'SELECT * FROM $kHomeworkContributionsTable WHERE id = ? LIMIT 1',
+
+        [localId],
+
+      );
+
+      if (rows.isEmpty) return;
+
+
+
+      final row = rows.first;
+
+      await tx.execute(
+
+        'DELETE FROM $kHomeworkContributionsTable WHERE id = ?',
+
+        [localId],
+
+      );
+
+      await tx.execute(
+
+        '''
+
+        INSERT INTO $kHomeworkContributionsTable
+
+          (id, profile_id, class_name, schooltrack, subject_id, lesson_date,
+
+           fragments, fragment_hashes, created_at, updated_at)
+
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+        ON CONFLICT(id) DO UPDATE SET
+
+          fragments = excluded.fragments,
+
+          fragment_hashes = excluded.fragment_hashes,
+
+          updated_at = excluded.updated_at
+
+        ''',
+
+        [
+
+          serverId,
+
+          row['profile_id'],
+
+          row['class_name'],
+
+          row['schooltrack'],
+
+          row['subject_id'],
+
+          row['lesson_date'],
+
+          row['fragments'],
+
+          row['fragment_hashes'],
+
+          row['created_at'],
+
+          row['updated_at'],
+
+        ],
+
+      );
+
+      await tx.execute(
+
+        '''
+
+        UPDATE $kHomeworkTasksTable
+
+        SET contribution_id = ?
+
+        WHERE contribution_id = ?
+
+        ''',
+
+        [serverId, localId],
+
+      );
+
+    });
 
   }
 

@@ -1,12 +1,12 @@
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_view_options.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
-import 'package:chronoapp/features/calendar/presentation/providers/calendar_view_options.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'calendar_create_event_button.dart';
 import 'calendar_filter_deviation_icon.dart';
 import 'calendar_handle.dart';
@@ -21,6 +21,7 @@ class CalendarHeader extends ConsumerStatefulWidget {
   const CalendarHeader({
     required this.onFilterPressed,
     required this.viewOptions,
+    this.onSearchPressed,
     this.onCreatePressed,
     this.viewMode = CalendarViewMode.day,
     this.onViewModeChanged,
@@ -31,6 +32,7 @@ class CalendarHeader extends ConsumerStatefulWidget {
   });
 
   final VoidCallback? onCreatePressed;
+  final VoidCallback? onSearchPressed;
   final VoidCallback onFilterPressed;
   final List<CalendarViewOption> viewOptions;
   final CalendarViewMode viewMode;
@@ -224,6 +226,12 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
                     CalendarFilterDeviationIcon(
                       onPressed: widget.onFilterPressed,
                     ),
+                    if (widget.onSearchPressed != null)
+                      IconButton(
+                        onPressed: widget.onSearchPressed,
+                        tooltip: 'Suchen',
+                        icon: const Icon(Icons.search),
+                      ),
                   ],
                 ),
               ],

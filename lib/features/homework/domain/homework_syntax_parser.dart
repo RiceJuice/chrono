@@ -64,32 +64,43 @@ class HomeworkSyntaxParser {
     if (tokenBody.isEmpty) return null;
 
     if (context == HomeworkParseContext.afterBook) {
-      final slashPage = RegExp(r'^(\d+)/$').firstMatch(tokenBody);
-      if (slashPage != null) {
-        return _applyBookPage(
+      if (!activeText.endsWith(' ')) return null;
+
+      final pageAndExercise = RegExp(r'^(\d+)/(\d+)$').firstMatch(tokenBody);
+      if (pageAndExercise != null) {
+        final withPage = _applyBookPage(
           committedFragments: committedFragments,
-          page: slashPage.group(1)!,
+          page: pageAndExercise.group(1)!,
+        );
+        return _applyBookExercise(
+          committedFragments: withPage.committedFragments,
+          exercise: pageAndExercise.group(2)!,
         );
       }
 
       final pageOnly = RegExp(r'^(\d+)$').firstMatch(tokenBody);
-      if (pageOnly != null && activeText.endsWith(' ')) {
+      if (pageOnly != null) {
         return _applyBookPage(
           committedFragments: committedFragments,
           page: pageOnly.group(1)!,
         );
       }
+
+      return null;
     }
 
     if (context == HomeworkParseContext.afterPage) {
-      final exerciseSlash = RegExp(r'^/?(\d+)$').firstMatch(tokenBody);
-      if (exerciseSlash != null &&
-          (activeText.endsWith(' ') || activeText.endsWith('/'))) {
+      if (!activeText.endsWith(' ')) return null;
+
+      final exercise = RegExp(r'^/?(\d+)$').firstMatch(tokenBody);
+      if (exercise != null) {
         return _applyBookExercise(
           committedFragments: committedFragments,
-          exercise: exerciseSlash.group(1)!,
+          exercise: exercise.group(1)!,
         );
       }
+
+      return null;
     }
 
     if (!activeText.endsWith(' ')) {
@@ -114,11 +125,26 @@ class HomeworkSyntaxParser {
     );
     if (suggestionMatch != null) return suggestionMatch;
 
-    return ParsedHomeworkLine(
-      committedFragments: [...committedFragments, _freeTextFragment(token)],
-      activeText: '',
-      context: HomeworkParseContext.start,
+    final firstSuggestion = firstSuggestionForToken(
+      context: context,
+      token: token,
     );
+    if (firstSuggestion != null) {
+      return _commitSuggestion(committedFragments, firstSuggestion);
+    }
+
+    return null;
+  }
+
+  /// Erster passender Vorschlag für [token] (Präfix-Match auf Triggers).
+  HomeworkSyntaxSuggestion? firstSuggestionForToken({
+    required HomeworkParseContext context,
+    required String token,
+  }) {
+    final candidates = suggestionsForContext(context: context, activeText: token);
+    if (candidates.isEmpty) return null;
+    final first = candidates.first;
+    return _tokenMatchesSuggestion(token, first) ? first : null;
   }
 
   List<HomeworkFragment> parseCompleteLine(String input) {
@@ -151,7 +177,6 @@ class HomeworkSyntaxParser {
         continue;
       }
 
-      committed = [...committed, _freeTextFragment(chunk.trim())];
       active = active.substring(spaceIdx + 1).trim();
     }
 
@@ -160,11 +185,10 @@ class HomeworkSyntaxParser {
       if (bookInline != null) {
         committed = bookInline.committedFragments;
       } else {
-        final suggestion = _lookup[_normalize(active)];
+        final suggestion = _lookup[_normalize(active)] ??
+            firstSuggestionForToken(context: _resolveContext(committed), token: active);
         if (suggestion != null) {
           committed = [...committed, _fragmentFromSuggestion(suggestion)];
-        } else {
-          committed = [...committed, _freeTextFragment(active)];
         }
       }
     }
@@ -280,14 +304,32 @@ class HomeworkSyntaxParser {
   }) {
     final suggestion = _lookup[_normalize(token)];
     if (suggestion == null) return null;
+    return _commitSuggestion(committedFragments, suggestion);
+  }
 
+  ParsedHomeworkLine _commitSuggestion(
+    List<HomeworkFragment> committedFragments,
+    HomeworkSyntaxSuggestion suggestion,
+  ) {
     return ParsedHomeworkLine(
-      committedFragments: [...committedFragments, _fragmentFromSuggestion(suggestion)],
+      committedFragments: [
+        ...committedFragments,
+        _fragmentFromSuggestion(suggestion),
+      ],
       activeText: '',
       context: suggestion.category == 'book'
           ? HomeworkParseContext.afterBook
           : HomeworkParseContext.start,
     );
+  }
+
+  bool _tokenMatchesSuggestion(String token, HomeworkSyntaxSuggestion suggestion) {
+    final normalized = _normalize(token);
+    if (normalized.isEmpty) return false;
+    return suggestion.allTriggers.any((trigger) {
+      final triggerNorm = _normalize(trigger);
+      return triggerNorm.startsWith(normalized) || normalized == triggerNorm;
+    });
   }
 
   HomeworkFragment _fragmentFromSuggestion(HomeworkSyntaxSuggestion suggestion) {
@@ -305,16 +347,6 @@ class HomeworkSyntaxParser {
       displayText: suggestion.shorthand,
       chipColorKey: suggestion.chipColorKey,
       fields: {'code': suggestion.shorthand},
-    );
-  }
-
-  HomeworkFragment _freeTextFragment(String text) {
-    return HomeworkFragment(
-      kind: HomeworkFragmentKind.freeText,
-      canonicalKey: 'text:${_normalize(text)}',
-      displayText: text,
-      chipColorKey: 'default',
-      fields: {'text': text},
     );
   }
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Freigaben des Kindes für einen bestätigten Eltern-Zugriff.
 ///
 /// Schlüssel entsprechen [CalendarVisibility] (`school`, `meal`, `choir`)
@@ -82,9 +84,8 @@ class GuardianChildSharePermissions {
   }
 
   factory GuardianChildSharePermissions.fromJson(Object? raw) {
-    if (raw is! Map) return minimal;
-
-    final map = Map<String, dynamic>.from(raw);
+    final map = _decodeToMap(raw);
+    if (map == null) return minimal;
     final extra = <String, bool>{};
     for (final entry in map.entries) {
       final key = entry.key.toString();
@@ -104,6 +105,27 @@ class GuardianChildSharePermissions {
       shareHomework: _readBool(map[homeworkKey]),
       extra: extra,
     );
+  }
+
+  /// PowerSync speichert JSONB-Spalten als Text; Supabase liefert oft eine Map.
+  static Map<String, dynamic>? _decodeToMap(Object? raw) {
+    if (raw == null) return null;
+    if (raw is Map) {
+      return Map<String, dynamic>.from(raw);
+    }
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty || trimmed == 'null') return null;
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map) {
+          return Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   static bool _readBool(Object? value) {

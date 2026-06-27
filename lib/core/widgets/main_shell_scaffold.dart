@@ -47,6 +47,9 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
       defaultTargetPlatform == TargetPlatform.iOS &&
       PlatformVersion.shouldUseNativeGlass;
 
+  bool get _useShellCalendarSearch =>
+      defaultTargetPlatform == TargetPlatform.iOS;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +80,8 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
   }
 
   void _onSearchOpenChanged(bool? previous, bool next) {
+    if (!_useShellCalendarSearch) return;
+
     if (next) {
       if (!_searchOverlayMounted) {
         setState(() => _searchOverlayMounted = true);
@@ -110,10 +115,14 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
   Widget build(BuildContext context) {
     final isCalendarBranch =
         widget.navigationShell.currentIndex == _calendarBranchIndex;
-    ref.listen(calendarSearchOpenProvider, _onSearchOpenChanged);
+    if (_useShellCalendarSearch) {
+      ref.listen(calendarSearchOpenProvider, _onSearchOpenChanged);
+    }
     final hideNavBar = isCalendarBranch &&
         calendarUsePhoneLandscapeChrome(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final shellSearchActive =
+        _useShellCalendarSearch && _searchOverlayMounted;
 
     return GuardianCalendarFilterSync(
       child: Scaffold(
@@ -121,12 +130,15 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          CalendarSearchEntranceTransition.backdrop(
-            animation: _searchEntranceAnimation,
-            reduceMotion: reduceMotion,
-            child: widget.navigationShell,
-          ),
-          if (_searchOverlayMounted)
+          if (shellSearchActive)
+            CalendarSearchEntranceTransition.backdrop(
+              animation: _searchEntranceAnimation,
+              reduceMotion: reduceMotion,
+              child: widget.navigationShell,
+            )
+          else
+            widget.navigationShell,
+          if (shellSearchActive)
             CalendarSearchEntranceTransition.layer(
               animation: _searchEntranceAnimation,
               reduceMotion: reduceMotion,
@@ -135,7 +147,7 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
                 entranceAnimation: _searchEntranceAnimation,
               ),
             ),
-          if (_searchOverlayMounted && hideNavBar)
+          if (shellSearchActive && hideNavBar)
             Positioned(
               left: 0,
               right: 0,
@@ -154,7 +166,7 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
           ? null
           : _NavBarWithOverlay(
               isCalendarBranch: isCalendarBranch,
-              searchBarVisible: _searchOverlayMounted,
+              searchBarVisible: shellSearchActive,
               searchController: _searchController,
               modalOpen: _modalOpen,
               useNativeIosTabBar: _useNativeIosTabBar,
@@ -197,9 +209,7 @@ class _NavBarWithOverlay extends ConsumerWidget {
         onClose: onSearchClose,
       );
     } else {
-      bar = MainNavigationBar(
-        searchController: searchController,
-      );
+      bar = const MainNavigationBar();
     }
 
     final navBar = (!modalOpen || !useNativeIosTabBar)

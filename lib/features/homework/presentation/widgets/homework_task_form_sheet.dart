@@ -11,7 +11,6 @@ import 'package:chronoapp/features/homework/presentation/providers/homework_due_
 import 'package:chronoapp/features/homework/presentation/providers/homework_providers.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_due_section.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_form_shell.dart';
-import 'package:chronoapp/features/homework/presentation/widgets/homework_fragment_chip.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_syntax_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -232,16 +231,6 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
     final suggestions = suggestionsAsync.asData?.value ?? const [];
     final parser = HomeworkSyntaxParser(suggestions: suggestions);
 
-    final peerFragments = ref
-            .watch(
-              mergedClassFragmentsProvider(
-                (lessonDate: _lessonDate, subjectId: _selectedSubjectId),
-              ),
-            )
-            .asData
-            ?.value ??
-        const [];
-
     final fieldDecoration = InputDecoration(
       border: InputBorder.none,
       enabledBorder: InputBorder.none,
@@ -272,15 +261,6 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
               children: [
               const HomeworkFormHeader(title: 'Neue Aufgabe'),
               const SizedBox(height: AppSpacing.m),
-              if (peerFragments.isNotEmpty) ...[
-                HomeworkFormInfoBanner(
-                  tone: HomeworkFormInfoTone.neutral,
-                  message: 'Bereits von der Klasse erfasst:',
-                ),
-                const SizedBox(height: AppSpacing.s),
-                HomeworkFragmentChipRow(fragments: peerFragments, compact: true),
-                const SizedBox(height: AppSpacing.m),
-              ],
               HomeworkFormGroup(
                 children: [
                   HomeworkFormField(

@@ -1,4 +1,5 @@
 import 'package:chronoapp/core/auth/auth_user_id_provider.dart';
+import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
 import 'package:chronoapp/features/login/domain/models/guardian_child_share_permissions.dart';
 import 'package:chronoapp/features/login/presentation/providers/guardian_link_providers.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
@@ -45,3 +46,38 @@ final guardianHomeworkTabVisibleProvider = Provider<bool>((ref) {
   }
   return ref.watch(activeGuardianChildPermissionsProvider).shareHomework;
 });
+
+/// Elternteil sieht Aufgaben des Kindes nur lesend.
+final isGuardianHomeworkReadOnlyProvider = Provider<bool>((ref) {
+  final gate = ref.watch(profileGateDataProvider);
+  final ownProfile = ref.watch(syncedProfileProvider).asData?.value;
+  return isGuardianCalendarViewer(gate: gate, ownProfile: ownProfile);
+});
+
+/// Ob ein Kalender-Bereich in den Kalender-Einstellungen sichtbar/konfigurierbar ist.
+bool guardianCalendarTypeConfigurable({
+  required bool isGuardianViewer,
+  required GuardianChildSharePermissions permissions,
+  required CalendarVisibility calendar,
+}) {
+  if (!isGuardianViewer) return true;
+  return switch (calendar) {
+    CalendarVisibility.school => permissions.shareSchool,
+    CalendarVisibility.meal => permissions.shareMeal,
+    CalendarVisibility.choir => permissions.shareChoir,
+  };
+}
+
+/// Ob ein Kalender-Bereich für Eltern ein- statt ausgeblendet werden darf.
+bool guardianMayEnableCalendarType({
+  required bool isGuardianViewer,
+  required GuardianChildSharePermissions permissions,
+  required CalendarVisibility calendar,
+}) {
+  if (!isGuardianViewer) return true;
+  return guardianCalendarTypeConfigurable(
+    isGuardianViewer: isGuardianViewer,
+    permissions: permissions,
+    calendar: calendar,
+  );
+}

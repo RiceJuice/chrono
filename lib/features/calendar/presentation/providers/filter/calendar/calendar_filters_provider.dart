@@ -1,4 +1,8 @@
 import 'package:chronoapp/core/startup/calendar_filter_startup_state.dart';
+import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_calendar_viewer.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_permissions.dart';
+import 'package:chronoapp/features/settings/presentation/providers/settings_profile_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
 import '../../../../domain/filter/calendar_filter_defaults.dart';
@@ -92,6 +96,59 @@ class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
       isSchoolTrackExplicit: schoolTrack == null ? state.isSchoolTrackExplicit : false,
       isDietExplicit: diet == null ? state.isDietExplicit : false,
       hasUserOverrides: false,
+    );
+  }
+
+  @override
+  void setCalendarVisibility(CalendarVisibility calendar, bool isVisible) {
+    if (!_mayChangeCalendarVisibility(calendar, isVisible)) return;
+    super.setCalendarVisibility(calendar, isVisible);
+  }
+
+  @override
+  void resetToDefaults() {
+    super.resetToDefaults();
+    _reapplyGuardianSharePermissions();
+  }
+
+  bool _mayChangeCalendarVisibility(
+    CalendarVisibility calendar,
+    bool isVisible,
+  ) {
+    final gate = ref.read(profileGateDataProvider);
+    final ownProfile = ref.read(syncedProfileProvider).asData?.value;
+    final isGuardianViewer = isGuardianCalendarViewer(
+      gate: gate,
+      ownProfile: ownProfile,
+    );
+    if (!isGuardianViewer) return true;
+
+    final permissions = ref.read(activeGuardianChildPermissionsProvider);
+    if (!guardianCalendarTypeConfigurable(
+      isGuardianViewer: true,
+      permissions: permissions,
+      calendar: calendar,
+    )) {
+      return false;
+    }
+    if (!isVisible) return true;
+    return guardianMayEnableCalendarType(
+      isGuardianViewer: true,
+      permissions: permissions,
+      calendar: calendar,
+    );
+  }
+
+  void _reapplyGuardianSharePermissions() {
+    final gate = ref.read(profileGateDataProvider);
+    final ownProfile = ref.read(syncedProfileProvider).asData?.value;
+    if (!isGuardianCalendarViewer(gate: gate, ownProfile: ownProfile)) return;
+
+    final permissions = ref.read(activeGuardianChildPermissionsProvider);
+    applyGuardianSharePermissions(
+      shareSchool: permissions.shareSchool,
+      shareMeal: permissions.shareMeal,
+      shareChoir: permissions.shareChoir,
     );
   }
 }

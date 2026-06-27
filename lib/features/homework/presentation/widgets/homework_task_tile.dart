@@ -12,12 +12,12 @@ class HomeworkTaskTile extends StatelessWidget {
     super.key,
     required this.task,
     required this.subject,
-    required this.onToggleCompleted,
+    this.onToggleCompleted,
   });
 
   final HomeworkTask task;
   final CalendarSubject? subject;
-  final ValueChanged<bool> onToggleCompleted;
+  final ValueChanged<bool>? onToggleCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -40,10 +40,12 @@ class HomeworkTaskTile extends StatelessWidget {
             child: AnimatedCircleCheckbox(
               selected: completed,
               size: 24,
-              onChanged: (selected) {
-                AppHaptics.selection();
-                onToggleCompleted(selected);
-              },
+              onChanged: onToggleCompleted == null
+                  ? null
+                  : (selected) {
+                      AppHaptics.selection();
+                      onToggleCompleted!(selected);
+                    },
             ),
           ),
           const SizedBox(width: AppSpacing.m),

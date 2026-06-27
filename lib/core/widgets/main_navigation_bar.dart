@@ -9,18 +9,12 @@ import '../../features/calendar/presentation/providers/calendar_providers.dart';
 import '../../features/calendar/presentation/widgets/search/calendar_search_layer.dart';
 import '../../features/settings/presentation/helpers/guardian_child_permissions.dart';
 import '../haptics/app_haptics.dart';
-import 'app_glass_icon_button.dart';
 import 'app_hairline_divider.dart';
 import 'domspatzen_icon_metrics.dart';
 import 'ios_calendar_tab_icons_provider.dart';
 
 class MainNavigationBar extends ConsumerStatefulWidget {
-  const MainNavigationBar({
-    required this.searchController,
-    super.key,
-  });
-
-  final CNTabBarSearchController searchController;
+  const MainNavigationBar({super.key});
 
   @override
   ConsumerState<MainNavigationBar> createState() => _MainNavigationBarState();
@@ -28,7 +22,6 @@ class MainNavigationBar extends ConsumerStatefulWidget {
 
 class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
   bool _iosCalendarIconLoadScheduled = false;
-  final GlobalKey _searchButtonKey = GlobalKey();
 
   static const _calendarPath = '/calendar';
   static const _homeworkPath = '/homework';
@@ -58,21 +51,6 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
     };
   }
 
-  void _openSearchMode() {
-    AppHaptics.light();
-    final searchContext = _searchButtonKey.currentContext;
-    if (searchContext != null) {
-      captureCalendarSearchMorphOrigin(ref, searchContext);
-    }
-    ref.read(calendarSearchOpenProvider.notifier).open();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _scheduleIosCalendarIconLoad();
-  }
-
   void _scheduleIosCalendarIconLoad() {
     if (!_useNativeIosTabBar() || _iosCalendarIconLoadScheduled) {
       return;
@@ -99,7 +77,6 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
       exitCalendarSearchToCalendarTab(
         ref,
         context,
-        searchController: widget.searchController,
       );
       return;
     }
@@ -240,43 +217,27 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
       mainAxisSize: MainAxisSize.min,
       children: [
         const AppHairlineDivider.horizontal(),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: NavigationBar(
-                height: 56,
-                selectedIndex: currentIndex,
-                labelPadding: const EdgeInsets.only(top: 2),
-                labelTextStyle: WidgetStateProperty.resolveWith((states) {
-                  return const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    leadingDistribution: TextLeadingDistribution.even,
-                    letterSpacing: 0,
-                  );
-                }),
-                onDestinationSelected: (index) {
-                  _onDestinationSelected(
-                    context: context,
-                    location: location,
-                    index: index,
-                    showHomework: showHomework,
-                  );
-                },
-                destinations: destinations,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 12, bottom: 6),
-              child: AppGlassIconButton(
-                key: _searchButtonKey,
-                icon: Icons.search,
-                tooltip: 'Suchen',
-                onPressed: _openSearchMode,
-              ),
-            ),
-          ],
+        NavigationBar(
+          height: 56,
+          selectedIndex: currentIndex,
+          labelPadding: const EdgeInsets.only(top: 2),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            return const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              leadingDistribution: TextLeadingDistribution.even,
+              letterSpacing: 0,
+            );
+          }),
+          onDestinationSelected: (index) {
+            _onDestinationSelected(
+              context: context,
+              location: location,
+              index: index,
+              showHomework: showHomework,
+            );
+          },
+          destinations: destinations,
         ),
       ],
     );
@@ -351,41 +312,13 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
         );
       },
       items: items,
-      searchItem: CNTabBarSearchItem(
-        placeholder: 'Finde den richtigen Termin',
-        automaticallyActivatesSearch: false,
-        onSearchChanged: (query) {
-          ref.read(calendarSearchQueryProvider.notifier).updateQuery(query);
-        },
-        onSearchActiveChanged: (active) {
-          if (active) {
-            openCalendarSearchFromNativeTab(
-              ref,
-              searchController: widget.searchController,
-              morphContext: context,
-            );
-            return;
-          }
-          if (ref.read(calendarSearchNativeCollapseGuardProvider)) {
-            return;
-          }
-          ref.read(calendarSearchInputFocusedProvider.notifier).dismiss();
-          closeCalendarSearchMode(
-            ref,
-            searchController: widget.searchController,
-            deactivateNativeSearch: false,
-          );
-        },
-        style: CNTabBarSearchStyle(
-          iconSize: _iosTabGlyphSize,
-          buttonSize: 44,
-          searchBarHeight: 44,
-          searchBarBorderRadius: 24,
-          searchBarPadding: const EdgeInsets.only(left: 12, right: 44),
-        ),
-      ),
-      searchController: widget.searchController,
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scheduleIosCalendarIconLoad();
   }
 
   bool _useNativeIosTabBar() {

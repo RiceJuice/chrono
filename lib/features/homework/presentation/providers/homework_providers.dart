@@ -5,14 +5,17 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filtered_entries_providers.dart';
 import 'package:chronoapp/features/homework/data/homework_contribution_repository.dart';
 import 'package:chronoapp/features/homework/data/homework_local_repository.dart';
+import 'package:chronoapp/features/homework/data/homework_peer_dismissal_repository.dart';
 import 'package:chronoapp/features/homework/data/homework_syntax_suggestion_repository.dart';
 import 'package:chronoapp/features/homework/data/homework_task_repository.dart';
 import 'package:chronoapp/features/homework/domain/current_lesson_for_subject.dart';
 import 'package:chronoapp/features/homework/domain/homework_fragment_merge.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_contribution.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_fragment.dart';
+import 'package:chronoapp/features/homework/domain/models/homework_peer_suggestion.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_syntax_suggestion.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
+import 'package:chronoapp/features/homework/domain/next_lesson_for_subject.dart';
 import 'package:chronoapp/features/login/domain/models/profile_gate_data.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
 import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
@@ -34,6 +37,11 @@ final homeworkTaskRepositoryProvider = Provider<HomeworkTaskRepository>((ref) {
 final homeworkContributionRepositoryProvider =
     Provider<HomeworkContributionRepository>((ref) {
   return HomeworkContributionRepository(ref.watch(dbProvider));
+});
+
+final homeworkPeerDismissalRepositoryProvider =
+    Provider<HomeworkPeerDismissalRepository>((ref) {
+  return HomeworkPeerDismissalRepository(ref.watch(dbProvider));
 });
 
 final homeworkSyntaxSuggestionRepositoryProvider =
@@ -104,6 +112,71 @@ final mergedClassFragmentsProvider = Provider.family<
     );
   },
 );
+
+final homeworkPeerDismissalsProvider =
+    StreamProvider.family<Set<String>, DateTime>((ref, lessonDate) {
+  final profileId = ref.watch(effectiveHomeworkProfileIdProvider);
+  if (profileId == null || profileId.isEmpty) {
+    return Stream.value(<String>{});
+  }
+
+  final repository = ref.watch(homeworkPeerDismissalRepositoryProvider);
+  return repository.watchDismissalKeys(
+    profileId: profileId,
+    lessonDate: lessonDate,
+  );
+});
+
+final pendingPeerSuggestionsProvider =
+    Provider<AsyncValue<List<HomeworkPeerSuggestion>>>((ref) {
+  final today = AppDateTime.todayLocal();
+  final profileId = ref.watch(effectiveHomeworkProfileIdProvider);
+  if (profileId == null || profileId.isEmpty) {
+    return const AsyncData([]);
+  }
+
+  final contributions = ref.watch(homeworkClassContributionsProvider(today));
+  final tasks = ref.watch(homeworkTasksProvider);
+  final dismissals = ref.watch(homeworkPeerDismissalsProvider(today));
+  final handledKeys = ref.watch(handledPeerSuggestionKeysProvider);
+
+  return contributions.when(
+    loading: () => const AsyncLoading(),
+    error: AsyncValue.error,
+    data: (classContributions) {
+      final ownTasks = tasks.asData?.value ?? const <HomeworkTask>[];
+      final dismissedKeys = dismissals.asData?.value ?? <String>{};
+      return AsyncData(
+        computePendingPeerSuggestions(
+          contributions: classContributions,
+          ownProfileId: profileId,
+          ownTasks: ownTasks,
+          dismissedKeys: dismissedKeys,
+          optimisticHandledKeys: handledKeys,
+        ),
+      );
+    },
+  );
+});
+
+final handledPeerSuggestionKeysProvider =
+    NotifierProvider<HandledPeerSuggestionKeysNotifier, Set<String>>(
+  HandledPeerSuggestionKeysNotifier.new,
+);
+
+class HandledPeerSuggestionKeysNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => <String>{};
+
+  void markHandled(String dismissalKey) {
+    state = {...state, dismissalKey};
+  }
+
+  void unmarkHandled(String dismissalKey) {
+    if (!state.contains(dismissalKey)) return;
+    state = state.where((key) => key != dismissalKey).toSet();
+  }
+}
 
 final currentLessonProvider = Provider<AsyncValue<CalendarEntry?>>((ref) {
   final today = AppDateTime.todayLocal();
@@ -217,5 +290,70 @@ class HomeworkTasksNotifier extends AsyncNotifier<List<HomeworkTask>> {
       taskId: taskId,
       isCompleted: !task.isCompleted,
     );
+  }
+
+  Future<void> acceptPeerSuggestion(HomeworkPeerSuggestion suggestion) async {
+    final profileId = ref.read(effectiveHomeworkProfileIdProvider);
+    if (profileId == null || profileId.isEmpty) return;
+
+    final current = state.asData?.value ?? await future;
+    if (isPeerSuggestionAccepted(suggestion: suggestion, ownTasks: current)) {
+      return;
+    }
+
+    ref
+        .read(handledPeerSuggestionKeysProvider.notifier)
+        .markHandled(suggestion.dismissalKey);
+
+    try {
+      final entries = ref.read(filteredCalendarAllEntriesProvider).asData?.value;
+      final nextLesson = entries == null
+          ? null
+          : pickNextLessonForSubject(
+              entries: entries,
+              subjectId: suggestion.subjectId,
+            );
+
+      final repository = ref.read(homeworkTaskRepositoryProvider);
+      await repository.insertTask(
+        profileId: profileId,
+        title: fragmentsToPlainText([suggestion.fragment]),
+        fragments: [suggestion.fragment],
+        subjectId: suggestion.subjectId,
+        dueAt: nextLesson?.startTime.toLocal(),
+        dueSource:
+            nextLesson != null ? HomeworkDueSource.nextLesson : null,
+        contributionId: suggestion.contributionId,
+      );
+    } catch (_) {
+      ref
+          .read(handledPeerSuggestionKeysProvider.notifier)
+          .unmarkHandled(suggestion.dismissalKey);
+      rethrow;
+    }
+  }
+
+  Future<void> rejectPeerSuggestion(HomeworkPeerSuggestion suggestion) async {
+    final profileId = ref.read(effectiveHomeworkProfileIdProvider);
+    if (profileId == null || profileId.isEmpty) return;
+
+    ref
+        .read(handledPeerSuggestionKeysProvider.notifier)
+        .markHandled(suggestion.dismissalKey);
+
+    try {
+      final repository = ref.read(homeworkPeerDismissalRepositoryProvider);
+      await repository.dismissSuggestion(
+        profileId: profileId,
+        canonicalKey: suggestion.fragment.canonicalKey,
+        subjectId: suggestion.subjectId,
+        lessonDate: suggestion.lessonDate,
+      );
+    } catch (_) {
+      ref
+          .read(handledPeerSuggestionKeysProvider.notifier)
+          .unmarkHandled(suggestion.dismissalKey);
+      rethrow;
+    }
   }
 }

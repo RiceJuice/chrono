@@ -81,4 +81,26 @@ streams:
 
   homework_tasks:
     auto_subscribe: true
-    query: SELECT * FROM homework_tasks WHERE profile_id = auth.user_id()
+    query: |
+      SELECT * FROM homework_tasks
+      WHERE profile_id = auth.user_id()
+         OR profile_id IN (
+           SELECT child_id
+           FROM guardian_child_links
+           WHERE guardian_id = auth.user_id()
+             AND status = 'confirmed'
+             AND COALESCE((child_share_permissions->>'homework')::boolean, false)
+         )
+
+  homework_peer_dismissals:
+    auto_subscribe: true
+    query: |
+      SELECT * FROM homework_peer_dismissals
+      WHERE profile_id = auth.user_id()
+         OR profile_id IN (
+           SELECT child_id
+           FROM guardian_child_links
+           WHERE guardian_id = auth.user_id()
+             AND status = 'confirmed'
+             AND COALESCE((child_share_permissions->>'homework')::boolean, false)
+         )

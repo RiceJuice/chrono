@@ -98,7 +98,8 @@ GuardianChildSharePermissions _mergeSharePermissions(
   GuardianChildSharePermissions remote,
 ) {
   if (remote.sharesAnything) return remote;
-  return local;
+  if (local.sharesAnything) return local;
+  return remote;
 }
 
 bool guardianLinksHaveConfirmed(Iterable<GuardianChildLink> links) {

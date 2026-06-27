@@ -92,28 +92,69 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
     final text = _controller.text;
     widget.onChanged(_controller.fragments, text);
 
-    if (text.endsWith(' ') || text.endsWith('/')) {
+    if (text.endsWith(' ')) {
       _tryCommit();
     }
 
     _scheduleOverlayUpdate();
   }
 
+  void _applyDocument({
+    required List<HomeworkFragment> fragments,
+    required String activeText,
+  }) {
+    _syncingFromParent = true;
+    _controller.updateDocument(fragments: fragments, activeText: activeText);
+    _syncingFromParent = false;
+    widget.onChanged(fragments, activeText);
+    _scheduleOverlayUpdate();
+  }
+
   void _tryCommit() {
+    final text = _controller.text;
     final result = widget.parser.commitActiveText(
       committedFragments: _controller.fragments,
-      activeText: _controller.text,
+      activeText: text,
     );
-    if (result == null) return;
+    if (result != null) {
+      _applyDocument(
+        fragments: result.committedFragments,
+        activeText: result.activeText,
+      );
+      return;
+    }
 
-    _syncingFromParent = true;
-    _controller.updateDocument(
-      fragments: result.committedFragments,
-      activeText: result.activeText,
+    if (!text.endsWith(' ')) return;
+
+    final token = text.trim();
+    if (token.isEmpty) {
+      _applyDocument(fragments: _controller.fragments, activeText: '');
+      return;
+    }
+
+    final first = widget.parser.firstSuggestionForToken(
+      context: _parsedLine.context,
+      token: token,
     );
-    _syncingFromParent = false;
-    widget.onChanged(result.committedFragments, result.activeText);
-    _scheduleOverlayUpdate();
+    if (first != null) {
+      _applyFirstSuggestion(first);
+      return;
+    }
+
+    // Ungültiger Token — Leerzeichen verwerfen.
+    _applyDocument(fragments: _controller.fragments, activeText: token);
+  }
+
+  void _applyFirstSuggestion(HomeworkSyntaxSuggestion suggestion) {
+    applySuggestionToLine(
+      parser: widget.parser,
+      committedFragments: _controller.fragments,
+      activeText: _controller.text,
+      suggestion: suggestion,
+      onChanged: (fragments, activeText) {
+        _applyDocument(fragments: fragments, activeText: activeText);
+      },
+    );
   }
 
   ParsedHomeworkLine get _parsedLine => widget.parser.parse(
@@ -126,6 +167,12 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
       context: _parsedLine.context,
       activeText: _controller.text,
     );
+  }
+
+  HomeworkSyntaxSuggestion? get _primarySuggestion {
+    final filtered = _filteredSuggestions;
+    if (filtered.isEmpty) return null;
+    return filtered.first;
   }
 
   void _scheduleOverlayUpdate() {
@@ -145,8 +192,9 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
 
     _overlayEntry = OverlayEntry(
       builder: (context) {
-        final filtered = _filteredSuggestions;
-        final showOverlay = filtered.isNotEmpty || _parsedLine.context == HomeworkParseContext.start;
+        final primary = _primarySuggestion;
+        final showOverlay =
+            primary != null || _parsedLine.context == HomeworkParseContext.start;
         if (!showOverlay) return const SizedBox.shrink();
 
         return Positioned(
@@ -156,8 +204,7 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
             showWhenUnlinked: false,
             offset: const Offset(0, 48),
             child: HomeworkSuggestionOverlay(
-              suggestions: filtered,
-              onSelected: _onSuggestionSelected,
+              primarySuggestion: primary,
               onAddCustom: _onAddCustom,
             ),
           ),
@@ -181,27 +228,23 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
     _overlayEntry = null;
   }
 
-  void _onSuggestionSelected(HomeworkSyntaxSuggestion suggestion) {
-    applySuggestionToLine(
-      parser: widget.parser,
-      committedFragments: _controller.fragments,
-      activeText: _controller.text,
-      suggestion: suggestion,
-      onChanged: (fragments, activeText) {
-        _syncingFromParent = true;
-        _controller.updateDocument(fragments: fragments, activeText: activeText);
-        _syncingFromParent = false;
-        widget.onChanged(fragments, activeText);
-        _scheduleOverlayUpdate();
-      },
-    );
-  }
-
   Future<void> _onAddCustom() async {
     final result = await HomeworkAddSuggestionSheet.show(context);
     if (result == null) return;
     await widget.onAddCustomSuggestion?.call(result.label, result.shorthand);
     _scheduleOverlayUpdate();
+  }
+
+  List<TextInputFormatter> get _inputFormatters {
+    return switch (_parsedLine.context) {
+      HomeworkParseContext.afterBook => [
+          FilteringTextInputFormatter.allow(RegExp(r'[\d/ ]')),
+        ],
+      HomeworkParseContext.afterPage => [
+          FilteringTextInputFormatter.allow(RegExp(r'[\d/ ]')),
+        ],
+      _ => const [],
+    };
   }
 
   @override
@@ -221,11 +264,7 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
               0,
               _controller.fragments.length - 1,
             );
-            _syncingFromParent = true;
-            _controller.updateDocument(fragments: next, activeText: '');
-            _syncingFromParent = false;
-            widget.onChanged(next, '');
-            _scheduleOverlayUpdate();
+            _applyDocument(fragments: next, activeText: '');
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
@@ -236,6 +275,7 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
           minLines: 1,
           maxLines: 4,
           style: Theme.of(context).textTheme.bodyLarge,
+          inputFormatters: _inputFormatters,
           decoration: InputDecoration(
             border: InputBorder.none,
             enabledBorder: InputBorder.none,

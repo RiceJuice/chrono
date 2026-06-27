@@ -476,7 +476,14 @@ class GuardianLinkRepository {
     Future<void> emit() async {
       if (controller.isClosed) return;
       try {
-        final links = await _loadLinksLocal(userId);
+        final localLinks = await _loadLinksLocal(userId);
+        var links = localLinks;
+        try {
+          final remoteLinks = await _loadLinksRemote(userId);
+          links = mergeGuardianLinkCollections(localLinks, remoteLinks);
+        } catch (_) {
+          // Remote-Fallback optional — lokale PowerSync-Daten reichen aus.
+        }
         if (!controller.isClosed) controller.add(links);
       } catch (_) {
         if (!controller.isClosed) controller.add(const []);

@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class HomeworkPageHeader extends StatelessWidget {
-  const HomeworkPageHeader({super.key, required this.onAddPressed});
+  const HomeworkPageHeader({super.key, this.onAddPressed});
 
-  final VoidCallback onAddPressed;
+  final VoidCallback? onAddPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -27,19 +27,20 @@ class HomeworkPageHeader extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(
-            width: kMinInteractiveDimension,
-            height: kMinInteractiveDimension,
-            child: IconButton(
-              onPressed: onAddPressed,
-              tooltip: 'Neue Aufgabe',
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: scheme.onSurface,
+          if (onAddPressed != null)
+            SizedBox(
+              width: kMinInteractiveDimension,
+              height: kMinInteractiveDimension,
+              child: IconButton(
+                onPressed: onAddPressed,
+                tooltip: 'Neue Aufgabe',
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: scheme.onSurface,
+                ),
+                icon: const Icon(Icons.add),
               ),
-              icon: const Icon(Icons.add),
             ),
-          ),
         ],
       ),
     );

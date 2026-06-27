@@ -13,6 +13,10 @@ import 'calendar_appearance_bottom_sheet.dart';
 import 'calendar_settings_filter_widgets.dart';
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
+import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_calendar_viewer.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_permissions.dart';
+import 'package:chronoapp/features/settings/presentation/providers/settings_profile_providers.dart';
 
 import '../event_list/modals/base_bottom_modal.dart';
 
@@ -272,6 +276,14 @@ class _CalendarSettingsListSectionState
 
   @override
   Widget build(BuildContext context) {
+    final gate = ref.watch(profileGateDataProvider);
+    final ownProfile = ref.watch(syncedProfileProvider).asData?.value;
+    final isGuardianViewer = isGuardianCalendarViewer(
+      gate: gate,
+      ownProfile: ownProfile,
+    );
+    final permissions = ref.watch(activeGuardianChildPermissionsProvider);
+
     final rows = <_CalendarSettingsRowData>[
       _CalendarSettingsRowData(
         title: 'Chor',
@@ -291,11 +303,32 @@ class _CalendarSettingsListSectionState
         calendarVisibility: CalendarVisibility.school,
         settingsKind: CalendarSettingsKind.school,
       ),
-    ];
+    ].where(
+      (row) => guardianCalendarTypeConfigurable(
+        isGuardianViewer: isGuardianViewer,
+        permissions: permissions,
+        calendar: row.calendarVisibility,
+      ),
+    ).toList(growable: false);
 
     final notifier = ref.read(calendarFiltersProvider.notifier);
     final filters = ref.watch(calendarFiltersProvider);
     final colorScheme = Theme.of(context).colorScheme;
+
+    if (rows.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          isGuardianViewer
+              ? 'Dein Kind hat noch keine Kalender-Bereiche freigegeben.'
+              : 'Keine Kalender-Bereiche verfügbar.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
 
     return Column(
       children: [

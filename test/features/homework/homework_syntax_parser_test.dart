@@ -67,11 +67,10 @@ void main() {
     expect(fragments.first.fields['exercise'], '3');
   });
 
-  test('parst Arbeitsblatt AB 4', () {
-    final fragments = parser.parseCompleteLine('AB 4');
-    expect(fragments, hasLength(2));
+  test('parst Arbeitsblatt AB', () {
+    final fragments = parser.parseCompleteLine('AB');
+    expect(fragments, hasLength(1));
     expect(fragments[0].kind, HomeworkFragmentKind.worksheet);
-    expect(fragments[1].kind, HomeworkFragmentKind.freeText);
   });
 
   test('parst Hefteintrag', () {
@@ -97,7 +96,7 @@ void main() {
     expect(page.committedFragments.first.fields['page'], '117');
   });
 
-  test('commitActiveText: Aufgabe nach Seite mit Slash', () {
+  test('commitActiveText: Aufgabe nach Seite mit Leerzeichen', () {
     var frags = parser.commitActiveText(
       committedFragments: const [],
       activeText: 'BS ',
@@ -105,12 +104,25 @@ void main() {
 
     frags = parser.commitActiveText(
       committedFragments: frags,
-      activeText: '117/',
+      activeText: '117 ',
     )!.committedFragments;
 
     final done = parser.commitActiveText(
       committedFragments: frags,
       activeText: '3 ',
+    );
+    expect(done!.committedFragments.first.displayText, 'BS 117/3');
+  });
+
+  test('commitActiveText: Seite und Aufgabe kompakt mit Leerzeichen', () {
+    var frags = parser.commitActiveText(
+      committedFragments: const [],
+      activeText: 'BS ',
+    )!.committedFragments;
+
+    final done = parser.commitActiveText(
+      committedFragments: frags,
+      activeText: '117/3 ',
     );
     expect(done!.committedFragments.first.displayText, 'BS 117/3');
   });
