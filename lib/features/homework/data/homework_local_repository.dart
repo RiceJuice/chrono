@@ -41,6 +41,12 @@ class HomeworkLocalRepository {
     await prefs.setString(storageKeyForProfile(profileId), encoded);
   }
 
+  Future<void> clearTasks(String profileId) async {
+    if (profileId.isEmpty) return;
+    final prefs = await _preferences();
+    await prefs.remove(storageKeyForProfile(profileId));
+  }
+
   String createTaskId() {
     return '${DateTime.now().microsecondsSinceEpoch}_${_random.nextInt(1 << 32)}';
   }

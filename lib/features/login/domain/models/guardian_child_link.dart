@@ -1,3 +1,5 @@
+import 'guardian_child_share_permissions.dart';
+
 /// Status einer Eltern-Kind-Verknüpfung (Werte wie in Postgres CHECK).
 abstract final class GuardianLinkStatus {
   static const pending = 'pending';
@@ -71,6 +73,7 @@ class GuardianChildLink {
     this.childDiet,
     this.guardianFirstName,
     this.guardianLastName,
+    this.sharePermissions = GuardianChildSharePermissions.minimal,
   });
 
   final String id;
@@ -89,6 +92,7 @@ class GuardianChildLink {
   final String? childDiet;
   final String? guardianFirstName;
   final String? guardianLastName;
+  final GuardianChildSharePermissions sharePermissions;
 
   bool get isPending => status == GuardianLinkStatus.pending;
   bool get isConfirmed => status == GuardianLinkStatus.confirmed;
@@ -112,6 +116,31 @@ class GuardianChildLink {
       childDiet: childDiet,
       guardianFirstName: guardianFirstName,
       guardianLastName: guardianLastName,
+      sharePermissions: sharePermissions,
+    );
+  }
+
+  GuardianChildLink copyWithSharePermissions(
+    GuardianChildSharePermissions sharePermissions,
+  ) {
+    return GuardianChildLink(
+      id: id,
+      guardianId: guardianId,
+      childId: childId,
+      status: status,
+      createdAt: createdAt,
+      respondedAt: respondedAt,
+      reminderSentAt: reminderSentAt,
+      childFirstName: childFirstName,
+      childLastName: childLastName,
+      childClassName: childClassName,
+      childChoir: childChoir,
+      childVoice: childVoice,
+      childSchoolTrack: childSchoolTrack,
+      childDiet: childDiet,
+      guardianFirstName: guardianFirstName,
+      guardianLastName: guardianLastName,
+      sharePermissions: sharePermissions,
     );
   }
 
@@ -149,6 +178,9 @@ class GuardianChildLink {
       childDiet: row['child_diet']?.toString(),
       guardianFirstName: row['guardian_first_name']?.toString(),
       guardianLastName: row['guardian_last_name']?.toString(),
+      sharePermissions: GuardianChildSharePermissions.fromJson(
+        row['child_share_permissions'],
+      ),
     );
   }
 

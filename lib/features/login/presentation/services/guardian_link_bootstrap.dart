@@ -58,6 +58,7 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
   final GuardianLinkPushQueue _deferredPushQueue;
 
   StreamSubscription<List<GuardianChildLink>>? _linksSub;
+  Timer? _pollTimer;
   final List<GuardianChildLink> _queue = [];
   bool _dialogOpen = false;
   int _navigatorRetryCount = 0;
@@ -122,6 +123,8 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
     if (!_profileGate.isReady || !_profileGate.data.hasSession) {
       unawaited(_linksSub?.cancel());
       _linksSub = null;
+      _pollTimer?.cancel();
+      _pollTimer = null;
       return;
     }
 
@@ -129,11 +132,18 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
     if (role != LoginFlowRoleIds.student && role != ProfileRoleIds.admin) {
       unawaited(_linksSub?.cancel());
       _linksSub = null;
+      _pollTimer?.cancel();
+      _pollTimer = null;
       return;
     }
 
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
+
+    _pollTimer ??= Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => unawaited(_refreshPendingFromRemote()),
+    );
 
     _linksSub ??= _guardianLinks.watchPendingForChild(userId).listen((links) {
       final merged = mergePendingGuardianLinks(_queue, links);
@@ -143,6 +153,7 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
       unawaited(_processQueue());
     });
     unawaited(_refreshPendingFromRemote());
+    unawaited(_processQueue());
   }
 
   Future<void> _refreshPendingFromRemote() async {
@@ -160,15 +171,19 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
     _refreshInFlight = true;
     try {
       final pending = await _guardianLinks.loadPendingLinksForChild(userId);
-      if (pending.isEmpty) return;
-
-      _queue
-        ..clear()
-        ..addAll(mergePendingGuardianLinks(_queue, pending));
-      _navigatorRetryCount = 0;
-      unawaited(_processQueue());
+      if (pending.isNotEmpty) {
+        _queue
+          ..clear()
+          ..addAll(mergePendingGuardianLinks(_queue, pending));
+        _navigatorRetryCount = 0;
+      }
+      if (_hasWork()) {
+        unawaited(_processQueue());
+      }
     } catch (_) {
-      // Offline oder langsames Netz: nächster Resume-/Sync-Versuch.
+      if (_hasWork()) {
+        unawaited(_processQueue());
+      }
     } finally {
       _refreshInFlight = false;
     }
@@ -224,24 +239,29 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
     _dialogOpen = true;
     try {
       final linkForDialog = link;
-      final accept = await showGuardianLinkConfirmDialog(
+      final result = await showGuardianLinkConfirmDialog(
         dialogContext,
         link: linkForDialog,
         guardianNameOverride: guardianNameOverride,
       );
-      if (accept == null) return;
+      if (result == null || result.accept == null) return;
 
       await _guardianLinks.respondToLink(
         linkId: linkForDialog.id,
-        accept: accept,
+        accept: result.accept!,
+        sharePermissions: result.sharePermissions,
       );
 
       final toastContext = _navigatorKey.currentContext;
       if (toastContext == null || !toastContext.mounted) return;
       showAppToast(
         toastContext,
-        accept ? 'Verknüpfung bestätigt.' : 'Verknüpfung abgelehnt.',
-        kind: accept ? AppToastKind.success : AppToastKind.info,
+        result.accept!
+            ? 'Verknüpfung bestätigt.'
+            : 'Verknüpfung abgelehnt.',
+        kind: result.accept!
+            ? AppToastKind.success
+            : AppToastKind.info,
       );
 
       _queue.removeWhere((l) => l.id == linkForDialog.id);
@@ -299,9 +319,18 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
 
   bool _hasWork() => _queue.isNotEmpty || !_pushQueue.isEmpty;
 
+  static void requestProcessQueue() {
+    final instance = _instance;
+    if (instance == null) return;
+    unawaited(instance._refreshPendingFromRemote());
+    unawaited(instance._processQueue());
+  }
+
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _profileGate.removeListener(_onProfileGateChanged);
+    _pollTimer?.cancel();
+    _pollTimer = null;
     unawaited(_linksSub?.cancel());
     _linksSub = null;
   }

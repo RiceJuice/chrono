@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/calendar/presentation/providers/calendar_providers.dart';
 import '../../features/calendar/presentation/widgets/search/calendar_search_layer.dart';
+import '../../features/settings/presentation/helpers/guardian_child_permissions.dart';
 import '../haptics/app_haptics.dart';
 import 'app_glass_icon_button.dart';
 import 'app_hairline_divider.dart';
@@ -38,13 +39,18 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
   static const _materialTabGlyphSize = 22.0;
   static const _iosTabGlyphSize = 17.0;
 
-  int _tabIndexFromLocation(String location) {
-    if (location.startsWith(_homeworkPath)) return 1;
-    if (location.startsWith(_settingsPath)) return 2;
+  int _tabIndexFromLocation(String location, {required bool showHomework}) {
+    if (location.startsWith(_settingsPath)) {
+      return showHomework ? 2 : 1;
+    }
+    if (showHomework && location.startsWith(_homeworkPath)) return 1;
     return 0;
   }
 
-  String _routeTargetFromIndex(int index) {
+  String _routeTargetFromIndex(int index, {required bool showHomework}) {
+    if (!showHomework) {
+      return index == 1 ? _settingsPath : _calendarPath;
+    }
     return switch (index) {
       0 => _calendarPath,
       1 => _homeworkPath,
@@ -83,8 +89,9 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
     required BuildContext context,
     required String location,
     required int index,
+    required bool showHomework,
   }) {
-    final target = _routeTargetFromIndex(index);
+    final target = _routeTargetFromIndex(index, showHomework: showHomework);
     final searchOpen = ref.read(calendarSearchOpenProvider);
 
     if (target == _calendarPath && searchOpen) {
@@ -172,6 +179,7 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
     required BuildContext context,
     required String location,
     required int currentIndex,
+    required bool showHomework,
   }) {
     final destinations = <NavigationDestination>[
       NavigationDestination(
@@ -191,23 +199,24 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
         ),
         label: 'Kalender',
       ),
-      NavigationDestination(
-        icon: _tabIconSlot(
-          _buildHomeworkIcon(
-            context: context,
-            selected: false,
-            glyphSize: _materialTabGlyphSize,
+      if (showHomework)
+        NavigationDestination(
+          icon: _tabIconSlot(
+            _buildHomeworkIcon(
+              context: context,
+              selected: false,
+              glyphSize: _materialTabGlyphSize,
+            ),
           ),
-        ),
-        selectedIcon: _tabIconSlot(
-          _buildHomeworkIcon(
-            context: context,
-            selected: true,
-            glyphSize: _materialTabGlyphSize,
+          selectedIcon: _tabIconSlot(
+            _buildHomeworkIcon(
+              context: context,
+              selected: true,
+              glyphSize: _materialTabGlyphSize,
+            ),
           ),
+          label: 'Aufgaben',
         ),
-        label: 'Aufgaben',
-      ),
       NavigationDestination(
         icon: _tabIconSlot(
           _buildSettingsIcon(
@@ -252,6 +261,7 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
                     context: context,
                     location: location,
                     index: index,
+                    showHomework: showHomework,
                   );
                 },
                 destinations: destinations,
@@ -277,6 +287,7 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
     required String location,
     required int currentIndex,
     required IosCalendarTabIconSet? tabIcons,
+    required bool showHomework,
   }) {
     final iosSparrowAssetSize =
         DomspatzenIconMetrics.assetSizeForGlyph(_iosTabGlyphSize);
@@ -309,11 +320,13 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
               )
             : null,
       ),
-      CNTabBarItem(
-        label: 'Aufgaben',
-        icon: CNSymbol('text.book.closed', size: _iosTabGlyphSize),
-        activeIcon: CNSymbol('text.book.closed.fill', size: _iosTabGlyphSize),
-      ),
+      if (showHomework)
+        CNTabBarItem(
+          label: 'Aufgaben',
+          icon: CNSymbol('text.book.closed', size: _iosTabGlyphSize),
+          activeIcon:
+              CNSymbol('text.book.closed.fill', size: _iosTabGlyphSize),
+        ),
       CNTabBarItem(
         label: 'Dein Chrono',
         icon: CNSymbol('gearshape', size: _iosTabGlyphSize),
@@ -324,7 +337,7 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
     return CNTabBar(
       key: ValueKey(
         'main-nav-${tabIcons?.brightness.name}-'
-        '${inactiveBytes?.length}-${activeBytes?.length}',
+        '${inactiveBytes?.length}-${activeBytes?.length}-$showHomework',
       ),
       autoHideOnModal: false,
       labelFontSize: 10,
@@ -334,6 +347,7 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
           context: context,
           location: location,
           index: index,
+          showHomework: showHomework,
         );
       },
       items: items,
@@ -382,7 +396,17 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    final currentIndex = _tabIndexFromLocation(location);
+    final showHomework = ref.watch(guardianHomeworkTabVisibleProvider);
+    final currentIndex =
+        _tabIndexFromLocation(location, showHomework: showHomework);
+
+    if (!showHomework && location.startsWith(_homeworkPath)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.go(_calendarPath);
+      });
+    }
+
     if (_useNativeIosTabBar()) {
       final tabIcons = ref.watch(iosCalendarTabIconsProvider);
       return _buildIosNavigationBar(
@@ -390,12 +414,14 @@ class _MainNavigationBarState extends ConsumerState<MainNavigationBar> {
         location: location,
         currentIndex: currentIndex,
         tabIcons: tabIcons,
+        showHomework: showHomework,
       );
     }
     return _buildMaterialNavigationBar(
       context: context,
       location: location,
       currentIndex: currentIndex,
+      showHomework: showHomework,
     );
   }
 }

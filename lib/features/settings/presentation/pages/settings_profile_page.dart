@@ -11,6 +11,7 @@ import 'package:chronoapp/features/settings/presentation/pages/settings_edit_per
 import 'package:chronoapp/features/settings/presentation/providers/settings_profile_providers.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_island.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_profile_header_card.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/guardian_parent_access_section.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_section_label.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_tile.dart';
 import 'package:flutter/material.dart';
@@ -86,6 +87,7 @@ class _SettingsProfilePageState extends ConsumerState<SettingsProfilePage> {
                 ),
               ],
             ),
+            const GuardianParentAccessSection(),
           ],
         ),
         loading: () => const Center(child: CircularProgressIndicator()),

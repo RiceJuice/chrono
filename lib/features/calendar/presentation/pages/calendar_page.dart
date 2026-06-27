@@ -25,6 +25,7 @@ import 'package:chronoapp/features/settings/presentation/providers/settings_prof
 
 import '../widgets/calendar_header/calendar_header.dart';
 import '../widgets/calendar_header/calendar_view_mode_overlay.dart';
+import '../widgets/guardian_calendar_privacy_gate.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -239,7 +240,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
           onCreatePressed: isAdmin ? _openCreateEventSheet : null,
           onFilterPressed: _openCalendarFilters,
         ),
-        Expanded(child: _buildCalendarBody(viewMode: viewMode)),
+        Expanded(
+          child: GuardianCalendarPrivacyGate(
+            child: _buildCalendarBody(viewMode: viewMode),
+          ),
+        ),
       ],
     );
   }

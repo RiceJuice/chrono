@@ -66,11 +66,11 @@ void main() {
       );
     });
 
-    test('nutzt Profil-Rolle als Fallback', () {
+    test('ignoriert Elternteil ohne bestätigte Verknüpfung', () {
       expect(
         isGuardianCalendarViewer(
           gate: _gateWithConfirmedLink.copyWith(
-            role: null,
+            role: LoginFlowRoleIds.guardian,
             hasConfirmedGuardianLink: false,
           ),
           ownProfile: const ProfileSnapshot(
@@ -84,7 +84,7 @@ void main() {
             diet: null,
           ),
         ),
-        isTrue,
+        isFalse,
       );
     });
   });

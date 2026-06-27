@@ -3,6 +3,7 @@ import 'package:chronoapp/features/calendar/presentation/providers/calendar_prov
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/search/calendar_search_entrance_transition.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/search/calendar_search_layer.dart';
+import 'package:chronoapp/features/login/presentation/widgets/guardian_link_pending_banner.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/guardian_calendar_filter_sync.dart';
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/foundation.dart';
@@ -141,6 +142,12 @@ class _MainShellScaffoldState extends ConsumerState<MainShellScaffold>
               bottom: 0,
               child: CalendarSearchBottomBar(onClose: _closeSearch),
             ),
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: GuardianLinkPendingBanner(),
+          ),
         ],
       ),
       bottomNavigationBar: hideNavBar

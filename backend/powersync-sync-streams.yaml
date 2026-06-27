@@ -60,3 +60,25 @@ streams:
   event_schedules:
     auto_subscribe: true
     query: SELECT * FROM event_schedules
+
+  homework_syntax_suggestions:
+    auto_subscribe: true
+    query: |
+      SELECT * FROM homework_syntax_suggestions
+      WHERE is_global = true OR created_by = auth.user_id()
+
+  homework_contributions:
+    auto_subscribe: true
+    query: |
+      SELECT h.* FROM homework_contributions h
+      JOIN profiles p ON p.id = auth.user_id()
+      WHERE h.class_name = p.class_name
+        AND (
+          h.schooltrack IS NULL
+          OR p.schooltrack IS NULL
+          OR h.schooltrack::text = p.schooltrack::text
+        )
+
+  homework_tasks:
+    auto_subscribe: true
+    query: SELECT * FROM homework_tasks WHERE profile_id = auth.user_id()

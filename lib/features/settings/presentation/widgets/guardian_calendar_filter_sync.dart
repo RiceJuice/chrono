@@ -1,6 +1,8 @@
+import 'package:chronoapp/features/login/domain/models/guardian_child_share_permissions.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
 import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_calendar_filter_sync_helper.dart';
+import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_permissions.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_calendar_viewer.dart';
 import 'package:chronoapp/features/settings/presentation/providers/effective_calendar_profile_provider.dart';
 import 'package:chronoapp/features/settings/presentation/providers/settings_profile_providers.dart';
@@ -25,14 +27,28 @@ class _GuardianCalendarFilterSyncState
     extends ConsumerState<GuardianCalendarFilterSync> {
   String? _lastSyncedKey;
 
-  void _scheduleSync(ProfileSnapshot? profile, String? activeChildId) {
-    final key = guardianCalendarFilterSyncKey(activeChildId, profile);
+  void _scheduleSync(
+    ProfileSnapshot? profile,
+    String? activeChildId,
+    GuardianChildSharePermissions permissions,
+  ) {
+    final key = [
+      guardianCalendarFilterSyncKey(activeChildId, profile),
+      permissions.shareSchool,
+      permissions.shareMeal,
+      permissions.shareChoir,
+      permissions.shareHomework,
+    ].join('|');
     if (key == _lastSyncedKey) return;
     _lastSyncedKey = key;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      syncGuardianCalendarFilters(ref, profile);
+      syncGuardianCalendarFilters(
+        ref,
+        profile,
+        sharePermissions: permissions,
+      );
     });
   }
 
@@ -47,8 +63,9 @@ class _GuardianCalendarFilterSyncState
 
     if (isGuardianViewer) {
       final activeChildId = gate.activeChildId;
+      final permissions = ref.watch(activeGuardianChildPermissionsProvider);
       ref.watch(effectiveCalendarProfileProvider).whenData((profile) {
-        _scheduleSync(profile, activeChildId);
+        _scheduleSync(profile, activeChildId, permissions);
       });
     }
 

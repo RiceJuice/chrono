@@ -9,6 +9,9 @@ const String kKlassenTable = 'klassen';
 const String kSubjectsTable = 'subjects';
 const String kEventSchedulesTable = 'event_schedules';
 const String kGuardianChildLinksTable = 'guardian_child_links';
+const String kHomeworkSyntaxSuggestionsTable = 'homework_syntax_suggestions';
+const String kHomeworkContributionsTable = 'homework_contributions';
+const String kHomeworkTasksTable = 'homework_tasks';
 
 /// Client-Schema für [kCalendarEventsTable] — Spalten wie in Supabase/Postgres
 /// und [CalendarEntry]/[CalendarEntryMapper].
@@ -101,6 +104,7 @@ const powersyncSchema = Schema([
       Column.text('created_at'),
       Column.text('responded_at'),
       Column.text('reminder_sent_at'),
+      Column.text('child_share_permissions'),
     ],
     indexes: [
       Index(
@@ -145,6 +149,74 @@ const powersyncSchema = Schema([
     ],
     indexes: [
       Index('event_schedules_event_id', [IndexedColumn('event_id')]),
+    ],
+  ),
+  Table(
+    kHomeworkSyntaxSuggestionsTable,
+    [
+      Column.text('category'),
+      Column.text('label'),
+      Column.text('shorthand'),
+      Column.text('aliases'),
+      Column.text('insert_template'),
+      Column.text('chip_color_key'),
+      Column.integer('sort_order'),
+      Column.integer('is_global'),
+      Column.text('created_by'),
+      Column.text('created_at'),
+    ],
+    indexes: [
+      Index(
+        'homework_syntax_suggestions_category',
+        [IndexedColumn('category')],
+      ),
+    ],
+  ),
+  Table(
+    kHomeworkContributionsTable,
+    [
+      Column.text('profile_id'),
+      Column.text('class_name'),
+      Column.text('schooltrack'),
+      Column.text('subject_id'),
+      Column.text('lesson_date'),
+      Column.text('fragments'),
+      Column.text('fragment_hashes'),
+      Column.text('created_at'),
+      Column.text('updated_at'),
+    ],
+    indexes: [
+      Index(
+        'homework_contributions_class_day',
+        [IndexedColumn('class_name'), IndexedColumn('lesson_date')],
+      ),
+      Index(
+        'homework_contributions_profile',
+        [IndexedColumn('profile_id')],
+      ),
+    ],
+  ),
+  Table(
+    kHomeworkTasksTable,
+    [
+      Column.text('profile_id'),
+      Column.text('title'),
+      Column.text('fragments'),
+      Column.text('plain_text'),
+      Column.text('subject_id'),
+      Column.integer('is_completed'),
+      Column.text('completed_at'),
+      Column.text('due_at'),
+      Column.text('due_source'),
+      Column.text('contribution_id'),
+      Column.text('created_at'),
+      Column.text('updated_at'),
+    ],
+    indexes: [
+      Index(
+        'homework_tasks_profile',
+        [IndexedColumn('profile_id')],
+      ),
     ],
   ),
 ]);

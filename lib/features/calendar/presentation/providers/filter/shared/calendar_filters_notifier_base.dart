@@ -76,6 +76,18 @@ abstract class CalendarFiltersNotifierBase
     };
   }
 
+  void applyGuardianSharePermissions({
+    required bool shareSchool,
+    required bool shareMeal,
+    required bool shareChoir,
+  }) {
+    state = state.copyWith(
+      showSchoolCalendar: shareSchool,
+      showMealCalendar: shareMeal,
+      showChoirCalendar: shareChoir,
+    );
+  }
+
   void toggleChoir(String value) {
     state = state.copyWith(
       choirs: toggleCalendarFilterValue(state.choirs, value),

@@ -12,5 +12,5 @@ bool isGuardianCalendarViewer({
   final role = (ownProfile?.role ?? gate.role)?.trim();
   if (role == LoginFlowRoleIds.student) return false;
 
-  return gate.hasConfirmedGuardianLink || role == LoginFlowRoleIds.guardian;
+  return gate.hasConfirmedGuardianLink;
 }

@@ -3,6 +3,7 @@ import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/animated_circle_checkbox.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_subject.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_fragment_chip.dart';
 import 'package:chronoapp/features/homework/presentation/helpers/homework_due_display.dart';
 import 'package:flutter/material.dart';
 
@@ -75,18 +76,28 @@ class HomeworkTaskTile extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                 ],
-                Text(
-                  task.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: contentColor,
-                        decoration: completed ? TextDecoration.lineThrough : null,
-                        decorationColor: contentColor.withValues(alpha: 0.6),
-                      ),
-                ),
-                if (task.description != null && task.description!.isNotEmpty) ...[
+                if (task.fragments.isNotEmpty) ...[
+                  Opacity(
+                    opacity: completed ? 0.55 : 1,
+                    child: HomeworkFragmentChipRow(
+                      fragments: task.fragments,
+                      compact: true,
+                    ),
+                  ),
+                ] else if (task.title.isNotEmpty) ...[
+                  Text(
+                    task.title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: contentColor,
+                          decoration: completed ? TextDecoration.lineThrough : null,
+                          decorationColor: contentColor.withValues(alpha: 0.6),
+                        ),
+                  ),
+                ],
+                if (task.displayDescription.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    task.description!,
+                    task.displayDescription,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: contentColor.withValues(alpha: 0.85),
                           decoration: completed ? TextDecoration.lineThrough : null,

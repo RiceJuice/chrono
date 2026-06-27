@@ -8,6 +8,7 @@ import '../../../core/auth/profile_role_ids.dart';
 import '../../../core/database/powersync_schema.dart';
 import '../domain/guardian_link_status.dart';
 import '../domain/models/guardian_child_link.dart';
+import '../domain/models/guardian_child_share_permissions.dart';
 import '../domain/models/login_flow_role_ids.dart';
 
 class GuardianLinkRepositoryException implements Exception {
@@ -63,6 +64,10 @@ class GuardianLinkRepository {
 
   final PowerSyncDatabase? _db;
   final SupabaseClient _supabase;
+
+  static const _linkSelectColumns =
+      'id, guardian_id, child_id, status, created_at, responded_at, '
+      'reminder_sent_at, child_share_permissions';
 
   String? get _userId => _supabase.auth.currentUser?.id;
 
@@ -333,6 +338,8 @@ class GuardianLinkRepository {
   Future<void> respondToLink({
     required String linkId,
     required bool accept,
+    GuardianChildSharePermissions sharePermissions =
+        GuardianChildSharePermissions.minimal,
   }) async {
     final userId = _userId;
     if (userId == null) {
@@ -348,6 +355,7 @@ class GuardianLinkRepository {
           .update({
             'status': status,
             'responded_at': DateTime.now().toUtc().toIso8601String(),
+            if (accept) 'child_share_permissions': sharePermissions.toJson(),
           })
           .eq('id', linkId)
           .eq('child_id', userId)
@@ -371,6 +379,41 @@ class GuardianLinkRepository {
     } catch (_) {
       throw GuardianLinkRepositoryException(
         'Antwort konnte nicht gespeichert werden.',
+      );
+    }
+  }
+
+  Future<void> updateSharePermissions({
+    required String linkId,
+    required GuardianChildSharePermissions sharePermissions,
+  }) async {
+    final userId = _userId;
+    if (userId == null) {
+      throw GuardianLinkRepositoryException('Nicht angemeldet.');
+    }
+
+    try {
+      final updated = await _supabase
+          .from('guardian_child_links')
+          .update({
+            'child_share_permissions': sharePermissions.toJson(),
+          })
+          .eq('id', linkId)
+          .eq('child_id', userId)
+          .eq('status', GuardianLinkStatus.confirmed)
+          .select('id')
+          .maybeSingle();
+
+      if (updated == null) {
+        throw GuardianLinkRepositoryException(
+          'Freigaben konnten nicht gespeichert werden.',
+        );
+      }
+    } on GuardianLinkRepositoryException {
+      rethrow;
+    } catch (_) {
+      throw GuardianLinkRepositoryException(
+        'Freigaben konnten nicht gespeichert werden.',
       );
     }
   }
@@ -552,10 +595,7 @@ class GuardianLinkRepository {
     try {
       final row = await _supabase
           .from('guardian_child_links')
-          .select(
-            'id, guardian_id, child_id, status, created_at, responded_at, '
-            'reminder_sent_at',
-          )
+          .select(_linkSelectColumns)
           .eq('id', linkId)
           .maybeSingle();
       if (row == null) return null;
@@ -572,7 +612,7 @@ class GuardianLinkRepository {
       final rows = await db.getAll(
         '''
         SELECT id, guardian_id, child_id, status, created_at, responded_at,
-               reminder_sent_at
+               reminder_sent_at, child_share_permissions
         FROM $kGuardianChildLinksTable
         WHERE id = ?
         LIMIT 1
@@ -590,10 +630,7 @@ class GuardianLinkRepository {
     try {
       final rows = await _supabase
           .from('guardian_child_links')
-          .select(
-            'id, guardian_id, child_id, status, created_at, responded_at, '
-            'reminder_sent_at',
-          )
+          .select(_linkSelectColumns)
           .or('guardian_id.eq.$userId,child_id.eq.$userId')
           .order('created_at', ascending: false);
       return (rows as List)
@@ -620,6 +657,7 @@ class GuardianLinkRepository {
           gcl.created_at,
           gcl.responded_at,
           gcl.reminder_sent_at,
+          gcl.child_share_permissions,
           cp.first_name AS child_first_name,
           cp.last_name AS child_last_name,
           cp.class_name AS child_class_name,

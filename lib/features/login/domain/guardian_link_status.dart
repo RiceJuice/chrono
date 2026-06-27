@@ -1,4 +1,5 @@
 import 'models/guardian_child_link.dart';
+import 'models/guardian_child_share_permissions.dart';
 
 int guardianLinkStatusRank(String? status) {
   switch (status?.trim().toLowerCase()) {
@@ -79,9 +80,25 @@ GuardianChildLink mergeGuardianChildLinks(
     childFirstName: local.childFirstName ?? remote.childFirstName,
     childLastName: local.childLastName ?? remote.childLastName,
     childClassName: local.childClassName ?? remote.childClassName,
+    childChoir: local.childChoir ?? remote.childChoir,
+    childVoice: local.childVoice ?? remote.childVoice,
+    childSchoolTrack: local.childSchoolTrack ?? remote.childSchoolTrack,
+    childDiet: local.childDiet ?? remote.childDiet,
     guardianFirstName: local.guardianFirstName ?? remote.guardianFirstName,
     guardianLastName: local.guardianLastName ?? remote.guardianLastName,
+    sharePermissions: _mergeSharePermissions(
+      local.sharePermissions,
+      remote.sharePermissions,
+    ),
   );
+}
+
+GuardianChildSharePermissions _mergeSharePermissions(
+  GuardianChildSharePermissions local,
+  GuardianChildSharePermissions remote,
+) {
+  if (remote.sharesAnything) return remote;
+  return local;
 }
 
 bool guardianLinksHaveConfirmed(Iterable<GuardianChildLink> links) {

@@ -22,9 +22,16 @@ import '../guardian_pending/guardian_pending_status_list.dart';
 import 'package:chronoapp/core/widgets/animated_circle_checkbox.dart';
 
 class SelectChildPage extends ConsumerStatefulWidget {
-  const SelectChildPage({super.key, this.onLinkRequested});
+  const SelectChildPage({
+    super.key,
+    this.embeddedInSettings = false,
+    this.onLinkRequested,
+  });
 
-  /// Wenn gesetzt (z. B. aus Einstellungen), kein Onboarding-Redirect.
+  /// Eingebettet in Einstellungen (Sheet) — kein Onboarding-Redirect.
+  final bool embeddedInSettings;
+
+  /// Optionaler Callback nach erfolgreicher Anfrage (z. B. Sheet schließen).
   final VoidCallback? onLinkRequested;
 
   @override
@@ -53,7 +60,7 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.onLinkRequested == null) {
+    if (!widget.embeddedInSettings) {
       _pollTimer = Timer.periodic(
         const Duration(seconds: 3),
         (_) => unawaited(_refreshLinksFromRemote()),
@@ -75,7 +82,7 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && widget.onLinkRequested == null) {
+    if (state == AppLifecycleState.resumed && !widget.embeddedInSettings) {
       unawaited(_refreshLinksFromRemote());
     }
   }
@@ -126,7 +133,7 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage>
   }
 
   Future<void> _refreshLinksFromRemote() async {
-    if (_refreshingLinks || widget.onLinkRequested != null) return;
+    if (_refreshingLinks || widget.embeddedInSettings) return;
     final userId = ref.read(authUserIdProvider).value;
     if (userId == null) return;
 
@@ -266,8 +273,8 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage>
       );
     }
 
-    if (widget.onLinkRequested != null) {
-      widget.onLinkRequested!();
+    if (widget.embeddedInSettings) {
+      widget.onLinkRequested?.call();
       Navigator.of(context).pop();
       return;
     }
@@ -336,13 +343,10 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage>
     final roleUi = LoginFlowRoleUi.fromStoredRoleLabel(_draft.role);
     final theme = Theme.of(context);
     final selectedCount = _selected.length;
-    final isSettingsFlow = widget.onLinkRequested != null;
+    final isSettingsFlow = widget.embeddedInSettings;
 
-    final linksAsync = isSettingsFlow
-        ? AsyncValue<List<GuardianChildLink>>.data(const [])
-        : ref.watch(guardianLinksProvider);
-    final userId =
-        isSettingsFlow ? null : ref.watch(authUserIdProvider).value;
+    final linksAsync = ref.watch(guardianLinksProvider);
+    final userId = ref.watch(authUserIdProvider).value;
 
     if (!isSettingsFlow) {
       ref.listen(guardianLinksProvider, (prev, next) {

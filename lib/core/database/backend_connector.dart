@@ -177,7 +177,11 @@ class BackendConnector extends PowerSyncBackendConnector {
 
             op.table == kCalendarSeriesTable ||
 
-            op.table == kProfilesTable,
+            op.table == kProfilesTable ||
+
+            op.table == kHomeworkTasksTable ||
+
+            op.table == kHomeworkContributionsTable,
 
       );
 
@@ -358,6 +362,47 @@ class BackendConnector extends PowerSyncBackendConnector {
         }
       }
     }
+
+    if (table == kHomeworkTasksTable || table == kHomeworkContributionsTable) {
+      if (data.containsKey('fragments')) {
+        data['fragments'] = _decodeJsonField(data['fragments']);
+      }
+      if (table == kHomeworkContributionsTable &&
+          data.containsKey('fragment_hashes')) {
+        data['fragment_hashes'] =
+            PostgresEnumArrayCodec.toSupabaseArray(data['fragment_hashes']);
+      }
+      if (table == kHomeworkTasksTable && data.containsKey('is_completed')) {
+        data['is_completed'] = data['is_completed'] == true ||
+            data['is_completed'] == 1 ||
+            data['is_completed'] == '1';
+      }
+      return;
+    }
+
+    if (table == kHomeworkSyntaxSuggestionsTable) {
+      if (data.containsKey('aliases')) {
+        data['aliases'] = PostgresEnumArrayCodec.toSupabaseArray(data['aliases']);
+      }
+      if (data.containsKey('is_global')) {
+        data['is_global'] = data['is_global'] == true ||
+            data['is_global'] == 1 ||
+            data['is_global'] == '1';
+      }
+    }
+  }
+
+  static dynamic _decodeJsonField(dynamic raw) {
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return [];
+      try {
+        return jsonDecode(trimmed);
+      } catch (_) {
+        return raw;
+      }
+    }
+    return raw;
   }
 
   void _ensureRowsAffected({

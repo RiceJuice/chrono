@@ -141,7 +141,11 @@ class _CalendarEntryCachedImageState extends State<CalendarEntryCachedImage> {
         final width = info.image.width.toDouble();
         final height = info.image.height.toDouble();
         if (width > 0 && height > 0) {
-          callback(width / height);
+          final ratio = width / height;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            callback(ratio);
+          });
         }
       },
       onError: (_, _) => stream.removeListener(listener),

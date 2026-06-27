@@ -16,6 +16,7 @@ import 'package:chronoapp/features/settings/presentation/widgets/settings_tile.d
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class GuardianChildProfileCards extends ConsumerStatefulWidget {
   const GuardianChildProfileCards({super.key});
@@ -112,7 +113,24 @@ class _GuardianChildProfileCardsState
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SettingsIsland(
+            children: [
+              SettingsTile(
+                title: 'Kind hinzufügen',
+                icon: SettingsIcons.addChild,
+                trailing: PhosphorIcon(
+                  PhosphorIcons.plus(PhosphorIconsStyle.bold),
+                  size: 20,
+                ),
+                onTap: _openAddChildSheet,
+              ),
+            ],
+          ),
+        ],
+      ),
       data: (links) {
         final ownLinks = mergeGuardianOwnLinks(
           streamLinks: links,
@@ -138,6 +156,10 @@ class _GuardianChildProfileCardsState
                 SettingsTile(
                   title: 'Kind hinzufügen',
                   icon: SettingsIcons.addChild,
+                  trailing: PhosphorIcon(
+                    PhosphorIcons.plus(PhosphorIconsStyle.bold),
+                    size: 20,
+                  ),
                   onTap: _openAddChildSheet,
                 ),
               ],
@@ -202,6 +224,7 @@ class _AddChildSheet extends StatelessWidget {
           ),
           Expanded(
             child: SelectChildPage(
+              embeddedInSettings: true,
               onLinkRequested: () {},
             ),
           ),

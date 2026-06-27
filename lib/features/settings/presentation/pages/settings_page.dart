@@ -116,6 +116,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
     final isGuardianRole =
         gateData.role?.trim() == LoginFlowRoleIds.guardian;
+    final isGuardianWaitingForChild =
+        isGuardianRole && !gateData.hasConfirmedGuardianLink;
     final calendarFilters = ref.watch(calendarFiltersProvider);
     final effectiveCalendarProfile =
         ref.watch(effectiveCalendarProfileProvider).asData?.value;
@@ -184,7 +186,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       const SettingsSectionLabel(title: 'Familie', top: 22),
                       const GuardianChildProfileCards(),
                     ],
-                    if (!isGuardianViewer)
+                    if (isGuardianWaitingForChild) ...[
+                      const SettingsSectionLabel(title: 'Kalender', top: 22),
+                      const _GuardianWaitingForChildIsland(),
+                    ],
+                    if (!isGuardianViewer && !isGuardianWaitingForChild)
                       ...ownProfileAsync.when(
                         data: (profile) => [
                           SettingsProfileSections(
@@ -232,7 +238,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           ),
                         ],
                       ),
-                    SettingsCalendarDefaultsSection(
+                    if (!isGuardianWaitingForChild)
+                      SettingsCalendarDefaultsSection(
                       readOnly: _saving,
                       onEditClassName: () => _editChoiceField(
                         title: 'Klasse auswählen',
@@ -532,6 +539,30 @@ ThemeMode _themeModeFromLabel(String label) {
     'Dunkel' => ThemeMode.dark,
     _ => ThemeMode.system,
   };
+}
+
+class _GuardianWaitingForChildIsland extends StatelessWidget {
+  const _GuardianWaitingForChildIsland();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SettingsIsland(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.info_outline_rounded, size: 22),
+          title: const Text('Warten auf Kind-Bestätigung'),
+          subtitle: Text(
+            'Sobald dein Kind die Verknüpfung bestätigt hat, werden hier '
+            'die Kalender-Standardwerte angezeigt.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _SettingsLoadingIsland extends StatelessWidget {

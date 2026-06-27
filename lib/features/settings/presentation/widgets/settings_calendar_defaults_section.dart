@@ -58,6 +58,7 @@ class SettingsCalendarDefaultsSection extends ConsumerWidget {
         filters: filters,
         usesChildProfile: usesChildProfile,
         effectiveReadOnly: readOnly,
+        profileLoading: false,
       ),
       loading: () => _buildContent(
         context,
@@ -66,6 +67,7 @@ class SettingsCalendarDefaultsSection extends ConsumerWidget {
         filters: filters,
         usesChildProfile: usesChildProfile,
         effectiveReadOnly: readOnly,
+        profileLoading: usesChildProfile,
       ),
       error: (error, _) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -96,7 +98,34 @@ class SettingsCalendarDefaultsSection extends ConsumerWidget {
     required CalendarFiltersState filters,
     required bool usesChildProfile,
     required bool effectiveReadOnly,
+    required bool profileLoading,
   }) {
+    if (usesChildProfile && profile == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SettingsSectionLabel(title: 'Kalender', top: 22),
+          SettingsIsland(
+            children: [
+              ListTile(
+                leading: profileLoading
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : PhosphorIcon(SettingsIcons.error, size: 22),
+                title: Text(
+                  profileLoading
+                      ? 'Kind-Profil wird geladen...'
+                      : 'Kein aktives Kind verknüpft',
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
     final display = resolveCalendarDefaultsDisplay(
       profile: profile,
       gate: usesChildProfile ? null : gate,

@@ -1,3 +1,4 @@
+import 'package:chronoapp/features/homework/domain/models/homework_fragment.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -12,6 +13,15 @@ void main() {
         id: 'task-1',
         title: 'Mathe üben',
         description: 'Aufgaben 3–7',
+        fragments: const [
+          HomeworkFragment(
+            kind: HomeworkFragmentKind.freeText,
+            canonicalKey: 'text:aufgaben',
+            displayText: 'Aufgaben 3–7',
+            chipColorKey: 'default',
+            fields: {'text': 'Aufgaben 3–7'},
+          ),
+        ],
         subjectId: 'subject-math',
         isCompleted: true,
         createdAt: createdAt,
