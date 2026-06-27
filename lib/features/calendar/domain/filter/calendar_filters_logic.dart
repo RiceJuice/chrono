@@ -26,7 +26,10 @@ bool calendarEntryMatchesFilters({
       selectedValues: filters.choirs,
       entryValue: value,
       isUnknown: entry.choir == BackendChoir.unknown,
-      hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+      hideUnknownWhenFilterActive: _hideUnknownChoirMetadata(
+        entryType: entry.type,
+        hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+      ),
     )) {
       return false;
     }
@@ -44,7 +47,11 @@ bool calendarEntryMatchesFilters({
       values.add(fallback);
     }
     final hasVoiceMatch = values.any(filters.voices.contains);
-    if (!hasVoiceMatch && (hideUnknownWhenFilterActive || values.isNotEmpty)) {
+    final hideUnknownVoice = _hideUnknownChoirMetadata(
+      entryType: entry.type,
+      hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+    );
+    if (!hasVoiceMatch && (hideUnknownVoice || values.isNotEmpty)) {
       return false;
     }
   }
@@ -55,7 +62,9 @@ bool calendarEntryMatchesFilters({
       selectedValues: filters.classNames,
       entryValue: value,
       isUnknown: value == null,
-      hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+      // Stundenplan-Serien haben oft keine Klasse am Eintrag — nur bei
+      // gesetztem Wert ausschließen, nicht bei fehlenden Metadaten.
+      hideUnknownWhenFilterActive: false,
     )) {
       return false;
     }
@@ -67,7 +76,7 @@ bool calendarEntryMatchesFilters({
       selectedValues: filters.schoolTracks,
       entryValue: value,
       isUnknown: entry.schoolTrack == BackendSchoolTrack.unknown,
-      hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+      hideUnknownWhenFilterActive: false,
     )) {
       return false;
     }
@@ -79,7 +88,7 @@ bool calendarEntryMatchesFilters({
       selectedValues: filters.diets,
       entryValue: value,
       isUnknown: entry.diet == BackendDiet.unknown,
-      hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+      hideUnknownWhenFilterActive: false,
     )) {
       return false;
     }
@@ -123,6 +132,15 @@ bool calendarEntryVisibleInEventList({
     filters: filters,
     hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
   );
+}
+
+bool _hideUnknownChoirMetadata({
+  required CalendarEntryType entryType,
+  required bool hideUnknownWhenFilterActive,
+}) {
+  // Allgemeine Events ohne Chor-Metadaten sollen sichtbar bleiben;
+  // strenge Profilfilter gelten nur für Chor-Termine.
+  return hideUnknownWhenFilterActive && entryType == CalendarEntryType.choir;
 }
 
 bool _matchesCategory({

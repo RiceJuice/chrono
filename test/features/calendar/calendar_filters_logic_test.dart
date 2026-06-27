@@ -114,7 +114,7 @@ void main() {
       );
     });
 
-    test('blendet Schul-Termin ohne Klasse aus wenn hideUnknown aktiv', () {
+    test('blendet Schul-Termin ohne Klasse nicht aus wenn hideUnknown aktiv', () {
       final entry = _entry(
         type: CalendarEntryType.lesson,
         className: null,
@@ -126,7 +126,36 @@ void main() {
           filters: filters,
           hideUnknownWhenFilterActive: true,
         ),
+        isTrue,
+      );
+    });
+
+    test('blendet Schul-Termin mit fremder Klasse aus', () {
+      final entry = _entry(
+        type: CalendarEntryType.lesson,
+        className: '11',
+      );
+
+      expect(
+        calendarEntryMatchesFilters(
+          entry: entry,
+          filters: filters,
+          hideUnknownWhenFilterActive: true,
+        ),
         isFalse,
+      );
+    });
+
+    test('zeigt allgemeines Event ohne Chor wenn hideUnknown aktiv', () {
+      final entry = _entry(type: CalendarEntryType.event);
+
+      expect(
+        calendarEntryMatchesFilters(
+          entry: entry,
+          filters: filters,
+          hideUnknownWhenFilterActive: true,
+        ),
+        isTrue,
       );
     });
 
