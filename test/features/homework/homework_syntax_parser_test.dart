@@ -8,9 +8,9 @@ List<HomeworkSyntaxSuggestion> _seedSuggestions() {
     HomeworkSyntaxSuggestion(
       id: '1',
       category: 'book',
-      label: 'Buch BS',
+      label: 'Buchseite',
       shorthand: 'BS',
-      aliases: ['B.S.', 'bs'],
+      aliases: ['Buchseite', 'B.S.', 'bs'],
       insertTemplate: '{shorthand} ',
       chipColorKey: 'book',
       sortOrder: 10,
@@ -33,6 +33,15 @@ List<HomeworkSyntaxSuggestion> _seedSuggestions() {
       aliases: ['H.E.'],
       chipColorKey: 'notebook',
       sortOrder: 200,
+    ),
+    HomeworkSyntaxSuggestion(
+      id: '4',
+      category: 'notebook',
+      label: 'Arbeitsheft',
+      shorthand: 'AH',
+      aliases: ['Arbeitsheft', 'A.H.', 'ah'],
+      chipColorKey: 'notebook',
+      sortOrder: 205,
     ),
   ];
 }
@@ -71,6 +80,36 @@ void main() {
     final fragments = parser.parseCompleteLine('AB');
     expect(fragments, hasLength(1));
     expect(fragments[0].kind, HomeworkFragmentKind.worksheet);
+  });
+
+  test('parst Arbeitsheft AH', () {
+    final fragments = parser.parseCompleteLine('AH');
+    expect(fragments, hasLength(1));
+    expect(fragments.first.kind, HomeworkFragmentKind.notebook);
+    expect(fragments.first.fields['code'], 'AH');
+  });
+
+  test('parst Buchseite als Alias für BS', () {
+    final fragments = parser.parseCompleteLine('Buchseite');
+    expect(fragments, hasLength(1));
+    expect(fragments.first.kind, HomeworkFragmentKind.book);
+    expect(fragments.first.fields['code'], 'BS');
+  });
+
+  test('commitActiveText: Buchseite dann Seite per Leerzeichen', () {
+    final bs = parser.commitActiveText(
+      committedFragments: const [],
+      activeText: 'Buchseite ',
+    );
+    expect(bs, isNotNull);
+    expect(bs!.committedFragments.first.fields['code'], 'BS');
+
+    final page = parser.commitActiveText(
+      committedFragments: bs.committedFragments,
+      activeText: '42 ',
+    );
+    expect(page!.committedFragments.first.displayText, 'BS 42');
+    expect(page.committedFragments.first.fields['page'], '42');
   });
 
   test('parst Hefteintrag', () {

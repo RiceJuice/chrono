@@ -42,6 +42,9 @@ class BaseCalendarCard extends StatelessWidget {
   /// Leichte Tönung über dem Blur (0 = nur Blur).
   final double? neighborGlassTintAlpha;
 
+  /// Offene Hausaufgaben für diese Stunde (Tageslisten-Karten).
+  final int openHomeworkCount;
+
   const BaseCalendarCard({
     super.key,
     required this.entry,
@@ -60,6 +63,7 @@ class BaseCalendarCard extends StatelessWidget {
     this.timeColumnCollapse = 1,
     this.neighborGlassBlurSigma,
     this.neighborGlassTintAlpha,
+    this.openHomeworkCount = 0,
   });
 
   @override
@@ -229,6 +233,7 @@ class BaseCalendarCard extends StatelessWidget {
                     titleFontSize: titleFontSize,
                     titleFontWeight: titleFontWeight,
                     showInlineTimeRange: inlineTime,
+                    openHomeworkCount: openHomeworkCount,
                   ),
                 ),
               ],

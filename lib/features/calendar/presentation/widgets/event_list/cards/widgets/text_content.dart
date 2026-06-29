@@ -1,5 +1,7 @@
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/helpers/lesson_week_grid_display_name.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:flutter/material.dart';
 
@@ -257,6 +259,7 @@ class TextContent extends StatelessWidget {
     this.compactTitleMaxLines,
     this.showInlineTimeRange = false,
     this.descriptionMaxLines,
+    this.openHomeworkCount = 0,
   });
 
   final CalendarEntry entry;
@@ -276,6 +279,9 @@ class TextContent extends StatelessWidget {
   /// Optional: Begrenzung der Beschreibungszeilen (nur nicht-kompakt).
   final int? descriptionMaxLines;
 
+  /// Offene Hausaufgaben für diese Stunde (nur Tageslisten-Karten).
+  final int openHomeworkCount;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -294,6 +300,10 @@ class TextContent extends StatelessWidget {
         !(preferLocationOnCard && trimmedLocation.isNotEmpty);
     final subtitleColor =
         secondaryTextColor ?? theme.colorScheme.onSurface;
+    final title = calendarEntryCardTitle(entry, compact: compact);
+    final showHomeworkRow = !compact &&
+        openHomeworkCount > 0 &&
+        entry.type == CalendarEntryType.lesson;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -315,7 +325,7 @@ class TextContent extends StatelessWidget {
           ),
         ],
         Text(
-          entry.eventName,
+          title,
           maxLines: compact ? (compactTitleMaxLines ?? 2).clamp(1, 2) : null,
           overflow: compact ? TextOverflow.ellipsis : null,
           textHeightBehavior: _cardTextHeightTight,
@@ -326,6 +336,10 @@ class TextContent extends StatelessWidget {
             fontSize: effectiveTitleFontSize,
           ),
         ),
+        if (showHomeworkRow) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _LessonHomeworkPendingRow(count: openHomeworkCount),
+        ],
         if (!compact) const SizedBox(height: 2),
         if (!compact) ...[
           if (showLocationSubtitle)
@@ -369,6 +383,45 @@ class TextContent extends StatelessWidget {
             compact: compact,
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _LessonHomeworkPendingRow extends StatelessWidget {
+  const _LessonHomeworkPendingRow({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final label = count == 1
+        ? 'Noch 1 Aufgabe offen'
+        : 'Noch $count Aufgaben offen';
+
+    return Row(
+      children: [
+        Icon(
+          Icons.assignment_outlined,
+          size: 14,
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textHeightBehavior: _cardTextHeightTight,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.9),
+              fontWeight: FontWeight.w600,
+              height: 1.1,
+            ),
+          ),
+        ),
       ],
     );
   }

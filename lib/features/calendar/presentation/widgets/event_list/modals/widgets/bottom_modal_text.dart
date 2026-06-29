@@ -1,5 +1,6 @@
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/event_schedules_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/lesson_weekdays_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
@@ -7,6 +8,7 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_schedule_section.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_bottom_modal_typography.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_lesson_pending_hint.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -380,6 +382,13 @@ class _StandardBottomModalTextContent extends ConsumerWidget {
               loading: () => const SizedBox.shrink(),
               error: (_, _) => const SizedBox.shrink(),
             ),
+          if (isLesson) ...[
+            const SizedBox(height: AppSpacing.m),
+            HomeworkLessonPendingHint(
+              entry: entry,
+              accentColor: resolveCalendarEntryAccent(ref, entry),
+            ),
+          ],
           if (descriptionText.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.l),
             Text('Beschreibung', style: sectionLabelStyle),

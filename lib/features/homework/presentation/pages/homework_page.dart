@@ -10,7 +10,7 @@ import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_
 import 'package:chronoapp/features/homework/presentation/widgets/homework_page_header.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_peer_suggestion_tile.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_task_form_sheet.dart';
-import 'package:chronoapp/features/homework/presentation/widgets/homework_task_tile.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_task_swipe_to_delete.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -40,6 +40,23 @@ class HomeworkPage extends ConsumerWidget {
     }
   }
 
+  Future<bool> _confirmDeleteTask(
+    BuildContext context,
+    WidgetRef ref,
+    String taskId,
+  ) async {
+    try {
+      await ref.read(homeworkTasksProvider.notifier).deleteTask(taskId);
+      return true;
+    } catch (_) {
+      if (!context.mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aufgabe konnte nicht gelöscht werden.')),
+      );
+      return false;
+    }
+  }
+
   Future<void> _rejectSuggestion(
     BuildContext context,
     WidgetRef ref,
@@ -59,7 +76,7 @@ class HomeworkPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tasksAsync = ref.watch(homeworkTasksProvider);
+    final tasksAsync = ref.watch(visibleHomeworkTasksProvider);
     final peerSuggestionsAsync = ref.watch(pendingPeerSuggestionsProvider);
     final readOnly = ref.watch(isGuardianHomeworkReadOnlyProvider);
     final subjectsAsync = ref.watch(subjectsListProvider);
@@ -156,7 +173,7 @@ class HomeworkPage extends ConsumerWidget {
                           ? null
                           : subjectsById[task.subjectId];
 
-                      return HomeworkTaskTile(
+                      return HomeworkTaskSwipeToDelete(
                         task: task,
                         subject: subject,
                         onToggleCompleted: readOnly
@@ -166,6 +183,13 @@ class HomeworkPage extends ConsumerWidget {
                                     .read(homeworkTasksProvider.notifier)
                                     .toggleCompleted(task.id);
                               },
+                        onConfirmDelete: readOnly
+                            ? null
+                            : () => _confirmDeleteTask(
+                                  context,
+                                  ref,
+                                  task.id,
+                                ),
                       );
                     },
                   );

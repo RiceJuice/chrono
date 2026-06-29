@@ -15,8 +15,9 @@ class HomeworkSyntaxField extends StatefulWidget {
     required this.committedFragments,
     required this.activeText,
     required this.onChanged,
-    this.hintText = 'Hausaufgabe (z. B. BS 117/3)',
+    this.hintText = 'Hausaufgabe (z. B. BS 117/3, AB, AH)',
     this.onAddCustomSuggestion,
+    this.contentMinLines = 2,
   });
 
   final HomeworkSyntaxParser parser;
@@ -26,6 +27,7 @@ class HomeworkSyntaxField extends StatefulWidget {
   final void Function(List<HomeworkFragment> fragments, String activeText) onChanged;
   final String hintText;
   final Future<void> Function(String label, String shorthand)? onAddCustomSuggestion;
+  final int contentMinLines;
 
   @override
   State<HomeworkSyntaxField> createState() => _HomeworkSyntaxFieldState();
@@ -50,11 +52,24 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
     _controller.addListener(_handleTextChange);
   }
 
+  bool _documentDiffersFromProps() {
+    if (_controller.text != widget.activeText) return true;
+    final local = _controller.fragments;
+    final remote = widget.committedFragments;
+    if (local.length != remote.length) return true;
+    for (var i = 0; i < local.length; i++) {
+      if (local[i].canonicalKey != remote[i].canonicalKey ||
+          local[i].displayText != remote[i].displayText) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @override
   void didUpdateWidget(covariant HomeworkSyntaxField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.committedFragments != widget.committedFragments ||
-        oldWidget.activeText != widget.activeText) {
+    if (_documentDiffersFromProps()) {
       _syncingFromParent = true;
       _controller.updateDocument(
         fragments: widget.committedFragments,
@@ -205,6 +220,9 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
             offset: const Offset(0, 48),
             child: HomeworkSuggestionOverlay(
               primarySuggestion: primary,
+              onPrimaryTap: primary == null
+                  ? null
+                  : () => _applyFirstSuggestion(primary),
               onAddCustom: _onAddCustom,
             ),
           ),
@@ -272,8 +290,9 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
         child: TextField(
           controller: _controller,
           focusNode: _focusNode,
-          minLines: 1,
-          maxLines: 4,
+          minLines: widget.contentMinLines,
+          maxLines: widget.contentMinLines + 6,
+          textInputAction: TextInputAction.done,
           style: Theme.of(context).textTheme.bodyLarge,
           inputFormatters: _inputFormatters,
           decoration: InputDecoration(
@@ -288,7 +307,10 @@ class _HomeworkSyntaxFieldState extends State<HomeworkSyntaxField> {
                   color: scheme.onSurfaceVariant,
                 ),
           ),
-          onSubmitted: (_) => _tryCommit(),
+          onSubmitted: (_) {
+            _tryCommit();
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
         ),
       ),
     );

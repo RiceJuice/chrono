@@ -77,6 +77,15 @@ class HomeworkTaskRepository {
     });
   }
 
+  Future<void> deleteTask({required String taskId}) async {
+    await _db.writeTransaction((tx) async {
+      await tx.execute(
+        'DELETE FROM $kHomeworkTasksTable WHERE id = ?',
+        [taskId],
+      );
+    });
+  }
+
   Future<void> toggleCompleted({
     required String taskId,
     required bool isCompleted,

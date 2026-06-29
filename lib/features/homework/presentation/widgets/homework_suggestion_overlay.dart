@@ -12,10 +12,12 @@ class HomeworkSuggestionOverlay extends StatelessWidget {
     super.key,
     required this.primarySuggestion,
     required this.onAddCustom,
+    this.onPrimaryTap,
     this.width = 280,
   });
 
   final HomeworkSyntaxSuggestion? primarySuggestion;
+  final VoidCallback? onPrimaryTap;
   final VoidCallback onAddCustom;
   final double width;
 
@@ -45,6 +47,7 @@ class HomeworkSuggestionOverlay extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
+                  onTap: onPrimaryTap,
                 ),
               ),
             SizedBox(

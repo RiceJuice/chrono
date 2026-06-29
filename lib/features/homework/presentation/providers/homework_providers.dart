@@ -16,6 +16,7 @@ import 'package:chronoapp/features/homework/domain/models/homework_peer_suggesti
 import 'package:chronoapp/features/homework/domain/models/homework_syntax_suggestion.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
 import 'package:chronoapp/features/homework/domain/next_lesson_for_subject.dart';
+import 'package:chronoapp/features/homework/presentation/helpers/homework_due_display.dart';
 import 'package:chronoapp/features/login/domain/models/profile_gate_data.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
 import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
@@ -193,6 +194,19 @@ final homeworkTasksProvider =
   HomeworkTasksNotifier.new,
 );
 
+final homeworkListClockProvider = StreamProvider<DateTime>((ref) async* {
+  yield DateTime.now();
+  yield* Stream.periodic(const Duration(minutes: 1), (_) => DateTime.now());
+});
+
+final visibleHomeworkTasksProvider = Provider<AsyncValue<List<HomeworkTask>>>(
+  (ref) {
+    ref.watch(homeworkListClockProvider);
+    final tasksAsync = ref.watch(homeworkTasksProvider);
+    return tasksAsync.whenData(visibleHomeworkTasks);
+  },
+);
+
 class HomeworkTasksNotifier extends AsyncNotifier<List<HomeworkTask>> {
   @override
   Future<List<HomeworkTask>> build() async {
@@ -251,7 +265,8 @@ class HomeworkTasksNotifier extends AsyncNotifier<List<HomeworkTask>> {
   }
 
   Future<void> addTask({
-    required List<HomeworkFragment> fragments,
+    String? title,
+    List<HomeworkFragment> fragments = const [],
     String? description,
     String? subjectId,
     DateTime? dueAt,
@@ -261,13 +276,15 @@ class HomeworkTasksNotifier extends AsyncNotifier<List<HomeworkTask>> {
     final profileId = ref.read(effectiveHomeworkProfileIdProvider);
     if (profileId == null || profileId.isEmpty) return;
 
-    final title = fragmentsToPlainText(fragments);
-    if (title.isEmpty) return;
+    final resolvedTitle = title?.trim().isNotEmpty == true
+        ? title!.trim()
+        : fragmentsToPlainText(fragments);
+    if (resolvedTitle.isEmpty) return;
 
     final repository = ref.read(homeworkTaskRepositoryProvider);
     await repository.insertTask(
       profileId: profileId,
-      title: title,
+      title: resolvedTitle,
       fragments: fragments,
       description: description,
       subjectId: subjectId,
@@ -275,6 +292,14 @@ class HomeworkTasksNotifier extends AsyncNotifier<List<HomeworkTask>> {
       dueSource: dueSource,
       contributionId: contributionId,
     );
+  }
+
+  Future<void> deleteTask(String taskId) async {
+    final profileId = ref.read(effectiveHomeworkProfileIdProvider);
+    if (profileId == null || profileId.isEmpty) return;
+
+    final repository = ref.read(homeworkTaskRepositoryProvider);
+    await repository.deleteTask(taskId: taskId);
   }
 
   Future<void> toggleCompleted(String taskId) async {

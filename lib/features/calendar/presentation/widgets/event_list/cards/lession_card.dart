@@ -1,8 +1,13 @@
+import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/theme/calendar_presentation_theme.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/base_calendar_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/leading_indicator/calendar_card_leading_indicator.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/lesson_homework_pending_badge.dart';
+import 'package:chronoapp/features/homework/domain/homework_tasks_for_lesson.dart';
+import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
+import 'package:chronoapp/features/homework/presentation/providers/homework_lesson_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -39,24 +44,44 @@ class LessionCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accent = resolveCalendarEntryAccent(ref, entry);
+    final lookupKey = lessonHomeworkLookupKeyForEntry(entry);
+    final openTasks = lookupKey == null
+        ? const <HomeworkTask>[]
+        : ref.watch(openHomeworkTasksForLessonKeyProvider(lookupKey));
+    final showHomeworkBadge =
+        !modalHeaderPreview && openTasks.isNotEmpty;
 
-    return BaseCalendarCard(
-      entry: entry,
-      applyPastStyling: applyPastStyling,
-      showTimeColumn: showTimeColumn,
-      weekGridCompact: weekGridCompact,
-      showInlineTimeRange: showInlineTimeRange,
-      listTileHorizontalPadding: listTileHorizontalPadding,
-      contentPadding:
-          contentPadding ?? CalendarCardLeadingIndicator.contentPadding,
-      titleFontSize: titleFontSize,
-      backgroundColor:
-          CalendarPresentationTheme.lessonCardBackgroundColor(context, accent),
-      leadingIndicatorColor: accent,
-      modalHeaderPreview: modalHeaderPreview,
-      timeColumnCollapse: timeColumnCollapse,
-      neighborGlassBlurSigma: neighborGlassBlurSigma,
-      neighborGlassTintAlpha: neighborGlassTintAlpha,
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        BaseCalendarCard(
+          entry: entry,
+          applyPastStyling: applyPastStyling,
+          showTimeColumn: showTimeColumn,
+          weekGridCompact: weekGridCompact,
+          showInlineTimeRange: showInlineTimeRange,
+          listTileHorizontalPadding: listTileHorizontalPadding,
+          contentPadding:
+              contentPadding ?? CalendarCardLeadingIndicator.contentPadding,
+          titleFontSize: titleFontSize,
+          backgroundColor: CalendarPresentationTheme.lessonCardBackgroundColor(
+            context,
+            accent,
+          ),
+          leadingIndicatorColor: accent,
+          modalHeaderPreview: modalHeaderPreview,
+          timeColumnCollapse: timeColumnCollapse,
+          neighborGlassBlurSigma: neighborGlassBlurSigma,
+          neighborGlassTintAlpha: neighborGlassTintAlpha,
+          openHomeworkCount: weekGridCompact ? 0 : openTasks.length,
+        ),
+        if (showHomeworkBadge)
+          Positioned(
+            top: 4,
+            right: weekGridCompact ? 4 : AppSpacing.l + 4,
+            child: LessonHomeworkPendingBadge(count: openTasks.length),
+          ),
+      ],
     );
   }
 }

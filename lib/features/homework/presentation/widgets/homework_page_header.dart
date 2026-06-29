@@ -5,6 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 class HomeworkPageHeader extends StatelessWidget {
   const HomeworkPageHeader({super.key, this.onAddPressed});
 
+  static const _addButtonSize = 56.0;
+  static const _addIconSize = 30.0;
+
   final VoidCallback? onAddPressed;
 
   @override
@@ -29,11 +32,12 @@ class HomeworkPageHeader extends StatelessWidget {
           ),
           if (onAddPressed != null)
             SizedBox(
-              width: kMinInteractiveDimension,
-              height: kMinInteractiveDimension,
+              width: _addButtonSize,
+              height: _addButtonSize,
               child: IconButton(
                 onPressed: onAddPressed,
                 tooltip: 'Neue Aufgabe',
+                iconSize: _addIconSize,
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   foregroundColor: scheme.onSurface,

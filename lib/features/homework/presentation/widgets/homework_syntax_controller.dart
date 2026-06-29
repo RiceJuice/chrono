@@ -31,10 +31,14 @@ class HomeworkSyntaxController extends TextEditingController {
 
   @override
   set value(TextEditingValue newValue) {
-    final text = newValue.text;
+    if (newValue.text == text) {
+      super.value = newValue;
+      return;
+    }
+    final newText = newValue.text;
     super.value = TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
+      text: newText,
+      selection: TextSelection.collapsed(offset: newText.length),
       composing: TextRange.empty,
     );
   }
