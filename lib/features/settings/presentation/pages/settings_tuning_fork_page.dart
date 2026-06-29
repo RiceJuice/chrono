@@ -5,7 +5,7 @@ import 'package:chronoapp/features/settings/domain/tuning_pitch_label.dart';
 import 'package:chronoapp/features/settings/presentation/services/tuning_audio_session.dart';
 import 'package:chronoapp/features/settings/presentation/services/tuning_pitch_detector.dart';
 import 'package:chronoapp/features/settings/presentation/services/tuning_reference_tone_player.dart';
-import 'package:chronoapp/features/settings/presentation/widgets/tuning_fork_illustration.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/tuning_fork_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -130,9 +130,6 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final bg = theme.scaffoldBackgroundColor;
-    final forkColor = scheme.onSurface.withValues(
-      alpha: scheme.brightness == Brightness.dark ? 0.78 : 0.68,
-    );
     final pitchLabel = _pitchLabel;
 
     return Scaffold(
@@ -177,9 +174,9 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
                 child: GestureDetector(
                   onTap: _onTuningForkTap,
                   behavior: HitTestBehavior.opaque,
-                  child: TuningForkIllustration(
+                  child: TuningForkModel(
                     size: 240,
-                    color: forkColor,
+                    isResonating: _isPlayingReference,
                   ),
                 ),
               ),
