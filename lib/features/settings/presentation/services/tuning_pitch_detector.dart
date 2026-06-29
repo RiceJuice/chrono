@@ -16,7 +16,7 @@ class TuningPitchDetector {
               bufferSize: PitchDetector.DEFAULT_BUFFER_SIZE,
             );
 
-  static const _smoothingWindow = 4;
+  static const _smoothingWindow = 16;
 
   final AudioRecorder _recorder;
   final PitchDetector _pitchDetector;
@@ -94,9 +94,17 @@ class TuningPitchDetector {
       _recentFrequencies.removeAt(0);
     }
 
-    final average = _recentFrequencies.reduce((a, b) => a + b) /
-        _recentFrequencies.length;
-    _frequencyController.add(average);
+    final median = _median(_recentFrequencies);
+    _frequencyController.add(median);
+  }
+
+  static double _median(List<double> values) {
+    final sorted = List<double>.from(values)..sort();
+    final mid = sorted.length ~/ 2;
+    if (sorted.length.isOdd) {
+      return sorted[mid];
+    }
+    return (sorted[mid - 1] + sorted[mid]) / 2;
   }
 
   /// Korrekte PCM16-LE-Konvertierung – die Library-Extension nutzt nur das

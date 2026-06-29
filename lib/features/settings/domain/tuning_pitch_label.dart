@@ -40,27 +40,49 @@ class TuningPitchLabel {
   bool get hasTuningSymbol => tuningSymbol != null;
 }
 
-/// Wandelt eine Frequenz in Hz + Notenname mit optionalem ♯/♭ (zu hoch/tief) um.
-TuningPitchLabel tuningPitchLabelForFrequency(double frequencyHz) {
-  final midiFloat =
-      tuningReferenceMidi +
+/// MIDI-Float (69 = A4) für eine Frequenz in Hz.
+double tuningMidiFloatForFrequency(double frequencyHz) {
+  return tuningReferenceMidi +
       12 * (math.log(frequencyHz / tuningReferenceFrequencyHz) / math.ln2);
-  final midiNearest = midiFloat.round();
+}
+
+/// Temperierte Referenzfrequenz für eine MIDI-Note.
+double tuningTemperedFrequencyHzForMidi(int midiNote) {
+  return tuningReferenceFrequencyHz *
+      math.pow(2, (midiNote - tuningReferenceMidi) / 12);
+}
+
+/// Wandelt eine Frequenz in Hz + Notenname mit optionalem ♯/♭ (zu hoch/tief) um.
+///
+/// [symbolThresholdCents]: Abweichung in Cent, ab der ♯/♭ angezeigt wird.
+/// [displayTemperedFrequency]: Zeigt die nächste gestimmte Frequenz statt der
+/// gemessenen Hz – stabiler bei Vibrato.
+TuningPitchLabel tuningPitchLabelForFrequency(
+  double frequencyHz, {
+  int? lockedMidiNote,
+  double symbolThresholdCents = 35,
+  bool displayTemperedFrequency = false,
+}) {
+  final midiFloat = tuningMidiFloatForFrequency(frequencyHz);
+  final midiNearest = lockedMidiNote ?? midiFloat.round();
   final pitchClass = ((midiNearest % 12) + 12) % 12;
   final octave = (midiNearest ~/ 12) - 1;
-  final referenceHz = tuningReferenceFrequencyHz *
-      math.pow(2, (midiNearest - tuningReferenceMidi) / 12);
+  final referenceHz = tuningTemperedFrequencyHzForMidi(midiNearest);
   final cents = 1200 * (math.log(frequencyHz / referenceHz) / math.ln2);
 
   String? tuningSymbol;
-  if (cents > 12) {
+  if (cents > symbolThresholdCents) {
     tuningSymbol = '♯';
-  } else if (cents < -12) {
+  } else if (cents < -symbolThresholdCents) {
     tuningSymbol = '♭';
   }
 
+  final displayHz = displayTemperedFrequency
+      ? referenceHz.round()
+      : frequencyHz.round();
+
   return TuningPitchLabel(
-    frequencyHz: frequencyHz.round(),
+    frequencyHz: displayHz,
     noteName: _pitchClassNames[pitchClass],
     octave: octave,
     tuningSymbol: tuningSymbol,

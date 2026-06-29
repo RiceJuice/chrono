@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:chronoapp/core/widgets/app_glass_back_button.dart';
 import 'package:chronoapp/features/settings/domain/tuning_pitch_label.dart';
+import 'package:chronoapp/features/settings/domain/tuning_pitch_stabilizer.dart';
 import 'package:chronoapp/features/settings/presentation/services/tuning_audio_session.dart';
 import 'package:chronoapp/features/settings/presentation/services/tuning_pitch_detector.dart';
 import 'package:chronoapp/features/settings/presentation/services/tuning_reference_tone_player.dart';
@@ -22,6 +23,7 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
 
   final TuningPitchDetector _pitchDetector = TuningPitchDetector();
   final TuningReferenceTonePlayer _tonePlayer = TuningReferenceTonePlayer();
+  final TuningPitchStabilizer _pitchStabilizer = TuningPitchStabilizer();
 
   StreamSubscription<double?>? _frequencySubscription;
   late final AnimationController _tapAnimationController;
@@ -106,15 +108,13 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
       _isPlayingReference = false;
       _liveFrequencyHz = null;
     });
+    _pitchStabilizer.reset();
 
     await _startListening();
   }
 
-  TuningPitchLabel? get _pitchLabel {
-    final frequency = _liveFrequencyHz;
-    if (frequency == null) return null;
-    return tuningPitchLabelForFrequency(frequency);
-  }
+  TuningPitchLabel? get _pitchLabel =>
+      _pitchStabilizer.labelForFrequency(_liveFrequencyHz);
 
   @override
   void dispose() {
