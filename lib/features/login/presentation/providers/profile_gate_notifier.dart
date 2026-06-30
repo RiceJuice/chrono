@@ -64,13 +64,19 @@ class ProfileGateNotifier extends ChangeNotifier {
     switch (event.event) {
       case AuthChangeEvent.signedIn:
       case AuthChangeEvent.userUpdated:
+        if (_client.auth.currentSession != null && !_data.hasSession) {
+          _ready = false;
+          notifyListeners();
+        }
+        unawaited(refresh(remote: true));
       case AuthChangeEvent.tokenRefreshed:
+        unawaited(refresh(remote: false));
       case AuthChangeEvent.initialSession:
         if (_client.auth.currentSession != null && !_data.hasSession) {
           _ready = false;
           notifyListeners();
         }
-        unawaited(refresh());
+        unawaited(refresh(remote: true));
       case AuthChangeEvent.signedOut:
         _data = const ProfileGateData.signedOut();
         _ready = true;
@@ -80,8 +86,10 @@ class ProfileGateNotifier extends ChangeNotifier {
     }
   }
 
-  Future<void> refresh() {
-    return _inFlightRefresh ??= _runRefresh().whenComplete(() {
+  /// [remote]: Supabase-Abfrage nur bei Auth/Profil-Schreibvorgängen nötig.
+  /// Nach PowerSync-Download reicht die lokale SQLite-Kopie.
+  Future<void> refresh({bool remote = true}) {
+    return _inFlightRefresh ??= _runRefresh(remote: remote).whenComplete(() {
       _inFlightRefresh = null;
     });
   }
@@ -95,7 +103,7 @@ class ProfileGateNotifier extends ChangeNotifier {
       final syncedAt = status.lastSyncedAt;
       if (syncedAt == null || syncedAt == _lastHandledSyncAt) return;
       _lastHandledSyncAt = syncedAt;
-      unawaited(refresh());
+      unawaited(refresh(remote: false));
     });
   }
 
@@ -111,7 +119,7 @@ class ProfileGateNotifier extends ChangeNotifier {
     await refresh();
   }
 
-  Future<void> _runRefresh() async {
+  Future<void> _runRefresh({required bool remote}) async {
     final user = _client.auth.currentUser;
     if (user == null) {
       _setData(const ProfileGateData.signedOut());
@@ -119,17 +127,20 @@ class ProfileGateNotifier extends ChangeNotifier {
     }
 
     final localFuture = _loadLocalProfileRow(user.id);
-    final linkFuture = _loadGuardianLinkSummary(user.id);
     Map<String, dynamic>? row;
-    try {
-      row = await _fetchRemoteProfileRow(user.id)
-          .timeout(_remoteProfileTimeout);
-    } catch (_) {
-      row = null;
+    if (remote) {
+      try {
+        row = await _fetchRemoteProfileRow(user.id)
+            .timeout(_remoteProfileTimeout);
+      } catch (_) {
+        row = null;
+      }
     }
 
     row ??= await localFuture;
-    final linkSummary = await linkFuture;
+    final linkSummary = remote
+        ? await _loadGuardianLinkSummary(user.id)
+        : await _loadGuardianLinkSummaryLocal(user.id);
 
     _setData(_profileDataFromRow(user, row, linkSummary));
   }

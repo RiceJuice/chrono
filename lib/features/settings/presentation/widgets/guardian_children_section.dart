@@ -18,77 +18,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-class GuardianChildProfileCards extends ConsumerStatefulWidget {
+class GuardianChildProfileCards extends ConsumerWidget {
   const GuardianChildProfileCards({super.key});
 
-  @override
-  ConsumerState<GuardianChildProfileCards> createState() =>
-      _GuardianChildProfileCardsState();
-}
-
-class _GuardianChildProfileCardsState
-    extends ConsumerState<GuardianChildProfileCards>
-    with WidgetsBindingObserver {
-  List<GuardianChildLink> _remoteLinks = const [];
-  bool _refreshingLinks = false;
-  Timer? _pollTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => unawaited(_refreshLinksFromRemote()),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_refreshLinksFromRemote());
-    });
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _pollTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      unawaited(_refreshLinksFromRemote());
-    }
-  }
-
-  Future<void> _refreshLinksFromRemote() async {
-    if (_refreshingLinks) return;
-    final userId = ref.read(authUserIdProvider).value;
-    if (userId == null) return;
-
-    _refreshingLinks = true;
-    try {
-      final links = await ref
-          .read(guardianLinkRepositoryProvider)
-          .loadLinksRemote(userId);
-      if (!mounted) return;
-      setState(() => _remoteLinks = links);
-    } catch (_) {
-      // Lokaler Stream bleibt Fallback.
-    } finally {
-      _refreshingLinks = false;
-    }
-  }
-
-  Future<void> _openAddChildSheet() async {
+  Future<void> _openAddChildSheet(BuildContext context) async {
     await AppModalSheet.show<void>(
       context: context,
       builder: (context) => const _AddChildSheet(),
     );
-    if (!mounted) return;
-    unawaited(_refreshLinksFromRemote());
   }
 
-  void _openChildProfile(GuardianChildLink link) {
+  void _openChildProfile(BuildContext context, GuardianChildLink link) {
     HapticFeedback.heavyImpact();
     Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -98,15 +38,11 @@ class _GuardianChildProfileCardsState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final linksAsync = ref.watch(guardianLinksProvider);
     final userId = ref.watch(authUserIdProvider).value;
 
     if (userId == null) return const SizedBox.shrink();
-
-    ref.listen(guardianLinksProvider, (prev, next) {
-      next.whenData((_) => unawaited(_refreshLinksFromRemote()));
-    });
 
     return linksAsync.when(
       loading: () => const Padding(
@@ -125,7 +61,7 @@ class _GuardianChildProfileCardsState
                   PhosphorIcons.plus(PhosphorIconsStyle.bold),
                   size: 20,
                 ),
-                onTap: _openAddChildSheet,
+                onTap: () => unawaited(_openAddChildSheet(context)),
               ),
             ],
           ),
@@ -134,7 +70,7 @@ class _GuardianChildProfileCardsState
       data: (links) {
         final ownLinks = mergeGuardianOwnLinks(
           streamLinks: links,
-          remoteLinks: _remoteLinks,
+          remoteLinks: const [],
           guardianId: userId,
         );
 
@@ -146,7 +82,7 @@ class _GuardianChildProfileCardsState
               _GuardianChildProfileCard(
                 link: link,
                 onTap: guardianChildCardIsTappable(link)
-                    ? () => _openChildProfile(link)
+                    ? () => _openChildProfile(context, link)
                     : null,
               ),
             ],
@@ -160,7 +96,7 @@ class _GuardianChildProfileCardsState
                     PhosphorIcons.plus(PhosphorIconsStyle.bold),
                     size: 20,
                   ),
-                  onTap: _openAddChildSheet,
+                  onTap: () => unawaited(_openAddChildSheet(context)),
                 ),
               ],
             ),

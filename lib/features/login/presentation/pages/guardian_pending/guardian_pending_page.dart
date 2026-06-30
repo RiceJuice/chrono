@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:chronoapp/core/auth/auth_user_id_provider.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
@@ -25,21 +23,17 @@ class GuardianPendingPage extends ConsumerStatefulWidget {
 }
 
 class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin {
   String? _reminderBusyLinkId;
   bool _proceeding = false;
   bool _confirmationListenerInitialized = false;
-  bool _refreshingLinks = false;
   final Set<String> _notifiedConfirmedChildIds = {};
-  List<GuardianChildLink> _remoteLinks = const [];
-  Timer? _pollTimer;
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -47,28 +41,12 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
     _pulseAnimation = Tween<double>(begin: 0.45, end: 1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) => unawaited(_refreshLinksFromRemote()),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_refreshLinksFromRemote());
-    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _pollTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      unawaited(_refreshLinksFromRemote());
-    }
   }
 
   List<GuardianChildLink> _ownLinks(
@@ -79,57 +57,6 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
     return links.where((l) => l.guardianId == userId).toList(growable: false);
   }
 
-  GuardianChildLink _mergeLink(
-    GuardianChildLink? local,
-    GuardianChildLink remote,
-  ) {
-    if (local == null) return remote;
-    return GuardianChildLink(
-      id: remote.id,
-      guardianId: remote.guardianId,
-      childId: remote.childId,
-      status: remote.status,
-      createdAt: remote.createdAt ?? local.createdAt,
-      respondedAt: remote.respondedAt ?? local.respondedAt,
-      reminderSentAt: remote.reminderSentAt ?? local.reminderSentAt,
-      childFirstName: local.childFirstName,
-      childLastName: local.childLastName,
-      childClassName: local.childClassName,
-      guardianFirstName: local.guardianFirstName,
-      guardianLastName: local.guardianLastName,
-    );
-  }
-
-  List<GuardianChildLink> _effectiveLinks(
-    List<GuardianChildLink> streamLinks,
-    String? userId,
-  ) {
-    final ownStreamLinks = _ownLinks(streamLinks, userId);
-    if (_remoteLinks.isEmpty) return ownStreamLinks;
-
-    final ownRemoteLinks = _ownLinks(_remoteLinks, userId);
-    final streamById = {
-      for (final link in ownStreamLinks) link.id: link,
-    };
-    final mergedIds = <String>{};
-    final merged = <GuardianChildLink>[];
-
-    for (final remote in ownRemoteLinks) {
-      mergedIds.add(remote.id);
-      merged.add(_mergeLink(streamById[remote.id], remote));
-    }
-    for (final local in ownStreamLinks) {
-      if (!mergedIds.contains(local.id)) {
-        merged.add(local);
-      }
-    }
-
-    merged.sort(
-      (a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
-    );
-    return merged;
-  }
-
   bool _allRejected(List<GuardianChildLink> ownLinks) {
     if (ownLinks.isEmpty) return false;
     return ownLinks.every((l) => l.isRejected);
@@ -137,38 +64,6 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
 
   bool _hasPending(List<GuardianChildLink> ownLinks) {
     return ownLinks.any((l) => l.isPending);
-  }
-
-  Future<void> _refreshLinksFromRemote() async {
-    if (_refreshingLinks) return;
-    final userId = ref.read(authUserIdProvider).value;
-    if (userId == null) return;
-
-    _refreshingLinks = true;
-    try {
-      final links = await ref
-          .read(guardianLinkRepositoryProvider)
-          .loadLinksRemote(userId);
-      if (!mounted) return;
-
-      final ownLinks = _ownLinks(links, userId);
-      setState(() => _remoteLinks = links);
-
-      if (!_confirmationListenerInitialized) {
-        _confirmationListenerInitialized = true;
-        for (final link in ownLinks) {
-          if (link.isConfirmed) {
-            _notifiedConfirmedChildIds.add(link.childId);
-          }
-        }
-        return;
-      }
-      _notifyNewConfirmations(ownLinks);
-    } catch (_) {
-      // Lokaler Stream bleibt Fallback.
-    } finally {
-      _refreshingLinks = false;
-    }
   }
 
   Future<void> _sendReminder(GuardianChildLink link) async {
@@ -207,19 +102,8 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
 
   Future<void> _proceedToSuccess(List<GuardianChildLink> ownLinks) async {
     final router = GoRouter.of(context);
-    await _refreshLinksFromRemote();
-    if (!mounted) return;
-
-    final userId = ref.read(authUserIdProvider).value;
-    final linksAsync = ref.read(guardianLinksProvider);
-    final streamLinks = linksAsync.maybeWhen(
-      data: (links) => links,
-      orElse: () => const <GuardianChildLink>[],
-    );
-    final effectiveLinks = _effectiveLinks(streamLinks, userId);
-    final confirmed = effectiveLinks
-        .where((l) => l.isConfirmed)
-        .toList(growable: false);
+    final confirmed =
+        ownLinks.where((l) => l.isConfirmed).toList(growable: false);
     if (confirmed.isEmpty) {
       if (!context.mounted) return;
       showAppToast(
@@ -245,15 +129,23 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
 
     ref.listen(guardianLinksProvider, (prev, next) {
       next.whenData((links) {
-        if (!_confirmationListenerInitialized) return;
-        final ownLinks = _effectiveLinks(links, userId);
+        final ownLinks = _ownLinks(links, userId);
+        if (!_confirmationListenerInitialized) {
+          _confirmationListenerInitialized = true;
+          for (final link in ownLinks) {
+            if (link.isConfirmed) {
+              _notifiedConfirmedChildIds.add(link.childId);
+            }
+          }
+          return;
+        }
         _notifyNewConfirmations(ownLinks);
       });
     });
 
     final ownLinks = linksAsync.maybeWhen(
-      data: (links) => _effectiveLinks(links, userId),
-      orElse: () => _ownLinks(_remoteLinks, userId),
+      data: (links) => _ownLinks(links, userId),
+      orElse: () => const <GuardianChildLink>[],
     );
     final allRejected = _allRejected(ownLinks);
     final hasPending = _hasPending(ownLinks);

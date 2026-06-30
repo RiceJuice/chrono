@@ -58,7 +58,6 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
   final GuardianLinkPushQueue _deferredPushQueue;
 
   StreamSubscription<List<GuardianChildLink>>? _linksSub;
-  Timer? _pollTimer;
   final List<GuardianChildLink> _queue = [];
   bool _dialogOpen = false;
   int _navigatorRetryCount = 0;
@@ -108,7 +107,7 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
       return;
     }
     if (type == 'guardian_link_confirmed' || type == 'guardian_link_rejected') {
-      unawaited(_instance?._profileGate.refresh());
+      unawaited(_instance?._profileGate.refresh(remote: false));
     }
   }
 
@@ -123,8 +122,6 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
     if (!_profileGate.isReady || !_profileGate.data.hasSession) {
       unawaited(_linksSub?.cancel());
       _linksSub = null;
-      _pollTimer?.cancel();
-      _pollTimer = null;
       return;
     }
 
@@ -132,18 +129,11 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
     if (role != LoginFlowRoleIds.student && role != ProfileRoleIds.admin) {
       unawaited(_linksSub?.cancel());
       _linksSub = null;
-      _pollTimer?.cancel();
-      _pollTimer = null;
       return;
     }
 
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
-
-    _pollTimer ??= Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => unawaited(_refreshPendingFromRemote()),
-    );
 
     _linksSub ??= _guardianLinks.watchPendingForChild(userId).listen((links) {
       final merged = mergePendingGuardianLinks(_queue, links);
@@ -329,8 +319,6 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _profileGate.removeListener(_onProfileGateChanged);
-    _pollTimer?.cancel();
-    _pollTimer = null;
     unawaited(_linksSub?.cancel());
     _linksSub = null;
   }

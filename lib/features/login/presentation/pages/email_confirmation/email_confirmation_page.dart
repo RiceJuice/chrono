@@ -29,7 +29,7 @@ class EmailConfirmationPage extends ConsumerStatefulWidget {
 
 class _EmailConfirmationPageState extends ConsumerState<EmailConfirmationPage>
     with WidgetsBindingObserver {
-  static const _pollInterval = Duration(seconds: 5);
+  static const _pollInterval = Duration(seconds: 15);
 
   Timer? _pollTimer;
   bool _advancing = false;

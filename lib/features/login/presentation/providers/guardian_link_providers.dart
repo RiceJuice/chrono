@@ -32,8 +32,7 @@ final pendingGuardianLinksProvider =
       .watchPendingForChild(userId);
 });
 
-final guardianLinkSummaryProvider =
-    FutureProvider<GuardianLinkSummary>((ref) async {
+final guardianLinkSummaryProvider = Provider<GuardianLinkSummary>((ref) {
   final userId = ref.watch(authUserIdProvider).value;
   if (userId == null) {
     return const GuardianLinkSummary(
@@ -41,8 +40,14 @@ final guardianLinkSummaryProvider =
       pendingLinks: [],
     );
   }
-  ref.watch(guardianLinksProvider);
-  return ref
-      .read(guardianLinkRepositoryProvider)
-      .loadSummaryForGuardian(userId);
+  final links = ref.watch(guardianLinksProvider).asData?.value ?? const [];
+  final own = links
+      .where((link) => link.guardianId == userId)
+      .toList(growable: false);
+  return GuardianLinkSummary(
+    confirmedLinks:
+        own.where((link) => link.isConfirmed).toList(growable: false),
+    pendingLinks:
+        own.where((link) => link.isPending).toList(growable: false),
+  );
 });

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
@@ -6,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/auth/profile_role_ids.dart';
 import '../../../core/database/powersync_schema.dart';
-import '../domain/guardian_link_status.dart';
 import '../domain/models/guardian_child_link.dart';
 import '../domain/models/guardian_child_share_permissions.dart';
 import '../domain/models/login_flow_role_ids.dart';
@@ -273,6 +273,7 @@ class GuardianLinkRepository {
       final link = GuardianChildLink.fromRow(
         Map<String, dynamic>.from(inserted),
       );
+      await _upsertLinkLocally(link);
 
       final notifyResult = await _notifyLinkAction(link.id, 'request');
 
@@ -368,6 +369,13 @@ class GuardianLinkRepository {
           'Antwort konnte nicht gespeichert werden.',
         );
       }
+
+      await _patchLinkStatusLocally(
+        linkId: linkId,
+        status: status,
+        respondedAt: DateTime.now().toUtc(),
+        sharePermissions: accept ? sharePermissions : null,
+      );
 
       if (accept) {
         unawaited(_notifyLinkAction(linkId, 'confirmed'));
@@ -476,14 +484,7 @@ class GuardianLinkRepository {
     Future<void> emit() async {
       if (controller.isClosed) return;
       try {
-        final localLinks = await _loadLinksLocal(userId);
-        var links = localLinks;
-        try {
-          final remoteLinks = await _loadLinksRemote(userId);
-          links = mergeGuardianLinkCollections(localLinks, remoteLinks);
-        } catch (_) {
-          // Remote-Fallback optional — lokale PowerSync-Daten reichen aus.
-        }
+        final links = await _loadLinksLocal(userId);
         if (!controller.isClosed) controller.add(links);
       } catch (_) {
         if (!controller.isClosed) controller.add(const []);
@@ -518,7 +519,7 @@ class GuardianLinkRepository {
   }
 
   Future<List<GuardianChildLink>> loadPendingLinksForChild(String childId) async {
-    final links = await _loadLinksRemote(childId);
+    final links = await _loadLinksLocal(childId);
     return pendingLinksForChild(links, childId);
   }
 
@@ -538,27 +539,15 @@ class GuardianLinkRepository {
 
   Future<GuardianLinkSummary> loadSummaryForGuardian(String guardianId) async {
     final localLinks = await _loadLinksLocal(guardianId);
-    final localOwn = localLinks
+    final own = localLinks
         .where((link) => link.guardianId == guardianId)
         .toList(growable: false);
 
-    List<GuardianChildLink> remoteOwn;
-    try {
-      final remoteLinks = await _loadLinksRemote(guardianId);
-      remoteOwn = remoteLinks
-          .where((link) => link.guardianId == guardianId)
-          .toList(growable: false);
-    } catch (_) {
-      remoteOwn = const [];
-    }
-
-    final merged = mergeGuardianLinkCollections(localOwn, remoteOwn);
-
     return GuardianLinkSummary(
       confirmedLinks:
-          merged.where((link) => link.isConfirmed).toList(growable: false),
+          own.where((link) => link.isConfirmed).toList(growable: false),
       pendingLinks:
-          merged.where((link) => link.isPending).toList(growable: false),
+          own.where((link) => link.isPending).toList(growable: false),
     );
   }
 
@@ -689,6 +678,66 @@ class GuardianLinkRepository {
           .toList(growable: false);
     } catch (_) {
       return const [];
+    }
+  }
+
+  Future<void> _upsertLinkLocally(GuardianChildLink link) async {
+    final db = _db;
+    if (db == null) return;
+    try {
+      await db.execute(
+        '''
+        INSERT INTO $kGuardianChildLinksTable
+          (id, guardian_id, child_id, status, created_at, responded_at,
+           reminder_sent_at, child_share_permissions)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          status = excluded.status,
+          responded_at = excluded.responded_at,
+          reminder_sent_at = excluded.reminder_sent_at,
+          child_share_permissions = excluded.child_share_permissions
+        ''',
+        [
+          link.id,
+          link.guardianId,
+          link.childId,
+          link.status,
+          link.createdAt?.toUtc().toIso8601String(),
+          link.respondedAt?.toUtc().toIso8601String(),
+          link.reminderSentAt?.toUtc().toIso8601String(),
+          jsonEncode(link.sharePermissions.toJson()),
+        ],
+      );
+    } catch (_) {
+      // PowerSync-Sync holt den Eintrag nach — UI bleibt über Stream konsistent.
+    }
+  }
+
+  Future<void> _patchLinkStatusLocally({
+    required String linkId,
+    required String status,
+    required DateTime respondedAt,
+    GuardianChildSharePermissions? sharePermissions,
+  }) async {
+    final db = _db;
+    if (db == null) return;
+    try {
+      await db.execute(
+        '''
+        UPDATE $kGuardianChildLinksTable
+        SET status = ?, responded_at = ?,
+            child_share_permissions = COALESCE(?, child_share_permissions)
+        WHERE id = ?
+        ''',
+        [
+          status,
+          respondedAt.toUtc().toIso8601String(),
+          sharePermissions != null ? jsonEncode(sharePermissions.toJson()) : null,
+          linkId,
+        ],
+      );
+    } catch (_) {
+      // Best effort — Server-Update war erfolgreich.
     }
   }
 }

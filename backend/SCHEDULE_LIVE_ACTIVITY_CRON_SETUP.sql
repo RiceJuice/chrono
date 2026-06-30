@@ -20,7 +20,7 @@ END $$;
 
 SELECT cron.schedule(
   'schedule-live-activity',
-  '* * * * *',
+  '*/5 * * * *',
   $$
   SELECT net.http_post(
     url := 'https://chrbvfaknykaycwumuba.supabase.co/functions/v1/schedule-live-activity',

@@ -51,7 +51,6 @@ class SettingsProfileRepository {
       final syncedAt = status.lastSyncedAt;
       if (syncedAt == null || syncedAt == lastHandledSyncAt) return;
       lastHandledSyncAt = syncedAt;
-      _cachedRemote = null;
       if (!rebuilds.isClosed) rebuilds.add(null);
     });
 
