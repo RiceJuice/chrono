@@ -27,6 +27,20 @@ void main() {
       final label = tuningPitchLabelForFrequency(440);
       expect(label.noteWithOctave, 'A4');
       expect(label.noteLetter, 'a');
+      expect(label.noteAccidental, isNull);
+      expect(label.tuningSymbol, isNull);
+    });
+
+    test('shows note accidental without duplicate tuning symbol when rounded', () {
+      final label = tuningPitchLabelForFrequency(
+        470,
+        lockedMidiNote: 70,
+        displayTemperedFrequency: true,
+      );
+      expect(label.frequencyHz, 466);
+      expect(label.noteWithOctave, 'A♯4');
+      expect(label.noteLetter, 'a');
+      expect(label.noteAccidental, '♯');
       expect(label.tuningSymbol, isNull);
     });
 

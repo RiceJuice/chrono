@@ -21,6 +21,7 @@ class TuningReferenceTonePlayer {
     await TuningAudioSession.ensureConfigured();
     await _player.setReleaseMode(ReleaseMode.stop);
     await _player.setVolume(1);
+    await _player.setSource(AssetSource(assetPath));
 
     var completed = false;
     void completeOnce() {
@@ -37,7 +38,7 @@ class TuningReferenceTonePlayer {
 
     _fallbackTimer = Timer(_fallbackDuration, completeOnce);
 
-    await _player.play(AssetSource(assetPath));
+    await _player.resume();
   }
 
   Future<void> stop() async {

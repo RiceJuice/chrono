@@ -18,6 +18,8 @@ const _pitchClassNames = [
   'B',
 ];
 
+const _sharpPitchClasses = {1, 3, 6, 8, 10};
+
 /// Ergebnis der Frequenz-zu-Noten-Anzeige inkl. Stimmungsabweichung.
 class TuningPitchLabel {
   const TuningPitchLabel({
@@ -34,10 +36,46 @@ class TuningPitchLabel {
 
   String get noteWithOctave => '$noteName$octave';
 
-  /// Nur der Tonbuchstabe ohne Oktavzahl, z. B. „a“ statt „A4“.
-  String get noteLetter => noteName.toLowerCase();
+  /// Nur der natürliche Tonbuchstabe ohne Vorzeichen, z. B. „a“.
+  String get noteLetter => naturalNoteLetter;
+
+  /// Natürlicher Buchstabe der gestimmten Note (ohne ♯/♭).
+  String get naturalNoteLetter {
+    final pitchClass = _pitchClassNames.indexOf(noteName);
+    if (pitchClass < 0) {
+      return noteName.substring(0, 1).toLowerCase();
+    }
+    return _naturalNoteLetterForPitchClass(pitchClass);
+  }
+
+  /// Vorzeichen der gestimmten Note (♯), nicht die Abweichung vom Zielton.
+  String? get noteAccidental {
+    final pitchClass = _pitchClassNames.indexOf(noteName);
+    if (pitchClass < 0 || !_sharpPitchClasses.contains(pitchClass)) {
+      return null;
+    }
+    return '♯';
+  }
 
   bool get hasTuningSymbol => tuningSymbol != null;
+}
+
+String _naturalNoteLetterForPitchClass(int pitchClass) {
+  return switch (pitchClass) {
+    0 => 'c',
+    1 => 'c',
+    2 => 'd',
+    3 => 'd',
+    4 => 'e',
+    5 => 'f',
+    6 => 'f',
+    7 => 'g',
+    8 => 'g',
+    9 => 'a',
+    10 => 'a',
+    11 => 'b',
+    _ => 'c',
+  };
 }
 
 /// MIDI-Float (69 = A4) für eine Frequenz in Hz.
@@ -70,11 +108,15 @@ TuningPitchLabel tuningPitchLabelForFrequency(
   final referenceHz = tuningTemperedFrequencyHzForMidi(midiNearest);
   final cents = 1200 * (math.log(frequencyHz / referenceHz) / math.ln2);
 
+  // Bei gerundeter Anzeige nur die gestimmte Note zeigen – keine zusätzlichen
+  // Vorzeichen, die sonst zu doppelten ♯/♭ (z. B. „a♯♯“) führen würden.
   String? tuningSymbol;
-  if (cents > symbolThresholdCents) {
-    tuningSymbol = '♯';
-  } else if (cents < -symbolThresholdCents) {
-    tuningSymbol = '♭';
+  if (!displayTemperedFrequency) {
+    if (cents > symbolThresholdCents) {
+      tuningSymbol = '♯';
+    } else if (cents < -symbolThresholdCents) {
+      tuningSymbol = '♭';
+    }
   }
 
   final displayHz = displayTemperedFrequency

@@ -18,6 +18,14 @@ class TuningForkModel extends StatefulWidget {
 class _TuningForkModelState extends State<TuningForkModel> {
   static const _modelAsset = 'assets/models/tuning_fork.glb';
 
+  /// Bounding-Box-Mitte des GLB-Modells (Y: −0.96 … 1.40).
+  static const _modelCenterY = 0.22;
+
+  /// model-viewer nutzt den Radius als Prozentwert (105 % = Standard-Framing).
+  static const _cameraOrbitTheta = 28.0;
+  static const _cameraOrbitPhi = 78.0;
+  static const _cameraOrbitRadiusPercent = 115.0;
+
   final Flutter3DController _controller = Flutter3DController();
   bool _isModelReady = false;
 
@@ -40,8 +48,12 @@ class _TuningForkModelState extends State<TuningForkModel> {
 
     setState(() => _isModelReady = true);
     _controller
-      ..setCameraOrbit(22, 74, 2.35)
-      ..setCameraTarget(0, 0.12, 0);
+      ..setCameraTarget(0, _modelCenterY, 0)
+      ..setCameraOrbit(
+        _cameraOrbitTheta,
+        _cameraOrbitPhi,
+        _cameraOrbitRadiusPercent,
+      );
     _syncResonance();
   }
 
@@ -49,7 +61,7 @@ class _TuningForkModelState extends State<TuningForkModel> {
     if (!_isModelReady) return;
 
     if (widget.isResonating) {
-      _controller.startRotation(rotationSpeed: 42);
+      _controller.startRotation(rotationSpeed: 14);
     } else {
       _controller.stopRotation();
     }
