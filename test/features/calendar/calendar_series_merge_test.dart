@@ -143,4 +143,37 @@ void main() {
 
     expect(merged, [override]);
   });
+
+  test('normalisiert recurrence_id mit abweichendem ISO-Format', () {
+    const seriesId = 'series-1';
+    final recurrence = DateTime.utc(2024, 6, 15, 10);
+
+    final override = _entry(
+      id: 'override-1',
+      seriesId: seriesId,
+      recurrenceId: recurrence,
+      startTime: DateTime.utc(2024, 6, 15, 10, 30),
+      endTime: DateTime.utc(2024, 6, 15, 11, 30),
+    );
+    final seriesInstance = CalendarEntry(
+      id: 'series:series-1:2024-06-15T10:00:00.000Z',
+      eventName: 'series',
+      startTime: recurrence,
+      endTime: DateTime.utc(2024, 6, 15, 11),
+      accentColor: Colors.blue,
+      type: CalendarEntryType.event,
+      seriesId: seriesId,
+      recurrenceId: DateTime.parse('2024-06-15T10:00:00.123Z'),
+      isRecurringInstance: true,
+    );
+
+    final merged = mergeCalendarEntriesWithSeriesOverrides(
+      events: [override],
+      expandedSeries: [seriesInstance],
+      startUtc: windowStart,
+      endExclusiveUtc: windowEnd,
+    );
+
+    expect(merged, [override]);
+  });
 }

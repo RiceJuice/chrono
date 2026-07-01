@@ -27,6 +27,7 @@ class CalendarEventTargetResolver {
     final existingOverrideId = await _findOverrideRowId(
       seriesId: parsedSeriesId,
       recurrenceId: recurrenceId,
+      startTimeFallback: recurrenceId ?? entry.startTime,
     );
 
     return CalendarEventEditTarget(
@@ -57,18 +58,69 @@ class CalendarEventTargetResolver {
   Future<String?> _findOverrideRowId({
     required String seriesId,
     DateTime? recurrenceId,
+    DateTime? startTimeFallback,
   }) async {
-    if (recurrenceId == null) return null;
-    final recurrenceIso = formatCalendarRecurrenceId(recurrenceId);
-    final rows = await _db.getAll(
+    if (recurrenceId != null) {
+      final recurrenceIso = formatCalendarRecurrenceId(recurrenceId);
+      final exactRows = await _db.getAll(
+        '''
+        SELECT id FROM $kCalendarEventsTable
+        WHERE series_id = ? AND recurrence_id = ?
+        LIMIT 1
+        ''',
+        [seriesId, recurrenceIso],
+      );
+      if (exactRows.isNotEmpty) {
+        return exactRows.first['id']?.toString();
+      }
+
+      final normalizedTarget = recurrenceIso;
+      final candidateRows = await _db.getAll(
+        '''
+        SELECT id, recurrence_id FROM $kCalendarEventsTable
+        WHERE series_id = ? AND recurrence_id IS NOT NULL
+        ''',
+        [seriesId],
+      );
+      for (final row in candidateRows) {
+        final rawRecurrence = row['recurrence_id']?.toString();
+        if (rawRecurrence == null || rawRecurrence.trim().isEmpty) {
+          continue;
+        }
+        try {
+          final normalizedRow = formatCalendarRecurrenceId(
+            parseCalendarRecurrenceId(rawRecurrence),
+          );
+          if (normalizedRow == normalizedTarget) {
+            return row['id']?.toString();
+          }
+        } catch (_) {
+          continue;
+        }
+      }
+    }
+
+    if (startTimeFallback == null) {
+      return null;
+    }
+
+    final startIso = formatCalendarRecurrenceId(startTimeFallback);
+    final fallbackRows = await _db.getAll(
       '''
       SELECT id FROM $kCalendarEventsTable
-      WHERE series_id = ? AND recurrence_id = ?
+      WHERE series_id = ?
+        AND (
+          recurrence_id IS NULL
+          OR trim(recurrence_id) = ''
+        )
+        AND start_time = ?
       LIMIT 1
       ''',
-      [seriesId, recurrenceIso],
+      [seriesId, startIso],
     );
-    if (rows.isEmpty) return null;
-    return rows.first['id']?.toString();
+    if (fallbackRows.isEmpty) {
+      return null;
+    }
+    return fallbackRows.first['id']?.toString();
   }
 }

@@ -2,6 +2,7 @@ import '../../../../core/database/backend_enums.dart';
 import '../models/calendar_entry.dart';
 import 'calendar_filters_state.dart';
 import 'calendar_filter_text.dart';
+import 'calendar_meal_diet_filter.dart';
 
 bool calendarEntryCountsAsAppointment(CalendarEntry entry) {
   return entry.type != CalendarEntryType.breakType;
@@ -11,6 +12,7 @@ bool calendarEntryMatchesFilters({
   required CalendarEntry entry,
   required CalendarFiltersState filters,
   required bool hideUnknownWhenFilterActive,
+  Set<MealDietSlotKey> mealSlotsWithDietAlternatives = const {},
 }) {
   if (!calendarEntryCountsAsAppointment(entry)) {
     return false;
@@ -83,14 +85,19 @@ bool calendarEntryMatchesFilters({
   }
 
   if (filters.diets.isNotEmpty && entry.type == CalendarEntryType.meal) {
-    final value = normalizeCalendarFilterText(entry.diet.toBackend());
-    if (!_matchesCategory(
-      selectedValues: filters.diets,
-      entryValue: value,
-      isUnknown: entry.diet == BackendDiet.unknown,
-      hideUnknownWhenFilterActive: false,
-    )) {
-      return false;
+    final slotHasBothAlternatives = mealSlotsWithDietAlternatives.contains(
+      mealDietSlotKey(entry),
+    );
+    if (slotHasBothAlternatives) {
+      final value = normalizeCalendarFilterText(entry.diet.toBackend());
+      if (!_matchesCategory(
+        selectedValues: filters.diets,
+        entryValue: value,
+        isUnknown: entry.diet == BackendDiet.unknown,
+        hideUnknownWhenFilterActive: false,
+      )) {
+        return false;
+      }
     }
   }
 
@@ -122,6 +129,7 @@ bool calendarEntryVisibleInEventList({
   required CalendarEntry entry,
   required CalendarFiltersState filters,
   required bool hideUnknownWhenFilterActive,
+  Set<MealDietSlotKey> mealSlotsWithDietAlternatives = const {},
 }) {
   // Ferien/Feiertage sollen in der Event-List immer sichtbar sein.
   if (entry.type == CalendarEntryType.breakType) {
@@ -131,6 +139,7 @@ bool calendarEntryVisibleInEventList({
     entry: entry,
     filters: filters,
     hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+    mealSlotsWithDietAlternatives: mealSlotsWithDietAlternatives,
   );
 }
 

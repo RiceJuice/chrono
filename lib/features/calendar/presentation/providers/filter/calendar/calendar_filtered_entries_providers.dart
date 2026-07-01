@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 
-import '../../../../domain/filter/calendar_filters_logic.dart';
+import '../../../../domain/filter/calendar_display_filters.dart';
 import '../../../../domain/filter/calendar_search_effective_filters.dart';
 import '../../../../domain/models/calendar_entry.dart';
 import '../../calendar_providers.dart';
@@ -15,15 +15,12 @@ final filteredCalendarEntriesForDayProvider =
       final filters = ref.watch(calendarFiltersProvider);
       final hideUnknown = shouldHideUnknownCalendarEntries(filters);
       return source.whenData((entries) {
-        return entries
-            .where(
-              (entry) => calendarEntryVisibleInEventList(
-                entry: entry,
-                filters: filters,
-                hideUnknownWhenFilterActive: hideUnknown,
-              ),
-            )
-            .toList(growable: false);
+        return applyCalendarDisplayFilters(
+          entries: entries,
+          filters: filters,
+          hideUnknownWhenFilterActive: hideUnknown,
+          forEventList: true,
+        );
       });
     });
 
@@ -33,15 +30,12 @@ final filteredCalendarAllEntriesProvider =
       final filters = ref.watch(calendarFiltersProvider);
       final hideUnknown = shouldHideUnknownCalendarEntries(filters);
       return source.whenData((entries) {
-        return entries
-            .where(
-              (entry) => calendarEntryMatchesFilters(
-                entry: entry,
-                filters: filters,
-                hideUnknownWhenFilterActive: hideUnknown,
-              ),
-            )
-            .toList(growable: false);
+        return applyCalendarDisplayFilters(
+          entries: entries,
+          filters: filters,
+          hideUnknownWhenFilterActive: hideUnknown,
+          forEventList: false,
+        );
       });
     });
 
@@ -54,15 +48,12 @@ final filteredCalendarEntriesInLocalRangeProvider =
       final filters = ref.watch(calendarFiltersProvider);
       final hideUnknown = shouldHideUnknownCalendarEntries(filters);
       return source.whenData((entries) {
-        return entries
-            .where(
-              (entry) => calendarEntryMatchesFilters(
-                entry: entry,
-                filters: filters,
-                hideUnknownWhenFilterActive: hideUnknown,
-              ),
-            )
-            .toList(growable: false);
+        return applyCalendarDisplayFilters(
+          entries: entries,
+          filters: filters,
+          hideUnknownWhenFilterActive: hideUnknown,
+          forEventList: false,
+        );
       });
     });
 
@@ -83,14 +74,11 @@ final filteredCalendarEntriesByQueryProvider =
         hasQuery: normalizedQuery.isNotEmpty,
       );
       return source.whenData((entries) {
-        return entries
-            .where(
-              (entry) => calendarEntryMatchesFilters(
-                entry: entry,
-                filters: effectiveFilters,
-                hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
-              ),
-            )
-            .toList(growable: false);
+        return applyCalendarDisplayFilters(
+          entries: entries,
+          filters: effectiveFilters,
+          hideUnknownWhenFilterActive: hideUnknownWhenFilterActive,
+          forEventList: false,
+        );
       });
     });
