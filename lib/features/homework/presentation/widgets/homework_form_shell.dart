@@ -1,6 +1,5 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/app_hairline_divider.dart';
-import 'package:chronoapp/core/widgets/app_glass_back_button.dart';
 import 'package:chronoapp/core/widgets/app_sheet_drag_handle.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
@@ -74,11 +73,9 @@ class HomeworkFormModalHeader extends StatelessWidget {
   const HomeworkFormModalHeader({
     super.key,
     required this.title,
-    required this.onBack,
   });
 
   final String title;
-  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -90,28 +87,21 @@ class HomeworkFormModalHeader extends StatelessWidget {
         const AppSheetDragHandle(),
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s,
+            AppSpacing.xl,
             AppSpacing.s,
             AppSpacing.xl,
             AppSpacing.l,
           ),
-          child: Row(
-            children: [
-              AppGlassBackButton(onPressed: onBack),
-              const SizedBox(width: AppSpacing.s),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.libreBaskerville(
-                    textStyle: Theme.of(context).textTheme.titleLarge,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.1,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ),
-            ],
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.libreBaskerville(
+              textStyle: Theme.of(context).textTheme.titleLarge,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+              color: scheme.onSurface,
+            ),
           ),
         ),
       ],

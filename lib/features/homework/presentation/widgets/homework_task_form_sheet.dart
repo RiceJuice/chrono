@@ -160,122 +160,112 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
 
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: GestureDetector(
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          behavior: HitTestBehavior.translucent,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                HomeworkFormModalHeader(
-                  title: 'Neue Aufgabe',
-                  onBack: () => Navigator.of(context).pop(),
+      bottom: false,
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const HomeworkFormModalHeader(title: 'Neue Aufgabe'),
+            Expanded(
+              child: ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.xl,
+                  AppSpacing.s,
+                  AppSpacing.xl,
+                  AppSpacing.l + bottomInset,
                 ),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl,
-                      AppSpacing.s,
-                      AppSpacing.xl,
-                      AppSpacing.l,
-                    ),
+                children: [
+                  const HomeworkFormSectionLabel(label: 'Titel'),
+                  HomeworkFormGroup(
                     children: [
-                      const HomeworkFormSectionLabel(label: 'Titel'),
-                      HomeworkFormGroup(
-                        children: [
-                          HomeworkFormField(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.l,
-                              AppSpacing.l + 2,
-                              AppSpacing.l,
-                              AppSpacing.l + 2,
-                            ),
-                            child: TextFormField(
-                              controller: _titleController,
-                              autofocus: true,
-                              minLines: 2,
-                              maxLines: 4,
-                              textCapitalization: TextCapitalization.sentences,
-                              textInputAction: TextInputAction.next,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                              decoration: fieldDecoration.copyWith(
-                                hintText: 'Was ist zu tun?',
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Bitte einen Titel eingeben.';
-                                }
-                                return null;
-                              },
-                              onChanged: (_) => setState(() {}),
-                            ),
+                      HomeworkFormField(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.l,
+                          AppSpacing.l + 2,
+                          AppSpacing.l,
+                          AppSpacing.l + 2,
+                        ),
+                        child: TextFormField(
+                          controller: _titleController,
+                          autofocus: true,
+                          minLines: 2,
+                          maxLines: 4,
+                          textCapitalization: TextCapitalization.sentences,
+                          textInputAction: TextInputAction.next,
+                          scrollPadding: EdgeInsets.only(bottom: bottomInset + 120),
+                          style: Theme.of(context).textTheme.bodyLarge,
+                          decoration: fieldDecoration.copyWith(
+                            hintText: 'Was ist zu tun?',
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      const HomeworkFormSectionLabel(label: 'Beschreibung'),
-                      HomeworkFormGroup(
-                        children: [
-                          HomeworkFormField(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.l,
-                              AppSpacing.l + 2,
-                              AppSpacing.l,
-                              AppSpacing.l + 2,
-                            ),
-                            child: TextFormField(
-                              controller: _descriptionController,
-                              minLines: 3,
-                              maxLines: 5,
-                              textCapitalization: TextCapitalization.sentences,
-                              textInputAction: TextInputAction.done,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                              decoration: fieldDecoration.copyWith(
-                                hintText: 'Optional',
-                              ),
-                              onFieldSubmitted: (_) {
-                                FocusManager.instance.primaryFocus?.unfocus();
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      const HomeworkFormSectionLabel(label: 'Fach & Fälligkeit'),
-                      HomeworkDueSection(
-                        selectedSubjectId: _selectedSubjectId,
-                        onSubjectChanged: _onSubjectChanged,
-                        dueNextLesson: _dueNextLesson,
-                        onDueNextLessonChanged: (value) {
-                          setState(() => _dueNextLesson = value);
-                        },
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Bitte einen Titel eingeben.';
+                            }
+                            return null;
+                          },
+                          onChanged: (_) => setState(() {}),
+                        ),
                       ),
                     ],
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xl,
-                    AppSpacing.m,
-                    AppSpacing.xl,
-                    AppSpacing.l,
+                  const SizedBox(height: AppSpacing.xl),
+                  const HomeworkFormSectionLabel(label: 'Beschreibung'),
+                  HomeworkFormGroup(
+                    children: [
+                      HomeworkFormField(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.l,
+                          AppSpacing.l + 2,
+                          AppSpacing.l,
+                          AppSpacing.l + 2,
+                        ),
+                        child: TextFormField(
+                          controller: _descriptionController,
+                          minLines: 3,
+                          maxLines: 5,
+                          textCapitalization: TextCapitalization.sentences,
+                          textInputAction: TextInputAction.done,
+                          scrollPadding: EdgeInsets.only(bottom: bottomInset + 120),
+                          style: Theme.of(context).textTheme.bodyLarge,
+                          decoration: fieldDecoration.copyWith(
+                            hintText: 'Optional',
+                          ),
+                          onFieldSubmitted: (_) {
+                            FocusManager.instance.primaryFocus?.unfocus();
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                  child: HomeworkFormFooter(
-                    busy: _saving,
-                    submitEnabled: _canCreate,
-                    submitLabel: 'Aufgabe speichern',
-                    onSubmit: () {
-                      AppHaptics.light();
-                      _onCreate();
+                  const SizedBox(height: AppSpacing.xl),
+                  const HomeworkFormSectionLabel(label: 'Fach & Fälligkeit'),
+                  HomeworkDueSection(
+                    selectedSubjectId: _selectedSubjectId,
+                    onSubjectChanged: _onSubjectChanged,
+                    dueNextLesson: _dueNextLesson,
+                    onDueNextLessonChanged: (value) {
+                      setState(() => _dueNextLesson = value);
                     },
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xl),
+                    child: HomeworkFormFooter(
+                      busy: _saving,
+                      submitEnabled: _canCreate,
+                      submitLabel: 'Aufgabe speichern',
+                      onSubmit: () {
+                        AppHaptics.light();
+                        _onCreate();
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

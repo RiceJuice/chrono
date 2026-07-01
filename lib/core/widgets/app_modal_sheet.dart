@@ -115,10 +115,11 @@ double appSheetHeightBelowSystemUi(BuildContext context) {
   return view.size.height - appSheetTopOffset(context);
 }
 
-/// Aufgaben-Formular — großzügiges Sheet, ohne volle Bildschirmhöhe.
+/// Aufgaben-Formular — volle Höhe unter der Statusleiste für genug Scrollraum.
 BoxConstraints appModalHomeworkFormSheetConstraints(BuildContext context) {
-  final screenHeight = MediaQuery.sizeOf(context).height;
-  return BoxConstraints.tightFor(height: screenHeight * 0.76);
+  return BoxConstraints.tightFor(
+    height: appSheetHeightBelowSystemUi(context),
+  );
 }
 
 /// Termin-Formular (Erstellen & Bearbeiten).
