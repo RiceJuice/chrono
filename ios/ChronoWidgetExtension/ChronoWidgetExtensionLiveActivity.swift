@@ -189,7 +189,7 @@ private struct ScheduleProgressSection: View {
           .foregroundColor(.white)
         Spacer()
         TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
-          Text("Noch \(formatCountdown(remainingSeconds(until: data.segmentEnd, now: timeline.date)))")
+          Text("Noch \(formatCountdown(seconds: remainingSeconds(until: data.segmentEnd, now: timeline.date)))")
             .font(.system(size: timeFontSize, weight: .regular).monospacedDigit())
             .foregroundColor(.white)
         }
@@ -362,7 +362,7 @@ struct ChronoScheduleLiveActivity: Widget {
         }
       } compactTrailing: {
         TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
-          Text(formatCountdown(remainingSeconds(until: data.segmentEnd, now: timeline.date)))
+          Text(formatCountdown(seconds: remainingSeconds(until: data.segmentEnd, now: timeline.date)))
             .font(.footnote.monospacedDigit().weight(.semibold))
             .foregroundColor(.white)
         }
