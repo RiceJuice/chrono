@@ -34,17 +34,18 @@ class ScheduleLiveActivitySnapshot {
     return (nowMs - start) / (end - start);
   }
 
-  /// Verbleibende Minuten, synchron an Minutengrenzen (wie iOS-Widget).
+  /// Verbleibende Sekunden bis Segmentende (Countdown läuft nativ im Widget).
+  int remainingSecondsAt(DateTime now) {
+    final endMs = segmentEndMs;
+    final nowMs = now.millisecondsSinceEpoch;
+    final seconds = ((endMs - nowMs) / 1000).ceil();
+    if (seconds <= 0) return 0;
+    return seconds;
+  }
+
+  /// Verbleibende Minuten (abgerundet aus Sekunden).
   int remainingMinutesAt(DateTime now) {
-    final end = DateTime.fromMillisecondsSinceEpoch(segmentEndMs);
-    final flooredNow = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      now.hour,
-      now.minute,
-    );
-    final seconds = end.difference(flooredNow).inSeconds;
+    final seconds = remainingSecondsAt(now);
     if (seconds <= 0) return 0;
     return (seconds + 59) ~/ 60;
   }

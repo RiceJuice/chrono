@@ -128,7 +128,7 @@ export type LiveActivityFcmPayload = {
   event: LiveActivityFcmEvent;
   activityId: string;
   contentState: Record<string, string | number>;
-  liveActivityToken?: string | null;
+  liveActivityPushToken?: string | null;
   pushToStartToken?: string | null;
   eventId: string;
 };

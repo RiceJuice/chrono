@@ -1,6 +1,9 @@
 /**
  * pg_cron → FCM Live Activities (start/end an Segmentgrenzen).
  * DB-Trigger (calendar_events, event_schedules) → FCM update/end bei Inhaltsänderungen.
+ *
+ * Countdown läuft nativ auf dem Gerät (iOS TimelineView / Android Chronometer).
+ * Server sendet nur: start (Push-to-Start), update (Inhaltsänderung), end.
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
@@ -78,7 +81,14 @@ type ChangeRequest = {
 
 type SendOptions = {
   skipDedup?: boolean;
+  dedupAction?: LiveActivityFcmEvent;
 };
+
+function resolveSegmentStartEvent(device: DeviceRow): LiveActivityFcmEvent {
+  const liveToken = device.live_activity_push_token?.trim();
+  // Bereits laufende Activity → nur Inhalt aktualisieren, kein erneutes Push-to-Start.
+  return liveToken && liveToken.length > 0 ? "update" : "start";
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -169,10 +179,19 @@ function effectiveEnd(schedule: ScheduleRow): Date {
   return new Date(endRaw);
 }
 
+const SCHEDULE_TIMEZONE = "Europe/Berlin";
+
+function localDateKey(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: SCHEDULE_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
 function isSameLocalDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
+  return localDateKey(a) === localDateKey(b);
 }
 
 function visibleSchedulesToday(
@@ -314,7 +333,7 @@ async function sendForDevice(
       scheduleId,
       device.user_id,
       device.device_id,
-      fcmEvent,
+      options?.dedupAction ?? fcmEvent,
     )
   ) {
     return "skipped";
@@ -342,7 +361,7 @@ async function sendForDevice(
         scheduleId,
         device.user_id,
         device.device_id,
-        fcmEvent,
+        options?.dedupAction ?? fcmEvent,
       );
     }
     return "sent";
@@ -542,7 +561,9 @@ async function handleContentChange(
       device.device_id,
       "start",
     );
-    const fcmEvent: LiveActivityFcmEvent = alreadyStarted ? "update" : "start";
+    const fcmEvent: LiveActivityFcmEvent = alreadyStarted
+      ? "update"
+      : resolveSegmentStartEvent(device);
     const contentState = snapshotToContentState(snapshot, eventId);
 
     const result = await sendForDevice(
@@ -674,14 +695,16 @@ async function handleCronTick(
       }
 
       const contentState = snapshotToContentState(snapshot, startRow.event_id);
+      const fcmEvent = resolveSegmentStartEvent(device);
       const result = await sendForDevice(
         supabase,
         serviceAccount,
         device,
         startRow.event_id,
         startRow.id,
-        "start",
+        fcmEvent,
         contentState,
+        { dedupAction: "start" },
       );
       if (result === "sent") sent++;
       else if (result === "failed") failed++;

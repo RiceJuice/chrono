@@ -27,14 +27,22 @@ void main() {
       );
     });
 
-    test('zeigt 30 Min bei Start in derselben Minute', () {
+    test('zeigt 30:13 bei 13 Sekunden nach Segmentstart', () {
+      expect(
+        snapshot.remainingSecondsAt(DateTime(2026, 6, 24, 10, 0, 47)),
+        30 * 60 - 47,
+      );
       expect(
         snapshot.remainingMinutesAt(DateTime(2026, 6, 24, 10, 0, 47)),
         30,
       );
     });
 
-    test('wechselt an Minutengrenze auf 29 Min', () {
+    test('wechselt sekundengenau auf 29:00 an der Minutengrenze', () {
+      expect(
+        snapshot.remainingSecondsAt(DateTime(2026, 6, 24, 10, 1, 0)),
+        29 * 60,
+      );
       expect(
         snapshot.remainingMinutesAt(DateTime(2026, 6, 24, 10, 1, 0)),
         29,

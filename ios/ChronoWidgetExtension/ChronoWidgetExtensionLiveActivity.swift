@@ -58,17 +58,14 @@ private func formatTime(_ date: Date) -> String {
   return formatter.string(from: date)
 }
 
-private func nextMinuteBoundary(from now: Date = Date()) -> Date {
-  let calendar = Calendar.current
-  let floored = calendar.date(bySetting: .second, value: 0, of: now) ?? now
-  return calendar.date(byAdding: .minute, value: 1, to: floored) ?? floored
+private func remainingSeconds(until end: Date, now: Date) -> Int {
+  max(0, Int(end.timeIntervalSince(now)))
 }
 
-private func remainingMinutes(until end: Date, now: Date) -> Int {
-  let calendar = Calendar.current
-  let flooredNow = calendar.date(bySetting: .second, value: 0, of: now) ?? now
-  let seconds = max(0, Int(end.timeIntervalSince(flooredNow)))
-  return (seconds + 59) / 60
+private func formatCountdown(seconds: Int) -> String {
+  let minutes = seconds / 60
+  let secs = seconds % 60
+  return String(format: "%d:%02d", minutes, secs)
 }
 
 private func compactTitle(_ title: String) -> String {
@@ -191,9 +188,9 @@ private struct ScheduleProgressSection: View {
           .font(.system(size: timeFontSize, weight: .regular))
           .foregroundColor(.white)
         Spacer()
-        TimelineView(.periodic(from: nextMinuteBoundary(), by: 60)) { timeline in
-          Text("Noch \(remainingMinutes(until: data.segmentEnd, now: timeline.date)) Min.")
-            .font(.system(size: timeFontSize, weight: .regular))
+        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+          Text("Noch \(formatCountdown(remainingSeconds(until: data.segmentEnd, now: timeline.date)))")
+            .font(.system(size: timeFontSize, weight: .regular).monospacedDigit())
             .foregroundColor(.white)
         }
         Spacer()
@@ -233,7 +230,7 @@ private struct ScheduleLiveActivityLayout {
     barOuterHeight: 15,
     horizontalPadding: 30,
     verticalPadding: 32,
-    showsBackground: true
+    showsBackground: false
   )
 
   // Die DynamicIslandExpandedRegion bringt bereits eigene System-Insets und
@@ -296,11 +293,32 @@ private struct ScheduleLiveActivityView: View {
 }
 
 @available(iOSApplicationExtension 16.1, *)
+private struct ScheduleLiveActivityLockScreenGlassBackground: View {
+  var body: some View {
+    if #available(iOSApplicationExtension 26.0, *) {
+      Rectangle()
+        .fill(.clear)
+        .glassEffect(.regular, in: .rect(cornerRadius: 22))
+    } else {
+      Rectangle()
+        .fill(.ultraThinMaterial)
+    }
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
 private struct ScheduleLiveActivityLockScreenView: View {
   let data: ScheduleLiveData
+  @Environment(\.showsWidgetContainerBackground) private var showsWidgetContainerBackground
 
   var body: some View {
     ScheduleLiveActivityView(data: data, layout: .lockScreen)
+      .background {
+        if showsWidgetContainerBackground {
+          ScheduleLiveActivityLockScreenGlassBackground()
+            .ignoresSafeArea()
+        }
+      }
   }
 }
 
@@ -320,7 +338,7 @@ struct ChronoScheduleLiveActivity: Widget {
       let data = ScheduleLiveData(context: context)
       ScheduleLiveActivityLockScreenView(data: data)
         .widgetURL(scheduleDeepLink(for: data.eventId))
-        .activityBackgroundTint(.black)
+        .activityBackgroundTint(.clear)
         .activitySystemActionForegroundColor(.white)
     } dynamicIsland: { context in
       let data = ScheduleLiveData(context: context)
@@ -343,8 +361,8 @@ struct ChronoScheduleLiveActivity: Widget {
             .minimumScaleFactor(0.75)
         }
       } compactTrailing: {
-        TimelineView(.periodic(from: nextMinuteBoundary(), by: 60)) { timeline in
-          Text("\(remainingMinutes(until: data.segmentEnd, now: timeline.date))m")
+        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+          Text(formatCountdown(remainingSeconds(until: data.segmentEnd, now: timeline.date)))
             .font(.footnote.monospacedDigit().weight(.semibold))
             .foregroundColor(.white)
         }
