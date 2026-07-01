@@ -75,12 +75,16 @@ class _SettingsTuningForkPageState extends State<SettingsTuningForkPage>
     if (_isPlayingReference) return;
 
     HapticFeedback.mediumImpact();
-    await _tapAnimationController.forward();
-    await _tapAnimationController.reverse();
+    unawaited(_tapAnimationController.forward().then((_) {
+      if (mounted) {
+        unawaited(_tapAnimationController.reverse());
+      }
+    }));
 
     await _pitchDetector.stop();
     _frequencySubscription?.cancel();
     _frequencySubscription = null;
+    _pitchStabilizer.reset();
 
     if (!mounted) return;
     setState(() {
@@ -239,6 +243,8 @@ class _FrequencyDisplay extends StatelessWidget {
         Text('${pitchLabel!.frequencyHz} Hz', style: baseStyle),
         const SizedBox(width: 14),
         Text(pitchLabel!.noteLetter, style: noteStyle),
+        if (pitchLabel!.noteAccidental != null)
+          Text(pitchLabel!.noteAccidental!, style: symbolStyle),
         if (pitchLabel!.tuningSymbol != null)
           Text(pitchLabel!.tuningSymbol!, style: symbolStyle),
       ],

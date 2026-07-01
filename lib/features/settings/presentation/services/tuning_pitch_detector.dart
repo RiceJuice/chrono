@@ -26,6 +26,7 @@ class TuningPitchDetector {
   StreamSubscription<Uint8List>? _recordSubscription;
   final List<double> _recentFrequencies = [];
   bool _isRunning = false;
+  bool _isProcessingSample = false;
 
   Stream<double?> get frequencyStream => _frequencyController.stream;
 
@@ -83,19 +84,25 @@ class TuningPitchDetector {
   }
 
   Future<void> _processSample(Uint8List sample) async {
-    final floatBuffer = _pcm16LeToFloat(sample);
-    final result = await _pitchDetector.getPitchFromFloatBuffer(floatBuffer);
-    if (!result.pitched || result.pitch <= 0) {
-      return;
-    }
+    if (_isProcessingSample) return;
+    _isProcessingSample = true;
+    try {
+      final floatBuffer = _pcm16LeToFloat(sample);
+      final result = await _pitchDetector.getPitchFromFloatBuffer(floatBuffer);
+      if (!result.pitched || result.pitch <= 0) {
+        return;
+      }
 
-    _recentFrequencies.add(result.pitch);
-    if (_recentFrequencies.length > _smoothingWindow) {
-      _recentFrequencies.removeAt(0);
-    }
+      _recentFrequencies.add(result.pitch);
+      if (_recentFrequencies.length > _smoothingWindow) {
+        _recentFrequencies.removeAt(0);
+      }
 
-    final median = _median(_recentFrequencies);
-    _frequencyController.add(median);
+      final median = _median(_recentFrequencies);
+      _frequencyController.add(median);
+    } finally {
+      _isProcessingSample = false;
+    }
   }
 
   static double _median(List<double> values) {
