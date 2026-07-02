@@ -1,4 +1,5 @@
 import 'package:chronoapp/core/database/backend_enums.dart';
+import 'package:chronoapp/features/calendar/domain/filter/calendar_filter_defaults.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_resolver.dart';
@@ -15,6 +16,8 @@ void main() {
       required DateTime start,
       required Duration duration,
       String name = 'Mathe',
+      String? location,
+      String? className,
       Color color = const Color(0xFF124E30),
     }) {
       return CalendarEntry(
@@ -25,6 +28,8 @@ void main() {
         accentColor: color,
         type: CalendarEntryType.lesson,
         subjectId: 'sub-1',
+        location: location,
+        className: className,
         choir: BackendChoir.unknown,
         voice: BackendVoice.unknown,
         schoolTrack: BackendSchoolTrack.unknown,
@@ -141,6 +146,93 @@ void main() {
       );
 
       expect(snapshot, isNull);
+    });
+
+    test('nutzt Raum als Untertitel und Fachkürzel im Segment', () {
+      final day = DateTime(2026, 7, 2);
+      final entries = [
+        lesson(
+          id: 'l1',
+          name: 'Mathematik',
+          location: 'A102',
+          className: '10a',
+          start: DateTime(2026, 7, 2, 8, 0),
+          duration: const Duration(hours: 1),
+        ),
+        lesson(
+          id: 'l2',
+          name: 'Englisch',
+          location: 'B204',
+          className: '10a',
+          start: DateTime(2026, 7, 2, 9, 0),
+          duration: const Duration(hours: 1),
+        ),
+      ];
+
+      final snapshot = TimetableLiveActivityResolver.resolve(
+        day: day,
+        entries: entries,
+        filters: filters,
+        resolveAccent: (e) => e.accentColor,
+        now: DateTime(2026, 7, 2, 8, 15),
+      );
+
+      expect(snapshot, isNotNull);
+      expect(snapshot!.currentSubtitle, 'A102');
+      expect(snapshot.nextSubtitle, 'B204');
+
+      final segments = snapshot.segments;
+      expect(segments.first.shortTitle, 'Mat');
+      expect(segments[1].shortTitle, 'Eng');
+    });
+
+    test('zählt nur gefilterte Stunden in Noch X Stunden', () {
+      final day = DateTime(2026, 7, 2);
+      final filters = calendarFiltersStateFromProfileFields(className: '10a');
+      final entries = [
+        lesson(
+          id: 'l1',
+          name: 'Physik',
+          className: '10a',
+          start: DateTime(2026, 7, 2, 8, 0),
+          duration: const Duration(hours: 1),
+        ),
+        lesson(
+          id: 'l2',
+          name: 'Chemie',
+          className: '10b',
+          start: DateTime(2026, 7, 2, 9, 0),
+          duration: const Duration(hours: 1),
+        ),
+        lesson(
+          id: 'l3',
+          name: 'Englisch',
+          className: '10a',
+          start: DateTime(2026, 7, 2, 10, 0),
+          duration: const Duration(hours: 1),
+        ),
+        lesson(
+          id: 'l4',
+          name: 'Bio',
+          className: '10b',
+          start: DateTime(2026, 7, 2, 11, 0),
+          duration: const Duration(hours: 1),
+        ),
+      ];
+
+      final snapshot = TimetableLiveActivityResolver.resolve(
+        day: day,
+        entries: entries,
+        filters: filters,
+        resolveAccent: (e) => e.accentColor,
+        now: DateTime(2026, 7, 2, 8, 15),
+      );
+
+      expect(snapshot, isNotNull);
+      expect(snapshot!.segments.where((s) => s.isLesson).length, 2);
+      expect(snapshot.remainingLessons, 2);
+      expect(snapshot.currentTitle, 'Physik');
+      expect(snapshot.nextTitle, 'Englisch');
     });
   });
 }

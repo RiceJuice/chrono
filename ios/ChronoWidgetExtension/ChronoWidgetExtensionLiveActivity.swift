@@ -101,17 +101,27 @@ private struct TimetableSegment: Codable {
   let id: String
   let type: String
   let title: String
+  let shortTitle: String?
   let subtitle: String
   let startMs: Double
   let endMs: Double
   let accentColor: String
   let imageUrl: String?
+
+  var displayShortTitle: String {
+    let trimmed = (shortTitle ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    if !trimmed.isEmpty { return trimmed }
+    let titleTrimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard titleTrimmed.count > 3 else { return titleTrimmed }
+    return String(titleTrimmed.prefix(3))
+  }
 }
 
 private struct TimetableResolvedSegment {
   let index: Int
   let title: String
   let subtitle: String
+  let currentShortTitle: String
   let segmentStart: Date
   let segmentEnd: Date
   let accentColor: Color
@@ -120,6 +130,7 @@ private struct TimetableResolvedSegment {
   let hasNext: Bool
   let nextTitle: String
   let nextSubtitle: String
+  let nextShortTitle: String
   let remainingLessons: Int
   let isPreStart: Bool
 }
@@ -156,6 +167,7 @@ private struct TimetableLiveData {
         index: 0,
         title: first.title,
         subtitle: first.subtitle,
+        currentShortTitle: first.displayShortTitle,
         segmentStart: activityStart,
         segmentEnd: Date(timeIntervalSince1970: first.startMs / 1000),
         accentColor: parseHexColor(first.accentColor),
@@ -164,6 +176,7 @@ private struct TimetableLiveData {
         hasNext: next != nil,
         nextTitle: next?.title ?? "",
         nextSubtitle: next?.subtitle ?? "",
+        nextShortTitle: next?.displayShortTitle ?? "",
         remainingLessons: remainingLessonCount(fromIndex: 0, nowMs: nowMs),
         isPreStart: true
       )
@@ -176,6 +189,7 @@ private struct TimetableLiveData {
           index: index,
           title: segment.title,
           subtitle: segment.subtitle,
+          currentShortTitle: segment.displayShortTitle,
           segmentStart: Date(timeIntervalSince1970: segment.startMs / 1000),
           segmentEnd: Date(timeIntervalSince1970: segment.endMs / 1000),
           accentColor: parseHexColor(segment.accentColor),
@@ -184,6 +198,7 @@ private struct TimetableLiveData {
           hasNext: next != nil,
           nextTitle: next?.title ?? "",
           nextSubtitle: next?.subtitle ?? "",
+          nextShortTitle: next?.displayShortTitle ?? "",
           remainingLessons: remainingLessonCount(fromIndex: index, nowMs: nowMs),
           isPreStart: false
         )
@@ -373,40 +388,64 @@ private struct TimetableMealThumbnail: View {
 }
 
 @available(iOSApplicationExtension 16.1, *)
+private struct TimetableCountdownText: View {
+  let segmentStart: Date
+  let segmentEnd: Date
+  var fontSize: CGFloat = 13
+  var fontWeight: Font.Weight = .regular
+
+  var body: some View {
+    Group {
+      if segmentEnd > segmentStart {
+        (Text("Noch ")
+          + Text(
+            timerInterval: segmentStart...segmentEnd,
+            countsDown: true,
+            showsHours: false
+          ))
+      } else {
+        Text("Noch 0:00")
+      }
+    }
+    .font(.system(size: fontSize, weight: fontWeight).monospacedDigit())
+    .foregroundColor(.white)
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
 private struct TimetableProgressSection: View {
   let segmentStart: Date
   let segmentEnd: Date
   let accentColor: Color
+  let now: Date
   var timeFontSize: CGFloat = 13
   var barOuterHeight: CGFloat = 15
 
   var body: some View {
-    VStack(spacing: 8) {
+    VStack(spacing: 6) {
       HStack {
         Text(formatTime(segmentStart))
           .font(.system(size: timeFontSize, weight: .regular))
           .foregroundColor(.white)
         Spacer()
-        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
-          Text("Noch \(formatCountdown(seconds: remainingSeconds(until: segmentEnd, now: timeline.date)))")
-            .font(.system(size: timeFontSize, weight: .regular).monospacedDigit())
-            .foregroundColor(.white)
-        }
+        TimetableCountdownText(
+          segmentStart: segmentStart,
+          segmentEnd: segmentEnd,
+          fontSize: timeFontSize
+        )
         Spacer()
         Text(formatTime(segmentEnd))
           .font(.system(size: timeFontSize, weight: .regular))
           .foregroundColor(.white)
       }
-      TimelineView(.periodic(from: segmentStart, by: 1.0)) { timeline in
-        let total = segmentEnd.timeIntervalSince(segmentStart)
-        let elapsed = timeline.date.timeIntervalSince(segmentStart)
-        let p = total > 0 ? min(max(elapsed / total, 0), 1) : 1
-        TimetableAccentProgressBar(
-          progress: p,
-          accentColor: accentColor,
-          outerHeight: barOuterHeight
-        )
-      }
+      let total = segmentEnd.timeIntervalSince(segmentStart)
+      let elapsed = now.timeIntervalSince(segmentStart)
+      let p = total > 0 ? min(max(elapsed / total, 0), 1) : 1
+      TimetableAccentProgressBar(
+        progress: p,
+        accentColor: accentColor,
+        outerHeight: barOuterHeight
+      )
     }
   }
 }
@@ -415,12 +454,13 @@ private struct TimetableProgressSection: View {
 private struct TimetableLiveActivityView: View {
   let data: TimetableLiveData
   let layout: ScheduleLiveActivityLayout
+  var showsRemainingLessons: Bool = true
 
   var body: some View {
     TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
       if let resolved = data.resolve(at: timeline.date) {
         VStack(alignment: .leading, spacing: layout.sectionSpacing) {
-          HStack(alignment: .center, spacing: layout.columnSpacing) {
+          HStack(alignment: .top, spacing: layout.columnSpacing) {
             ScheduleColumn(
               title: resolved.title,
               subtitle: resolved.subtitle,
@@ -430,12 +470,13 @@ private struct TimetableLiveActivityView: View {
             )
             if resolved.isMeal, let imageUrl = resolved.imageUrl, !imageUrl.isEmpty {
               TimetableMealThumbnail(imageUrl: imageUrl)
-                .frame(width: 34)
+                .frame(width: 30)
             } else if resolved.hasNext {
               Image(systemName: "arrow.right")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
-                .frame(width: 20)
+                .frame(width: 16)
+                .padding(.top, 2)
               ScheduleColumn(
                 title: resolved.nextTitle,
                 subtitle: resolved.nextSubtitle,
@@ -446,7 +487,7 @@ private struct TimetableLiveActivityView: View {
             }
           }
 
-          if resolved.remainingLessons > 0 {
+          if showsRemainingLessons && resolved.remainingLessons > 0 {
             Text(remainingLessonsLabel(resolved.remainingLessons))
               .font(.system(size: layout.timeFontSize, weight: .medium))
               .foregroundColor(Color(red: 0.67, green: 0.67, blue: 0.67))
@@ -456,16 +497,91 @@ private struct TimetableLiveActivityView: View {
             segmentStart: resolved.segmentStart,
             segmentEnd: resolved.segmentEnd,
             accentColor: resolved.accentColor,
+            now: timeline.date,
             timeFontSize: layout.timeFontSize,
             barOuterHeight: layout.barOuterHeight
           )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, layout.horizontalPadding)
-        .padding(.vertical, layout.verticalPadding)
+        .padding(.top, layout.topPadding)
+        .padding(.bottom, layout.bottomPadding)
       }
     }
   }
+}
+
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableDynamicIslandHeaderView: View {
+  let data: TimetableLiveData
+  let layout: ScheduleLiveActivityLayout
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
+      if let resolved = data.resolve(at: timeline.date) {
+        HStack(alignment: .top, spacing: layout.columnSpacing) {
+          ScheduleColumn(
+            title: resolved.title,
+            subtitle: resolved.subtitle,
+            alignment: .leading,
+            titleSize: layout.titleSize,
+            subtitleSize: layout.subtitleSize
+          )
+          if resolved.isMeal, let imageUrl = resolved.imageUrl, !imageUrl.isEmpty {
+            Spacer(minLength: 0)
+            TimetableMealThumbnail(imageUrl: imageUrl)
+          } else if resolved.hasNext {
+            Spacer(minLength: 0)
+            Image(systemName: "arrow.right")
+              .font(.system(size: 10, weight: .semibold))
+              .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
+              .padding(.top, 2)
+            ScheduleColumn(
+              title: resolved.nextTitle,
+              subtitle: resolved.nextSubtitle,
+              alignment: .trailing,
+              titleSize: layout.titleSize,
+              subtitleSize: layout.subtitleSize
+            )
+          }
+        }
+        .padding(.horizontal, layout.horizontalPadding)
+      }
+    }
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableDynamicIslandBottomView: View {
+  let data: TimetableLiveData
+  let layout: ScheduleLiveActivityLayout
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+      if let resolved = data.resolve(at: timeline.date) {
+        TimetableProgressSection(
+          segmentStart: resolved.segmentStart,
+          segmentEnd: resolved.segmentEnd,
+          accentColor: resolved.accentColor,
+          now: timeline.date,
+          timeFontSize: layout.timeFontSize,
+          barOuterHeight: layout.barOuterHeight
+        )
+        .padding(.horizontal, layout.horizontalPadding)
+        .padding(.bottom, layout.bottomPadding)
+      }
+    }
+  }
+}
+
+private func timetableCompactLeadingLabel(
+  for resolved: TimetableResolvedSegment?
+) -> String {
+  guard let resolved else { return "—" }
+  if resolved.isPreStart || !resolved.hasNext {
+    return resolved.currentShortTitle
+  }
+  return resolved.nextShortTitle
 }
 
 @available(iOSApplicationExtension 16.1, *)
@@ -474,7 +590,7 @@ private struct TimetableLiveActivityLockScreenView: View {
   @Environment(\.showsWidgetContainerBackground) private var showsWidgetContainerBackground
 
   var body: some View {
-    TimetableLiveActivityView(data: data, layout: .lockScreen)
+    TimetableLiveActivityView(data: data, layout: .timetableLockScreen)
       .background {
         if showsWidgetContainerBackground {
           ScheduleLiveActivityLockScreenGlassBackground()
@@ -529,6 +645,8 @@ private struct ScheduleLiveActivityLayout {
   let barOuterHeight: CGFloat
   let horizontalPadding: CGFloat
   let verticalPadding: CGFloat
+  let topPadding: CGFloat
+  let bottomPadding: CGFloat
   let showsBackground: Bool
 
   static let lockScreen = ScheduleLiveActivityLayout(
@@ -540,6 +658,22 @@ private struct ScheduleLiveActivityLayout {
     barOuterHeight: 15,
     horizontalPadding: 30,
     verticalPadding: 32,
+    topPadding: 32,
+    bottomPadding: 32,
+    showsBackground: false
+  )
+
+  static let timetableLockScreen = ScheduleLiveActivityLayout(
+    sectionSpacing: 16,
+    columnSpacing: 14,
+    titleSize: 19,
+    subtitleSize: 15,
+    timeFontSize: 15,
+    barOuterHeight: 14,
+    horizontalPadding: 28,
+    verticalPadding: 24,
+    topPadding: 28,
+    bottomPadding: 22,
     showsBackground: false
   )
 
@@ -555,6 +689,22 @@ private struct ScheduleLiveActivityLayout {
     barOuterHeight: 12,
     horizontalPadding: 10,
     verticalPadding: 6,
+    topPadding: 6,
+    bottomPadding: 6,
+    showsBackground: false
+  )
+
+  static let timetableDynamicIsland = ScheduleLiveActivityLayout(
+    sectionSpacing: 8,
+    columnSpacing: 10,
+    titleSize: 15,
+    subtitleSize: 12,
+    timeFontSize: 11,
+    barOuterHeight: 8,
+    horizontalPadding: 4,
+    verticalPadding: 2,
+    topPadding: 0,
+    bottomPadding: 2,
     showsBackground: false
   )
 }
@@ -664,25 +814,34 @@ struct ChronoScheduleLiveActivity: Widget {
       if kind == "timetable" {
         let data = TimetableLiveData(context: context)
         return DynamicIsland {
+          DynamicIslandExpandedRegion(.center) {
+            TimetableDynamicIslandHeaderView(data: data, layout: .timetableDynamicIsland)
+          }
           DynamicIslandExpandedRegion(.bottom) {
-            TimetableLiveActivityView(data: data, layout: .dynamicIsland)
+            TimetableDynamicIslandBottomView(data: data, layout: .timetableDynamicIsland)
           }
         } compactLeading: {
-          TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
-            if let resolved = data.resolve(at: timeline.date) {
-              Text(formatTime(resolved.segmentEnd))
+          TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
+            let resolved = data.resolve(at: timeline.date)
+            Text(timetableCompactLeadingLabel(for: resolved))
+              .font(.footnote.weight(.semibold))
+              .foregroundColor(.white)
+              .lineLimit(1)
+              .minimumScaleFactor(0.75)
+          }
+        } compactTrailing: {
+          TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
+            if let resolved = data.resolve(at: timeline.date),
+               resolved.segmentEnd > resolved.segmentStart {
+              Text(
+                timerInterval: resolved.segmentStart...resolved.segmentEnd,
+                countsDown: true,
+                showsHours: false
+              )
                 .font(.footnote.monospacedDigit().weight(.semibold))
                 .foregroundColor(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-            }
-          }
-        } compactTrailing: {
-          TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
-            if let resolved = data.resolve(at: timeline.date) {
-              Text(formatCountdown(seconds: remainingSeconds(until: resolved.segmentEnd, now: timeline.date)))
-                .font(.footnote.monospacedDigit().weight(.semibold))
-                .foregroundColor(.white)
             }
           }
         } minimal: {
