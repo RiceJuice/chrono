@@ -514,41 +514,99 @@ private struct TimetableLiveActivityView: View {
   }
 }
 
+/// Farbig hinterlegtes Kürzel-Badge für die linke Dynamic-Island-Region.
+/// Bleibt fernab der Sensor-Aussparung und ersetzt lange Fachnamen dort,
+/// wo ohnehin nur wenig Platz ist.
 @available(iOSApplicationExtension 16.1, *)
-private struct TimetableDynamicIslandHeaderView: View {
+private struct TimetableDynamicIslandLeadingBadge: View {
   let data: TimetableLiveData
-  let layout: ScheduleLiveActivityLayout
 
   var body: some View {
-    TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
+    TimelineView(.periodic(from: .now, by: 60.0)) { timeline in
       if let resolved = data.resolve(at: timeline.date) {
-        HStack(alignment: .top, spacing: layout.columnSpacing) {
-          ScheduleColumn(
-            title: resolved.title,
-            subtitle: resolved.subtitle,
-            alignment: .leading,
-            titleSize: layout.titleSize,
-            subtitleSize: layout.subtitleSize
-          )
+        ZStack {
+          RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(resolved.accentColor.opacity(0.92))
           if resolved.isMeal, let imageUrl = resolved.imageUrl, !imageUrl.isEmpty {
-            Spacer(minLength: 0)
             TimetableMealThumbnail(imageUrl: imageUrl)
-          } else if resolved.hasNext {
-            Spacer(minLength: 0)
-            Image(systemName: "arrow.right")
-              .font(.system(size: 10, weight: .semibold))
-              .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
-              .padding(.top, 2)
-            ScheduleColumn(
-              title: resolved.nextTitle,
-              subtitle: resolved.nextSubtitle,
-              alignment: .trailing,
-              titleSize: layout.titleSize,
-              subtitleSize: layout.subtitleSize
-            )
+              .frame(width: 40, height: 40)
+          } else {
+            Text(resolved.currentShortTitle)
+              .font(.system(size: 15, weight: .bold))
+              .foregroundColor(.white)
+              .lineLimit(1)
+              .minimumScaleFactor(0.6)
+              .padding(.horizontal, 4)
           }
         }
-        .padding(.horizontal, layout.horizontalPadding)
+        .frame(width: 40, height: 40)
+      }
+    }
+  }
+}
+
+/// Aktuelles Fach + Raum, mittig zwischen der Sensor-Aussparung.
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableDynamicIslandCenterView: View {
+  let data: TimetableLiveData
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 60.0)) { timeline in
+      if let resolved = data.resolve(at: timeline.date) {
+        VStack(spacing: 3) {
+          Text(resolved.title)
+            .font(.system(size: 16, weight: .bold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+          if !resolved.subtitle.isEmpty {
+            Text(resolved.subtitle)
+              .font(.system(size: 12, weight: .regular))
+              .foregroundColor(Color(red: 0.67, green: 0.67, blue: 0.67))
+              .lineLimit(1)
+              .minimumScaleFactor(0.8)
+          }
+        }
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
+      }
+    }
+  }
+}
+
+/// Ausblick auf das nächste Fach bzw. verbleibende Stunden, rechts neben
+/// der Sensor-Aussparung.
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableDynamicIslandTrailingView: View {
+  let data: TimetableLiveData
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 60.0)) { timeline in
+      if let resolved = data.resolve(at: timeline.date) {
+        VStack(alignment: .trailing, spacing: 3) {
+          if resolved.hasNext {
+            Text("Nächstes")
+              .font(.system(size: 10, weight: .medium))
+              .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
+            Text(resolved.nextShortTitle.isEmpty ? resolved.nextTitle : resolved.nextShortTitle)
+              .font(.system(size: 15, weight: .bold))
+              .foregroundColor(.white)
+              .lineLimit(1)
+              .minimumScaleFactor(0.7)
+          } else if resolved.remainingLessons > 0 {
+            Text("Noch")
+              .font(.system(size: 10, weight: .medium))
+              .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
+            Text("\(resolved.remainingLessons)")
+              .font(.system(size: 15, weight: .bold))
+              .foregroundColor(.white)
+          } else {
+            Image(systemName: "flag.checkered")
+              .font(.system(size: 15, weight: .semibold))
+              .foregroundColor(.white)
+          }
+        }
+        .frame(minWidth: 40)
       }
     }
   }
@@ -571,6 +629,7 @@ private struct TimetableDynamicIslandBottomView: View {
           barOuterHeight: layout.barOuterHeight
         )
         .padding(.horizontal, layout.horizontalPadding)
+        .padding(.top, layout.topPadding)
         .padding(.bottom, layout.bottomPadding)
       }
     }
@@ -703,14 +762,14 @@ private struct ScheduleLiveActivityLayout {
   static let timetableDynamicIsland = ScheduleLiveActivityLayout(
     sectionSpacing: 8,
     columnSpacing: 10,
-    titleSize: 15,
+    titleSize: 16,
     subtitleSize: 12,
-    timeFontSize: 11,
-    barOuterHeight: 8,
-    horizontalPadding: 4,
+    timeFontSize: 12,
+    barOuterHeight: 10,
+    horizontalPadding: 16,
     verticalPadding: 2,
-    topPadding: 0,
-    bottomPadding: 2,
+    topPadding: 8,
+    bottomPadding: 12,
     showsBackground: false
   )
 }
@@ -846,35 +905,36 @@ struct ChronoScheduleLiveActivity: Widget {
       if kind == "timetable" {
         let data = TimetableLiveData(context: context)
         return DynamicIsland {
+          DynamicIslandExpandedRegion(.leading) {
+            TimetableDynamicIslandLeadingBadge(data: data)
+          }
           DynamicIslandExpandedRegion(.center) {
-            TimetableDynamicIslandHeaderView(data: data, layout: .timetableDynamicIsland)
+            TimetableDynamicIslandCenterView(data: data)
+          }
+          DynamicIslandExpandedRegion(.trailing) {
+            TimetableDynamicIslandTrailingView(data: data)
           }
           DynamicIslandExpandedRegion(.bottom) {
             TimetableDynamicIslandBottomView(data: data, layout: .timetableDynamicIsland)
           }
         } compactLeading: {
-          TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
-            let resolved = data.resolve(at: timeline.date)
-            Text(timetableCompactLeadingLabel(for: resolved))
-              .font(.footnote.weight(.semibold))
+          let resolved = data.resolve(at: Date())
+          Text(timetableCompactLeadingLabel(for: resolved))
+            .font(.footnote.weight(.semibold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+        } compactTrailing: {
+          if let resolved = data.resolve(at: Date()), resolved.segmentEnd > resolved.segmentStart {
+            Text(
+              timerInterval: resolved.segmentStart...resolved.segmentEnd,
+              countsDown: true,
+              showsHours: false
+            )
+              .font(.footnote.monospacedDigit().weight(.semibold))
               .foregroundColor(.white)
               .lineLimit(1)
-              .minimumScaleFactor(0.75)
-          }
-        } compactTrailing: {
-          TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
-            if let resolved = data.resolve(at: timeline.date),
-               resolved.segmentEnd > resolved.segmentStart {
-              Text(
-                timerInterval: resolved.segmentStart...resolved.segmentEnd,
-                countsDown: true,
-                showsHours: false
-              )
-                .font(.footnote.monospacedDigit().weight(.semibold))
-                .foregroundColor(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            }
+              .minimumScaleFactor(0.85)
           }
         } minimal: {
           Image(systemName: "book")
