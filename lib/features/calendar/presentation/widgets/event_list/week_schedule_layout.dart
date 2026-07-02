@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/features/calendar/domain/layout/school_track_lane_order.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 
 const double kWeekScheduleHourHeight = 72;
@@ -99,8 +100,13 @@ List<WeekEntryPlacement> buildWeekEntryPlacements({
   required WeekScheduleBounds bounds,
   required double hourHeight,
   double adjacentEntryGap = kWeekScheduleAdjacentEntryGap,
+  List<String> ownSchoolTracks = const [],
 }) {
-  final intervals = _buildIntervals(entries: entries, day: day);
+  final intervals = _buildIntervals(
+    entries: entries,
+    day: day,
+    ownSchoolTracks: ownSchoolTracks,
+  );
   final placements = <WeekEntryPlacement>[];
   var index = 0;
 
@@ -166,6 +172,7 @@ List<WeekEntryPlacement> buildWeekEntryPlacements({
 List<_EntryInterval> _buildIntervals({
   required List<CalendarEntry> entries,
   required DateTime day,
+  List<String> ownSchoolTracks = const [],
 }) {
   final intervals = <_EntryInterval>[];
 
@@ -186,7 +193,13 @@ List<_EntryInterval> _buildIntervals({
   intervals.sort((a, b) {
     final byStart = a.start.compareTo(b.start);
     if (byStart != 0) return byStart;
-    return b.end.compareTo(a.end);
+    final byEnd = b.end.compareTo(a.end);
+    if (byEnd != 0) return byEnd;
+    return compareCalendarEntriesForLaneOrder(
+      a.entry,
+      b.entry,
+      ownSchoolTracks: ownSchoolTracks,
+    );
   });
   return intervals;
 }

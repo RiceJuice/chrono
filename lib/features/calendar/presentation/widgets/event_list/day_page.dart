@@ -10,6 +10,7 @@ import '../../../domain/models/calendar_entry.dart';
 import '../../providers/calendar_providers.dart';
 import 'calendar_break_tile.dart';
 import 'calendar_day_empty_state.dart';
+import 'day_schedule_layout.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/calendar_now_anchor.dart';
 import 'cards/calendar_entry_card.dart';
 
@@ -46,8 +47,54 @@ class _DayPageState extends ConsumerState<DayPage> {
     super.dispose();
   }
 
-  int _entryIndexForNowAnchor(List<CalendarEntry> entries) {
-    return CalendarNowAnchor.entryIndexForNowAnchor(entries);
+  int _entryIndexForNowAnchor(List<DayScheduleListItem> items) {
+    return entryIndexForNowAnchorInDayItems(items);
+  }
+
+  Widget _buildLessonRow({
+    required DayScheduleLessonRowItem item,
+    required bool shouldApplyPastStyling,
+  }) {
+    final lessons = item.lessons;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < lessons.length; i++) ...[
+              if (i > 0) const SizedBox(width: AppSpacing.s),
+              Expanded(
+                child: CalendarEntryCard(
+                  key: ValueKey<String>('calendar-entry-${lessons[i].id}'),
+                  entry: lessons[i],
+                  applyPastStyling: shouldApplyPastStyling,
+                  showTimeColumn: i == 0,
+                  listTileHorizontalPadding: 0,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildListItem({
+    required DayScheduleListItem item,
+    required bool shouldApplyPastStyling,
+  }) {
+    return switch (item) {
+      DayScheduleSingleItem(:final entry) => CalendarEntryCard(
+        key: ValueKey<String>('calendar-entry-${entry.id}'),
+        entry: entry,
+        applyPastStyling: shouldApplyPastStyling,
+      ),
+      DayScheduleLessonRowItem() => _buildLessonRow(
+        item: item,
+        shouldApplyPastStyling: shouldApplyPastStyling,
+      ),
+    };
   }
 
   String _buildCombinedBreakLabel(List<CalendarEntry> breakEntries) {
@@ -149,6 +196,9 @@ class _DayPageState extends ConsumerState<DayPage> {
     final entriesAsync = ref.watch(
       filteredCalendarEntriesForDayProvider(widget.date),
     );
+    final ownSchoolTracks = ref.watch(
+      calendarFiltersProvider.select((filters) => filters.defaultSchoolTracks),
+    );
     final shouldApplyPastStyling = AppDateTime.isTodayLocal(widget.date);
 
     return entriesAsync.when(
@@ -159,6 +209,10 @@ class _DayPageState extends ConsumerState<DayPage> {
         final regularEntries = entries
             .where((entry) => entry.type != CalendarEntryType.breakType)
             .toList(growable: false);
+        final listItems = buildDayScheduleListItems(
+          entries: regularEntries,
+          ownSchoolTracks: ownSchoolTracks,
+        );
         final hasBreakSummary = breakEntries.isNotEmpty;
 
         if (regularEntries.isEmpty && !hasBreakSummary) {
@@ -184,13 +238,13 @@ class _DayPageState extends ConsumerState<DayPage> {
         CalendarImagePrefetch.prefetchEntries(regularEntries);
 
         final isToday = AppDateTime.isTodayLocal(widget.date);
-        final nowAnchorEntryIndex = isToday
-            ? _entryIndexForNowAnchor(regularEntries)
+        final nowAnchorItemIndex = isToday
+            ? _entryIndexForNowAnchor(listItems)
             : -1;
-        final hasNowAnchor = isToday && regularEntries.isNotEmpty;
+        final hasNowAnchor = isToday && listItems.isNotEmpty;
         final listStartOffset = hasBreakSummary ? 1 : 0;
         final nowAnchorBuilderIndex = hasNowAnchor
-            ? listStartOffset + nowAnchorEntryIndex
+            ? listStartOffset + nowAnchorItemIndex
             : -1;
         if (hasNowAnchor) {
           _scheduleInitialScrollToNowAnchor();
@@ -204,12 +258,12 @@ class _DayPageState extends ConsumerState<DayPage> {
               bottom: AppSpacing.m + MediaQuery.paddingOf(context).bottom,
             ),
             itemCount:
-                regularEntries.length +
+                listItems.length +
                 (hasNowAnchor ? 1 : 0) +
                 (hasBreakSummary ? 1 : 0),
             itemBuilder: (context, index) {
               final lastIndex =
-                  regularEntries.length +
+                  listItems.length +
                   (hasNowAnchor ? 1 : 0) +
                   (hasBreakSummary ? 1 : 0) -
                   1;
@@ -218,21 +272,20 @@ class _DayPageState extends ConsumerState<DayPage> {
                 row = _buildBreakSummaryRow(breakEntries);
               } else if (hasNowAnchor &&
                   index == nowAnchorBuilderIndex &&
-                  regularEntries.isNotEmpty) {
+                  listItems.isNotEmpty) {
                 row = SizedBox(key: _nowAnchorKey, height: 1);
               } else {
                 final localIndex = hasBreakSummary ? index - 1 : index;
                 final isAfterNowAnchor =
                     hasNowAnchor &&
                     localIndex > nowAnchorBuilderIndex - listStartOffset;
-                final entryIndex = isAfterNowAnchor
+                final itemIndex = isAfterNowAnchor
                     ? localIndex - 1
                     : localIndex;
-                final entry = regularEntries[entryIndex];
-                row = CalendarEntryCard(
-                  key: ValueKey<String>('calendar-entry-${entry.id}'),
-                  entry: entry,
-                  applyPastStyling: shouldApplyPastStyling,
+                final item = listItems[itemIndex];
+                row = _buildListItem(
+                  item: item,
+                  shouldApplyPastStyling: shouldApplyPastStyling,
                 );
               }
               return Column(

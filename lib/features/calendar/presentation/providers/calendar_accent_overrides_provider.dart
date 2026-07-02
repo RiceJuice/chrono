@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/filter/calendar_filter_text.dart';
+import '../../domain/layout/school_track_lane_order.dart';
 import '../../domain/models/calendar_entry.dart';
 import 'filter/calendar/calendar_filters_provider.dart';
 import '../widgets/calendar_header/calendar_marker_color_palette.dart';
@@ -99,16 +100,37 @@ Color resolveCalendarEntryAccent(WidgetRef ref, CalendarEntry entry) {
     }
   }
 
-  if (type == CalendarEntryType.lesson && entry.subjectId != null) {
-    final subjectOverrides = ref.watch(subjectAccentOverridesProvider).value ??
-        const <String, Color>{};
-    final subjectOverride = subjectOverrides[entry.subjectId!];
-    if (subjectOverride != null) return subjectOverride;
-    return entry.accentColor;
+  if (type == CalendarEntryType.lesson) {
+    final ownSchoolTracks = ref.watch(
+      calendarFiltersProvider.select((filters) => filters.defaultSchoolTracks),
+    );
+    Color accent;
+    if (entry.subjectId != null) {
+      final subjectOverrides = ref.watch(subjectAccentOverridesProvider).value ??
+          const <String, Color>{};
+      accent = subjectOverrides[entry.subjectId!] ?? entry.accentColor;
+    } else {
+      accent = entry.accentColor;
+    }
+    if (isOtherSchoolTrackLesson(entry, ownSchoolTracks: ownSchoolTracks)) {
+      return _mutedLessonAccent(accent);
+    }
+    return accent;
   }
 
   final overrides = ref.watch(calendarAccentOverridesProvider);
   return overrides[entry.type] ?? entry.accentColor;
+}
+
+bool isOtherSchoolTrackLessonForRef(WidgetRef ref, CalendarEntry entry) {
+  final ownSchoolTracks = ref.watch(
+    calendarFiltersProvider.select((filters) => filters.defaultSchoolTracks),
+  );
+  return isOtherSchoolTrackLesson(entry, ownSchoolTracks: ownSchoolTracks);
+}
+
+Color _mutedLessonAccent(Color accent) {
+  return Color.lerp(accent, const Color(0xFF9E9E9E), 0.45) ?? accent;
 }
 
 /// Farbe des linken Streifens in Terminkarten — bei Chor-Beige besser lesbar.
