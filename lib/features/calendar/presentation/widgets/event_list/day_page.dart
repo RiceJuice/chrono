@@ -70,6 +70,11 @@ class _DayPageState extends ConsumerState<DayPage> {
                   entry: lessons[i],
                   applyPastStyling: shouldApplyPastStyling,
                   showTimeColumn: i == 0,
+                  // Nur die erste Karte zeigt eine Zeit an (Spalte links);
+                  // die übrigen Karten der Zeile liegen ohnehin im selben
+                  // Zeitfenster – eine zusätzliche Inline-Zeile würde die
+                  // Karten unterschiedlich hoch/unruhig wirken lassen.
+                  showInlineTimeRange: false,
                   listTileHorizontalPadding: 0,
                 ),
               ),
