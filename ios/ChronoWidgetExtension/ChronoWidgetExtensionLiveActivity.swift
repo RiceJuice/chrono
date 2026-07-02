@@ -423,20 +423,23 @@ private struct TimetableProgressSection: View {
 
   var body: some View {
     VStack(spacing: 6) {
-      HStack {
-        Text(formatTime(segmentStart))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
-        Spacer()
+      ZStack {
+        HStack {
+          Text(formatTime(segmentStart))
+            .font(.system(size: timeFontSize, weight: .regular))
+            .foregroundColor(.white)
+          Spacer(minLength: 0)
+          Text(formatTime(segmentEnd))
+            .font(.system(size: timeFontSize, weight: .regular))
+            .foregroundColor(.white)
+        }
         TimetableCountdownText(
           segmentStart: segmentStart,
           segmentEnd: segmentEnd,
           fontSize: timeFontSize
         )
-        Spacer()
-        Text(formatTime(segmentEnd))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
       }
       let total = segmentEnd.timeIntervalSince(segmentStart)
       let elapsed = now.timeIntervalSince(segmentStart)
@@ -609,20 +612,23 @@ private struct ScheduleProgressSection: View {
 
   var body: some View {
     VStack(spacing: 10) {
-      HStack {
-        Text(formatTime(data.segmentStart))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
-        Spacer()
+      ZStack {
+        HStack {
+          Text(formatTime(data.segmentStart))
+            .font(.system(size: timeFontSize, weight: .regular))
+            .foregroundColor(.white)
+          Spacer(minLength: 0)
+          Text(formatTime(data.segmentEnd))
+            .font(.system(size: timeFontSize, weight: .regular))
+            .foregroundColor(.white)
+        }
         TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
           Text("Noch \(formatCountdown(seconds: remainingSeconds(until: data.segmentEnd, now: timeline.date)))")
             .font(.system(size: timeFontSize, weight: .regular).monospacedDigit())
             .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
         }
-        Spacer()
-        Text(formatTime(data.segmentEnd))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
       }
       TimelineView(.periodic(from: data.segmentStart, by: 1.0)) { timeline in
         let total = data.segmentEnd.timeIntervalSince(data.segmentStart)
