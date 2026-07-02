@@ -23,8 +23,6 @@ streams:
         series_id,
         recurrence_id
       FROM calendar_events
-      WHERE start_time >= (now() AT TIME ZONE 'UTC') - interval '400 days'
-        AND start_time < (now() AT TIME ZONE 'UTC') + interval '400 days'
 
   appointments_calendar_series:
     auto_subscribe: true
@@ -46,8 +44,6 @@ streams:
         series_end,
         subject_id
       FROM calendar_series
-      WHERE series_end IS NULL
-         OR series_end >= (now() AT TIME ZONE 'UTC') - interval '400 days'
 
   reference_subjects:
     auto_subscribe: true
@@ -120,8 +116,6 @@ streams:
         voices,
         created_at
       FROM event_schedules
-      WHERE start_time >= (now() AT TIME ZONE 'UTC') - interval '400 days'
-        AND start_time < (now() AT TIME ZONE 'UTC') + interval '400 days'
 
   homework_syntax_suggestions:
     auto_subscribe: true
