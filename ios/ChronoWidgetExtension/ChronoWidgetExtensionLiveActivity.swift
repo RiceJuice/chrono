@@ -365,6 +365,10 @@ private struct TimetableAccentProgressBar: View {
 @available(iOSApplicationExtension 16.1, *)
 private struct TimetableMealThumbnail: View {
   let imageUrl: String?
+  var width: CGFloat = 34
+  var height: CGFloat = 34
+  var cornerRadius: CGFloat = 8
+  var fillsAvailableWidth: Bool = false
 
   var body: some View {
     Group {
@@ -380,10 +384,18 @@ private struct TimetableMealThumbnail: View {
               .fill(Color(red: 0.20, green: 0.20, blue: 0.20))
           }
         }
+      } else {
+        Rectangle()
+          .fill(Color(red: 0.20, green: 0.20, blue: 0.20))
       }
     }
-    .frame(width: 34, height: 34)
-    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    .frame(
+      minWidth: fillsAvailableWidth ? 0 : width,
+      maxWidth: fillsAvailableWidth ? .infinity : width,
+      minHeight: height,
+      maxHeight: height
+    )
+    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
   }
 }
 
@@ -462,6 +474,8 @@ private struct TimetableLiveActivityView: View {
   var body: some View {
     TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
       if let resolved = data.resolve(at: timeline.date) {
+        let mealImageUrl = resolved.isMeal ? resolved.imageUrl : nil
+        let hasMealImage = !(mealImageUrl ?? "").isEmpty
         VStack(alignment: .leading, spacing: layout.sectionSpacing) {
           HStack(alignment: .top, spacing: layout.columnSpacing) {
             ScheduleColumn(
@@ -471,10 +485,7 @@ private struct TimetableLiveActivityView: View {
               titleSize: layout.titleSize,
               subtitleSize: layout.subtitleSize
             )
-            if resolved.isMeal, let imageUrl = resolved.imageUrl, !imageUrl.isEmpty {
-              TimetableMealThumbnail(imageUrl: imageUrl)
-                .frame(width: 30)
-            } else if resolved.hasNext {
+            if resolved.hasNext, !hasMealImage {
               Image(systemName: "arrow.right")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
@@ -488,6 +499,15 @@ private struct TimetableLiveActivityView: View {
                 subtitleSize: layout.subtitleSize
               )
             }
+          }
+
+          if hasMealImage, let mealImageUrl {
+            TimetableMealThumbnail(
+              imageUrl: mealImageUrl,
+              height: 92,
+              cornerRadius: 14,
+              fillsAvailableWidth: true
+            )
           }
 
           if showsRemainingLessons && resolved.remainingLessons > 0 {
@@ -528,8 +548,7 @@ private struct TimetableDynamicIslandLeadingBadge: View {
           RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(resolved.accentColor.opacity(0.92))
           if resolved.isMeal, let imageUrl = resolved.imageUrl, !imageUrl.isEmpty {
-            TimetableMealThumbnail(imageUrl: imageUrl)
-              .frame(width: 40, height: 40)
+            TimetableMealThumbnail(imageUrl: imageUrl, width: 40, height: 40, cornerRadius: 12)
           } else {
             Text(resolved.currentShortTitle)
               .font(.system(size: 15, weight: .bold))
