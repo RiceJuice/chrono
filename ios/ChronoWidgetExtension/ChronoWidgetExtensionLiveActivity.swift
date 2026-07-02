@@ -766,6 +766,32 @@ private struct ScheduleLiveActivityLockScreenGlassBackground: View {
   }
 }
 
+/// Event-Ablaufplan: schwarze Fläche mit Liquid-Glass-Rand (Lockscreen).
+@available(iOSApplicationExtension 16.1, *)
+private struct ScheduleEventLiveActivityLockScreenBackground: View {
+  private let cornerRadius: CGFloat = 22
+
+  var body: some View {
+    if #available(iOSApplicationExtension 26.0, *) {
+      RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        .fill(Color.black)
+        .padding(1.5)
+        .background {
+          RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(.clear)
+            .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+        }
+    } else {
+      RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        .fill(Color.black)
+        .overlay {
+          RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+        }
+    }
+  }
+}
+
 @available(iOSApplicationExtension 16.1, *)
 private struct ScheduleLiveActivityLockScreenView: View {
   let data: ScheduleLiveData
@@ -775,7 +801,7 @@ private struct ScheduleLiveActivityLockScreenView: View {
     ScheduleLiveActivityView(data: data, layout: .lockScreen)
       .background {
         if showsWidgetContainerBackground {
-          ScheduleLiveActivityLockScreenGlassBackground()
+          ScheduleEventLiveActivityLockScreenBackground()
             .ignoresSafeArea()
         }
       }
@@ -806,7 +832,7 @@ struct ChronoScheduleLiveActivity: Widget {
         let data = ScheduleLiveData(context: context)
         ScheduleLiveActivityLockScreenView(data: data)
           .widgetURL(scheduleDeepLink(for: data.eventId))
-          .activityBackgroundTint(.clear)
+          .activityBackgroundTint(.black)
           .activitySystemActionForegroundColor(.white)
       }
     } dynamicIsland: { context in
