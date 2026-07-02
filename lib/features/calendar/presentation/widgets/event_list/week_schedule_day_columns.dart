@@ -12,8 +12,10 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_timeline.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/week_schedule_viewport.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/widgets/app_hairline_divider.dart';
+import '../../providers/filter/calendar/calendar_filters_provider.dart';
 
 /// Eine Tages-Spalte im Wochenraster (Tablet: in [WeekDayColumns], Handy:
 /// in [WeekScheduleMobileBody] mit fester Breite / nahtlosem Streifen).
@@ -152,7 +154,7 @@ class WeekDayColumns extends StatelessWidget {
   }
 }
 
-class WeekEntriesLayer extends StatelessWidget {
+class WeekEntriesLayer extends ConsumerWidget {
   const WeekEntriesLayer({
     required this.entries,
     required this.day,
@@ -167,7 +169,10 @@ class WeekEntriesLayer extends StatelessWidget {
   final double hourHeight;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ownSchoolTracks = ref.watch(
+      calendarFiltersProvider.select((filters) => filters.defaultSchoolTracks),
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
         final regularEntries = entries
@@ -179,6 +184,7 @@ class WeekEntriesLayer extends StatelessWidget {
           day: day,
           bounds: bounds,
           hourHeight: hourHeight,
+          ownSchoolTracks: ownSchoolTracks,
           adjacentEntryGap: compactMobile
               ? kWeekScheduleAdjacentEntryGapPhone
               : kWeekScheduleAdjacentEntryGap,
