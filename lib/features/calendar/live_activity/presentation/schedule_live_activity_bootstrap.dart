@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../login/presentation/providers/profile_gate_notifier.dart';
 import 'schedule_live_activity_coordinator.dart';
 import 'schedule_live_activity_deep_link_handler.dart';
+import '../../timetable_live_activity/presentation/timetable_live_activity_coordinator.dart';
 
 /// Startet Live-Activity-Coordinator nach Login/Profil-Gate.
 class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
@@ -28,6 +29,7 @@ class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
   final GoRouter _router;
   ScheduleLiveActivityDeepLinkHandler? _deepLinkHandler;
   ScheduleLiveActivityCoordinator? _coordinator;
+  TimetableLiveActivityCoordinator? _timetableCoordinator;
   static ScheduleLiveActivityBootstrap? _instance;
 
   static void start({
@@ -49,6 +51,7 @@ class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
     _instance = null;
     unawaited(instance?._deepLinkHandler?.dispose());
     unawaited(instance?._coordinator?.dispose());
+    unawaited(instance?._timetableCoordinator?.dispose());
     instance?.dispose();
   }
 
@@ -81,14 +84,25 @@ class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
       _coordinator = coordinator;
       ScheduleLiveActivityCoordinator.instance = coordinator;
 
+      final timetableCoordinator =
+          _ref.read(timetableLiveActivityCoordinatorProvider);
+      _timetableCoordinator = timetableCoordinator;
+      TimetableLiveActivityCoordinator.instance = timetableCoordinator;
+
       if (!coordinator.isRunning) {
         await coordinator.start(
           onUrlScheme: _deepLinkHandler?.handleUrlSchemeData,
         );
-        return;
+      } else {
+        await coordinator.refreshNow();
       }
 
-      await coordinator.refreshNow();
+      if (!timetableCoordinator.isRunning) {
+        await timetableCoordinator.start();
+      } else {
+        await timetableCoordinator.refreshNow();
+      }
+      return;
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[LiveActivity] bootstrap failed: $e\n$st');

@@ -76,12 +76,19 @@ class ScheduleLiveActivityService {
   }
 
   Future<String?> createOrUpdate(ScheduleLiveActivitySnapshot snapshot) async {
+    return createOrUpdatePayload(
+      snapshot.customId,
+      snapshot.toActivityPayload(),
+    );
+  }
+
+  Future<String?> createOrUpdatePayload(
+    String customId,
+    Map<String, dynamic> payload,
+  ) async {
     if (!supportsLiveActivities || !_initialized) return null;
     try {
-      return await _plugin.createOrUpdateActivity(
-        snapshot.customId,
-        snapshot.toActivityPayload(),
-      );
+      return await _plugin.createOrUpdateActivity(customId, payload);
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[LiveActivity] createOrUpdate failed: $e\n$st');

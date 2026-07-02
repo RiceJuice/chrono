@@ -4,12 +4,15 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
 import com.istornz.live_activities.LiveActivityManager
+import org.json.JSONArray
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -24,7 +27,31 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         RemoteViews(appContext.packageName, R.layout.live_activity_expanded)
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.GERMANY)
 
-    private fun pendingIntentFor(eventId: String): PendingIntent {
+    private data class TimetableSegment(
+        val id: String,
+        val type: String,
+        val title: String,
+        val subtitle: String,
+        val startMs: Long,
+        val endMs: Long,
+        val accentColor: String,
+        val imageUrl: String?,
+    )
+
+    private data class ResolvedSegment(
+        val title: String,
+        val subtitle: String,
+        val segmentStartMs: Long,
+        val segmentEndMs: Long,
+        val hasNext: Boolean,
+        val nextTitle: String,
+        val nextSubtitle: String,
+        val remainingLessons: Int,
+        val isMeal: Boolean,
+        val imageUrl: String?,
+    )
+
+    private fun pendingIntentForSchedule(eventId: String): PendingIntent {
         val intent = Intent(appContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP
             if (eventId.isNotEmpty()) {
@@ -36,6 +63,23 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         return PendingIntent.getActivity(
             appContext,
             eventId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private fun pendingIntentForTimetable(dayDate: String): PendingIntent {
+        val intent = Intent(appContext, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            if (dayDate.isNotEmpty()) {
+                data = Uri.parse(
+                    "chronoapp://timetable?date=${Uri.encode(dayDate)}",
+                )
+            }
+        }
+        return PendingIntent.getActivity(
+            appContext,
+            dayDate.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -86,15 +130,180 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         views.setViewVisibility(R.id.remaining_chronometer, View.VISIBLE)
     }
 
+    private fun parseSegments(rawJson: String?): List<TimetableSegment> {
+        if (rawJson.isNullOrBlank()) return emptyList()
+        return try {
+            val array = JSONArray(rawJson)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    add(
+                        TimetableSegment(
+                            id = obj.optString("id"),
+                            type = obj.optString("type"),
+                            title = obj.optString("title"),
+                            subtitle = obj.optString("subtitle"),
+                            startMs = obj.optLong("startMs"),
+                            endMs = obj.optLong("endMs"),
+                            accentColor = obj.optString("accentColor", "#124E30"),
+                            imageUrl = obj.optString("imageUrl").ifBlank { null },
+                        ),
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun resolveTimetable(
+        segments: List<TimetableSegment>,
+        activityStartMs: Long,
+        nowMs: Long,
+    ): ResolvedSegment? {
+        if (segments.isEmpty()) return null
+        val first = segments.first()
+        if (nowMs < first.startMs) {
+            val next = segments.getOrNull(1)
+            return ResolvedSegment(
+                title = first.title,
+                subtitle = first.subtitle,
+                segmentStartMs = activityStartMs,
+                segmentEndMs = first.startMs,
+                hasNext = next != null,
+                nextTitle = next?.title ?: "",
+                nextSubtitle = next?.subtitle ?: "",
+                remainingLessons = remainingLessonCount(segments, 0, nowMs),
+                isMeal = first.type == "meal",
+                imageUrl = first.imageUrl,
+            )
+        }
+
+        segments.forEachIndexed { index, segment ->
+            if (nowMs < segment.endMs) {
+                val next = segments.getOrNull(index + 1)
+                return ResolvedSegment(
+                    title = segment.title,
+                    subtitle = segment.subtitle,
+                    segmentStartMs = segment.startMs,
+                    segmentEndMs = segment.endMs,
+                    hasNext = next != null,
+                    nextTitle = next?.title ?: "",
+                    nextSubtitle = next?.subtitle ?: "",
+                    remainingLessons = remainingLessonCount(segments, index, nowMs),
+                    isMeal = segment.type == "meal",
+                    imageUrl = segment.imageUrl,
+                )
+            }
+        }
+        return null
+    }
+
+    private fun remainingLessonCount(
+        segments: List<TimetableSegment>,
+        fromIndex: Int,
+        nowMs: Long,
+    ): Int {
+        var count = 0
+        for (i in fromIndex until segments.size) {
+            val segment = segments[i]
+            if (segment.type != "lesson") continue
+            if (i == fromIndex && nowMs >= segment.endMs) continue
+            count++
+        }
+        return count
+    }
+
+    private fun remainingLessonsLabel(count: Int): String {
+        return if (count == 1) "Noch 1 Stunde" else "Noch $count Stunden"
+    }
+
     private fun updateRemoteViews(views: RemoteViews, data: Map<String, Any>, expanded: Boolean) {
         applyThemeColors(views, expanded)
+        val kind = data["kind"] as? String ?: "schedule"
+        val now = System.currentTimeMillis()
+
+        if (kind == "timetable") {
+            val segments = parseSegments(data["segmentsJson"] as? String)
+            val activityStartMs = (data["activityStartMs"] as? Number)?.toLong()
+                ?: segments.firstOrNull()?.startMs
+                ?: now
+            val resolved = resolveTimetable(segments, activityStartMs, now) ?: return
+
+            val subtitle = buildString {
+                if (resolved.remainingLessons > 0) {
+                    append(remainingLessonsLabel(resolved.remainingLessons))
+                }
+                if (resolved.subtitle.isNotBlank()) {
+                    if (isNotEmpty()) append(" · ")
+                    append(resolved.subtitle)
+                }
+            }
+
+            views.setTextViewText(R.id.current_title, resolved.title)
+            applyCountdownChronometer(views, resolved.segmentEndMs)
+
+            if (resolved.isMeal && !resolved.imageUrl.isNullOrBlank() && expanded) {
+                views.setViewVisibility(R.id.arrow_icon, View.GONE)
+                views.setViewVisibility(R.id.next_column, View.VISIBLE)
+                views.setViewVisibility(R.id.next_title, View.VISIBLE)
+                views.setTextViewText(R.id.next_title, "")
+                try {
+                    views.setImageViewUri(
+                        R.id.next_title,
+                        Uri.parse(resolved.imageUrl),
+                    )
+                } catch (_: Exception) {
+                    views.setTextViewText(R.id.next_title, "Mittagessen")
+                }
+            } else if (resolved.hasNext) {
+                views.setViewVisibility(R.id.arrow_icon, View.VISIBLE)
+                views.setViewVisibility(R.id.next_title, View.VISIBLE)
+                views.setTextViewText(R.id.next_title, resolved.nextTitle)
+            } else {
+                views.setViewVisibility(R.id.arrow_icon, View.GONE)
+                views.setViewVisibility(R.id.next_title, View.GONE)
+            }
+
+            if (!expanded) return
+
+            setTextOrHide(views, R.id.current_subtitle, subtitle)
+            if (!resolved.isMeal) {
+                if (resolved.hasNext) {
+                    views.setViewVisibility(R.id.next_column, View.VISIBLE)
+                    setTextOrHide(views, R.id.next_subtitle, resolved.nextSubtitle)
+                } else {
+                    views.setViewVisibility(R.id.next_column, View.GONE)
+                }
+            }
+
+            views.setTextViewText(
+                R.id.segment_start,
+                timeFormat.format(Date(resolved.segmentStartMs)),
+            )
+            views.setTextViewText(
+                R.id.segment_end,
+                timeFormat.format(Date(resolved.segmentEndMs)),
+            )
+
+            val startMs = resolved.segmentStartMs
+            val endMs = resolved.segmentEndMs
+            val progress = if (endMs <= startMs) {
+                1000
+            } else {
+                val ratio = (now - startMs).toDouble() / (endMs - startMs).toDouble()
+                (min(1.0, max(0.0, ratio)) * 1000).toInt()
+            }
+            views.setProgressBar(R.id.segment_progress, 1000, progress, false)
+            return
+        }
+
         val currentTitle = data["currentTitle"] as? String ?: ""
         val currentSubtitle = data["currentSubtitle"] as? String ?: ""
         val nextTitle = data["nextTitle"] as? String ?: ""
         val nextSubtitle = data["nextSubtitle"] as? String ?: ""
         val startMs = (data["segmentStartMs"] as? Number)?.toLong() ?: 0L
         val endMs = (data["segmentEndMs"] as? Number)?.toLong() ?: 0L
-        val now = System.currentTimeMillis()
         val hasNext = nextTitle.isNotBlank()
 
         views.setTextViewText(R.id.current_title, currentTitle)
@@ -140,12 +349,20 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         updateRemoteViews(collapsedViews, data, expanded = false)
         updateRemoteViews(expandedViews, data, expanded = true)
 
-        val eventId = data["eventId"] as? String ?: ""
+        val kind = data["kind"] as? String ?: "schedule"
+        val contentIntent = if (kind == "timetable") {
+            val dayDate = data["dayDate"] as? String ?: ""
+            pendingIntentForTimetable(dayDate)
+        } else {
+            val eventId = data["eventId"] as? String ?: ""
+            pendingIntentForSchedule(eventId)
+        }
+
         return notification
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setShowWhen(false)
-            .setContentIntent(pendingIntentFor(eventId))
+            .setContentIntent(contentIntent)
             .setCustomContentView(collapsedViews)
             .setCustomBigContentView(expandedViews)
             .setPriority(Notification.PRIORITY_LOW)
