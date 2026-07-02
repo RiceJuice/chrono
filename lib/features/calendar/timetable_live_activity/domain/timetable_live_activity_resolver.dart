@@ -15,6 +15,11 @@ typedef TimetableAccentResolver = Color Function(CalendarEntry entry);
 abstract final class TimetableLiveActivityResolver {
   TimetableLiveActivityResolver._();
 
+  /// Wie im Wochen-Stundenplan: unbekannte Metadaten ausblenden, wenn
+  /// Profil-Filter aktiv sind.
+  static bool _hideUnknownWhenFilterActive(CalendarFiltersState filters) =>
+      filters.hasInitializedDefaults && filters.hasActiveFilters;
+
   static TimetableLiveActivitySnapshot? resolve({
     required DateTime day,
     required List<CalendarEntry> entries,
@@ -32,7 +37,7 @@ abstract final class TimetableLiveActivityResolver {
     final filtered = applyCalendarDisplayFilters(
       entries: entries,
       filters: filters,
-      hideUnknownWhenFilterActive: false,
+      hideUnknownWhenFilterActive: _hideUnknownWhenFilterActive(filters),
       forEventList: true,
     ).where((entry) {
       if (entry.type != CalendarEntryType.lesson &&
@@ -141,7 +146,7 @@ abstract final class TimetableLiveActivityResolver {
     final filtered = applyCalendarDisplayFilters(
       entries: entries,
       filters: filters,
-      hideUnknownWhenFilterActive: false,
+      hideUnknownWhenFilterActive: _hideUnknownWhenFilterActive(filters),
       forEventList: true,
     ).where((e) => e.type == CalendarEntryType.lesson).toList()
       ..sort((a, b) => a.startTime.compareTo(b.startTime));
@@ -161,7 +166,7 @@ abstract final class TimetableLiveActivityResolver {
     final filtered = applyCalendarDisplayFilters(
       entries: entries,
       filters: filters,
-      hideUnknownWhenFilterActive: false,
+      hideUnknownWhenFilterActive: _hideUnknownWhenFilterActive(filters),
       forEventList: true,
     ).where((entry) {
       return entry.type == CalendarEntryType.lesson ||
