@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../features/calendar/live_activity/presentation/schedule_live_activity_coordinator.dart';
+import '../../features/calendar/timetable_live_activity/presentation/timetable_live_activity_coordinator.dart';
 import '../../features/login/presentation/services/guardian_link_bootstrap.dart';
 import 'push_device_repository.dart';
 
@@ -53,6 +54,12 @@ class PushNotificationService {
       );
       return;
     }
+    if (data['type'] == 'timetable_live_activity') {
+      unawaited(
+        TimetableLiveActivityCoordinator.instance?.handleFcmData(data),
+      );
+      return;
+    }
     if (kDebugMode) {
       debugPrint('[FCM] foreground: ${message.notification?.title}');
     }
@@ -64,6 +71,12 @@ class PushNotificationService {
     if (data['type'] == 'schedule_live_activity') {
       unawaited(
         ScheduleLiveActivityCoordinator.instance?.handleFcmData(data),
+      );
+      return;
+    }
+    if (data['type'] == 'timetable_live_activity') {
+      unawaited(
+        TimetableLiveActivityCoordinator.instance?.handleFcmData(data),
       );
     }
   }

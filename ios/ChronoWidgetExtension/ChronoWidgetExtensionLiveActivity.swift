@@ -83,6 +83,146 @@ private func scheduleDeepLink(for eventId: String) -> URL? {
   return components.url
 }
 
+private func timetableDeepLink(for dayDate: String) -> URL? {
+  guard !dayDate.isEmpty else { return nil }
+  var components = URLComponents()
+  components.scheme = "chronoapp"
+  components.host = "timetable"
+  components.queryItems = [URLQueryItem(name: "date", value: dayDate)]
+  return components.url
+}
+
+private func readKind(context: ActivityViewContext<LiveActivitiesAppAttributes>) -> String {
+  let key = context.attributes.prefixedKey("kind")
+  return sharedDefault.string(forKey: key) ?? "schedule"
+}
+
+private struct TimetableSegment: Codable {
+  let id: String
+  let type: String
+  let title: String
+  let subtitle: String
+  let startMs: Double
+  let endMs: Double
+  let accentColor: String
+  let imageUrl: String?
+}
+
+private struct TimetableResolvedSegment {
+  let index: Int
+  let title: String
+  let subtitle: String
+  let segmentStart: Date
+  let segmentEnd: Date
+  let accentColor: Color
+  let isMeal: Bool
+  let imageUrl: String?
+  let hasNext: Bool
+  let nextTitle: String
+  let nextSubtitle: String
+  let remainingLessons: Int
+  let isPreStart: Bool
+}
+
+private struct TimetableLiveData {
+  let dayDate: String
+  let segments: [TimetableSegment]
+  let activityStartMs: Double
+
+  init(context: ActivityViewContext<LiveActivitiesAppAttributes>) {
+    func key(_ name: String) -> String {
+      context.attributes.prefixedKey(name)
+    }
+    dayDate = sharedDefault.string(forKey: key("dayDate")) ?? ""
+    activityStartMs = sharedDefault.double(forKey: key("activityStartMs"))
+    let rawJson = sharedDefault.string(forKey: key("segmentsJson")) ?? "[]"
+    if let data = rawJson.data(using: .utf8),
+       let decoded = try? JSONDecoder().decode([TimetableSegment].self, from: data) {
+      segments = decoded
+    } else {
+      segments = []
+    }
+  }
+
+  func resolve(at now: Date) -> TimetableResolvedSegment? {
+    guard !segments.isEmpty else { return nil }
+    let nowMs = now.timeIntervalSince1970 * 1000
+    let activityStart = Date(timeIntervalSince1970: activityStartMs / 1000)
+    let first = segments[0]
+
+    if nowMs < first.startMs {
+      let next = segments.count > 1 ? segments[1] : nil
+      return TimetableResolvedSegment(
+        index: 0,
+        title: first.title,
+        subtitle: first.subtitle,
+        segmentStart: activityStart,
+        segmentEnd: Date(timeIntervalSince1970: first.startMs / 1000),
+        accentColor: parseHexColor(first.accentColor),
+        isMeal: first.type == "meal",
+        imageUrl: first.imageUrl,
+        hasNext: next != nil,
+        nextTitle: next?.title ?? "",
+        nextSubtitle: next?.subtitle ?? "",
+        remainingLessons: remainingLessonCount(fromIndex: 0, nowMs: nowMs),
+        isPreStart: true
+      )
+    }
+
+    for (index, segment) in segments.enumerated() {
+      if nowMs < segment.endMs {
+        let next = index + 1 < segments.count ? segments[index + 1] : nil
+        return TimetableResolvedSegment(
+          index: index,
+          title: segment.title,
+          subtitle: segment.subtitle,
+          segmentStart: Date(timeIntervalSince1970: segment.startMs / 1000),
+          segmentEnd: Date(timeIntervalSince1970: segment.endMs / 1000),
+          accentColor: parseHexColor(segment.accentColor),
+          isMeal: segment.type == "meal",
+          imageUrl: segment.imageUrl,
+          hasNext: next != nil,
+          nextTitle: next?.title ?? "",
+          nextSubtitle: next?.subtitle ?? "",
+          remainingLessons: remainingLessonCount(fromIndex: index, nowMs: nowMs),
+          isPreStart: false
+        )
+      }
+    }
+    return nil
+  }
+
+  private func remainingLessonCount(fromIndex: Int, nowMs: Double) -> Int {
+    var count = 0
+    for i in fromIndex..<segments.count {
+      let segment = segments[i]
+      if segment.type != "lesson" { continue }
+      if i == fromIndex && nowMs >= segment.endMs { continue }
+      count += 1
+    }
+    return count
+  }
+}
+
+private func parseHexColor(_ hex: String) -> Color {
+  var cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+  if cleaned.hasPrefix("#") {
+    cleaned.removeFirst()
+  }
+  guard cleaned.count == 6, let value = Int(cleaned, radix: 16) else {
+    return Color(red: 0.07, green: 0.31, blue: 0.19)
+  }
+  let r = Double((value >> 16) & 0xFF) / 255.0
+  let g = Double((value >> 8) & 0xFF) / 255.0
+  let b = Double(value & 0xFF) / 255.0
+  return Color(red: r, green: g, blue: b)
+}
+
+private func remainingLessonsLabel(_ count: Int) -> String {
+  if count == 1 { return "Noch 1 Stunde" }
+  return "Noch \(count) Stunden"
+}
+
 @available(iOSApplicationExtension 16.1, *)
 private struct ScheduleColumn: View {
   let title: String
@@ -171,6 +311,176 @@ private struct ScheduleProgressBar: View {
       }
     }
     .frame(height: outerHeight)
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableAccentProgressBar: View {
+  let progress: Double
+  let accentColor: Color
+  var outerHeight: CGFloat = 15
+
+  private var metrics: PillProgressMetrics { PillProgressMetrics(outerHeight: outerHeight) }
+
+  private var trackColor: Color {
+    Color(red: 50 / 255, green: 50 / 255, blue: 50 / 255)
+  }
+
+  var body: some View {
+    let inset = metrics.contentInset
+    let innerHeight = metrics.innerHeight
+    let clampedProgress = min(max(progress, 0), 1)
+
+    GeometryReader { geo in
+      let innerWidth = max(0, geo.size.width - inset * 2)
+
+      ZStack(alignment: .leading) {
+        Capsule()
+          .fill(trackColor)
+        Capsule()
+          .fill(accentColor.opacity(0.92))
+          .frame(width: max(0, innerWidth * clampedProgress), height: innerHeight)
+          .padding(.leading, inset)
+      }
+    }
+    .frame(height: outerHeight)
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableMealThumbnail: View {
+  let imageUrl: String?
+
+  var body: some View {
+    Group {
+      if let imageUrl, let url = URL(string: imageUrl), !imageUrl.isEmpty {
+        AsyncImage(url: url) { phase in
+          switch phase {
+          case .success(let image):
+            image
+              .resizable()
+              .scaledToFill()
+          default:
+            Rectangle()
+              .fill(Color(red: 0.20, green: 0.20, blue: 0.20))
+          }
+        }
+      }
+    }
+    .frame(width: 34, height: 34)
+    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableProgressSection: View {
+  let segmentStart: Date
+  let segmentEnd: Date
+  let accentColor: Color
+  var timeFontSize: CGFloat = 13
+  var barOuterHeight: CGFloat = 15
+
+  var body: some View {
+    VStack(spacing: 8) {
+      HStack {
+        Text(formatTime(segmentStart))
+          .font(.system(size: timeFontSize, weight: .regular))
+          .foregroundColor(.white)
+        Spacer()
+        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+          Text("Noch \(formatCountdown(seconds: remainingSeconds(until: segmentEnd, now: timeline.date)))")
+            .font(.system(size: timeFontSize, weight: .regular).monospacedDigit())
+            .foregroundColor(.white)
+        }
+        Spacer()
+        Text(formatTime(segmentEnd))
+          .font(.system(size: timeFontSize, weight: .regular))
+          .foregroundColor(.white)
+      }
+      TimelineView(.periodic(from: segmentStart, by: 1.0)) { timeline in
+        let total = segmentEnd.timeIntervalSince(segmentStart)
+        let elapsed = timeline.date.timeIntervalSince(segmentStart)
+        let p = total > 0 ? min(max(elapsed / total, 0), 1) : 1
+        TimetableAccentProgressBar(
+          progress: p,
+          accentColor: accentColor,
+          outerHeight: barOuterHeight
+        )
+      }
+    }
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableLiveActivityView: View {
+  let data: TimetableLiveData
+  let layout: ScheduleLiveActivityLayout
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+      if let resolved = data.resolve(at: timeline.date) {
+        VStack(alignment: .leading, spacing: layout.sectionSpacing) {
+          HStack(alignment: .center, spacing: layout.columnSpacing) {
+            ScheduleColumn(
+              title: resolved.title,
+              subtitle: resolved.subtitle,
+              alignment: .leading,
+              titleSize: layout.titleSize,
+              subtitleSize: layout.subtitleSize
+            )
+            if resolved.isMeal, let imageUrl = resolved.imageUrl, !imageUrl.isEmpty {
+              TimetableMealThumbnail(imageUrl: imageUrl)
+                .frame(width: 34)
+            } else if resolved.hasNext {
+              Image(systemName: "arrow.right")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
+                .frame(width: 20)
+              ScheduleColumn(
+                title: resolved.nextTitle,
+                subtitle: resolved.nextSubtitle,
+                alignment: .trailing,
+                titleSize: layout.titleSize,
+                subtitleSize: layout.subtitleSize
+              )
+            }
+          }
+
+          if resolved.remainingLessons > 0 {
+            Text(remainingLessonsLabel(resolved.remainingLessons))
+              .font(.system(size: layout.timeFontSize, weight: .medium))
+              .foregroundColor(Color(red: 0.67, green: 0.67, blue: 0.67))
+          }
+
+          TimetableProgressSection(
+            segmentStart: resolved.segmentStart,
+            segmentEnd: resolved.segmentEnd,
+            accentColor: resolved.accentColor,
+            timeFontSize: layout.timeFontSize,
+            barOuterHeight: layout.barOuterHeight
+          )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, layout.horizontalPadding)
+        .padding(.vertical, layout.verticalPadding)
+      }
+    }
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableLiveActivityLockScreenView: View {
+  let data: TimetableLiveData
+  @Environment(\.showsWidgetContainerBackground) private var showsWidgetContainerBackground
+
+  var body: some View {
+    TimetableLiveActivityView(data: data, layout: .lockScreen)
+      .background {
+        if showsWidgetContainerBackground {
+          ScheduleLiveActivityLockScreenGlassBackground()
+            .ignoresSafeArea()
+        }
+      }
   }
 }
 
@@ -335,12 +645,54 @@ private struct ScheduleLiveActivityDynamicIslandView: View {
 struct ChronoScheduleLiveActivity: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: LiveActivitiesAppAttributes.self) { context in
-      let data = ScheduleLiveData(context: context)
-      ScheduleLiveActivityLockScreenView(data: data)
-        .widgetURL(scheduleDeepLink(for: data.eventId))
-        .activityBackgroundTint(.clear)
-        .activitySystemActionForegroundColor(.white)
+      let kind = readKind(context: context)
+      if kind == "timetable" {
+        let data = TimetableLiveData(context: context)
+        TimetableLiveActivityLockScreenView(data: data)
+          .widgetURL(timetableDeepLink(for: data.dayDate))
+          .activityBackgroundTint(.clear)
+          .activitySystemActionForegroundColor(.white)
+      } else {
+        let data = ScheduleLiveData(context: context)
+        ScheduleLiveActivityLockScreenView(data: data)
+          .widgetURL(scheduleDeepLink(for: data.eventId))
+          .activityBackgroundTint(.clear)
+          .activitySystemActionForegroundColor(.white)
+      }
     } dynamicIsland: { context in
+      let kind = readKind(context: context)
+      if kind == "timetable" {
+        let data = TimetableLiveData(context: context)
+        return DynamicIsland {
+          DynamicIslandExpandedRegion(.bottom) {
+            TimetableLiveActivityView(data: data, layout: .dynamicIsland)
+          }
+        } compactLeading: {
+          TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+            if let resolved = data.resolve(at: timeline.date) {
+              Text(formatTime(resolved.segmentEnd))
+                .font(.footnote.monospacedDigit().weight(.semibold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            }
+          }
+        } compactTrailing: {
+          TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+            if let resolved = data.resolve(at: timeline.date) {
+              Text(formatCountdown(seconds: remainingSeconds(until: resolved.segmentEnd, now: timeline.date)))
+                .font(.footnote.monospacedDigit().weight(.semibold))
+                .foregroundColor(.white)
+            }
+          }
+        } minimal: {
+          Image(systemName: "book")
+            .font(.body.weight(.semibold))
+            .foregroundColor(.white)
+        }
+        .widgetURL(timetableDeepLink(for: data.dayDate))
+      }
+
       let data = ScheduleLiveData(context: context)
       return DynamicIsland {
         DynamicIslandExpandedRegion(.bottom) {

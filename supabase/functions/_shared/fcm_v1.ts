@@ -127,10 +127,12 @@ export type LiveActivityFcmPayload = {
   platform: string;
   event: LiveActivityFcmEvent;
   activityId: string;
-  contentState: Record<string, string | number>;
+  contentState: Record<string, string | number | boolean>;
   liveActivityPushToken?: string | null;
   pushToStartToken?: string | null;
   eventId: string;
+  activityType?: string;
+  dayDate?: string;
 };
 
 export async function sendLiveActivityFcm(
@@ -143,15 +145,19 @@ export async function sendLiveActivityFcm(
   const nowSec = Math.floor(nowMs / 1000);
 
   const contentStateJson = JSON.stringify(payload.contentState);
+  const activityType = payload.activityType ?? "schedule_live_activity";
   const data: Record<string, string> = {
     timestamp: String(nowMs),
     event: payload.event,
     "content-state": contentStateJson,
     "activity-id": payload.activityId,
     activity_id: payload.activityId,
-    type: "schedule_live_activity",
+    type: activityType,
     event_id: payload.eventId,
   };
+  if (payload.dayDate) {
+    data.day_date = payload.dayDate;
+  }
 
   const message: Record<string, unknown> = {
     token: payload.token,
@@ -186,7 +192,10 @@ export async function sendLiveActivityFcm(
     message.apns = apns;
   } else {
     message.notification = {
-      title: String(payload.contentState.currentTitle ?? "Ablaufplan"),
+      title: String(
+        payload.contentState.currentTitle ??
+          (activityType === "timetable_live_activity" ? "Stundenplan" : "Ablaufplan"),
+      ),
       body: String(payload.contentState.currentSubtitle ?? ""),
     };
   }

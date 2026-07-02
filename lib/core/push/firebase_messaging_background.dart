@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../firebase_options.dart';
 import '../../features/calendar/live_activity/presentation/schedule_live_activity_coordinator.dart';
+import '../../features/calendar/timetable_live_activity/presentation/timetable_live_activity_coordinator.dart';
 
 /// Muss Top-Level-Funktion sein (Firebase-Anforderung).
 @pragma('vm:entry-point')
@@ -17,6 +18,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final data = message.data;
   if (data['type'] == 'schedule_live_activity') {
     await ScheduleLiveActivityCoordinator.instance?.handleFcmData(
+      data.map((k, v) => MapEntry(k, v.toString())),
+    );
+    return;
+  }
+
+  if (data['type'] == 'timetable_live_activity') {
+    await TimetableLiveActivityCoordinator.instance?.handleFcmData(
       data.map((k, v) => MapEntry(k, v.toString())),
     );
     return;

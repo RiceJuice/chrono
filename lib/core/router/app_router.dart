@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/calendar/home_widget/domain/calendar_home_widget_constants.dart';
 import '../../features/calendar/live_activity/live_activity_constants.dart';
 import '../../features/calendar/live_activity/presentation/schedule_live_activity_deep_link_pending.dart';
+import '../../features/calendar/timetable_live_activity/timetable_live_activity_constants.dart';
 import '../../features/calendar/presentation/pages/calendar_page.dart';
 import '../../features/login/presentation/providers/profile_gate_notifier.dart';
 import '../../features/login/presentation/routes/login_flow_specs.dart';
@@ -73,6 +74,11 @@ class AppRouter {
       final eventId = parseScheduleLiveActivityEventId(state.uri);
       if (eventId != null) {
         ScheduleLiveActivityDeepLinkPending.set(eventId);
+        router.go('/calendar');
+        return;
+      }
+      final timetableDay = parseTimetableLiveActivityDayDateKey(state.uri);
+      if (timetableDay != null) {
         router.go('/calendar');
         return;
       }
@@ -206,6 +212,10 @@ class AppRouter {
           }
           return '/calendar';
         },
+      ),
+      GoRoute(
+        path: '/timetable',
+        redirect: (context, state) => '/calendar',
       ),
       StatefulShellRoute.indexedStack(
         pageBuilder: (context, state, navigationShell) => NoTransitionPage(
