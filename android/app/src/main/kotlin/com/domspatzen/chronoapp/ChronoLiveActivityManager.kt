@@ -31,24 +31,36 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         val id: String,
         val type: String,
         val title: String,
+        val shortTitle: String?,
         val subtitle: String,
         val startMs: Long,
         val endMs: Long,
         val accentColor: String,
         val imageUrl: String?,
-    )
+    ) {
+        fun displayShortTitle(): String {
+            val trimmed = shortTitle?.trim().orEmpty()
+            if (trimmed.isNotEmpty()) return trimmed
+            val titleTrimmed = title.trim()
+            if (titleTrimmed.length <= 3) return titleTrimmed
+            return titleTrimmed.take(3)
+        }
+    }
 
     private data class ResolvedSegment(
         val title: String,
         val subtitle: String,
+        val shortTitle: String,
         val segmentStartMs: Long,
         val segmentEndMs: Long,
         val hasNext: Boolean,
         val nextTitle: String,
         val nextSubtitle: String,
+        val nextShortTitle: String,
         val remainingLessons: Int,
         val isMeal: Boolean,
         val imageUrl: String?,
+        val isPreStart: Boolean,
     )
 
     private fun pendingIntentForSchedule(eventId: String): PendingIntent {
@@ -142,6 +154,7 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
                             id = obj.optString("id"),
                             type = obj.optString("type"),
                             title = obj.optString("title"),
+                            shortTitle = obj.optString("shortTitle").ifBlank { null },
                             subtitle = obj.optString("subtitle"),
                             startMs = obj.optLong("startMs"),
                             endMs = obj.optLong("endMs"),
@@ -168,14 +181,17 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
             return ResolvedSegment(
                 title = first.title,
                 subtitle = first.subtitle,
+                shortTitle = first.displayShortTitle(),
                 segmentStartMs = activityStartMs,
                 segmentEndMs = first.startMs,
                 hasNext = next != null,
                 nextTitle = next?.title ?: "",
                 nextSubtitle = next?.subtitle ?: "",
+                nextShortTitle = next?.displayShortTitle() ?: "",
                 remainingLessons = remainingLessonCount(segments, 0, nowMs),
                 isMeal = first.type == "meal",
                 imageUrl = first.imageUrl,
+                isPreStart = true,
             )
         }
 
@@ -185,14 +201,17 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
                 return ResolvedSegment(
                     title = segment.title,
                     subtitle = segment.subtitle,
+                    shortTitle = segment.displayShortTitle(),
                     segmentStartMs = segment.startMs,
                     segmentEndMs = segment.endMs,
                     hasNext = next != null,
                     nextTitle = next?.title ?: "",
                     nextSubtitle = next?.subtitle ?: "",
+                    nextShortTitle = next?.displayShortTitle() ?: "",
                     remainingLessons = remainingLessonCount(segments, index, nowMs),
                     isMeal = segment.type == "meal",
                     imageUrl = segment.imageUrl,
+                    isPreStart = false,
                 )
             }
         }
@@ -218,6 +237,13 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         return if (count == 1) "Noch 1 Stunde" else "Noch $count Stunden"
     }
 
+    private fun compactLeadingLabel(resolved: ResolvedSegment): String {
+        return when {
+            resolved.isPreStart || !resolved.hasNext -> resolved.shortTitle
+            else -> resolved.nextShortTitle
+        }.ifBlank { "—" }
+    }
+
     private fun updateRemoteViews(views: RemoteViews, data: Map<String, Any>, expanded: Boolean) {
         applyThemeColors(views, expanded)
         val kind = data["kind"] as? String ?: "schedule"
@@ -230,17 +256,10 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
                 ?: now
             val resolved = resolveTimetable(segments, activityStartMs, now) ?: return
 
-            val subtitle = buildString {
-                if (resolved.remainingLessons > 0) {
-                    append(remainingLessonsLabel(resolved.remainingLessons))
-                }
-                if (resolved.subtitle.isNotBlank()) {
-                    if (isNotEmpty()) append(" · ")
-                    append(resolved.subtitle)
-                }
-            }
-
-            views.setTextViewText(R.id.current_title, resolved.title)
+            views.setTextViewText(
+                R.id.current_title,
+                if (expanded) resolved.title else compactLeadingLabel(resolved),
+            )
             applyCountdownChronometer(views, resolved.segmentEndMs)
 
             if (resolved.isMeal && !resolved.imageUrl.isNullOrBlank() && expanded) {
@@ -267,7 +286,7 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
 
             if (!expanded) return
 
-            setTextOrHide(views, R.id.current_subtitle, subtitle)
+            setTextOrHide(views, R.id.current_subtitle, resolved.subtitle)
             if (!resolved.isMeal) {
                 if (resolved.hasNext) {
                     views.setViewVisibility(R.id.next_column, View.VISIBLE)

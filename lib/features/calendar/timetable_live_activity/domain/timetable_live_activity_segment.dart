@@ -10,6 +10,7 @@ class TimetableLiveActivitySegment {
     required this.id,
     required this.type,
     required this.title,
+    required this.shortTitle,
     required this.subtitle,
     required this.startMs,
     required this.endMs,
@@ -20,6 +21,7 @@ class TimetableLiveActivitySegment {
   final String id;
   final CalendarEntryType type;
   final String title;
+  final String shortTitle;
   final String subtitle;
   final int startMs;
   final int endMs;
@@ -34,6 +36,7 @@ class TimetableLiveActivitySegment {
       'id': id,
       'type': type.name,
       'title': title,
+      'shortTitle': shortTitle,
       'subtitle': subtitle,
       'startMs': startMs,
       'endMs': endMs,
@@ -66,6 +69,8 @@ class TimetableLiveActivitySegment {
       id: id,
       type: type,
       title: title,
+      shortTitle: json['shortTitle']?.toString() ??
+          _fallbackShortTitle(title),
       subtitle: json['subtitle']?.toString() ?? '',
       startMs: startMs,
       endMs: endMs,
@@ -96,4 +101,11 @@ class TimetableLiveActivitySegment {
   }
 
   static String accentHexFor(Color color) => SubjectColorCodec.toHex(color);
+
+  static String _fallbackShortTitle(String title) {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return '';
+    if (trimmed.length <= 3) return trimmed;
+    return trimmed.substring(0, 3);
+  }
 }

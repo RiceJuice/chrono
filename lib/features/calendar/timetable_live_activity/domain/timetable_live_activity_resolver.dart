@@ -5,6 +5,7 @@ import 'package:chronoapp/features/calendar/domain/meal_period.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_segment.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_snapshot.dart';
+import 'package:chronoapp/features/calendar/presentation/helpers/lesson_week_grid_display_name.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/timetable_live_activity_constants.dart';
 import 'package:flutter/material.dart';
 
@@ -183,15 +184,14 @@ abstract final class TimetableLiveActivityResolver {
     final start = AppDateTime.toLocal(entry.startTime);
     final end = AppDateTime.toLocal(entry.endTime);
     final subtitle = entry.type == CalendarEntryType.lesson
-        ? (entry.className?.trim().isNotEmpty == true
-            ? entry.className!.trim()
-            : entry.location?.trim() ?? '')
+        ? (entry.location?.trim() ?? '')
         : '';
 
     return TimetableLiveActivitySegment(
       id: entry.id,
       type: entry.type,
       title: entry.eventName,
+      shortTitle: _shortTitleForEntry(entry),
       subtitle: subtitle,
       startMs: start.millisecondsSinceEpoch,
       endMs: end.millisecondsSinceEpoch,
@@ -235,6 +235,13 @@ abstract final class TimetableLiveActivityResolver {
     }
 
     return null;
+  }
+
+  static String _shortTitleForEntry(CalendarEntry entry) {
+    if (entry.type == CalendarEntryType.meal) return 'Essen';
+    final display = lessonWeekGridDisplayName(entry.eventName);
+    if (display.length <= 3) return display;
+    return display.substring(0, 3);
   }
 
   static int _remainingLessonCount({
