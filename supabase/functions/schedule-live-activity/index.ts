@@ -82,7 +82,97 @@ type ChangeRequest = {
 type SendOptions = {
   skipDedup?: boolean;
   dedupAction?: LiveActivityFcmEvent;
+  dispatchCache?: DispatchCache;
 };
+
+function dispatchKey(
+  scheduleId: string,
+  userId: string,
+  deviceId: string,
+  action: LiveActivityFcmEvent,
+): string {
+  return `${scheduleId}:${userId}:${deviceId}:${action}`;
+}
+
+class DispatchCache {
+  private readonly dispatched = new Set<string>();
+  private readonly pendingUpserts: Array<{
+    schedule_id: string;
+    user_id: string;
+    device_id: string;
+    action: LiveActivityFcmEvent;
+    sent_at: string;
+  }> = [];
+
+  wasDispatched(
+    scheduleId: string,
+    userId: string,
+    deviceId: string,
+    action: LiveActivityFcmEvent,
+  ): boolean {
+    return this.dispatched.has(dispatchKey(scheduleId, userId, deviceId, action));
+  }
+
+  markDispatched(
+    scheduleId: string,
+    userId: string,
+    deviceId: string,
+    action: LiveActivityFcmEvent,
+  ): void {
+    const key = dispatchKey(scheduleId, userId, deviceId, action);
+    if (this.dispatched.has(key)) return;
+    this.dispatched.add(key);
+    this.pendingUpserts.push({
+      schedule_id: scheduleId,
+      user_id: userId,
+      device_id: deviceId,
+      action,
+      sent_at: new Date().toISOString(),
+    });
+  }
+
+  static async load(
+    supabase: ReturnType<typeof createClient>,
+    scheduleIds: string[],
+    actions: LiveActivityFcmEvent[],
+  ): Promise<DispatchCache> {
+    const cache = new DispatchCache();
+    if (scheduleIds.length === 0 || actions.length === 0) return cache;
+
+    const { data, error } = await supabase
+      .from("schedule_live_activity_dispatches")
+      .select("schedule_id, user_id, device_id, action")
+      .in("schedule_id", scheduleIds)
+      .in("action", actions);
+
+    if (error) {
+      console.error("dispatch batch lookup failed", error.message);
+      return cache;
+    }
+
+    for (const row of data ?? []) {
+      cache.dispatched.add(
+        dispatchKey(row.schedule_id, row.user_id, row.device_id, row.action),
+      );
+    }
+    return cache;
+  }
+
+  async flush(supabase: ReturnType<typeof createClient>): Promise<void> {
+    const chunkSize = 100;
+    for (let i = 0; i < this.pendingUpserts.length; i += chunkSize) {
+      const chunk = this.pendingUpserts.slice(i, i + chunkSize);
+      const { error } = await supabase
+        .from("schedule_live_activity_dispatches")
+        .upsert(chunk, {
+          onConflict: "schedule_id,user_id,device_id,action",
+        });
+      if (error) {
+        console.error("dispatch batch upsert failed", error.message);
+      }
+    }
+  }
+}
 
 function resolveSegmentStartEvent(device: DeviceRow): LiveActivityFcmEvent {
   const liveToken = device.live_activity_push_token?.trim();
@@ -326,17 +416,20 @@ async function sendForDevice(
   contentState: Record<string, string | number | boolean>,
   options?: SendOptions,
 ): Promise<"sent" | "skipped" | "failed"> {
-  if (
-    !options?.skipDedup &&
-    await wasDispatched(
-      supabase,
-      scheduleId,
-      device.user_id,
-      device.device_id,
-      options?.dedupAction ?? fcmEvent,
-    )
-  ) {
-    return "skipped";
+  const dedupAction = options?.dedupAction ?? fcmEvent;
+  const cache = options?.dispatchCache;
+
+  if (!options?.skipDedup) {
+    const alreadySent = cache
+      ? cache.wasDispatched(scheduleId, device.user_id, device.device_id, dedupAction)
+      : await wasDispatched(
+        supabase,
+        scheduleId,
+        device.user_id,
+        device.device_id,
+        dedupAction,
+      );
+    if (alreadySent) return "skipped";
   }
 
   const token = device.fcm_token?.trim();
@@ -356,13 +449,22 @@ async function sendForDevice(
 
   if (result.ok) {
     if (!options?.skipDedup) {
-      await markDispatched(
-        supabase,
-        scheduleId,
-        device.user_id,
-        device.device_id,
-        options?.dedupAction ?? fcmEvent,
-      );
+      if (cache) {
+        cache.markDispatched(
+          scheduleId,
+          device.user_id,
+          device.device_id,
+          dedupAction,
+        );
+      } else {
+        await markDispatched(
+          supabase,
+          scheduleId,
+          device.user_id,
+          device.device_id,
+          dedupAction,
+        );
+      }
     }
     return "sent";
   }
@@ -374,6 +476,29 @@ async function sendForDevice(
   return "failed";
 }
 
+async function loadSchedulesByEventIds(
+  supabase: ReturnType<typeof createClient>,
+  eventIds: string[],
+): Promise<Map<string, ScheduleRow[]>> {
+  const schedulesByEvent = new Map<string, ScheduleRow[]>();
+  if (eventIds.length === 0) return schedulesByEvent;
+
+  const { data: allSchedules, error } = await supabase
+    .from("event_schedules")
+    .select("id, event_id, title, location, start_time, end_time, choir, voices")
+    .in("event_id", eventIds)
+    .order("start_time", { ascending: true });
+
+  if (error || !allSchedules?.length) return schedulesByEvent;
+
+  for (const row of allSchedules as ScheduleRow[]) {
+    const list = schedulesByEvent.get(row.event_id) ?? [];
+    list.push(row);
+    schedulesByEvent.set(row.event_id, list);
+  }
+  return schedulesByEvent;
+}
+
 async function loadDevices(
   supabase: ReturnType<typeof createClient>,
 ): Promise<DeviceRow[]> {
@@ -382,7 +507,10 @@ async function loadDevices(
     .select(
       "id, user_id, device_id, fcm_token, platform, schedule_filter, push_to_start_token, live_activity_push_token, profiles!inner(id, choir, voice)",
     )
-    .not("fcm_token", "is", null);
+    .not("fcm_token", "is", null)
+    .or(
+      "push_to_start_token.not.is.null,live_activity_push_token.not.is.null",
+    );
 
   if (devicesError) {
     console.error("profile_push_devices query failed", devicesError.message);
@@ -432,6 +560,10 @@ async function handleContentChange(
 
   const schedules = (allSchedules ?? []) as ScheduleRow[];
 
+  if (request.op === "DELETE" && !hasSchedulesToday(schedules, now)) {
+    return jsonResponse({ processed: 1, sent: 0, skipped: 0, mode: "change" });
+  }
+
   if (request.op !== "DELETE" && !hasSchedulesToday(schedules, now)) {
     return jsonResponse({ processed: 1, sent: 0, skipped: 0, mode: "change" });
   }
@@ -443,6 +575,13 @@ async function handleContentChange(
     const message = e instanceof Error ? e.message : String(e);
     return jsonResponse({ error: "Query failed", step: "profile_push_devices", detail: message }, 500);
   }
+
+  const scheduleIds = schedules.map((schedule) => schedule.id);
+  const dispatchCache = await DispatchCache.load(
+    supabase,
+    scheduleIds,
+    ["start", "end"],
+  );
 
   let sent = 0;
   let failed = 0;
@@ -554,8 +693,7 @@ async function handleContentChange(
       continue;
     }
 
-    const alreadyStarted = await wasDispatched(
-      supabase,
+    const alreadyStarted = dispatchCache.wasDispatched(
       snapshot.currentScheduleId,
       device.user_id,
       device.device_id,
@@ -574,12 +712,18 @@ async function handleContentChange(
       snapshot.currentScheduleId,
       fcmEvent,
       contentState,
-      fcmEvent === "update" ? { skipDedup: true } : undefined,
+      {
+        dispatchCache,
+        skipDedup: fcmEvent === "update",
+        dedupAction: "start",
+      },
     );
     if (result === "sent") sent++;
     else if (result === "failed") failed++;
     else skipped++;
   }
+
+  await dispatchCache.flush(supabase);
 
   return jsonResponse({
     processed: 1,
@@ -656,17 +800,21 @@ async function handleCronTick(
     return jsonResponse({ error: "Query failed", step: "profile_push_devices", detail: message }, 500);
   }
 
-  const schedulesByEvent = new Map<string, ScheduleRow[]>();
-  for (const eventId of eventIds) {
-    const { data: allSchedules, error: allError } = await supabase
-      .from("event_schedules")
-      .select("id, event_id, title, location, start_time, end_time, choir, voices")
-      .eq("event_id", eventId)
-      .order("start_time", { ascending: true });
+  const schedulesByEvent = await loadSchedulesByEventIds(
+    supabase,
+    [...eventIds],
+  );
 
-    if (allError || !allSchedules?.length) continue;
-    schedulesByEvent.set(eventId, allSchedules as ScheduleRow[]);
-  }
+  const scheduleIds = [
+    ...new Set(
+      [...schedulesByEvent.values()].flatMap((rows) => rows.map((row) => row.id)),
+    ),
+  ];
+  const dispatchCache = await DispatchCache.load(
+    supabase,
+    scheduleIds,
+    ["start", "end"],
+  );
 
   let sent = 0;
   let failed = 0;
@@ -704,7 +852,7 @@ async function handleCronTick(
         startRow.id,
         fcmEvent,
         contentState,
-        { dedupAction: "start" },
+        { dispatchCache, dedupAction: "start" },
       );
       if (result === "sent") sent++;
       else if (result === "failed") failed++;
@@ -753,12 +901,15 @@ async function handleCronTick(
         endRow.id,
         "end",
         contentState,
+        { dispatchCache },
       );
       if (result === "sent") sent++;
       else if (result === "failed") failed++;
       else skipped++;
     }
   }
+
+  await dispatchCache.flush(supabase);
 
   return jsonResponse({
     processed: eventIds.size,

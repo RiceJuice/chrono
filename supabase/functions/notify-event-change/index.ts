@@ -39,22 +39,11 @@ type NotifyBody = {
   changes?: ChangePayload[];
 };
 
-type ProfileRow = {
-  id: string;
-  choir: string | null;
-  voice: string | null;
-  schooltrack: string | null;
-  class_name: string | null;
-  diet: string | null;
-  role: string | null;
-};
-
 type PushDeviceRow = {
   id: string;
   user_id: string;
   fcm_token: string;
   platform: string;
-  profiles: ProfileRow;
 };
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -62,58 +51,6 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function normalizeText(value: string | null | undefined): string | null {
-  if (value == null) return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed.toLowerCase() : null;
-}
-
-function audienceHasCriteria(audience: AudiencePayload): boolean {
-  return !!(
-    normalizeText(audience.choir) ||
-    (audience.voices?.length ?? 0) > 0 ||
-    normalizeText(audience.schooltrack) ||
-    normalizeText(audience.class_name) ||
-    normalizeText(audience.diet)
-  );
-}
-
-function profileMatchesAudience(
-  profile: ProfileRow,
-  audience: AudiencePayload,
-  eventType: string,
-): boolean {
-  if (!audienceHasCriteria(audience)) return false;
-
-  const choir = normalizeText(audience.choir);
-  if (choir && normalizeText(profile.choir) !== choir) return false;
-
-  const voices = (audience.voices ?? [])
-    .map((v) => normalizeText(v))
-    .filter((v): v is string => v != null);
-  if (voices.length > 0) {
-    const profileVoice = normalizeText(profile.voice);
-    if (!profileVoice || !voices.includes(profileVoice)) return false;
-  }
-
-  const schoolTrack = normalizeText(audience.schooltrack);
-  if (schoolTrack && normalizeText(profile.schooltrack) !== schoolTrack) {
-    return false;
-  }
-
-  const className = normalizeText(audience.class_name);
-  if (className && normalizeText(profile.class_name) !== className) {
-    return false;
-  }
-
-  const diet = normalizeText(audience.diet);
-  if (diet && eventType === "meal") {
-    if (normalizeText(profile.diet) !== diet) return false;
-  }
-
-  return true;
 }
 
 function formatChangeBody(
@@ -276,41 +213,30 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Server configuration error" }, 500);
   }
 
-  const { data: devices, error: queryError } = await supabase
-    .from("profile_push_devices")
-    .select(
-      "id, user_id, fcm_token, platform, profiles!inner(id, choir, voice, schooltrack, class_name, diet, role)",
-    );
+  const { data: targetRows, error: queryError } = await supabase.rpc(
+    "notify_event_change_targets",
+    {
+      p_audience_before: audienceBefore,
+      p_audience_after: audienceAfter,
+      p_event_type: eventType,
+      p_editor_id: editorId,
+    },
+  );
 
   if (queryError) {
-    console.error("profile_push_devices query failed", queryError.message);
+    console.error("notify_event_change_targets failed", queryError.message);
     return jsonResponse({ error: "Failed to load device tokens" }, 500);
   }
-
-  const rows = (devices ?? []) as PushDeviceRow[];
 
   const removedDevices: PushDeviceRow[] = [];
   const changeDevices: PushDeviceRow[] = [];
 
-  for (const row of rows) {
-    if (row.user_id === editorId) continue;
-
-    const profile = row.profiles;
-    const matchedBefore = profileMatchesAudience(
-      profile,
-      audienceBefore,
-      eventType,
-    );
-    const matchedAfter = profileMatchesAudience(
-      profile,
-      audienceAfter,
-      eventType,
-    );
-
-    if (matchedBefore && !matchedAfter) {
+  for (const row of (targetRows ?? []) as Array<
+    PushDeviceRow & { match_type: string }
+  >) {
+    if (row.match_type === "removed") {
       removedDevices.push(row);
-    }
-    if (matchedAfter) {
+    } else if (row.match_type === "changed") {
       changeDevices.push(row);
     }
   }

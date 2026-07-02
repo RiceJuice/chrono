@@ -81,18 +81,13 @@ class GuardianLinkRepository {
 
     try {
       await _ensureCallerIsGuardian();
-
-      final fromRpc = await _searchViaRpc(trimmed);
-      if (fromRpc.isNotEmpty) return fromRpc;
-
-      final fromList = await _searchViaListAndFilter(trimmed);
-      if (fromList.isNotEmpty) return fromList;
-
-      final fromRest = await _searchViaRestAndFilter(trimmed);
-      if (fromRest.isNotEmpty) return fromRest;
-
-      return const [];
+      return await _searchViaRpc(trimmed);
     } on PostgrestException catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          'search_students_for_guardian RPC fehlgeschlagen: ${e.message}',
+        );
+      }
       throw GuardianLinkRepositoryException(_mapSearchError(e));
     } on GuardianLinkRepositoryException {
       rethrow;
@@ -109,79 +104,6 @@ class GuardianLinkRepository {
       params: {'p_query': query},
     );
     return _parseStudentRows(rows);
-  }
-
-  Future<List<StudentSearchResult>> _searchViaListAndFilter(String query) async {
-    final rows = await _supabase.rpc('list_searchable_students_for_guardian');
-    return _filterStudents(_parseStudentRows(rows), query);
-  }
-
-  Future<List<StudentSearchResult>> _searchViaRestAndFilter(String query) async {
-    final rows = await _supabase
-        .from('profiles')
-        .select('id, first_name, last_name, class_name')
-        .inFilter('role', [
-          LoginFlowRoleIds.student,
-          ProfileRoleIds.admin,
-        ])
-        .not('onboarding_completed_at', 'is', null)
-        .limit(200);
-    return _filterStudents(_parseStudentRows(rows), query);
-  }
-
-  List<StudentSearchResult> _filterStudents(
-    List<StudentSearchResult> students,
-    String query,
-  ) {
-    final words = query
-        .split(RegExp(r'\s+'))
-        .map(_foldGerman)
-        .where((word) => word.length >= 2)
-        .toList(growable: false);
-    if (words.isEmpty) return const [];
-
-    final fullQuery = _foldGerman(query);
-    final userId = _userId;
-
-    return students
-        .where((student) {
-          if (student.id == userId) return false;
-          return _studentMatchesQuery(student, words, fullQuery);
-        })
-        .take(20)
-        .toList(growable: false);
-  }
-
-  bool _studentMatchesQuery(
-    StudentSearchResult student,
-    List<String> words,
-    String fullQuery,
-  ) {
-    final profileName = _foldGerman(student.displayName);
-    final firstName = _foldGerman(student.firstName);
-    final lastName = _foldGerman(student.lastName);
-
-    if (fullQuery.length >= 2 && profileName.contains(fullQuery)) {
-      return true;
-    }
-
-    return words.every(
-      (word) =>
-          profileName.contains(word) ||
-          firstName.contains(word) ||
-          lastName.contains(word),
-    );
-  }
-
-  String _foldGerman(String value) {
-    return value
-        .trim()
-        .toLowerCase()
-        .replaceAll('ä', 'a')
-        .replaceAll('ö', 'o')
-        .replaceAll('ü', 'u')
-        .replaceAll('ß', 'ss')
-        .replaceAll(RegExp(r'\s+'), ' ');
   }
 
   List<StudentSearchResult> _parseStudentRows(Object? rows) {
@@ -303,37 +225,74 @@ class GuardianLinkRepository {
       );
     }
 
-    final createdLinks = <GuardianChildLink>[];
-    final skippedChildIds = <String>[];
-    var anyPushFailed = false;
-
-    for (final childId in childIds) {
-      try {
-        final result = await requestLink(childId);
-        createdLinks.add(result.link);
-        if (!result.notifyResult.pushDelivered) {
-          anyPushFailed = true;
-        }
-      } on GuardianLinkRepositoryException catch (e) {
-        if (e.message.contains('bereits gesendet')) {
-          skippedChildIds.add(childId);
-          continue;
-        }
-        rethrow;
-      }
+    final userId = _userId;
+    if (userId == null) {
+      throw GuardianLinkRepositoryException('Nicht angemeldet.');
     }
 
-    if (createdLinks.isEmpty && skippedChildIds.length == childIds.length) {
+    try {
+      final rows = await _supabase.rpc(
+        'request_guardian_links',
+        params: {'p_child_ids': childIds},
+      );
+
+      final createdLinks = <GuardianChildLink>[];
+      final skippedChildIds = <String>[];
+      final seenChildIds = <String>{};
+
+      final rawList = rows is List ? rows : const [];
+      for (final row in rawList) {
+        if (row is! Map) continue;
+        final data = Map<String, dynamic>.from(row);
+        final link = GuardianChildLink.fromRow(data);
+        seenChildIds.add(link.childId);
+        final wasInserted = data['was_inserted'] == true;
+        if (wasInserted) {
+          createdLinks.add(link);
+          await _upsertLinkLocally(link);
+        } else {
+          skippedChildIds.add(link.childId);
+        }
+      }
+
+      for (final childId in childIds) {
+        if (!seenChildIds.contains(childId)) {
+          skippedChildIds.add(childId);
+        }
+      }
+
+      var anyPushFailed = false;
+      if (createdLinks.isNotEmpty) {
+        final notifyResults = await Future.wait(
+          createdLinks.map(
+            (link) => _notifyLinkAction(link.id, 'request'),
+          ),
+        );
+        anyPushFailed = notifyResults.any((result) => !result.pushDelivered);
+      }
+
+      if (createdLinks.isEmpty && skippedChildIds.length == childIds.length) {
+        throw GuardianLinkRepositoryException(
+          'Anfragen an alle ausgewählten Kinder wurden bereits gesendet.',
+        );
+      }
+
+      return RequestLinksResult(
+        createdLinks: createdLinks,
+        skippedChildIds: skippedChildIds.toList(growable: false),
+        anyPushFailed: anyPushFailed,
+      );
+    } on PostgrestException {
       throw GuardianLinkRepositoryException(
-        'Anfragen an alle ausgewählten Kinder wurden bereits gesendet.',
+        'Verknüpfungsanfrage fehlgeschlagen. Bitte erneut versuchen.',
+      );
+    } on GuardianLinkRepositoryException {
+      rethrow;
+    } catch (e) {
+      throw GuardianLinkRepositoryException(
+        'Verknüpfungsanfrage fehlgeschlagen. Bitte erneut versuchen.',
       );
     }
-
-    return RequestLinksResult(
-      createdLinks: createdLinks,
-      skippedChildIds: skippedChildIds,
-      anyPushFailed: anyPushFailed,
-    );
   }
 
   Future<void> respondToLink({
