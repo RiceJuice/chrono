@@ -1,5 +1,6 @@
 import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_segment.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/timetable_live_activity_constants.dart';
+import 'package:live_activities/models/live_activity_file.dart';
 
 /// Anzeige-Daten für die Stundenplan-Live-Activity (voller Tagesplan im Payload).
 class TimetableLiveActivitySnapshot {
@@ -53,7 +54,7 @@ class TimetableLiveActivitySnapshot {
       '$currentIndex|$segmentStartMs|$segmentEndMs|$remainingLessons';
 
   Map<String, dynamic> toActivityPayload() {
-    return {
+    final payload = <String, dynamic>{
       'kind': kTimetableLiveActivityKind,
       'dayDate': dayDateKey,
       'segmentsJson': TimetableLiveActivitySegment.encodeList(segments),
@@ -74,5 +75,12 @@ class TimetableLiveActivitySnapshot {
       'eventId': dayDateKey,
       'isPreStart': isPreStart,
     };
+    if (isMeal && imageUrl.isNotEmpty) {
+      payload['mealImage'] = LiveActivityFileFromUrl.image(
+        imageUrl,
+        imageOptions: LiveActivityImageFileOptions(resizeFactor: 0.4),
+      );
+    }
+    return payload;
   }
 }

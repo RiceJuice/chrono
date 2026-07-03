@@ -139,6 +139,7 @@ private struct TimetableLiveData {
   let dayDate: String
   let segments: [TimetableSegment]
   let activityStartMs: Double
+  let mealImagePath: String?
 
   init(context: ActivityViewContext<LiveActivitiesAppAttributes>) {
     func key(_ name: String) -> String {
@@ -146,6 +147,7 @@ private struct TimetableLiveData {
     }
     dayDate = sharedDefault.string(forKey: key("dayDate")) ?? ""
     activityStartMs = sharedDefault.double(forKey: key("activityStartMs"))
+    mealImagePath = sharedDefault.string(forKey: key("mealImage"))
     let rawJson = sharedDefault.string(forKey: key("segmentsJson")) ?? "[]"
     if let data = rawJson.data(using: .utf8),
        let decoded = try? JSONDecoder().decode([TimetableSegment].self, from: data) {
@@ -361,12 +363,22 @@ private struct TimetableAccentProgressBar: View {
 }
 
 @available(iOSApplicationExtension 16.1, *)
-private struct TimetableMealThumbnail: View {
-  let imageUrl: String?
+private struct TimetableMealImageView: View {
+  let appGroupPath: String?
+  let remoteUrl: String?
+  let size: CGFloat
 
   var body: some View {
     Group {
-      if let imageUrl, let url = URL(string: imageUrl), !imageUrl.isEmpty {
+      if let appGroupPath,
+         !appGroupPath.isEmpty,
+         let uiImage = UIImage(contentsOfFile: appGroupPath) {
+        Image(uiImage: uiImage)
+          .resizable()
+          .scaledToFill()
+      } else if let remoteUrl,
+                let url = URL(string: remoteUrl),
+                !remoteUrl.isEmpty {
         AsyncImage(url: url) { phase in
           switch phase {
           case .success(let image):
@@ -374,14 +386,20 @@ private struct TimetableMealThumbnail: View {
               .resizable()
               .scaledToFill()
           default:
-            Rectangle()
-              .fill(Color(red: 0.20, green: 0.20, blue: 0.20))
+            mealPlaceholder
           }
         }
+      } else {
+        mealPlaceholder
       }
     }
-    .frame(width: 34, height: 34)
-    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    .frame(width: size, height: size)
+    .clipShape(RoundedRectangle(cornerRadius: size * 0.18, style: .continuous))
+  }
+
+  private var mealPlaceholder: some View {
+    Rectangle()
+      .fill(Color(red: 0.20, green: 0.20, blue: 0.20))
   }
 }
 
@@ -482,9 +500,13 @@ private struct TimetableLiveActivityView: View {
               titleSize: layout.titleSize,
               subtitleSize: layout.subtitleSize
             )
-            if resolved.isMeal, let imageUrl = resolved.imageUrl, !imageUrl.isEmpty {
-              TimetableMealThumbnail(imageUrl: imageUrl)
-                .frame(width: 30)
+            if resolved.isMeal {
+              Spacer(minLength: 8)
+              TimetableMealImageView(
+                appGroupPath: data.mealImagePath,
+                remoteUrl: resolved.imageUrl,
+                size: layout.mealImageSize
+              )
             } else if resolved.hasNext {
               Image(systemName: "arrow.right")
                 .font(.system(size: 12, weight: .semibold))
@@ -541,8 +563,13 @@ private struct TimetableDynamicIslandHeaderView: View {
             titleSize: layout.titleSize,
             subtitleSize: layout.subtitleSize
           )
-          if resolved.isMeal, let imageUrl = resolved.imageUrl, !imageUrl.isEmpty {
-            TimetableMealThumbnail(imageUrl: imageUrl)
+          if resolved.isMeal {
+            Spacer(minLength: 6)
+            TimetableMealImageView(
+              appGroupPath: data.mealImagePath,
+              remoteUrl: resolved.imageUrl,
+              size: layout.mealImageSize
+            )
           } else if resolved.hasNext {
             Image(systemName: "arrow.right")
               .font(.system(size: 11, weight: .semibold))
@@ -645,6 +672,7 @@ private struct ScheduleLiveActivityLayout {
   let verticalPadding: CGFloat
   let topPadding: CGFloat
   let bottomPadding: CGFloat
+  let mealImageSize: CGFloat
   let showsBackground: Bool
 
   static let lockScreen = ScheduleLiveActivityLayout(
@@ -658,6 +686,7 @@ private struct ScheduleLiveActivityLayout {
     verticalPadding: 32,
     topPadding: 32,
     bottomPadding: 32,
+    mealImageSize: 0,
     showsBackground: false
   )
 
@@ -672,6 +701,7 @@ private struct ScheduleLiveActivityLayout {
     verticalPadding: 24,
     topPadding: 28,
     bottomPadding: 22,
+    mealImageSize: 58,
     showsBackground: false
   )
 
@@ -689,6 +719,7 @@ private struct ScheduleLiveActivityLayout {
     verticalPadding: 6,
     topPadding: 6,
     bottomPadding: 6,
+    mealImageSize: 0,
     showsBackground: false
   )
 
@@ -703,6 +734,7 @@ private struct ScheduleLiveActivityLayout {
     verticalPadding: 4,
     topPadding: 2,
     bottomPadding: 10,
+    mealImageSize: 50,
     showsBackground: false
   )
 }

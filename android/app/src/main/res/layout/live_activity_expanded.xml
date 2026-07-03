@@ -39,8 +39,17 @@
                 android:textSize="15sp" />
         </LinearLayout>
 
+        <ImageView
+            android:id="@+id/meal_image"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/live_activity_meal_image_bg"
+            android:clipToOutline="true"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+
         <TextView
-            android:id="@+id/arrow_icon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="10dp"

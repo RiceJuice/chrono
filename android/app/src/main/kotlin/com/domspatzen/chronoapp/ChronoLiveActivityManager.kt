@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -13,9 +15,13 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
 import com.istornz.live_activities.LiveActivityManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.math.BigInteger
+import java.net.HttpURLConnection
+import java.net.URL
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -55,6 +61,9 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
             }
         }
     }
+
+    private var cachedMealImageUrl: String? = null
+    private var cachedMealBitmap: Bitmap? = null
 
     private data class TimetableSegment(
         val id: String,
@@ -270,6 +279,61 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         return resolved.shortTitle.ifBlank { "—" }
     }
 
+    private suspend fun loadMealImageBitmap(imageUrl: String?): Bitmap? {
+        val dp = appContext.resources.displayMetrics.density
+        return withContext(Dispatchers.IO) {
+            if (imageUrl.isNullOrBlank()) return@withContext null
+            try {
+                val connection = URL(imageUrl).openConnection() as HttpURLConnection
+                connection.doInput = true
+                connection.connectTimeout = 4000
+                connection.readTimeout = 4000
+                connection.connect()
+                connection.inputStream.use { inputStream ->
+                    val original = BitmapFactory.decodeStream(inputStream) ?: return@withContext null
+                    val targetSize = (72 * dp).toInt().coerceAtLeast(1)
+                    val aspectRatio = original.width.toFloat() / original.height.toFloat()
+                    val (targetWidth, targetHeight) = if (aspectRatio >= 1f) {
+                        targetSize to (targetSize / aspectRatio).toInt().coerceAtLeast(1)
+                    } else {
+                        (targetSize * aspectRatio).toInt().coerceAtLeast(1) to targetSize
+                    }
+                    Bitmap.createScaledBitmap(original, targetWidth, targetHeight, true)
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    private suspend fun ensureMealBitmap(imageUrl: String?): Bitmap? {
+        if (imageUrl.isNullOrBlank()) {
+            cachedMealImageUrl = null
+            cachedMealBitmap = null
+            return null
+        }
+        if (imageUrl == cachedMealImageUrl) {
+            return cachedMealBitmap
+        }
+        val bitmap = loadMealImageBitmap(imageUrl)
+        cachedMealImageUrl = imageUrl
+        cachedMealBitmap = bitmap
+        return bitmap
+    }
+
+    private fun applyMealImage(views: RemoteViews, bitmap: Bitmap?) {
+        if (bitmap == null) {
+            views.setViewVisibility(R.id.meal_image, View.GONE)
+            return
+        }
+        views.setViewVisibility(R.id.meal_image, View.VISIBLE)
+        views.setImageViewBitmap(R.id.meal_image, bitmap)
+    }
+
+    private fun hideMealImage(views: RemoteViews) {
+        views.setViewVisibility(R.id.meal_image, View.GONE)
+    }
+
     private fun activityIdFromData(data: Map<String, Any>): String? {
         val kind = data["kind"] as? String ?: "schedule"
         return when (kind) {
@@ -425,26 +489,22 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
             )
             applyCountdownChronometer(views, resolved.segmentEndMs)
 
-            if (resolved.isMeal && !resolved.imageUrl.isNullOrBlank() && expanded) {
+            if (resolved.isMeal && expanded) {
                 views.setViewVisibility(R.id.arrow_icon, View.GONE)
-                views.setViewVisibility(R.id.next_column, View.VISIBLE)
-                views.setViewVisibility(R.id.next_title, View.VISIBLE)
-                views.setTextViewText(R.id.next_title, "")
-                try {
-                    views.setImageViewUri(
-                        R.id.next_title,
-                        Uri.parse(resolved.imageUrl),
-                    )
-                } catch (_: Exception) {
-                    views.setTextViewText(R.id.next_title, "Mittagessen")
-                }
-            } else if (resolved.hasNext) {
-                views.setViewVisibility(R.id.arrow_icon, View.VISIBLE)
-                views.setViewVisibility(R.id.next_title, View.VISIBLE)
-                views.setTextViewText(R.id.next_title, resolved.nextTitle)
-            } else {
-                views.setViewVisibility(R.id.arrow_icon, View.GONE)
+                views.setViewVisibility(R.id.next_column, View.GONE)
                 views.setViewVisibility(R.id.next_title, View.GONE)
+                views.setViewVisibility(R.id.next_subtitle, View.GONE)
+                applyMealImage(views, cachedMealBitmap)
+            } else {
+                hideMealImage(views)
+                if (resolved.hasNext) {
+                    views.setViewVisibility(R.id.arrow_icon, View.VISIBLE)
+                    views.setViewVisibility(R.id.next_title, View.VISIBLE)
+                    views.setTextViewText(R.id.next_title, resolved.nextTitle)
+                } else {
+                    views.setViewVisibility(R.id.arrow_icon, View.GONE)
+                    views.setViewVisibility(R.id.next_title, View.GONE)
+                }
             }
 
             if (!expanded) return
@@ -528,6 +588,21 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         event: String,
         data: Map<String, Any>,
     ): Notification {
+        val kind = data["kind"] as? String ?: "schedule"
+        if (kind == "timetable") {
+            val isMeal = data["isMeal"] as? Boolean ?: false
+            val imageUrl = data["imageUrl"] as? String
+            if (isMeal && !imageUrl.isNullOrBlank()) {
+                ensureMealBitmap(imageUrl)
+            } else {
+                cachedMealImageUrl = null
+                cachedMealBitmap = null
+            }
+        } else {
+            cachedMealImageUrl = null
+            cachedMealBitmap = null
+        }
+
         val built = buildLiveActivityNotification(data, System.currentTimeMillis())
         registerForProgressUpdates(data)
         return built
