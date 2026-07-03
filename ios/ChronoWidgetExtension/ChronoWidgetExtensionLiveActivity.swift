@@ -388,6 +388,32 @@ private struct TimetableMealThumbnail: View {
 }
 
 @available(iOSApplicationExtension 16.1, *)
+private struct SegmentTimeCountdownRow: View {
+  let segmentStart: Date
+  let segmentEnd: Date
+  var timeFontSize: CGFloat = 13
+
+  var body: some View {
+    ZStack {
+      HStack {
+        Text(formatTime(segmentStart))
+          .font(.system(size: timeFontSize, weight: .regular))
+          .foregroundColor(.white)
+        Spacer(minLength: 0)
+        Text(formatTime(segmentEnd))
+          .font(.system(size: timeFontSize, weight: .regular))
+          .foregroundColor(.white)
+      }
+      TimetableCountdownText(
+        segmentStart: segmentStart,
+        segmentEnd: segmentEnd,
+        fontSize: timeFontSize
+      )
+    }
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
 private struct TimetableCountdownText: View {
   let segmentStart: Date
   let segmentEnd: Date
@@ -423,21 +449,11 @@ private struct TimetableProgressSection: View {
 
   var body: some View {
     VStack(spacing: 6) {
-      HStack {
-        Text(formatTime(segmentStart))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
-        Spacer()
-        TimetableCountdownText(
-          segmentStart: segmentStart,
-          segmentEnd: segmentEnd,
-          fontSize: timeFontSize
-        )
-        Spacer()
-        Text(formatTime(segmentEnd))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
-      }
+      SegmentTimeCountdownRow(
+        segmentStart: segmentStart,
+        segmentEnd: segmentEnd,
+        timeFontSize: timeFontSize
+      )
       let total = segmentEnd.timeIntervalSince(segmentStart)
       let elapsed = now.timeIntervalSince(segmentStart)
       let p = total > 0 ? min(max(elapsed / total, 0), 1) : 1
@@ -609,21 +625,11 @@ private struct ScheduleProgressSection: View {
 
   var body: some View {
     VStack(spacing: 10) {
-      HStack {
-        Text(formatTime(data.segmentStart))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
-        Spacer()
-        TimetableCountdownText(
-          segmentStart: data.segmentStart,
-          segmentEnd: data.segmentEnd,
-          fontSize: timeFontSize
-        )
-        Spacer()
-        Text(formatTime(data.segmentEnd))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
-      }
+      SegmentTimeCountdownRow(
+        segmentStart: data.segmentStart,
+        segmentEnd: data.segmentEnd,
+        timeFontSize: timeFontSize
+      )
       TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
         let total = data.segmentEnd.timeIntervalSince(data.segmentStart)
         let elapsed = timeline.date.timeIntervalSince(data.segmentStart)

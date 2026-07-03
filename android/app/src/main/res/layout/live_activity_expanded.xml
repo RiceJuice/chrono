@@ -91,35 +91,36 @@
         android:layout_marginTop="14dp"
         android:orientation="vertical">
 
-        <LinearLayout
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:layout_height="wrap_content">
 
             <TextView
                 android:id="@+id/segment_start"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="start|center_vertical"
                 android:textColor="@color/live_activity_text_secondary"
                 android:textSize="15sp" />
-
-            <Chronometer
-                android:id="@+id/remaining_chronometer"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:textColor="@color/live_activity_text_primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/segment_end"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
                 android:textColor="@color/live_activity_text_secondary"
                 android:textSize="15sp" />
-        </LinearLayout>
+
+            <Chronometer
+                android:id="@+id/remaining_chronometer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:textColor="@color/live_activity_text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </FrameLayout>
 
         <ProgressBar
             android:id="@+id/segment_progress"
