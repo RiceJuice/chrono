@@ -614,17 +614,17 @@ private struct ScheduleProgressSection: View {
           .font(.system(size: timeFontSize, weight: .regular))
           .foregroundColor(.white)
         Spacer()
-        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
-          Text("Noch \(formatCountdown(seconds: remainingSeconds(until: data.segmentEnd, now: timeline.date)))")
-            .font(.system(size: timeFontSize, weight: .regular).monospacedDigit())
-            .foregroundColor(.white)
-        }
+        TimetableCountdownText(
+          segmentStart: data.segmentStart,
+          segmentEnd: data.segmentEnd,
+          fontSize: timeFontSize
+        )
         Spacer()
         Text(formatTime(data.segmentEnd))
           .font(.system(size: timeFontSize, weight: .regular))
           .foregroundColor(.white)
       }
-      TimelineView(.periodic(from: data.segmentStart, by: 1.0)) { timeline in
+      TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
         let total = data.segmentEnd.timeIntervalSince(data.segmentStart)
         let elapsed = timeline.date.timeIntervalSince(data.segmentStart)
         let p = total > 0 ? min(max(elapsed / total, 0), 1) : 1
@@ -898,10 +898,16 @@ struct ChronoScheduleLiveActivity: Widget {
             .minimumScaleFactor(0.75)
         }
       } compactTrailing: {
-        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
-          Text(formatCountdown(seconds: remainingSeconds(until: data.segmentEnd, now: timeline.date)))
+        if data.segmentEnd > data.segmentStart {
+          Text(
+            timerInterval: data.segmentStart...data.segmentEnd,
+            countsDown: true,
+            showsHours: false
+          )
             .font(.footnote.monospacedDigit().weight(.semibold))
             .foregroundColor(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
         }
       } minimal: {
         Image(systemName: data.hasNext ? "calendar" : "flag.checkered")

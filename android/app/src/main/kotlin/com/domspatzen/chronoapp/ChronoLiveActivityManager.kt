@@ -1,11 +1,13 @@
 package com.domspatzen.chronoapp
 
 import android.app.Notification
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
@@ -13,19 +15,46 @@ import androidx.core.content.ContextCompat
 import com.istornz.live_activities.LiveActivityManager
 import org.json.JSONArray
 import org.json.JSONObject
+import java.math.BigInteger
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.max
 import kotlin.math.min
 
 class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context) {
+    private companion object {
+        private const val NOTIFICATION_CHANNEL_NAME = "Live Activities"
+        private const val PROGRESS_TICK_MS = 1000L
+    }
+
     private val appContext: Context = context.applicationContext
     private val collapsedViews =
         RemoteViews(appContext.packageName, R.layout.live_activity)
     private val expandedViews =
         RemoteViews(appContext.packageName, R.layout.live_activity_expanded)
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.GERMANY)
+
+    private data class TrackedLiveActivity(
+        val activityId: String,
+        val data: Map<String, Any>,
+    )
+
+    private val trackedActivities = ConcurrentHashMap<String, TrackedLiveActivity>()
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private var progressTickerScheduled = false
+    private val progressTickerRunnable = object : Runnable {
+        override fun run() {
+            refreshTrackedActivityProgress()
+            if (trackedActivities.isNotEmpty()) {
+                progressHandler.postDelayed(this, PROGRESS_TICK_MS)
+            } else {
+                progressTickerScheduled = false
+            }
+        }
+    }
 
     private data class TimetableSegment(
         val id: String,
@@ -244,6 +273,143 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         }.ifBlank { "—" }
     }
 
+    private fun activityIdFromData(data: Map<String, Any>): String? {
+        val kind = data["kind"] as? String ?: "schedule"
+        return when (kind) {
+            "timetable" -> {
+                val dayDate = data["dayDate"] as? String ?: return null
+                "timetable_$dayDate"
+            }
+            else -> {
+                val eventId = data["eventId"] as? String ?: return null
+                "event_$eventId"
+            }
+        }
+    }
+
+    private fun notificationIdFromActivityId(activityId: String): Int {
+        val digest = MessageDigest.getInstance("SHA-256").digest(activityId.toByteArray())
+        return BigInteger(digest).abs().toInt()
+    }
+
+    private fun activityEndMs(data: Map<String, Any>, nowMs: Long): Long {
+        val kind = data["kind"] as? String ?: "schedule"
+        if (kind == "timetable") {
+            val dayEndMs = (data["dayEndMs"] as? Number)?.toLong()
+            if (dayEndMs != null) return dayEndMs
+            val segments = parseSegments(data["segmentsJson"] as? String)
+            return segments.lastOrNull()?.endMs ?: nowMs
+        }
+        return (data["segmentEndMs"] as? Number)?.toLong() ?: nowMs
+    }
+
+    private fun shouldTrackProgress(data: Map<String, Any>): Boolean {
+        val now = System.currentTimeMillis()
+        return activityEndMs(data, now) > now
+    }
+
+    private fun registerForProgressUpdates(data: Map<String, Any>) {
+        val activityId = activityIdFromData(data) ?: return
+        if (!shouldTrackProgress(data)) {
+            trackedActivities.remove(activityId)
+            stopProgressTickerIfIdle()
+            return
+        }
+        trackedActivities[activityId] = TrackedLiveActivity(activityId, data)
+        startProgressTicker()
+    }
+
+    private fun startProgressTicker() {
+        if (progressTickerScheduled) return
+        progressTickerScheduled = true
+        progressHandler.postDelayed(progressTickerRunnable, PROGRESS_TICK_MS)
+    }
+
+    private fun stopProgressTickerIfIdle() {
+        if (trackedActivities.isEmpty() && progressTickerScheduled) {
+            progressHandler.removeCallbacks(progressTickerRunnable)
+            progressTickerScheduled = false
+        }
+    }
+
+    private fun refreshTrackedActivityProgress() {
+        if (trackedActivities.isEmpty()) return
+
+        val notificationManager =
+            appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val now = System.currentTimeMillis()
+        val expired = mutableListOf<String>()
+
+        for ((activityId, tracked) in trackedActivities) {
+            val notificationId = notificationIdFromActivityId(activityId)
+            val stillActive = notificationManager.activeNotifications.any {
+                it.id == notificationId &&
+                    it.notification.channelId == NOTIFICATION_CHANNEL_NAME
+            }
+            if (!stillActive) {
+                expired.add(activityId)
+                continue
+            }
+
+            postProgressNotification(notificationManager, activityId, tracked.data, now)
+
+            if (!shouldTrackProgress(tracked.data)) {
+                expired.add(activityId)
+            }
+        }
+
+        expired.forEach { trackedActivities.remove(it) }
+    }
+
+    private fun contentIntentFor(data: Map<String, Any>): PendingIntent {
+        val kind = data["kind"] as? String ?: "schedule"
+        return if (kind == "timetable") {
+            val dayDate = data["dayDate"] as? String ?: ""
+            pendingIntentForTimetable(dayDate)
+        } else {
+            val eventId = data["eventId"] as? String ?: ""
+            pendingIntentForSchedule(eventId)
+        }
+    }
+
+    private fun buildLiveActivityNotification(
+        data: Map<String, Any>,
+        timestamp: Long,
+    ): Notification {
+        updateRemoteViews(collapsedViews, data, expanded = false)
+        updateRemoteViews(expandedViews, data, expanded = true)
+
+        return Notification.Builder(appContext, NOTIFICATION_CHANNEL_NAME)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setOngoing(true)
+            .setShowWhen(false)
+            .setContentIntent(contentIntentFor(data))
+            .setCustomContentView(collapsedViews)
+            .setCustomBigContentView(expandedViews)
+            .setPriority(Notification.PRIORITY_LOW)
+            .setCategory(Notification.CATEGORY_EVENT)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setOnlyAlertOnce(true)
+            .apply {
+                extras.putLong("activity_timestamp", timestamp)
+            }
+            .build()
+    }
+
+    private fun postProgressNotification(
+        notificationManager: NotificationManager,
+        activityId: String,
+        data: Map<String, Any>,
+        timestamp: Long,
+    ) {
+        val notification = buildLiveActivityNotification(data, timestamp)
+        notificationManager.notify(
+            null,
+            notificationIdFromActivityId(activityId),
+            notification,
+        )
+    }
+
     private fun updateRemoteViews(views: RemoteViews, data: Map<String, Any>, expanded: Boolean) {
         applyThemeColors(views, expanded)
         val kind = data["kind"] as? String ?: "schedule"
@@ -365,28 +531,8 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         event: String,
         data: Map<String, Any>,
     ): Notification {
-        updateRemoteViews(collapsedViews, data, expanded = false)
-        updateRemoteViews(expandedViews, data, expanded = true)
-
-        val kind = data["kind"] as? String ?: "schedule"
-        val contentIntent = if (kind == "timetable") {
-            val dayDate = data["dayDate"] as? String ?: ""
-            pendingIntentForTimetable(dayDate)
-        } else {
-            val eventId = data["eventId"] as? String ?: ""
-            pendingIntentForSchedule(eventId)
-        }
-
-        return notification
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setOngoing(true)
-            .setShowWhen(false)
-            .setContentIntent(contentIntent)
-            .setCustomContentView(collapsedViews)
-            .setCustomBigContentView(expandedViews)
-            .setPriority(Notification.PRIORITY_LOW)
-            .setCategory(Notification.CATEGORY_EVENT)
-            .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .build()
+        val built = buildLiveActivityNotification(data, System.currentTimeMillis())
+        registerForProgressUpdates(data)
+        return built
     }
 }

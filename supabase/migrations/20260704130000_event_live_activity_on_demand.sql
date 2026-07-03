@@ -162,7 +162,7 @@ BEGIN
   FROM public.calendar_events
   WHERE id = p_event_id;
 
-  IF NOT FOUND OR lower(trim(coalesce(v_event.type, ''))) <> 'event' THEN
+  IF NOT FOUND OR lower(trim(coalesce(v_event.type::text, ''))) <> 'event' THEN
     RETURN;
   END IF;
 
@@ -255,7 +255,7 @@ DECLARE
 BEGIN
   IF TG_TABLE_NAME = 'calendar_events' THEN
     IF TG_OP = 'INSERT' THEN
-      IF NOT public._event_is_type_event(NEW.type) THEN
+      IF NOT public._event_is_type_event(NEW.type::text) THEN
         RETURN NEW;
       END IF;
       PERFORM public.sync_event_live_activity_jobs(NEW.id);
@@ -273,12 +273,12 @@ BEGIN
         RETURN NEW;
       END IF;
 
-      IF public._event_is_type_event(OLD.type)
-         OR public._event_is_type_event(NEW.type) THEN
+      IF public._event_is_type_event(OLD.type::text)
+         OR public._event_is_type_event(NEW.type::text) THEN
         should_sync := true;
       END IF;
 
-      IF public._event_is_type_event(NEW.type) THEN
+      IF public._event_is_type_event(NEW.type::text) THEN
         should_notify_change := true;
         target_event_id := NEW.id;
         request_body := jsonb_build_object(
@@ -287,7 +287,7 @@ BEGIN
           'op', TG_OP,
           'source', 'calendar_events'
         );
-      ELSIF public._event_is_type_event(OLD.type) THEN
+      ELSIF public._event_is_type_event(OLD.type::text) THEN
         should_notify_change := true;
         target_event_id := OLD.id;
         request_body := jsonb_build_object(
@@ -303,15 +303,15 @@ BEGIN
             'location', OLD.location,
             'choir', OLD.choir,
             'voices', OLD.voices,
-            'type', OLD.type
+            'type', OLD.type::text
           )
         );
       END IF;
 
       IF should_sync THEN
         PERFORM public.sync_event_live_activity_jobs(NEW.id);
-        IF public._event_is_type_event(OLD.type)
-           AND NOT public._event_is_type_event(NEW.type) THEN
+        IF public._event_is_type_event(OLD.type::text)
+           AND NOT public._event_is_type_event(NEW.type::text) THEN
           PERFORM public._clear_event_live_activity_jobs(OLD.id);
         END IF;
       END IF;
@@ -324,7 +324,7 @@ BEGIN
     END IF;
 
     IF TG_OP = 'DELETE' THEN
-      IF NOT public._event_is_type_event(OLD.type) THEN
+      IF NOT public._event_is_type_event(OLD.type::text) THEN
         RETURN OLD;
       END IF;
 
@@ -343,7 +343,7 @@ BEGIN
           'location', OLD.location,
           'choir', OLD.choir,
           'voices', OLD.voices,
-          'type', OLD.type
+          'type', OLD.type::text
         )
       );
       PERFORM public._invoke_schedule_live_activity_change(request_body);
@@ -367,7 +367,7 @@ BEGIN
       target_event_id := NEW.event_id;
     END IF;
 
-    SELECT type INTO parent_type
+    SELECT type::text INTO parent_type
     FROM public.calendar_events
     WHERE id = target_event_id;
 
@@ -415,7 +415,7 @@ BEGIN
   FOR r IN
     SELECT id
     FROM public.calendar_events
-    WHERE lower(trim(coalesce(type, ''))) = 'event'
+    WHERE lower(trim(type::text)) = 'event'
       AND end_time > now()
   LOOP
     PERFORM public.sync_event_live_activity_jobs(r.id);
