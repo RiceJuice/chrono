@@ -392,21 +392,21 @@ private struct SegmentTimeCountdownRow: View {
   var timeFontSize: CGFloat = 13
 
   var body: some View {
-    ZStack {
-      HStack {
-        Text(formatTime(segmentStart))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
-        Spacer(minLength: 0)
-        Text(formatTime(segmentEnd))
-          .font(.system(size: timeFontSize, weight: .regular))
-          .foregroundColor(.white)
-      }
+    HStack(spacing: 4) {
+      Text(formatTime(segmentStart))
+        .font(.system(size: timeFontSize, weight: .regular))
+        .foregroundColor(.white)
+        .frame(maxWidth: .infinity, alignment: .leading)
       TimetableCountdownText(
         segmentStart: segmentStart,
         segmentEnd: segmentEnd,
         fontSize: timeFontSize
       )
+      .frame(maxWidth: .infinity, alignment: .center)
+      Text(formatTime(segmentEnd))
+        .font(.system(size: timeFontSize, weight: .regular))
+        .foregroundColor(.white)
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
   }
 }

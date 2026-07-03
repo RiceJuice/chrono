@@ -316,6 +316,52 @@ void main() {
       expect(snapshot.nextTitle, 'Englisch');
     });
 
+    test('behält Stunden ohne Schulzweig bei gesetztem Profil-Zweig', () {
+      final day = DateTime(2026, 7, 2);
+      final profileFilters = calendarFiltersStateFromProfileFields(
+        className: '10a',
+        schoolTrack: 'NTG',
+      );
+      final entries = [
+        lesson(
+          id: 'l1',
+          name: 'Physik',
+          className: '10a',
+          schoolTrack: BackendSchoolTrack.ntg,
+          start: DateTime(2026, 7, 2, 8, 0),
+          duration: const Duration(hours: 1),
+        ),
+        lesson(
+          id: 'l2',
+          name: 'Ethik',
+          className: '10a',
+          start: DateTime(2026, 7, 2, 9, 0),
+          duration: const Duration(hours: 1),
+        ),
+        lesson(
+          id: 'l3',
+          name: 'Musik',
+          className: '10a',
+          schoolTrack: BackendSchoolTrack.musisch,
+          start: DateTime(2026, 7, 2, 10, 0),
+          duration: const Duration(hours: 1),
+        ),
+      ];
+
+      final snapshot = TimetableLiveActivityResolver.resolve(
+        day: day,
+        entries: entries,
+        filters: profileFilters,
+        resolveAccent: (e) => e.accentColor,
+        now: DateTime(2026, 7, 2, 8, 15),
+      );
+
+      expect(snapshot, isNotNull);
+      expect(snapshot!.segments.where((s) => s.isLesson).length, 2);
+      expect(snapshot.currentTitle, 'Physik');
+      expect(snapshot.nextTitle, 'Ethik');
+    });
+
     test('behandelt Pause zwischen Stunden mit nächster Stunde links', () {
       final day = DateTime(2026, 7, 2);
       final entries = [

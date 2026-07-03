@@ -76,16 +76,17 @@ bool lessonMatchesOwnSchoolProfile({
   final ownClasses = filters.defaultClassNames;
   if (ownClasses.isNotEmpty) {
     final className = normalizeCalendarFilterText(entry.className);
-    if (className == null || !ownClasses.contains(className)) {
+    if (className != null && !ownClasses.contains(className)) {
       return false;
     }
   }
 
   final ownTracks = filters.defaultSchoolTracks;
-  if (ownTracks.isNotEmpty) {
-    if (entry.schoolTrack == BackendSchoolTrack.unknown) return false;
+  if (ownTracks.isNotEmpty && entry.schoolTrack != BackendSchoolTrack.unknown) {
     final track = normalizeCalendarFilterText(entry.schoolTrack.toBackend());
-    if (track == null || !ownTracks.contains(track)) return false;
+    if (track != null && !ownTracks.contains(track)) {
+      return false;
+    }
   }
 
   return true;
