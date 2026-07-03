@@ -180,11 +180,15 @@ supabase functions deploy notify-event-change
 
 ## 10. Ablaufplan Live Activities (`schedule-live-activity`)
 
-**Auslöser:**
-- pg_cron (jede Minute) → Segmentgrenzen (`start` / `end`)
-- **DB-Trigger** auf `calendar_events` (UPDATE/DELETE) und `event_schedules` (INSERT/UPDATE/DELETE) → sofortiger FCM `update` oder `end` bei laufender Live Activity
+**Auslöser (bedarfsgesteuert, kein Minuten-Polling):**
+- **Geplante Einmal-Jobs** (`event_live_activity_jobs` + pg_cron) → `start` / `end` exakt zu Termin- oder Segmentzeit — nur für `calendar_events` mit `type = 'event'`
+- **DB-Trigger** auf `calendar_events` (INSERT/UPDATE/DELETE) und `event_schedules` (INSERT/UPDATE/DELETE) → Job-Neuplanung + sofortiger FCM `update`/`end` bei laufender Live Activity
 
-**Lokal in der App:** `flutter_local_notifications` + Einmal-Timer planen Segmentstarts und Tagesende; Coordinator startet/beendet die Activity über `live_activities`. FCM `update` aktualisiert Inhalte (Titel, Zeiten, Zielgruppe).
+**Termine ohne Ablaufplan:** Eine Live Activity von `start_time` bis `end_time` (Titel = `event_name`).
+
+**Zielgruppe:** Nur Geräte, deren Profil zu `choir`/`voices` des Events passt.
+
+**Lokal in der App:** `flutter_local_notifications` + Einmal-Timer planen Segment-/Terminstarts und Tagesende; Coordinator startet/beendet die Activity über `live_activities`. FCM `update` aktualisiert Inhalte (Titel, Zeiten, Zielgruppe).
 
 ### Deploy
 
@@ -193,7 +197,7 @@ supabase db push
 supabase functions deploy schedule-live-activity --no-verify-jwt
 ```
 
-Migration `*_schedule_live_activity_change_trigger.sql` legt Postgres-Trigger an, die bei Termin-/Ablaufplan-Änderungen die Edge Function mit `{ "mode": "change", "event_id": "…" }` aufrufen (Vault-Secret muss gesetzt sein).
+Migration `*_event_live_activity_on_demand.sql` legt Job-Tabelle, Sync-Funktion und Postgres-Trigger an (Vault-Secret muss gesetzt sein).
 
 ### Secrets
 
@@ -216,7 +220,7 @@ SELECT vault.create_secret(
 Falls die Migration schon ohne Vault lief: komplettes Setup-Skript  
 [`backend/SCHEDULE_LIVE_ACTIVITY_CRON_SETUP.sql`](SCHEDULE_LIVE_ACTIVITY_CRON_SETUP.sql) im SQL Editor ausführen (Secret-Wert anpassen).
 
-Der pg_cron-Job liest das Secret aus `vault.decrypted_secrets`.
+Der pg_cron-Job für Minuten-Polling ist entfernt. Geplante Dispatches lesen das Secret aus `vault.decrypted_secrets`.
 
 ### Test (curl)
 
@@ -224,12 +228,12 @@ Der pg_cron-Job liest das Secret aus `vault.decrypted_secrets`.
 curl -X POST "https://chrbvfaknykaycwumuba.supabase.co/functions/v1/schedule-live-activity" \
   -H "Content-Type: application/json" \
   -H "x-cron-secret: <SCHEDULE_LIVE_ACTIVITY_CRON_SECRET>" \
-  -d '{}'
+  -d '{"mode":"dispatch","event_id":"<uuid>","action":"start"}'
 ```
 
-Erwartung: `{"processed":0,"sent":0,...}` oder Sends bei laufendem Ablaufplan.
+Erwartung: `{"processed":1,"sent":…,"mode":"dispatch",…}` oder `skipped` wenn kein passendes Event/Gerät.
 
-Ohne Secret: HTTP `401`.
+Ohne gültigen `mode`: HTTP `400`. Ohne Secret: HTTP `401`.
 
 ### iOS
 
