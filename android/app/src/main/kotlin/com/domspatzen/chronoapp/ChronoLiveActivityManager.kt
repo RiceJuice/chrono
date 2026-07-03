@@ -204,27 +204,27 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         nowMs: Long,
     ): ResolvedSegment? {
         if (segments.isEmpty()) return null
-        val first = segments.first()
-        if (nowMs < first.startMs) {
-            val next = segments.getOrNull(1)
-            return ResolvedSegment(
-                title = first.title,
-                subtitle = first.subtitle,
-                shortTitle = first.displayShortTitle(),
-                segmentStartMs = activityStartMs,
-                segmentEndMs = first.startMs,
-                hasNext = next != null,
-                nextTitle = next?.title ?: "",
-                nextSubtitle = next?.subtitle ?: "",
-                nextShortTitle = next?.displayShortTitle() ?: "",
-                remainingLessons = remainingLessonCount(segments, 0, isPreStart = true),
-                isMeal = first.type == "meal",
-                imageUrl = first.imageUrl,
-                isPreStart = true,
-            )
-        }
 
         segments.forEachIndexed { index, segment ->
+            if (nowMs < segment.startMs) {
+                val gapStart = if (index > 0) segments[index - 1].endMs else activityStartMs
+                val next = segments.getOrNull(index + 1)
+                return ResolvedSegment(
+                    title = segment.title,
+                    subtitle = segment.subtitle,
+                    shortTitle = segment.displayShortTitle(),
+                    segmentStartMs = gapStart,
+                    segmentEndMs = segment.startMs,
+                    hasNext = next != null,
+                    nextTitle = next?.title ?: "",
+                    nextSubtitle = next?.subtitle ?: "",
+                    nextShortTitle = next?.displayShortTitle() ?: "",
+                    remainingLessons = remainingLessonCount(segments, index, isPreStart = true),
+                    isMeal = segment.type == "meal",
+                    imageUrl = segment.imageUrl,
+                    isPreStart = true,
+                )
+            }
             if (nowMs < segment.endMs) {
                 val next = segments.getOrNull(index + 1)
                 return ResolvedSegment(
@@ -267,10 +267,7 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
     }
 
     private fun compactLeadingLabel(resolved: ResolvedSegment): String {
-        return when {
-            resolved.isPreStart || !resolved.hasNext -> resolved.shortTitle
-            else -> resolved.nextShortTitle
-        }.ifBlank { "—" }
+        return resolved.shortTitle.ifBlank { "—" }
     }
 
     private fun activityIdFromData(data: Map<String, Any>): String? {

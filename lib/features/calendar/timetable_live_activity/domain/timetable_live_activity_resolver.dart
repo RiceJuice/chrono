@@ -227,18 +227,17 @@ abstract final class TimetableLiveActivityResolver {
   }) {
     if (segments.isEmpty) return null;
 
-    final first = segments.first;
-    if (nowMs < first.startMs) {
-      return (
-        index: 0,
-        segmentStartMs: activityStartMs,
-        segmentEndMs: first.startMs,
-        isPreStart: true,
-      );
-    }
-
     for (var i = 0; i < segments.length; i++) {
       final segment = segments[i];
+      if (nowMs < segment.startMs) {
+        final gapStart = i > 0 ? segments[i - 1].endMs : activityStartMs;
+        return (
+          index: i,
+          segmentStartMs: gapStart,
+          segmentEndMs: segment.startMs,
+          isPreStart: true,
+        );
+      }
       if (nowMs < segment.endMs) {
         return (
           index: i,

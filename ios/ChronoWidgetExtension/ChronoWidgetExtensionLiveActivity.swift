@@ -158,31 +158,29 @@ private struct TimetableLiveData {
   func resolve(at now: Date) -> TimetableResolvedSegment? {
     guard !segments.isEmpty else { return nil }
     let nowMs = now.timeIntervalSince1970 * 1000
-    let activityStart = Date(timeIntervalSince1970: activityStartMs / 1000)
-    let first = segments[0]
-
-    if nowMs < first.startMs {
-      let next = segments.count > 1 ? segments[1] : nil
-      return TimetableResolvedSegment(
-        index: 0,
-        title: first.title,
-        subtitle: first.subtitle,
-        currentShortTitle: first.displayShortTitle,
-        segmentStart: activityStart,
-        segmentEnd: Date(timeIntervalSince1970: first.startMs / 1000),
-        accentColor: parseHexColor(first.accentColor),
-        isMeal: first.type == "meal",
-        imageUrl: first.imageUrl,
-        hasNext: next != nil,
-        nextTitle: next?.title ?? "",
-        nextSubtitle: next?.subtitle ?? "",
-        nextShortTitle: next?.displayShortTitle ?? "",
-        remainingLessons: remainingLessonCount(fromIndex: 0, isPreStart: true),
-        isPreStart: true
-      )
-    }
 
     for (index, segment) in segments.enumerated() {
+      if nowMs < segment.startMs {
+        let gapStartMs = index > 0 ? segments[index - 1].endMs : activityStartMs
+        let next = index + 1 < segments.count ? segments[index + 1] : nil
+        return TimetableResolvedSegment(
+          index: index,
+          title: segment.title,
+          subtitle: segment.subtitle,
+          currentShortTitle: segment.displayShortTitle,
+          segmentStart: Date(timeIntervalSince1970: gapStartMs / 1000),
+          segmentEnd: Date(timeIntervalSince1970: segment.startMs / 1000),
+          accentColor: parseHexColor(segment.accentColor),
+          isMeal: segment.type == "meal",
+          imageUrl: segment.imageUrl,
+          hasNext: next != nil,
+          nextTitle: next?.title ?? "",
+          nextSubtitle: next?.subtitle ?? "",
+          nextShortTitle: next?.displayShortTitle ?? "",
+          remainingLessons: remainingLessonCount(fromIndex: index, isPreStart: true),
+          isPreStart: true
+        )
+      }
       if nowMs < segment.endMs {
         let next = index + 1 < segments.count ? segments[index + 1] : nil
         return TimetableResolvedSegment(
@@ -544,14 +542,12 @@ private struct TimetableDynamicIslandHeaderView: View {
             subtitleSize: layout.subtitleSize
           )
           if resolved.isMeal, let imageUrl = resolved.imageUrl, !imageUrl.isEmpty {
-            Spacer(minLength: 0)
             TimetableMealThumbnail(imageUrl: imageUrl)
           } else if resolved.hasNext {
-            Spacer(minLength: 0)
             Image(systemName: "arrow.right")
-              .font(.system(size: 10, weight: .semibold))
+              .font(.system(size: 11, weight: .semibold))
               .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
-              .padding(.top, 2)
+              .padding(.top, 3)
             ScheduleColumn(
               title: resolved.nextTitle,
               subtitle: resolved.nextSubtitle,
@@ -561,7 +557,7 @@ private struct TimetableDynamicIslandHeaderView: View {
             )
           }
         }
-        .padding(.horizontal, layout.horizontalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
   }
@@ -583,7 +579,6 @@ private struct TimetableDynamicIslandBottomView: View {
           timeFontSize: layout.timeFontSize,
           barOuterHeight: layout.barOuterHeight
         )
-        .padding(.horizontal, layout.horizontalPadding)
         .padding(.bottom, layout.bottomPadding)
       }
     }
@@ -594,10 +589,7 @@ private func timetableCompactLeadingLabel(
   for resolved: TimetableResolvedSegment?
 ) -> String {
   guard let resolved else { return "—" }
-  if resolved.isPreStart || !resolved.hasNext {
-    return resolved.currentShortTitle
-  }
-  return resolved.nextShortTitle
+  return resolved.currentShortTitle
 }
 
 @available(iOSApplicationExtension 16.1, *)
@@ -701,16 +693,16 @@ private struct ScheduleLiveActivityLayout {
   )
 
   static let timetableDynamicIsland = ScheduleLiveActivityLayout(
-    sectionSpacing: 8,
+    sectionSpacing: 10,
     columnSpacing: 10,
-    titleSize: 15,
-    subtitleSize: 12,
-    timeFontSize: 11,
-    barOuterHeight: 8,
-    horizontalPadding: 4,
-    verticalPadding: 2,
-    topPadding: 0,
-    bottomPadding: 2,
+    titleSize: 17,
+    subtitleSize: 13,
+    timeFontSize: 13,
+    barOuterHeight: 10,
+    horizontalPadding: 0,
+    verticalPadding: 4,
+    topPadding: 2,
+    bottomPadding: 10,
     showsBackground: false
   )
 }
@@ -856,10 +848,11 @@ struct ChronoScheduleLiveActivity: Widget {
           TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
             let resolved = data.resolve(at: timeline.date)
             Text(timetableCompactLeadingLabel(for: resolved))
-              .font(.footnote.weight(.semibold))
+              .font(.subheadline.weight(.semibold))
               .foregroundColor(.white)
               .lineLimit(1)
-              .minimumScaleFactor(0.75)
+              .minimumScaleFactor(0.8)
+              .frame(maxWidth: .infinity, alignment: .leading)
           }
         } compactTrailing: {
           TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
@@ -870,10 +863,11 @@ struct ChronoScheduleLiveActivity: Widget {
                 countsDown: true,
                 showsHours: false
               )
-                .font(.footnote.monospacedDigit().weight(.semibold))
+                .font(.subheadline.monospacedDigit().weight(.semibold))
                 .foregroundColor(.white)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.85)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
           }
         } minimal: {

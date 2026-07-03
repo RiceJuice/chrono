@@ -315,5 +315,45 @@ void main() {
       expect(snapshot.currentTitle, 'Physik');
       expect(snapshot.nextTitle, 'Englisch');
     });
+
+    test('behandelt Pause zwischen Stunden mit nächster Stunde links', () {
+      final day = DateTime(2026, 7, 2);
+      final entries = [
+        lesson(
+          id: 'l1',
+          name: 'Mathematik',
+          start: DateTime(2026, 7, 2, 9, 0),
+          duration: const Duration(hours: 1, minutes: 15),
+        ),
+        lesson(
+          id: 'l2',
+          name: 'Englisch',
+          start: DateTime(2026, 7, 2, 10, 35),
+          duration: const Duration(minutes: 45),
+        ),
+        lesson(
+          id: 'l3',
+          name: 'Latein',
+          start: DateTime(2026, 7, 2, 11, 20),
+          duration: const Duration(minutes: 45),
+        ),
+      ];
+
+      final snapshot = TimetableLiveActivityResolver.resolve(
+        day: day,
+        entries: entries,
+        filters: filters,
+        resolveAccent: (e) => e.accentColor,
+        now: DateTime(2026, 7, 2, 10, 20),
+      );
+
+      expect(snapshot, isNotNull);
+      expect(snapshot!.isPreStart, isTrue);
+      expect(snapshot.currentTitle, 'Englisch');
+      expect(snapshot.nextTitle, 'Latein');
+      expect(snapshot.segmentStartMs, DateTime(2026, 7, 2, 10, 15).millisecondsSinceEpoch);
+      expect(snapshot.segmentEndMs, DateTime(2026, 7, 2, 10, 35).millisecondsSinceEpoch);
+      expect(snapshot.remainingLessons, 2);
+    });
   });
 }
