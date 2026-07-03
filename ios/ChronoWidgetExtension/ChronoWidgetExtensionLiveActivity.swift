@@ -177,7 +177,7 @@ private struct TimetableLiveData {
         nextTitle: next?.title ?? "",
         nextSubtitle: next?.subtitle ?? "",
         nextShortTitle: next?.displayShortTitle ?? "",
-        remainingLessons: remainingLessonCount(fromIndex: 0, nowMs: nowMs),
+        remainingLessons: remainingLessonCount(fromIndex: 0, isPreStart: true),
         isPreStart: true
       )
     }
@@ -199,7 +199,7 @@ private struct TimetableLiveData {
           nextTitle: next?.title ?? "",
           nextSubtitle: next?.subtitle ?? "",
           nextShortTitle: next?.displayShortTitle ?? "",
-          remainingLessons: remainingLessonCount(fromIndex: index, nowMs: nowMs),
+          remainingLessons: remainingLessonCount(fromIndex: index, isPreStart: false),
           isPreStart: false
         )
       }
@@ -207,12 +207,12 @@ private struct TimetableLiveData {
     return nil
   }
 
-  private func remainingLessonCount(fromIndex: Int, nowMs: Double) -> Int {
+  private func remainingLessonCount(fromIndex: Int, isPreStart: Bool) -> Int {
     var count = 0
     for i in fromIndex..<segments.count {
       let segment = segments[i]
       if segment.type != "lesson" { continue }
-      if i == fromIndex && nowMs >= segment.endMs { continue }
+      if i == fromIndex && !isPreStart { continue }
       count += 1
     }
     return count

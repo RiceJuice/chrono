@@ -1,6 +1,7 @@
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_display_filters.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
+import 'package:chronoapp/features/calendar/domain/layout/school_track_lane_order.dart';
 import 'package:chronoapp/features/calendar/domain/meal_period.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_segment.dart';
@@ -52,9 +53,18 @@ abstract final class TimetableLiveActivityResolver {
     }).toList()
       ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
-    if (filtered.isEmpty) return null;
+    final ownProfileEntries = filtered
+        .where(
+          (entry) => lessonMatchesOwnSchoolProfile(
+            entry: entry,
+            filters: filters,
+          ),
+        )
+        .toList(growable: false);
 
-    final lessons = filtered
+    if (ownProfileEntries.isEmpty) return null;
+
+    final lessons = ownProfileEntries
         .where((e) => e.type == CalendarEntryType.lesson)
         .toList(growable: false);
     if (lessons.isEmpty) return null;
@@ -66,7 +76,7 @@ abstract final class TimetableLiveActivityResolver {
     );
     final activityStartMs = activityStart.millisecondsSinceEpoch;
 
-    final segments = filtered
+    final segments = ownProfileEntries
         .map((entry) => _segmentFromEntry(
               entry: entry,
               resolveAccent: resolveAccent,
@@ -92,7 +102,7 @@ abstract final class TimetableLiveActivityResolver {
     final remainingLessons = _remainingLessonCount(
       segments: segments,
       fromIndex: resolved.index,
-      nowMs: clock.millisecondsSinceEpoch,
+      isPreStart: resolved.isPreStart,
     );
 
     final current = segments[resolved.index];
@@ -252,13 +262,13 @@ abstract final class TimetableLiveActivityResolver {
   static int _remainingLessonCount({
     required List<TimetableLiveActivitySegment> segments,
     required int fromIndex,
-    required int nowMs,
+    required bool isPreStart,
   }) {
     var count = 0;
     for (var i = fromIndex; i < segments.length; i++) {
       final segment = segments[i];
       if (!segment.isLesson) continue;
-      if (i == fromIndex && nowMs >= segment.endMs) continue;
+      if (i == fromIndex && !isPreStart) continue;
       count++;
     }
     return count;

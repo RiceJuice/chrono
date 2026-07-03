@@ -217,7 +217,7 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
                 nextTitle = next?.title ?: "",
                 nextSubtitle = next?.subtitle ?: "",
                 nextShortTitle = next?.displayShortTitle() ?: "",
-                remainingLessons = remainingLessonCount(segments, 0, nowMs),
+                remainingLessons = remainingLessonCount(segments, 0, isPreStart = true),
                 isMeal = first.type == "meal",
                 imageUrl = first.imageUrl,
                 isPreStart = true,
@@ -237,7 +237,7 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
                     nextTitle = next?.title ?: "",
                     nextSubtitle = next?.subtitle ?: "",
                     nextShortTitle = next?.displayShortTitle() ?: "",
-                    remainingLessons = remainingLessonCount(segments, index, nowMs),
+                    remainingLessons = remainingLessonCount(segments, index, isPreStart = false),
                     isMeal = segment.type == "meal",
                     imageUrl = segment.imageUrl,
                     isPreStart = false,
@@ -250,13 +250,13 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
     private fun remainingLessonCount(
         segments: List<TimetableSegment>,
         fromIndex: Int,
-        nowMs: Long,
+        isPreStart: Boolean,
     ): Int {
         var count = 0
         for (i in fromIndex until segments.size) {
             val segment = segments[i]
             if (segment.type != "lesson") continue
-            if (i == fromIndex && nowMs >= segment.endMs) continue
+            if (i == fromIndex && !isPreStart) continue
             count++
         }
         return count
