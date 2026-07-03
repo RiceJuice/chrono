@@ -1,5 +1,6 @@
 import '../../../../core/database/backend_enums.dart';
 import '../models/event_schedule.dart';
+import '../../live_activity/domain/schedule_live_activity_event.dart';
 import 'calendar_filters_state.dart';
 import 'calendar_filter_text.dart';
 
@@ -63,6 +64,70 @@ bool eventScheduleVisible({
 
   if (schedule.voices.isNotEmpty && filters.voices.isNotEmpty) {
     final labels = schedule.voices
+        .map((v) => normalizeCalendarFilterText(v.toBackend()))
+        .whereType<String>()
+        .toSet();
+    final hasMatch = labels.any(filters.voices.contains);
+    if (!hasMatch) return false;
+  }
+
+  return true;
+}
+
+/// Prüft, ob ein Event-Termin zum Profil des Nutzers passt (Chor/Stimme).
+bool calendarEventMatchesUserProfile({
+  required ScheduleLiveActivityEvent event,
+  required CalendarFiltersState filters,
+}) {
+  final userChoirs = filters.defaultChoirs;
+  final userVoices = filters.defaultVoices;
+
+  if (event.choirs.isEmpty && event.voices.isEmpty) {
+    return true;
+  }
+
+  var choirOk = true;
+  if (event.choirs.isNotEmpty) {
+    if (userChoirs.isEmpty) {
+      choirOk = false;
+    } else {
+      final labels = event.choirs
+          .map((c) => normalizeCalendarFilterText(c.toBackend()))
+          .whereType<String>()
+          .toSet();
+      choirOk = labels.any(userChoirs.contains);
+    }
+  }
+
+  if (!choirOk) return false;
+
+  if (event.voices.isEmpty) return true;
+
+  if (userVoices.isEmpty) return false;
+
+  final voiceLabels = event.voices
+      .map((v) => normalizeCalendarFilterText(v.toBackend()))
+      .whereType<String>()
+      .toSet();
+  return voiceLabels.any(userVoices.contains);
+}
+
+/// Filterlogik für Event-Termine (choir/voices) — Kalender-Filter.
+bool calendarEventVisible({
+  required ScheduleLiveActivityEvent event,
+  required CalendarFiltersState filters,
+}) {
+  if (event.choirs.isNotEmpty && filters.choirs.isNotEmpty) {
+    final labels = event.choirs
+        .map((c) => normalizeCalendarFilterText(c.toBackend()))
+        .whereType<String>()
+        .toSet();
+    final hasMatch = labels.any(filters.choirs.contains);
+    if (!hasMatch) return false;
+  }
+
+  if (event.voices.isNotEmpty && filters.voices.isNotEmpty) {
+    final labels = event.voices
         .map((v) => normalizeCalendarFilterText(v.toBackend()))
         .whereType<String>()
         .toSet();

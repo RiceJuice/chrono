@@ -88,6 +88,7 @@ class ScheduleLiveActivityLocalScheduler {
   Future<void> rescheduleSegments({
     required List<({String eventId, String scheduleId, DateTime start})>
         segments,
+    List<({String eventId, DateTime start})> eventStarts = const [],
   }) async {
     if (!_initialized) return;
 
@@ -100,43 +101,69 @@ class ScheduleLiveActivityLocalScheduler {
     );
 
     for (final segment in segments) {
-      final localStart = AppDateTime.toLocal(segment.start);
-      if (!localStart.isAfter(now)) continue;
-      if (!localStart.isBefore(rangeEnd)) continue;
+      await _scheduleStartNotification(
+        eventId: segment.eventId,
+        scheduleId: segment.scheduleId,
+        start: segment.start,
+        now: now,
+        rangeEnd: rangeEnd,
+      );
+    }
 
-      final tzTime = tz.TZDateTime.from(localStart, tz.local);
-      final id = notificationIdFor(segment.eventId, segment.scheduleId);
-      final payload = '${segment.eventId}|${segment.scheduleId}';
+    for (final eventStart in eventStarts) {
+      await _scheduleStartNotification(
+        eventId: eventStart.eventId,
+        scheduleId: eventStart.eventId,
+        start: eventStart.start,
+        now: now,
+        rangeEnd: rangeEnd,
+      );
+    }
+  }
 
-      try {
-        await _plugin.zonedSchedule(
-          id,
-          null,
-          null,
-          tzTime,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              channelId,
-              channelName,
-              importance: Importance.low,
-              priority: Priority.low,
-              playSound: false,
-              silent: true,
-              channelShowBadge: false,
-            ),
-            iOS: const DarwinNotificationDetails(
-              presentAlert: false,
-              presentSound: false,
-              presentBadge: false,
-            ),
+  Future<void> _scheduleStartNotification({
+    required String eventId,
+    required String scheduleId,
+    required DateTime start,
+    required DateTime now,
+    required DateTime rangeEnd,
+  }) async {
+    final localStart = AppDateTime.toLocal(start);
+    if (!localStart.isAfter(now)) return;
+    if (!localStart.isBefore(rangeEnd)) return;
+
+    final tzTime = tz.TZDateTime.from(localStart, tz.local);
+    final id = notificationIdFor(eventId, scheduleId);
+    final payload = '$eventId|$scheduleId';
+
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        null,
+        null,
+        tzTime,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channelId,
+            channelName,
+            importance: Importance.low,
+            priority: Priority.low,
+            playSound: false,
+            silent: true,
+            channelShowBadge: false,
           ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          payload: payload,
-        );
-      } catch (e, st) {
-        if (kDebugMode) {
-          debugPrint('[LiveActivity] schedule failed: $e\n$st');
-        }
+          iOS: const DarwinNotificationDetails(
+            presentAlert: false,
+            presentSound: false,
+            presentBadge: false,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: payload,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[LiveActivity] schedule failed: $e\n$st');
       }
     }
   }

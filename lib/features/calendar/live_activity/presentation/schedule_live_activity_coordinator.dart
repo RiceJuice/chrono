@@ -146,25 +146,39 @@ class ScheduleLiveActivityCoordinator {
       rangeStart: today,
       rangeEndExclusive: dayAfterTomorrow,
     );
+    final eventStarts = await _dataSource.upcomingEventStarts(
+      rangeStart: today,
+      rangeEndExclusive: dayAfterTomorrow,
+    );
 
     final dayEnds = await _computeDayEnds(
       dayStart: today,
       dayEndExclusive: dayAfterTomorrow,
     );
 
-    await _localScheduler.rescheduleSegments(segments: segments);
+    await _localScheduler.rescheduleSegments(
+      segments: segments,
+      eventStarts: eventStarts,
+    );
     await _localScheduler.rescheduleDayEnds(ends: dayEnds);
 
     _segmentTimerScheduler.reschedule(
-      starts: segments
-          .map(
-            (s) => (
-              eventId: s.eventId,
-              scheduleId: s.scheduleId,
-              at: AppDateTime.toLocal(s.start),
-            ),
-          )
-          .toList(),
+      starts: [
+        ...segments.map(
+          (s) => (
+            eventId: s.eventId,
+            scheduleId: s.scheduleId,
+            at: AppDateTime.toLocal(s.start),
+          ),
+        ),
+        ...eventStarts.map(
+          (s) => (
+            eventId: s.eventId,
+            scheduleId: s.eventId,
+            at: AppDateTime.toLocal(s.start),
+          ),
+        ),
+      ],
       dayEnds: dayEnds
           .map((e) => (eventId: e.eventId, at: AppDateTime.toLocal(e.end)))
           .toList(),
@@ -186,6 +200,10 @@ class ScheduleLiveActivityCoordinator {
     final eventIds = await _dataSource.eventIdsWithSchedulesOnDays(
       dayStart: dayStart,
       dayEndExclusive: dayEndExclusive,
+    );
+    final eventsWithoutSchedule = await _dataSource.eventsWithoutSchedule(
+      rangeStart: dayStart,
+      rangeEndExclusive: dayEndExclusive,
     );
 
     final filters = _ref.read(calendarFiltersProvider);
@@ -224,6 +242,16 @@ class ScheduleLiveActivityCoordinator {
       ));
     }
 
+    for (final event in eventsWithoutSchedule) {
+      if (!AppDateTime.isTodayLocal(event.startTime, now: now)) continue;
+      if (listFilter == EventScheduleListFilter.mine &&
+          !calendarEventMatchesUserProfile(event: event, filters: filters)) {
+        continue;
+      }
+      if (!calendarEventVisible(event: event, filters: filters)) continue;
+      ends.add((eventId: event.id, end: event.endTime));
+    }
+
     return ends;
   }
 
@@ -253,6 +281,10 @@ class ScheduleLiveActivityCoordinator {
     final eventIds = await _dataSource.eventIdsWithSchedulesOnDays(
       dayStart: today,
       dayEndExclusive: dayAfterTomorrow,
+    );
+    final eventsWithoutSchedule = await _dataSource.eventsWithoutSchedule(
+      rangeStart: today,
+      rangeEndExclusive: dayAfterTomorrow,
     );
 
     final filters = _ref.read(calendarFiltersProvider);
@@ -288,6 +320,31 @@ class ScheduleLiveActivityCoordinator {
       }
     }
 
+    for (final event in eventsWithoutSchedule) {
+      final customId = liveActivityCustomIdForEvent(event.id);
+      if (listFilter == EventScheduleListFilter.mine &&
+          !calendarEventMatchesUserProfile(event: event, filters: filters)) {
+        continue;
+      }
+
+      final snapshot = ScheduleLiveActivityResolver.resolveFromEvent(
+        event: event,
+        filters: filters,
+        now: now,
+      );
+
+      if (snapshot != null) {
+        stillActive.add(customId);
+        await _applySnapshotIfNeeded(snapshot);
+        continue;
+      }
+
+      if (ScheduleLiveActivityResolver.isEventFinished(event: event, now: now) &&
+          _activeCustomIds.contains(customId)) {
+        await _service.end(customId);
+      }
+    }
+
     final ended = _activeCustomIds.difference(stillActive).toList();
     for (final customId in ended) {
       await _service.end(customId);
@@ -304,16 +361,34 @@ class ScheduleLiveActivityCoordinator {
       _syncAgain = true;
       return;
     }
-    final schedules = await _dataSource.schedulesForEvent(eventId);
+
     final filters = _ref.read(calendarFiltersProvider);
     final listFilter = _ref.read(scheduleListFilterProvider).value ??
         EventScheduleListFilter.all;
-    final snapshot = ScheduleLiveActivityResolver.resolve(
-      eventId: eventId,
-      schedules: schedules,
-      listFilter: listFilter,
-      filters: filters,
-    );
+
+    final schedules = await _dataSource.schedulesForEvent(eventId);
+    ScheduleLiveActivitySnapshot? snapshot;
+    if (schedules.isNotEmpty) {
+      snapshot = ScheduleLiveActivityResolver.resolve(
+        eventId: eventId,
+        schedules: schedules,
+        listFilter: listFilter,
+        filters: filters,
+      );
+    } else {
+      final event = await _dataSource.eventWithoutScheduleById(eventId);
+      if (event != null) {
+        if (listFilter == EventScheduleListFilter.mine &&
+            !calendarEventMatchesUserProfile(event: event, filters: filters)) {
+          return;
+        }
+        snapshot = ScheduleLiveActivityResolver.resolveFromEvent(
+          event: event,
+          filters: filters,
+        );
+      }
+    }
+
     if (snapshot == null) return;
     await _applySnapshot(snapshot);
     _activeCustomIds.add(snapshot.customId);
