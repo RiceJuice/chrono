@@ -18,10 +18,7 @@ import {
   visibleSchedulesToday,
 } from "../_shared/live_activity/event_snapshot.ts";
 import { sendLiveActivityToDevice } from "../_shared/live_activity/fcm_dispatch.ts";
-import {
-  mergeTimetableRowsForDay,
-  type TimetableCalendarRow,
-} from "../_shared/live_activity/series_occurrences.ts";
+import type { TimetableCalendarRow } from "../_shared/live_activity/series_occurrences.ts";
 import {
   buildTimetableSnapshot,
   dayBoundsBerlin,
@@ -131,7 +128,11 @@ async function loadMergedTimetableRows(
   if (eventsError) throw new Error(eventsError.message);
   if (seriesError) throw new Error(seriesError.message);
 
-  return mergeTimetableRowsForDay(
+  const { mergeTimetableRowsForDay } = await import(
+    "../_shared/live_activity/series_occurrences.ts"
+  );
+
+  return await mergeTimetableRowsForDay(
     dayDateOnly,
     events ?? [],
     series ?? [],

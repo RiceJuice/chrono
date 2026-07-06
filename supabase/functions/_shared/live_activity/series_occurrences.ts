@@ -1,4 +1,3 @@
-import { rrulestr } from "npm:rrule@2.8.1";
 import { dayBoundsBerlin, filterTimetableRows } from "./timetable_snapshot.ts";
 import type { ProfileRow } from "./types.ts";
 
@@ -95,10 +94,10 @@ function isCancellation(event: EventRow): boolean {
   return end <= start;
 }
 
-export function expandSeriesForDay(
+export async function expandSeriesForDay(
   series: SeriesRow,
   dayKey: string,
-): TimetableCalendarRow[] {
+): Promise<TimetableCalendarRow[]> {
   const normalized = normalizeRrule(series.rrule);
   if (!normalized) return [];
 
@@ -124,6 +123,7 @@ export function expandSeriesForDay(
 
   let rule;
   try {
+    const { rrulestr } = await import("npm:rrule@2.8.1");
     rule = rrulestr(normalized, { dtstart });
   } catch {
     return [];
@@ -155,12 +155,12 @@ export function expandSeriesForDay(
   });
 }
 
-export function mergeTimetableRowsForDay(
+export async function mergeTimetableRowsForDay(
   dayKey: string,
   events: EventRow[],
   seriesRows: SeriesRow[],
   profile: ProfileRow,
-): TimetableCalendarRow[] {
+): Promise<TimetableCalendarRow[]> {
   const bounds = dayBoundsBerlin(dayKey);
   const overrides = new Set<string>();
   const visibleEvents: TimetableCalendarRow[] = [];
@@ -180,7 +180,7 @@ export function mergeTimetableRowsForDay(
 
   const expandedSeries: TimetableCalendarRow[] = [];
   for (const series of seriesRows) {
-    for (const row of expandSeriesForDay(series, dayKey)) {
+    for (const row of await expandSeriesForDay(series, dayKey)) {
       const recurrenceId = formatRecurrenceId(new Date(row.start_time));
       if (overrides.has(overrideKey(series.id, recurrenceId))) continue;
       expandedSeries.push(row);
