@@ -2,6 +2,7 @@ import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/filter/event_schedule_filter.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
 import 'package:chronoapp/features/calendar/domain/models/event_schedule.dart';
+import 'package:chronoapp/features/calendar/live_activity/domain/schedule_live_activity_event.dart';
 import 'package:chronoapp/features/calendar/live_activity/domain/schedule_live_activity_snapshot.dart';
 import 'package:chronoapp/features/calendar/live_activity/live_activity_constants.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/calendar_now_anchor.dart';
@@ -58,6 +59,50 @@ abstract final class ScheduleLiveActivityResolver {
       segmentStartMs: segmentStart.millisecondsSinceEpoch,
       segmentEndMs: segmentEnd.millisecondsSinceEpoch,
     );
+  }
+
+  /// Live Activity für Event-Termine ohne Ablaufplan.
+  static ScheduleLiveActivitySnapshot? resolveFromEvent({
+    required ScheduleLiveActivityEvent event,
+    required CalendarFiltersState filters,
+    DateTime? now,
+  }) {
+    final clock = now ?? DateTime.now();
+    if (!calendarEventVisible(event: event, filters: filters)) {
+      return null;
+    }
+    if (!AppDateTime.isTodayLocal(event.startTime, now: clock)) {
+      return null;
+    }
+    if (AppDateTime.isPastInstant(event.endTime, now: clock)) {
+      return null;
+    }
+    if (AppDateTime.toLocal(event.startTime).isAfter(clock)) {
+      return null;
+    }
+
+    final segmentStart = AppDateTime.toLocal(event.startTime);
+    final segmentEnd = AppDateTime.toLocal(event.endTime);
+
+    return ScheduleLiveActivitySnapshot(
+      eventId: event.id,
+      customId: liveActivityCustomIdForEvent(event.id),
+      currentScheduleId: event.id,
+      currentTitle: event.eventName,
+      currentSubtitle: event.location ?? '',
+      hasNext: false,
+      nextTitle: '',
+      nextSubtitle: '',
+      segmentStartMs: segmentStart.millisecondsSinceEpoch,
+      segmentEndMs: segmentEnd.millisecondsSinceEpoch,
+    );
+  }
+
+  static bool isEventFinished({
+    required ScheduleLiveActivityEvent event,
+    DateTime? now,
+  }) {
+    return AppDateTime.isPastInstant(event.endTime, now: now);
   }
 
   static int? _currentIndex(

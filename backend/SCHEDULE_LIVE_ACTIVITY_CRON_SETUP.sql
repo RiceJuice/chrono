@@ -5,34 +5,22 @@
 SELECT vault.create_secret(
   'HIER-DEIN-SECRET-EINFÜGEN',
   'schedule_live_activity_cron_secret',
-  'Cron-Header für schedule-live-activity Edge Function'
+  'Interner Header für schedule-live-activity Edge Function'
 );
 
--- 2) Cron-Job neu planen (liest Secret aus Vault)
+-- 2) Minütlicher Polling-Cron ist entfernt — Dispatch wird bedarfsgesteuert
+--    über event_live_activity_jobs (Migration 20260704130000) geplant.
+--    Nach dem Secret-Setup bestehende Events nachplanen:
 DO $$
+DECLARE
+  r record;
 BEGIN
-  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'schedule-live-activity') THEN
-    PERFORM cron.unschedule(jobid)
-    FROM cron.job
-    WHERE jobname = 'schedule-live-activity';
-  END IF;
+  FOR r IN
+    SELECT id
+    FROM public.calendar_events
+    WHERE lower(trim(coalesce(type, ''))) = 'event'
+      AND end_time > now()
+  LOOP
+    PERFORM public.sync_event_live_activity_jobs(r.id);
+  END LOOP;
 END $$;
-
-SELECT cron.schedule(
-  'schedule-live-activity',
-  '*/5 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://chrbvfaknykaycwumuba.supabase.co/functions/v1/schedule-live-activity',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'x-cron-secret', coalesce(
-        (SELECT decrypted_secret FROM vault.decrypted_secrets
-         WHERE name = 'schedule_live_activity_cron_secret' LIMIT 1),
-        ''
-      )
-    ),
-    body := '{}'::jsonb
-  );
-  $$
-);

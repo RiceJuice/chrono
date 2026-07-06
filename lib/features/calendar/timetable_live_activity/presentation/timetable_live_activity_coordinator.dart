@@ -261,6 +261,7 @@ class TimetableLiveActivityCoordinator {
     final filters = _ref.read(calendarFiltersProvider);
 
     await CalendarSignedUrlCache.shared.ensureLoaded();
+    await _ensureMealImageUrlsResolved(entries);
 
     return TimetableLiveActivityResolver.resolve(
       day: day,
@@ -292,6 +293,16 @@ class TimetableLiveActivityCoordinator {
 
     final resolved = _imageUrlResolver.peekResolvedUrls(entry.imagePaths);
     return resolved?.firstOrNull;
+  }
+
+  Future<void> _ensureMealImageUrlsResolved(List<CalendarEntry> entries) async {
+    for (final entry in entries) {
+      if (entry.type != CalendarEntryType.meal) continue;
+      if (entry.imageUrls != null && entry.imageUrls!.isNotEmpty) continue;
+      final paths = entry.imagePaths;
+      if (paths == null || paths.isEmpty) continue;
+      await _imageUrlResolver.resolveSignedUrls(paths);
+    }
   }
 
   DateTime? _parseDayDateKey(String dayDateKey) {

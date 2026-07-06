@@ -1,5 +1,6 @@
 import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filter_text.dart';
+import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 
 /// Stabile Lane-Reihenfolge für Schulstunden bei mehreren aktiven Schulzweigen.
@@ -63,4 +64,30 @@ bool isOtherSchoolTrackLesson(
     entry.schoolTrack.toBackend(),
   );
   return normalizedTrack == null || !ownSchoolTracks.contains(normalizedTrack);
+}
+
+/// Stundenplan-Live-Activity: nur eigene Profil-Klasse und -Zweig zählen/anzeigen.
+bool lessonMatchesOwnSchoolProfile({
+  required CalendarEntry entry,
+  required CalendarFiltersState filters,
+}) {
+  if (entry.type != CalendarEntryType.lesson) return true;
+
+  final ownClasses = filters.defaultClassNames;
+  if (ownClasses.isNotEmpty) {
+    final className = normalizeCalendarFilterText(entry.className);
+    if (className != null && !ownClasses.contains(className)) {
+      return false;
+    }
+  }
+
+  final ownTracks = filters.defaultSchoolTracks;
+  if (ownTracks.isNotEmpty && entry.schoolTrack != BackendSchoolTrack.unknown) {
+    final track = normalizeCalendarFilterText(entry.schoolTrack.toBackend());
+    if (track != null && !ownTracks.contains(track)) {
+      return false;
+    }
+  }
+
+  return true;
 }
