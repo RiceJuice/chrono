@@ -110,7 +110,9 @@ abstract final class ScheduleLiveActivityResolver {
     for (var i = 0; i < visible.length; i++) {
       final schedule = visible[i];
       if (!AppDateTime.isTodayLocal(schedule.startTime, now: now)) continue;
-      if (!CalendarNowAnchor.scheduleIsPast(schedule, now: now)) return i;
+      final next = i + 1 < visible.length ? visible[i + 1] : null;
+      final segmentEnd = _effectiveEnd(schedule, next);
+      if (AppDateTime.toLocal(segmentEnd).isAfter(now)) return i;
     }
     return null;
   }
@@ -155,13 +157,18 @@ abstract final class ScheduleLiveActivityResolver {
     });
     if (visible.isEmpty) return true;
 
-    final lastToday = visible.where(
-      (s) => AppDateTime.isTodayLocal(s.startTime, now: clock),
-    );
-    if (lastToday.isEmpty) return true;
+    final todayList = visible
+        .where((s) => AppDateTime.isTodayLocal(s.startTime, now: clock))
+        .toList()
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    if (todayList.isEmpty) return true;
 
-    return lastToday.every(
-      (s) => CalendarNowAnchor.scheduleIsPast(s, now: clock),
-    );
+    for (var i = 0; i < todayList.length; i++) {
+      final next = i + 1 < todayList.length ? todayList[i + 1] : null;
+      if (!CalendarNowAnchor.scheduleIsPast(todayList[i], next: next, now: clock)) {
+        return false;
+      }
+    }
+    return true;
   }
 }

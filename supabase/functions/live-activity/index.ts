@@ -19,12 +19,16 @@ import {
 } from "../_shared/live_activity/event_snapshot.ts";
 import { sendLiveActivityToDevice } from "../_shared/live_activity/fcm_dispatch.ts";
 import {
+  mergeTimetableRowsForDay,
+  type TimetableCalendarRow,
+} from "../_shared/live_activity/series_occurrences.ts";
+import {
   buildTimetableSnapshot,
   dayBoundsBerlin,
   emptyTimetableContentState,
   timetableSnapshotToContentState,
 } from "../_shared/live_activity/timetable_snapshot.ts";
-import type { CalendarEventRow, LiveActivityKind, RequestBody, ScheduleRow } from "../_shared/live_activity/types.ts";
+import type { CalendarEventRow, LiveActivityKind, ProfileRow, RequestBody, ScheduleRow } from "../_shared/live_activity/types.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,21 +100,43 @@ async function loadProfile(
   return data;
 }
 
-async function loadTimetableRows(
+async function loadMergedTimetableRows(
   supabase: ReturnType<typeof createClient>,
   dayDate: string,
-) {
+  profile: ProfileRow,
+): Promise<TimetableCalendarRow[]> {
   const bounds = dayBoundsBerlin(dayDate);
-  const { data, error } = await supabase
-    .from("calendar_events")
-    .select("id, event_name, type, start_time, end_time, class, schooltrack, image_paths")
-    .in("type", ["lesson", "meal"])
-    .gte("start_time", bounds.start)
-    .lte("start_time", bounds.end)
-    .order("start_time", { ascending: true });
+  const dayDateOnly = dayDate.slice(0, 10);
 
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const [{ data: events, error: eventsError }, { data: series, error: seriesError }] =
+    await Promise.all([
+      supabase
+        .from("calendar_events")
+        .select(
+          "id, event_name, type, start_time, end_time, class, schooltrack, image_paths, series_id, recurrence_id",
+        )
+        .in("type", ["lesson", "meal"])
+        .gte("start_time", bounds.start)
+        .lte("start_time", bounds.end),
+      supabase
+        .from("calendar_series")
+        .select(
+          "id, event_name, type, rrule, series_start, series_end, start_time, end_time, class, schooltrack",
+        )
+        .in("type", ["lesson", "meal"])
+        .lte("series_start", dayDateOnly)
+        .or(`series_end.is.null,series_end.gte.${dayDateOnly}`),
+    ]);
+
+  if (eventsError) throw new Error(eventsError.message);
+  if (seriesError) throw new Error(seriesError.message);
+
+  return mergeTimetableRowsForDay(
+    dayDateOnly,
+    events ?? [],
+    series ?? [],
+    profile,
+  );
 }
 
 function resolveFcmEvent(
@@ -233,7 +259,7 @@ async function handleTimetableDispatch(
     return jsonResponse({ processed: 0, sent: 0, skipped: 0, mode: "dispatch", kind: "timetable" });
   }
 
-  const rows = await loadTimetableRows(supabase, dayDate);
+  const rows = await loadMergedTimetableRows(supabase, dayDate, profile);
   const snapshot = action === "end"
     ? null
     : buildTimetableSnapshot(dayDate, rows, profile, now);
@@ -417,7 +443,6 @@ async function handleTimetableChange(
     .not("fcm_token", "is", null);
 
   const userIds = [...new Set((userRows ?? []).map((r) => r.user_id as string))];
-  const rows = await loadTimetableRows(supabase, dayDate);
 
   let sent = 0;
   let skipped = 0;
@@ -427,7 +452,8 @@ async function handleTimetableChange(
     const profile = await loadProfile(supabase, userId);
     if (!profile) continue;
 
-    const snapshot = buildTimetableSnapshot(dayDate, rows, profile, now);
+    const rows = await loadMergedTimetableRows(supabase, dayDate, profile as ProfileRow);
+    const snapshot = buildTimetableSnapshot(dayDate, rows, profile as ProfileRow, now);
     if (!snapshot) continue;
 
     const devices = await loadTimetableDevices(supabase, userId);

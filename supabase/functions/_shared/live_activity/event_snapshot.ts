@@ -20,13 +20,15 @@ export function isEventType(raw: string | null | undefined): boolean {
 
 export function effectiveEnd(
   schedule: Pick<ScheduleRow, "start_time" | "end_time">,
+  next?: Pick<ScheduleRow, "start_time"> | null,
 ): Date {
-  const endRaw = schedule.end_time ?? schedule.start_time;
-  const end = new Date(endRaw);
-  if (schedule.end_time == null) {
-    return new Date(end.getTime() + 45 * 60_000);
+  if (schedule.end_time != null) {
+    return new Date(schedule.end_time);
   }
-  return end;
+  if (next != null) {
+    return new Date(next.start_time);
+  }
+  return new Date(new Date(schedule.start_time).getTime() + 45 * 60_000);
 }
 
 export function scheduleVisibleForProfile(
@@ -97,7 +99,8 @@ export function buildEventSnapshot(
 
   let currentIndex = -1;
   for (let i = 0; i < visibleToday.length; i++) {
-    if (effectiveEnd(visibleToday[i]) > now) {
+    const next = i + 1 < visibleToday.length ? visibleToday[i + 1] : null;
+    if (effectiveEnd(visibleToday[i], next) > now) {
       currentIndex = i;
       break;
     }
@@ -117,7 +120,7 @@ export function buildEventSnapshot(
     nextTitle: next?.title ?? "",
     nextSubtitle: next?.location ?? "",
     segmentStartMs: new Date(current.start_time).getTime(),
-    segmentEndMs: effectiveEnd(current).getTime(),
+    segmentEndMs: effectiveEnd(current, next).getTime(),
   };
 }
 

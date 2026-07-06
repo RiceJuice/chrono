@@ -77,6 +77,40 @@ void main() {
   group('ScheduleLiveActivityResolver', () {
     const filters = CalendarFiltersState();
 
+    test('segmentEndMs bis zum nächsten Punkt ohne explizite Endzeit', () {
+      final aufbauenStart = DateTime(2026, 7, 6, 8, 0);
+      final abbauenStart = DateTime(2026, 7, 6, 10, 0);
+      final now = DateTime(2026, 7, 6, 8, 30);
+
+      final snapshot = ScheduleLiveActivityResolver.resolve(
+        eventId: 'event-1',
+        schedules: [
+          EventSchedule(
+            id: 'sched-1',
+            eventId: 'event-1',
+            title: 'Aufbauen',
+            startTime: aufbauenStart,
+          ),
+          EventSchedule(
+            id: 'sched-2',
+            eventId: 'event-1',
+            title: 'Abbauen',
+            startTime: abbauenStart,
+          ),
+        ],
+        listFilter: EventScheduleListFilter.all,
+        filters: filters,
+        now: now,
+      );
+
+      expect(snapshot, isNotNull);
+      expect(snapshot!.currentTitle, 'Aufbauen');
+      expect(snapshot.segmentStartMs, aufbauenStart.millisecondsSinceEpoch);
+      expect(snapshot.segmentEndMs, abbauenStart.millisecondsSinceEpoch);
+      expect(snapshot.hasNext, isTrue);
+      expect(snapshot.nextTitle, 'Abbauen');
+    });
+
     test('segmentStartMs und segmentEndMs aus Schedule-Zeiten', () {
       final start = DateTime(2026, 6, 24, 14, 0);
       final end = DateTime(2026, 6, 24, 14, 45);

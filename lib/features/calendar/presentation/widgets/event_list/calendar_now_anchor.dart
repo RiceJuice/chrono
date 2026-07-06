@@ -28,19 +28,44 @@ abstract final class CalendarNowAnchor {
   }) {
     final clock = now ?? DateTime.now();
     for (var i = 0; i < schedules.length; i++) {
-      final end = scheduleEffectiveEnd(schedules[i]);
+      final end = scheduleEffectiveEndAt(schedules, i);
       if (AppDateTime.toLocal(end).isAfter(clock)) return i;
     }
     return schedules.length;
   }
 
-  static DateTime scheduleEffectiveEnd(EventSchedule schedule) {
-    return schedule.endTime ?? schedule.startTime;
+  /// Effektives Segmentende: explizite [endTime], sonst Start des nächsten Punkts,
+  /// sonst +45 Minuten (letzter Punkt ohne Ende).
+  static DateTime scheduleEffectiveEnd(
+    EventSchedule schedule, {
+    EventSchedule? next,
+  }) {
+    if (schedule.endTime != null) {
+      return AppDateTime.toLocal(schedule.endTime!);
+    }
+    if (next != null) {
+      return AppDateTime.toLocal(next.startTime);
+    }
+    return AppDateTime.toLocal(schedule.startTime)
+        .add(const Duration(minutes: 45));
   }
 
-  static bool scheduleIsPast(EventSchedule schedule, {DateTime? now}) {
+  static DateTime scheduleEffectiveEndAt(
+    List<EventSchedule> schedules,
+    int index,
+  ) {
+    final schedule = schedules[index];
+    final next = index + 1 < schedules.length ? schedules[index + 1] : null;
+    return scheduleEffectiveEnd(schedule, next: next);
+  }
+
+  static bool scheduleIsPast(
+    EventSchedule schedule, {
+    EventSchedule? next,
+    DateTime? now,
+  }) {
     return AppDateTime.isPastInstant(
-      scheduleEffectiveEnd(schedule),
+      scheduleEffectiveEnd(schedule, next: next),
       now: now,
     );
   }
@@ -58,9 +83,11 @@ abstract final class CalendarNowAnchor {
     DateTime? now,
   }) {
     final clock = now ?? DateTime.now();
-    for (final schedule in schedules) {
+    for (var i = 0; i < schedules.length; i++) {
+      final schedule = schedules[i];
       if (!scheduleApplyPastStyling(schedule, now: now)) continue;
-      if (scheduleIsPast(schedule, now: now)) return true;
+      final next = i + 1 < schedules.length ? schedules[i + 1] : null;
+      if (scheduleIsPast(schedule, next: next, now: now)) return true;
       if (AppDateTime.toLocal(schedule.startTime).isBefore(clock)) return true;
     }
     return false;
@@ -78,7 +105,8 @@ abstract final class CalendarNowAnchor {
       final schedule = schedules[i];
       if (isVisible != null && !isVisible(schedule)) continue;
       if (!scheduleApplyPastStyling(schedule, now: now)) continue;
-      if (!scheduleIsPast(schedule, now: now)) return i;
+      final next = i + 1 < schedules.length ? schedules[i + 1] : null;
+      if (!scheduleIsPast(schedule, next: next, now: now)) return i;
     }
     return null;
   }

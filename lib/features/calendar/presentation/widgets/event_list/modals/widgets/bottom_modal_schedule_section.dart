@@ -497,6 +497,9 @@ class _BottomModalScheduleSectionState
               ),
               child: _buildScheduleRow(
                 schedule: widget.schedules[scheduleIndex],
+                nextSchedule: scheduleIndex + 1 < widget.schedules.length
+                    ? widget.schedules[scheduleIndex + 1]
+                    : null,
                 gapAfter: gap,
                 isLast: scheduleIndex == widget.schedules.length - 1,
               ),
@@ -534,6 +537,9 @@ class _BottomModalScheduleSectionState
               curve: _collapseCurve,
               child: _ScheduleItemCard(
                 schedule: widget.schedules[i],
+                nextSchedule: i + 1 < widget.schedules.length
+                    ? widget.schedules[i + 1]
+                    : null,
                 eventLayout: widget.eventLayout,
               ),
             ),
@@ -554,6 +560,7 @@ class _BottomModalScheduleSectionState
 
   Widget _buildScheduleRow({
     required EventSchedule schedule,
+    EventSchedule? nextSchedule,
     required double gapAfter,
     required bool isLast,
   }) {
@@ -565,6 +572,7 @@ class _BottomModalScheduleSectionState
       curve: _collapseCurve,
       child: _ScheduleItemCard(
         schedule: schedule,
+        nextSchedule: nextSchedule,
         eventLayout: widget.eventLayout,
         applyPastStyling: CalendarNowAnchor.scheduleApplyPastStyling(schedule),
       ),
@@ -716,19 +724,25 @@ class _CollapsingScheduleSlot extends StatelessWidget {
 class _ScheduleItemCard extends StatelessWidget {
   const _ScheduleItemCard({
     required this.schedule,
+    this.nextSchedule,
     required this.eventLayout,
     this.applyPastStyling = false,
   });
 
   final EventSchedule schedule;
+  final EventSchedule? nextSchedule;
   final bool eventLayout;
   final bool applyPastStyling;
 
   String _formatTimeRange() {
     final start = AppDateTime.formatLocalHourMinute(schedule.startTime);
-    final end = schedule.endTime;
-    if (end == null) return start;
-    return '$start – ${AppDateTime.formatLocalHourMinute(end)}';
+    if (schedule.endTime != null) {
+      return '$start – ${AppDateTime.formatLocalHourMinute(schedule.endTime!)}';
+    }
+    if (nextSchedule != null) {
+      return '$start – ${AppDateTime.formatLocalHourMinute(nextSchedule!.startTime)}';
+    }
+    return start;
   }
 
   @override
@@ -738,7 +752,7 @@ class _ScheduleItemCard extends StatelessWidget {
     final description = (schedule.description ?? '').trim();
     final location = (schedule.location ?? '').trim();
     final mutedColor = scheme.onSurface.withValues(alpha: AppOpacity.secondaryContent);
-    final isPast = CalendarNowAnchor.scheduleIsPast(schedule);
+    final isPast = CalendarNowAnchor.scheduleIsPast(schedule, next: nextSchedule);
     final usePastStyle = applyPastStyling && isPast;
 
     if (eventLayout) {

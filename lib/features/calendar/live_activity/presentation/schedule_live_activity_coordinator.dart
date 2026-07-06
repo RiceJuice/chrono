@@ -230,16 +230,18 @@ class ScheduleLiveActivityCoordinator {
 
       if (visibleToday.isEmpty) continue;
 
-      final last = visibleToday.reduce((a, b) {
-        final aEnd = CalendarNowAnchor.scheduleEffectiveEnd(a);
-        final bEnd = CalendarNowAnchor.scheduleEffectiveEnd(b);
-        return aEnd.isAfter(bEnd) ? a : b;
-      });
+      visibleToday.sort((a, b) => a.startTime.compareTo(b.startTime));
+      var dayEnd = CalendarNowAnchor.scheduleEffectiveEnd(visibleToday.first);
+      for (var i = 0; i < visibleToday.length; i++) {
+        final next = i + 1 < visibleToday.length ? visibleToday[i + 1] : null;
+        final end = CalendarNowAnchor.scheduleEffectiveEnd(
+          visibleToday[i],
+          next: next,
+        );
+        if (end.isAfter(dayEnd)) dayEnd = end;
+      }
 
-      ends.add((
-        eventId: eventId,
-        end: CalendarNowAnchor.scheduleEffectiveEnd(last),
-      ));
+      ends.add((eventId: eventId, end: dayEnd));
     }
 
     for (final event in eventsWithoutSchedule) {
