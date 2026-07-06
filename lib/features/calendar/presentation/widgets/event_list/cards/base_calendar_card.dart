@@ -45,6 +45,9 @@ class BaseCalendarCard extends StatelessWidget {
   /// Offene Hausaufgaben für diese Stunde (Tageslisten-Karten).
   final int openHomeworkCount;
 
+  /// Ersetzt den Karten-Titel (z. B. Schulaufgabe statt Fachname).
+  final String? titleOverride;
+
   const BaseCalendarCard({
     super.key,
     required this.entry,
@@ -64,6 +67,7 @@ class BaseCalendarCard extends StatelessWidget {
     this.neighborGlassBlurSigma,
     this.neighborGlassTintAlpha,
     this.openHomeworkCount = 0,
+    this.titleOverride,
   });
 
   @override
@@ -116,6 +120,7 @@ class BaseCalendarCard extends StatelessWidget {
                           showChoirAboveTitle: showChoirAboveTitle,
                           titleFontSize: titleFontSize,
                           titleFontWeight: titleFontWeight,
+                          titleOverride: titleOverride,
                         ),
                       ),
                     ),
@@ -234,6 +239,7 @@ class BaseCalendarCard extends StatelessWidget {
                     titleFontWeight: titleFontWeight,
                     showInlineTimeRange: inlineTime,
                     openHomeworkCount: openHomeworkCount,
+                    titleOverride: titleOverride,
                   ),
                 ),
               ],

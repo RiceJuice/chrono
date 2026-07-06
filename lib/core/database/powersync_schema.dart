@@ -13,6 +13,7 @@ const String kHomeworkSyntaxSuggestionsTable = 'homework_syntax_suggestions';
 const String kHomeworkContributionsTable = 'homework_contributions';
 const String kHomeworkTasksTable = 'homework_tasks';
 const String kHomeworkPeerDismissalsTable = 'homework_peer_dismissals';
+const String kSchoolAssessmentsTable = 'school_assessments';
 
 /// Client-Schema für [kCalendarEventsTable] — Spalten wie in Supabase/Postgres
 /// und [CalendarEntry]/[CalendarEntryMapper].
@@ -233,6 +234,28 @@ const powersyncSchema = Schema([
       Index(
         'homework_peer_dismissals_profile',
         [IndexedColumn('profile_id')],
+      ),
+    ],
+  ),
+  Table(
+    kSchoolAssessmentsTable,
+    [
+      Column.text('profile_id'),
+      Column.text('kind'),
+      Column.text('subject_id'),
+      Column.text('scheduled_at'),
+      Column.text('schedule_source'),
+      Column.text('created_at'),
+      Column.text('updated_at'),
+    ],
+    indexes: [
+      Index(
+        'school_assessments_profile',
+        [IndexedColumn('profile_id')],
+      ),
+      Index(
+        'school_assessments_subject_scheduled',
+        [IndexedColumn('subject_id'), IndexedColumn('scheduled_at')],
       ),
     ],
   ),

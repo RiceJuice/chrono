@@ -204,3 +204,25 @@ streams:
              AND status = 'confirmed'
              AND child_share_permissions->>'homework' = 'true'
          )
+
+  school_assessments:
+    auto_subscribe: true
+    query: |
+      SELECT
+        id,
+        profile_id,
+        kind,
+        subject_id,
+        scheduled_at,
+        schedule_source,
+        created_at,
+        updated_at
+      FROM school_assessments
+      WHERE profile_id = auth.user_id()
+         OR profile_id IN (
+           SELECT child_id
+           FROM guardian_child_links
+           WHERE guardian_id = auth.user_id()
+             AND status = 'confirmed'
+             AND COALESCE((child_share_permissions->>'school')::boolean, false)
+         )

@@ -83,6 +83,7 @@ class CalendarCompactCardText extends StatelessWidget {
     this.showChoirAboveTitle = false,
     this.titleFontSize,
     this.titleFontWeight,
+    this.titleOverride,
   });
 
   final CalendarEntry entry;
@@ -92,6 +93,7 @@ class CalendarCompactCardText extends StatelessWidget {
   final bool showChoirAboveTitle;
   final double? titleFontSize;
   final FontWeight? titleFontWeight;
+  final String? titleOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +120,7 @@ class CalendarCompactCardText extends StatelessWidget {
               compact: true,
               compactTitleMaxLines: layout.titleMaxLines,
               showInlineTimeRange: layout.showTimeRange,
+              titleOverride: titleOverride,
             ),
           ),
         );
@@ -260,6 +263,7 @@ class TextContent extends StatelessWidget {
     this.showInlineTimeRange = false,
     this.descriptionMaxLines,
     this.openHomeworkCount = 0,
+    this.titleOverride,
   });
 
   final CalendarEntry entry;
@@ -282,6 +286,9 @@ class TextContent extends StatelessWidget {
   /// Offene Hausaufgaben für diese Stunde (nur Tageslisten-Karten).
   final int openHomeworkCount;
 
+  /// Ersetzt den Karten-Titel (z. B. Schulaufgabe statt Fachname).
+  final String? titleOverride;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -300,7 +307,7 @@ class TextContent extends StatelessWidget {
         !(preferLocationOnCard && trimmedLocation.isNotEmpty);
     final subtitleColor =
         secondaryTextColor ?? theme.colorScheme.onSurface;
-    final title = calendarEntryCardTitle(entry, compact: compact);
+    final title = titleOverride ?? calendarEntryCardTitle(entry, compact: compact);
     final showHomeworkRow = !compact &&
         openHomeworkCount > 0 &&
         entry.type == CalendarEntryType.lesson;

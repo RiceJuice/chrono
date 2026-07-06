@@ -2,8 +2,21 @@ import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/app_hairline_divider.dart';
 import 'package:chronoapp/core/widgets/app_sheet_drag_handle.dart';
 import 'package:figma_squircle/figma_squircle.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+enum HomeworkCreateKind {
+  task,
+  assessment,
+}
+
+extension HomeworkCreateKindLabels on HomeworkCreateKind {
+  String get label => switch (this) {
+        HomeworkCreateKind.task => 'Aufgabe',
+        HomeworkCreateKind.assessment => 'Klausur',
+      };
+}
 
 /// Gruppierte Formular-Karte im Stil der Einstellungs-Inseln.
 class HomeworkFormGroup extends StatelessWidget {
@@ -105,6 +118,79 @@ class HomeworkFormModalHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class HomeworkCreateKindSegmentedControl extends StatelessWidget {
+  const HomeworkCreateKindSegmentedControl({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final HomeworkCreateKind value;
+  final ValueChanged<HomeworkCreateKind> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final textStyle = theme.textTheme.labelLarge?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.s,
+        AppSpacing.xl,
+        AppSpacing.l,
+      ),
+      child: Center(
+        child: SizedBox(
+          width: 184,
+          child: CupertinoSlidingSegmentedControl<HomeworkCreateKind>(
+            groupValue: value,
+            padding: const EdgeInsets.all(3),
+            backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.72),
+            thumbColor: scheme.surface,
+            onValueChanged: (nextValue) {
+              if (nextValue == null) return;
+              onChanged(nextValue);
+            },
+            children: {
+              for (final kind in HomeworkCreateKind.values)
+                kind: _HomeworkCreateKindSegment(
+                  label: kind.label,
+                  style: textStyle,
+                ),
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeworkCreateKindSegment extends StatelessWidget {
+  const _HomeworkCreateKindSegment({required this.label, required this.style});
+
+  final String label;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: Center(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        ),
+      ),
     );
   }
 }

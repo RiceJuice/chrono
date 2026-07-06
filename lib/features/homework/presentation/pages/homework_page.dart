@@ -9,7 +9,7 @@ import 'package:chronoapp/features/homework/presentation/providers/homework_prov
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_permissions.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_page_header.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_peer_suggestion_tile.dart';
-import 'package:chronoapp/features/homework/presentation/widgets/homework_task_form_sheet.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_create_form_sheet.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_task_swipe_to_delete.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +20,7 @@ class HomeworkPage extends ConsumerWidget {
   Future<void> _openCreateSheet(BuildContext context) async {
     if (AppModalSheetTracker.depth.value > 0) return;
     AppHaptics.light();
-    await HomeworkTaskFormSheet.show(context);
+    await HomeworkCreateFormSheet.show(context);
   }
 
   Future<void> _acceptSuggestion(

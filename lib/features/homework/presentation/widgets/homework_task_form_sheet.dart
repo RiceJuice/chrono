@@ -12,7 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeworkTaskFormSheet extends ConsumerStatefulWidget {
-  const HomeworkTaskFormSheet({super.key});
+  const HomeworkTaskFormSheet({super.key, this.embedded = false});
+
+  final bool embedded;
 
   static Future<void> show(BuildContext context) {
     return AppModalSheet.show<void>(
@@ -166,14 +168,15 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const HomeworkFormModalHeader(title: 'Neue Aufgabe'),
+            if (!widget.embedded)
+              const HomeworkFormModalHeader(title: 'Neue Aufgabe'),
             Expanded(
               child: ListView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.xl,
-                  AppSpacing.s,
+                  widget.embedded ? AppSpacing.l : AppSpacing.s,
                   AppSpacing.xl,
                   AppSpacing.l + bottomInset,
                 ),
@@ -190,7 +193,7 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
                         ),
                         child: TextFormField(
                           controller: _titleController,
-                          autofocus: true,
+                          autofocus: !widget.embedded,
                           minLines: 2,
                           maxLines: 4,
                           textCapitalization: TextCapitalization.sentences,

@@ -8,7 +8,11 @@ import 'package:chronoapp/features/calendar/presentation/widgets/event_list/moda
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/bottom_modal_schedule_section.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/event_bottom_modal_typography.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/features/school_assessments/domain/models/school_assessment_kind.dart';
+import 'package:chronoapp/features/school_assessments/domain/school_assessment_lesson_lookup.dart';
+import 'package:chronoapp/features/school_assessments/presentation/providers/school_assessment_providers.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_lesson_pending_hint.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/modals/widgets/lesson_assessment_create_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -327,6 +331,13 @@ class _StandardBottomModalTextContent extends ConsumerWidget {
     final locationText = (entry.location ?? '').trim();
     final schedulesAsync = ref.watch(eventSchedulesForEntryProvider(entry.id));
     final isLesson = entry.type == CalendarEntryType.lesson;
+    final assessmentLookupKey = isLesson
+        ? schoolAssessmentLessonLookupKeyForEntry(entry)
+        : null;
+    final assessment = assessmentLookupKey == null
+        ? null
+        : ref.watch(schoolAssessmentForLessonKeyProvider(assessmentLookupKey));
+    final lessonTitle = assessment?.kind.label ?? entry.eventName;
     final weekdaysAsync = isLesson
         ? ref.watch(
             lessonWeekdaysForEntryProvider(
@@ -353,7 +364,7 @@ class _StandardBottomModalTextContent extends ConsumerWidget {
             const SizedBox(height: AppSpacing.s),
           ],
           Text(
-            entry.eventName,
+            lessonTitle,
             style: titleStyle ?? theme.textTheme.titleLarge,
           ),
           const SizedBox(height: AppSpacing.m),
@@ -388,6 +399,7 @@ class _StandardBottomModalTextContent extends ConsumerWidget {
               entry: entry,
               accentColor: resolveCalendarEntryAccent(ref, entry),
             ),
+            LessonAssessmentCreateSection(entry: entry),
           ],
           if (descriptionText.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.l),

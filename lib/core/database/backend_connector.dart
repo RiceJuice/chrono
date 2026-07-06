@@ -197,7 +197,9 @@ class BackendConnector extends PowerSyncBackendConnector {
 
             op.table == kHomeworkContributionsTable ||
 
-            op.table == kHomeworkPeerDismissalsTable,
+            op.table == kHomeworkPeerDismissalsTable ||
+
+            op.table == kSchoolAssessmentsTable,
 
       );
 

@@ -2,6 +2,7 @@ import 'package:powersync/powersync.dart';
 import 'package:rrule/rrule.dart';
 import 'package:sqlite3/common.dart';
 
+import '../../../../core/database/backend_enums.dart';
 import '../../../../core/database/powersync_schema.dart';
 import '../../../../core/time/app_date_time.dart';
 import '../domain/calendar_series_edit_state.dart';
@@ -71,11 +72,13 @@ class CalendarEventSeriesReader {
   Stream<Set<int>> watchLessonWeekdays({
     required String? subjectId,
     required String? seriesId,
+    required BackendSchoolTrack schoolTrack,
     required int fallbackWeekday,
   }) {
     if (subjectId != null && subjectId.isNotEmpty) {
       return watchWeekdaysForSubject(
         subjectId,
+        schoolTrack: schoolTrack,
         fallbackWeekday: fallbackWeekday,
       );
     }
@@ -90,16 +93,31 @@ class CalendarEventSeriesReader {
 
   Stream<Set<int>> watchWeekdaysForSubject(
     String subjectId, {
+    required BackendSchoolTrack schoolTrack,
     required int fallbackWeekday,
   }) {
-    return _db
-        .watch(
-          '''
+    final schoolTrackFilter = schoolTrack.toBackend();
+    final query = schoolTrackFilter == null
+        ? '''
           SELECT rrule, series_start
           FROM $kCalendarSeriesTable
           WHERE subject_id = ? AND type = 'lesson'
-          ''',
-          parameters: [subjectId],
+          '''
+        : '''
+          SELECT rrule, series_start
+          FROM $kCalendarSeriesTable
+          WHERE subject_id = ?
+            AND type = 'lesson'
+            AND LOWER(COALESCE(schooltrack, '')) = LOWER(?)
+          ''';
+    final parameters = schoolTrackFilter == null
+        ? [subjectId]
+        : [subjectId, schoolTrackFilter];
+
+    return _db
+        .watch(
+          query,
+          parameters: parameters,
           triggerOnTables: const {kCalendarSeriesTable},
         )
         .map((rows) => _resolveWeekdays(rows, fallbackWeekday: fallbackWeekday));

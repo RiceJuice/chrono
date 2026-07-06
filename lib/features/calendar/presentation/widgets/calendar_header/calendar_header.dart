@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/widgets/app_hairline_divider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_view_options.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/calendar_week_layout_tokens.dart';
@@ -278,39 +279,8 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
                             curve: _headerMorphCurve,
                             scale: widget.weekTimetableMode ? 1 : 0.94,
                             alignment: Alignment.centerRight,
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 8, right: 2),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const SizedBox(
-                                    height: kCalendarDaysOfWeekHeight,
-                                    width: double.infinity,
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Text(
-                                        'KW',
-                                        style: TextStyle(
-                                          color: Color(0xFF4F4F4F),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    height: kCalendarDayRowHeight,
-                                    width: double.infinity,
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Text(
-                                        '$weekNumber',
-                                        style: DefaultTextStyle.of(
-                                          context,
-                                        ).style,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            child: _CalendarWeekNumberGutter(
+                              weekNumber: weekNumber,
                             ),
                           ),
                         ),
@@ -382,6 +352,68 @@ class _CalendarHeaderState extends ConsumerState<CalendarHeader> {
     );
 
     return 1 + thursday.difference(weekOneThursday).inDays ~/ 7;
+  }
+}
+
+/// Dezente Kalenderwoche links neben dem Wochenkopf — auf Höhe der Wochentage.
+class _CalendarWeekNumberGutter extends StatelessWidget {
+  const _CalendarWeekNumberGutter({required this.weekNumber});
+
+  final int weekNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final weekdayStyle = theme.textTheme.labelSmall?.copyWith(
+      color: scheme.onSurface.withValues(alpha: 0.55),
+      fontWeight: FontWeight.w600,
+    );
+    final weekNumberStyle = theme.textTheme.labelSmall?.copyWith(
+      color: scheme.onSurface.withValues(alpha: 0.65),
+      fontWeight: FontWeight.w600,
+    );
+
+    return SizedBox(
+      height: kCalendarWeekDayHeaderHeight,
+      child: Row(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 4, right: 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: kCalendarDaysOfWeekHeight,
+                    width: double.infinity,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Transform.translate(
+                        offset: const Offset(
+                          0,
+                          kCalendarWeekdayLabelOffsetY,
+                        ),
+                        child: Text('KW', style: weekdayStyle),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: kCalendarDayRowHeight,
+                    width: double.infinity,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text('$weekNumber', style: weekNumberStyle),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AppHairlineDivider.vertical(indent: 8, endIndent: 8),
+        ],
+      ),
+    );
   }
 }
 
