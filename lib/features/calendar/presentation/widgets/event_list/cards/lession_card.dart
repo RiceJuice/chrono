@@ -1,11 +1,9 @@
-import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/theme/calendar_presentation_theme.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/base_calendar_card.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/leading_indicator/calendar_card_leading_indicator.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/lesson_assessment_preview_badge.dart';
-import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/lesson_homework_pending_badge.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/lesson_card_indicators.dart';
 import 'package:chronoapp/features/homework/domain/homework_tasks_for_lesson.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
 import 'package:chronoapp/features/homework/presentation/providers/homework_lesson_providers.dart';
@@ -53,8 +51,6 @@ class LessionCard extends ConsumerWidget {
     final openTasks = lookupKey == null
         ? const <HomeworkTask>[]
         : ref.watch(openHomeworkTasksForLessonKeyProvider(lookupKey));
-    final showHomeworkBadge =
-        !modalHeaderPreview && openTasks.isNotEmpty;
 
     final assessmentLookupKey = schoolAssessmentLessonLookupKeyForEntry(entry);
     final assessment = assessmentLookupKey == null
@@ -63,8 +59,13 @@ class LessionCard extends ConsumerWidget {
     final previewAssessment = assessment == null && assessmentLookupKey != null
         ? ref.watch(schoolAssessmentPreviewForLessonKeyProvider(assessmentLookupKey))
         : null;
-    final showPreviewBadge =
-        !modalHeaderPreview && previewAssessment != null;
+
+    final homeworkCount = openTasks.length;
+    final showCornerIndicators = !modalHeaderPreview &&
+        weekGridCompact &&
+        (homeworkCount > 0 ||
+            assessment != null ||
+            previewAssessment != null);
 
     final titleOverride = assessment?.kind.label;
 
@@ -93,19 +94,22 @@ class LessionCard extends ConsumerWidget {
           neighborGlassBlurSigma: neighborGlassBlurSigma,
           neighborGlassTintAlpha: neighborGlassTintAlpha,
           openHomeworkCount: weekGridCompact ? 0 : openTasks.length,
+          assessmentKind: assessment?.kind,
+          previewAssessmentKind: previewAssessment?.kind,
           titleOverride: titleOverride,
+          titleFontWeight: assessment != null ? FontWeight.w700 : null,
+          accentBorderColor: assessment != null ? accent : null,
         ),
-        if (showHomeworkBadge)
+        if (showCornerIndicators)
           Positioned(
             top: 4,
-            right: weekGridCompact ? 4 : AppSpacing.l + 4,
-            child: LessonHomeworkPendingBadge(count: openTasks.length),
-          ),
-        if (showPreviewBadge)
-          Positioned(
-            top: 4,
-            left: weekGridCompact ? 4 : AppSpacing.l + 4,
-            child: LessonAssessmentPreviewBadge(kind: previewAssessment.kind),
+            right: 4,
+            child: LessonCardIndicatorsBox(
+              homeworkCount: homeworkCount,
+              assessmentKind: assessment?.kind,
+              previewAssessmentKind: previewAssessment?.kind,
+              compact: true,
+            ),
           ),
       ],
     );
@@ -122,7 +126,7 @@ class LessionCard extends ConsumerWidget {
       accent,
     );
     if (hasAssessment) {
-      base = Color.lerp(base, accent, 0.08) ?? base;
+      base = Color.lerp(base, accent, 0.14) ?? base;
     }
     if (!isOtherSchoolTrack) return base;
     return CalendarPresentationTheme.dimmedSurface(context, base);

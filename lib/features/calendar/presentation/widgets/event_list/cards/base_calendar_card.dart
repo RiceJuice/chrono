@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/school_assessments/domain/models/school_assessment_kind.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/leading_indicator/calendar_card_leading_indicator.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/time_column.dart';
@@ -48,6 +49,15 @@ class BaseCalendarCard extends StatelessWidget {
   /// Ersetzt den Karten-Titel (z. B. Schulaufgabe statt Fachname).
   final String? titleOverride;
 
+  /// Schultermin direkt in dieser Stunde.
+  final SchoolAssessmentKind? assessmentKind;
+
+  /// Vorschau eines Schultermins in einer Woche.
+  final SchoolAssessmentKind? previewAssessmentKind;
+
+  /// Optionaler farbiger Rand (z. B. Schulaufgaben-Stunde).
+  final Color? accentBorderColor;
+
   const BaseCalendarCard({
     super.key,
     required this.entry,
@@ -68,6 +78,9 @@ class BaseCalendarCard extends StatelessWidget {
     this.neighborGlassTintAlpha,
     this.openHomeworkCount = 0,
     this.titleOverride,
+    this.assessmentKind,
+    this.previewAssessmentKind,
+    this.accentBorderColor,
   });
 
   @override
@@ -82,12 +95,13 @@ class BaseCalendarCard extends StatelessWidget {
     );
 
     final inlineTime = showInlineTimeRange ?? (!showTimeColumn);
+    final cardShape = _cardShape(accentBorderColor);
 
     if (weekGridCompact) {
       return Material(
         color: Colors.transparent,
         child: InkWell(
-          customBorder: AppSquircle.shape(AppRadius.s),
+          customBorder: cardShape,
           onTap: () {
             HapticFeedback.heavyImpact();
             BaseBottomModal.show(context, entry: entry);
@@ -98,7 +112,7 @@ class BaseCalendarCard extends StatelessWidget {
               height: double.infinity,
               decoration: ShapeDecoration(
                 color: style.cardBackgroundColor,
-                shape: AppSquircle.shape(AppRadius.s),
+                shape: cardShape,
               ),
               child: Padding(
                 padding: contentPadding,
@@ -106,7 +120,10 @@ class BaseCalendarCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (leadingIndicatorColor != null) ...[
-                      CalendarCardLeadingIndicator(color: leadingIndicatorColor!),
+                      CalendarCardLeadingIndicator(
+                        color: leadingIndicatorColor!,
+                        emphasized: assessmentKind != null,
+                      ),
                       const SizedBox(width: CalendarCardLeadingIndicator.gapAfterBar),
                     ],
                     Expanded(
@@ -198,7 +215,7 @@ class BaseCalendarCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onCardTap,
-          customBorder: AppSquircle.shape(AppRadius.s),
+          customBorder: cardShape,
           child: timeColumnMorphing ? row : IntrinsicHeight(child: row),
         ),
       ),
@@ -210,12 +227,14 @@ class BaseCalendarCard extends StatelessWidget {
     required CalendarCardStyle style,
     required bool inlineTime,
   }) {
+    final cardShape = _cardShape(accentBorderColor);
+
     Widget body = ClipSmoothRect(
       radius: AppSquircle.borderRadius(AppRadius.s),
       child: Container(
         decoration: ShapeDecoration(
           color: style.cardBackgroundColor,
-          shape: AppSquircle.shape(AppRadius.s),
+          shape: cardShape,
         ),
         child: Padding(
           padding: contentPadding,
@@ -224,7 +243,10 @@ class BaseCalendarCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (leadingIndicatorColor != null) ...[
-                  CalendarCardLeadingIndicator(color: leadingIndicatorColor!),
+                  CalendarCardLeadingIndicator(
+                    color: leadingIndicatorColor!,
+                    emphasized: assessmentKind != null,
+                  ),
                   const SizedBox(
                     width: CalendarCardLeadingIndicator.gapAfterBar,
                   ),
@@ -239,6 +261,8 @@ class BaseCalendarCard extends StatelessWidget {
                     titleFontWeight: titleFontWeight,
                     showInlineTimeRange: inlineTime,
                     openHomeworkCount: openHomeworkCount,
+                    assessmentKind: assessmentKind,
+                    previewAssessmentKind: previewAssessmentKind,
                     titleOverride: titleOverride,
                   ),
                 ),
@@ -261,6 +285,17 @@ class BaseCalendarCard extends StatelessWidget {
       tintAlpha: tintAlpha,
       borderRadius: AppSquircle.borderRadius(AppRadius.s),
       child: body,
+    );
+  }
+
+  static ShapeBorder _cardShape(Color? accentBorderColor) {
+    final base = AppSquircle.shape(AppRadius.s);
+    if (accentBorderColor == null) return base;
+    return base.copyWith(
+      side: BorderSide(
+        color: accentBorderColor.withValues(alpha: 0.72),
+        width: 2,
+      ),
     );
   }
 }

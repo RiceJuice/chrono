@@ -5,6 +5,7 @@ import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/core/widgets/app_sheet_drag_handle.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filtered_entries_providers.dart';
+import 'package:chronoapp/features/homework/presentation/providers/homework_providers.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_form_shell.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_subject_section.dart';
 import 'package:chronoapp/features/school_assessments/domain/models/school_assessment_kind.dart';
@@ -65,6 +66,7 @@ class _SchoolAssessmentFormSheetState
   CalendarEntry? _selectedLesson;
   bool _saving = false;
   String? _errorMessage;
+  bool _autoSubjectApplied = false;
 
   @override
   void initState() {
@@ -76,13 +78,28 @@ class _SchoolAssessmentFormSheetState
       _selectedDay = AppDateTime.localDay(initialLesson.startTime);
       _selectedLesson = initialLesson;
     } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _applyDefaultDay());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _applyAutoSubject();
+        _applyDefaultDay();
+      });
     }
+  }
+
+  void _applyAutoSubject() {
+    if (_autoSubjectApplied || _selectedSubjectId != null) return;
+    final subjectId = ref.read(currentSubjectIdProvider);
+    if (subjectId == null || subjectId.isEmpty) return;
+    setState(() {
+      _selectedSubjectId = subjectId;
+      _autoSubjectApplied = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyDefaultDay());
   }
 
   void _applyDefaultDay() {
     final subjectId = _selectedSubjectId?.trim();
     if (subjectId == null || subjectId.isEmpty) return;
+    if (_selectedDay != null && _selectedLesson != null) return;
 
     final entries = ref.read(filteredCalendarAllEntriesProvider).asData?.value;
     if (entries == null) return;
@@ -209,7 +226,7 @@ class _SchoolAssessmentFormSheetState
       await ref.read(schoolAssessmentActionsProvider).create((
         kind: _kind,
         subjectId: _selectedSubjectId!.trim(),
-        scheduledAt: _selectedLesson!.startTime.toLocal(),
+        scheduledAt: _selectedLesson!.startTime,
         scheduleSource: SchoolAssessmentScheduleSource.lessonSlot,
       ));
       if (!mounted) return;
@@ -228,6 +245,13 @@ class _SchoolAssessmentFormSheetState
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(filteredCalendarAllEntriesProvider, (previous, next) {
+      if (!_hasSubject || _saving) return;
+      if (_selectedDay != null && _selectedLesson != null) return;
+      next.whenData((_) => _applyDefaultDay());
+    });
+    ref.watch(filteredCalendarAllEntriesProvider);
+
     final scheme = Theme.of(context).colorScheme;
     final bottomInset = widget.embedded
         ? MediaQuery.viewInsetsOf(context).bottom
@@ -243,7 +267,12 @@ class _SchoolAssessmentFormSheetState
       return SafeArea(
         top: false,
         bottom: false,
-        child: formContent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: formContent),
+          ],
+        ),
       );
     }
 

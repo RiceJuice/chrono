@@ -78,6 +78,7 @@ class CalendarEventSeriesReader {
     if (subjectId != null && subjectId.isNotEmpty) {
       return watchWeekdaysForSubject(
         subjectId,
+        seriesId: seriesId,
         schoolTrack: schoolTrack,
         fallbackWeekday: fallbackWeekday,
       );
@@ -93,34 +94,31 @@ class CalendarEventSeriesReader {
 
   Stream<Set<int>> watchWeekdaysForSubject(
     String subjectId, {
+    String? seriesId,
     required BackendSchoolTrack schoolTrack,
     required int fallbackWeekday,
   }) {
-    final schoolTrackFilter = schoolTrack.toBackend();
-    final query = schoolTrackFilter == null
-        ? '''
-          SELECT rrule, series_start
-          FROM $kCalendarSeriesTable
-          WHERE subject_id = ? AND type = 'lesson'
-          '''
-        : '''
-          SELECT rrule, series_start
-          FROM $kCalendarSeriesTable
-          WHERE subject_id = ?
-            AND type = 'lesson'
-            AND LOWER(COALESCE(schooltrack, '')) = LOWER(?)
-          ''';
-    final parameters = schoolTrackFilter == null
-        ? [subjectId]
-        : [subjectId, schoolTrackFilter];
-
     return _db
         .watch(
-          query,
-          parameters: parameters,
+          '''
+          SELECT id, rrule, series_start, schooltrack
+          FROM $kCalendarSeriesTable
+          WHERE subject_id = ? AND type = 'lesson'
+          ''',
+          parameters: [subjectId],
           triggerOnTables: const {kCalendarSeriesTable},
         )
-        .map((rows) => _resolveWeekdays(rows, fallbackWeekday: fallbackWeekday));
+        .map((rows) {
+          final filtered = filterLessonWeekdaySeriesRows(
+            rows.map(_lessonWeekdaySeriesRowData),
+            schoolTrack: schoolTrack,
+            seriesId: seriesId,
+          );
+          return _resolveWeekdaysFromRowData(
+            filtered,
+            fallbackWeekday: fallbackWeekday,
+          );
+        });
   }
 
   Stream<Set<int>> watchWeekdaysForSeries(
@@ -145,14 +143,24 @@ class CalendarEventSeriesReader {
     ResultSet rows, {
     required int fallbackWeekday,
   }) {
+    return _resolveWeekdaysFromRowData(
+      rows.map(_lessonWeekdaySeriesRowData),
+      fallbackWeekday: fallbackWeekday,
+    );
+  }
+
+  Set<int> _resolveWeekdaysFromRowData(
+    Iterable<LessonWeekdaySeriesRow> rows, {
+    required int fallbackWeekday,
+  }) {
     final weekdays = _aggregateWeekdaysFromRows(rows);
     return weekdays.isEmpty ? {fallbackWeekday} : weekdays;
   }
 
-  Set<int> _aggregateWeekdaysFromRows(ResultSet rows) {
+  Set<int> _aggregateWeekdaysFromRows(Iterable<LessonWeekdaySeriesRow> rows) {
     final weekdays = <int>{};
     for (final row in rows) {
-      final seriesStartRaw = row['series_start']?.toString();
+      final seriesStartRaw = row.seriesStart;
       if (seriesStartRaw == null || seriesStartRaw.trim().isEmpty) {
         continue;
       }
@@ -161,7 +169,7 @@ class CalendarEventSeriesReader {
         DateTime.parse(seriesStartRaw.trim()),
       );
       final parsed = CalendarEventRruleCodec.fromStorageText(
-        row['rrule']?.toString(),
+        row.rrule,
         fallbackSeriesStart: seriesStart,
       );
       if (parsed == null || parsed.frequency != Frequency.weekly) {
@@ -171,4 +179,58 @@ class CalendarEventSeriesReader {
     }
     return weekdays;
   }
+}
+
+class LessonWeekdaySeriesRow {
+  const LessonWeekdaySeriesRow({
+    required this.id,
+    required this.schooltrack,
+    required this.rrule,
+    required this.seriesStart,
+  });
+
+  final String id;
+  final String? schooltrack;
+  final String? rrule;
+  final String? seriesStart;
+}
+
+LessonWeekdaySeriesRow _lessonWeekdaySeriesRowData(Row row) {
+  return LessonWeekdaySeriesRow(
+    id: row['id']?.toString() ?? '',
+    schooltrack: row['schooltrack']?.toString(),
+    rrule: row['rrule']?.toString(),
+    seriesStart: row['series_start']?.toString(),
+  );
+}
+
+/// Serienzeilen für die Wochentags-Anzeige nach Schulzweig filtern.
+List<LessonWeekdaySeriesRow> filterLessonWeekdaySeriesRows(
+  Iterable<LessonWeekdaySeriesRow> rows, {
+  required BackendSchoolTrack schoolTrack,
+  String? seriesId,
+}) {
+  final rowList = rows.toList(growable: false);
+  if (schoolTrack == BackendSchoolTrack.unknown) {
+    return rowList;
+  }
+
+  final matching = rowList
+      .where(
+        (row) =>
+            BackendSchoolTrackCodec.fromBackend(row.schooltrack) == schoolTrack,
+      )
+      .toList(growable: false);
+  if (matching.isNotEmpty) {
+    return matching;
+  }
+
+  final normalizedSeriesId = seriesId?.trim();
+  if (normalizedSeriesId == null || normalizedSeriesId.isEmpty) {
+    return const [];
+  }
+
+  return rowList
+      .where((row) => row.id == normalizedSeriesId)
+      .toList(growable: false);
 }

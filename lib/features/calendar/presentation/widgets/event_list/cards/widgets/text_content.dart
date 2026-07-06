@@ -2,7 +2,9 @@ import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/presentation/helpers/lesson_week_grid_display_name.dart';
+import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/lesson_card_indicators.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
+import 'package:chronoapp/features/school_assessments/domain/models/school_assessment_kind.dart';
 import 'package:flutter/material.dart';
 
 const _cardTextHeightTight = TextHeightBehavior(
@@ -263,6 +265,8 @@ class TextContent extends StatelessWidget {
     this.showInlineTimeRange = false,
     this.descriptionMaxLines,
     this.openHomeworkCount = 0,
+    this.assessmentKind,
+    this.previewAssessmentKind,
     this.titleOverride,
   });
 
@@ -286,6 +290,12 @@ class TextContent extends StatelessWidget {
   /// Offene Hausaufgaben für diese Stunde (nur Tageslisten-Karten).
   final int openHomeworkCount;
 
+  /// Schultermin direkt in dieser Stunde.
+  final SchoolAssessmentKind? assessmentKind;
+
+  /// Vorschau eines Schultermins in einer Woche.
+  final SchoolAssessmentKind? previewAssessmentKind;
+
   /// Ersetzt den Karten-Titel (z. B. Schulaufgabe statt Fachname).
   final String? titleOverride;
 
@@ -308,9 +318,11 @@ class TextContent extends StatelessWidget {
     final subtitleColor =
         secondaryTextColor ?? theme.colorScheme.onSurface;
     final title = titleOverride ?? calendarEntryCardTitle(entry, compact: compact);
-    final showHomeworkRow = !compact &&
-        openHomeworkCount > 0 &&
-        entry.type == CalendarEntryType.lesson;
+    final showIndicatorsRow = !compact &&
+        entry.type == CalendarEntryType.lesson &&
+        (openHomeworkCount > 0 ||
+            assessmentKind != null ||
+            previewAssessmentKind != null);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -343,9 +355,13 @@ class TextContent extends StatelessWidget {
             fontSize: effectiveTitleFontSize,
           ),
         ),
-        if (showHomeworkRow) ...[
+        if (showIndicatorsRow) ...[
           const SizedBox(height: AppSpacing.xs),
-          _LessonHomeworkPendingRow(count: openHomeworkCount),
+          LessonCardIndicatorsBox(
+            homeworkCount: openHomeworkCount,
+            assessmentKind: assessmentKind,
+            previewAssessmentKind: previewAssessmentKind,
+          ),
         ],
         if (!compact) const SizedBox(height: 2),
         if (!compact) ...[
@@ -390,45 +406,6 @@ class TextContent extends StatelessWidget {
             compact: compact,
           ),
         ],
-      ],
-    );
-  }
-}
-
-class _LessonHomeworkPendingRow extends StatelessWidget {
-  const _LessonHomeworkPendingRow({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-    final label = count == 1
-        ? 'Noch 1 Aufgabe offen'
-        : 'Noch $count Aufgaben offen';
-
-    return Row(
-      children: [
-        Icon(
-          Icons.assignment_outlined,
-          size: 14,
-          color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textHeightBehavior: _cardTextHeightTight,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.9),
-              fontWeight: FontWeight.w600,
-              height: 1.1,
-            ),
-          ),
-        ),
       ],
     );
   }

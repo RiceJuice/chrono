@@ -108,7 +108,9 @@ class SchoolAssessmentActions {
 
   Future<void> create(CreateSchoolAssessmentParams params) async {
     final profileId = _ref.read(effectiveSchoolAssessmentProfileIdProvider);
-    if (profileId == null || profileId.isEmpty) return;
+    if (profileId == null || profileId.isEmpty) {
+      throw StateError('Profil nicht verfügbar.');
+    }
 
     await _ref.read(schoolAssessmentRepositoryProvider).insertAssessment(
           profileId: profileId,
