@@ -43,9 +43,7 @@ abstract final class ScheduleLiveActivityResolver {
         : null;
 
     final segmentStart = AppDateTime.toLocal(current.startTime);
-    final segmentEnd = AppDateTime.toLocal(
-      CalendarNowAnchor.scheduleEffectiveEnd(current),
-    );
+    final segmentEnd = _effectiveEnd(current, next);
 
     return ScheduleLiveActivitySnapshot(
       eventId: eventId,
@@ -115,6 +113,16 @@ abstract final class ScheduleLiveActivityResolver {
       if (!CalendarNowAnchor.scheduleIsPast(schedule, now: now)) return i;
     }
     return null;
+  }
+
+  static DateTime _effectiveEnd(EventSchedule current, EventSchedule? next) {
+    if (current.endTime != null) {
+      return AppDateTime.toLocal(current.endTime!);
+    }
+    if (next != null) {
+      return AppDateTime.toLocal(next.startTime);
+    }
+    return AppDateTime.toLocal(current.startTime).add(const Duration(minutes: 45));
   }
 
   static bool _isVisibleForListFilter({

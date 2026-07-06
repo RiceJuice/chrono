@@ -8,8 +8,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
@@ -26,14 +24,12 @@ import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.max
 import kotlin.math.min
 
 class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context) {
     private companion object {
         private const val NOTIFICATION_CHANNEL_NAME = "Live Activities"
-        private const val PROGRESS_TICK_MS = 1000L
     }
 
     private val appContext: Context = context.applicationContext
@@ -42,25 +38,6 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
     private val expandedViews =
         RemoteViews(appContext.packageName, R.layout.live_activity_expanded)
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.GERMANY)
-
-    private data class TrackedLiveActivity(
-        val activityId: String,
-        val data: Map<String, Any>,
-    )
-
-    private val trackedActivities = ConcurrentHashMap<String, TrackedLiveActivity>()
-    private val progressHandler = Handler(Looper.getMainLooper())
-    private var progressTickerScheduled = false
-    private val progressTickerRunnable = object : Runnable {
-        override fun run() {
-            refreshTrackedActivityProgress()
-            if (trackedActivities.isNotEmpty()) {
-                progressHandler.postDelayed(this, PROGRESS_TICK_MS)
-            } else {
-                progressTickerScheduled = false
-            }
-        }
-    }
 
     private var cachedMealImageUrl: String? = null
     private var cachedMealBitmap: Bitmap? = null
@@ -353,75 +330,6 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         return BigInteger(digest).abs().toInt()
     }
 
-    private fun activityEndMs(data: Map<String, Any>, nowMs: Long): Long {
-        val kind = data["kind"] as? String ?: "schedule"
-        if (kind == "timetable") {
-            val dayEndMs = (data["dayEndMs"] as? Number)?.toLong()
-            if (dayEndMs != null) return dayEndMs
-            val segments = parseSegments(data["segmentsJson"] as? String)
-            return segments.lastOrNull()?.endMs ?: nowMs
-        }
-        return (data["segmentEndMs"] as? Number)?.toLong() ?: nowMs
-    }
-
-    private fun shouldTrackProgress(data: Map<String, Any>): Boolean {
-        val now = System.currentTimeMillis()
-        return activityEndMs(data, now) > now
-    }
-
-    private fun registerForProgressUpdates(data: Map<String, Any>) {
-        val activityId = activityIdFromData(data) ?: return
-        if (!shouldTrackProgress(data)) {
-            trackedActivities.remove(activityId)
-            stopProgressTickerIfIdle()
-            return
-        }
-        trackedActivities[activityId] = TrackedLiveActivity(activityId, data)
-        startProgressTicker()
-    }
-
-    private fun startProgressTicker() {
-        if (progressTickerScheduled) return
-        progressTickerScheduled = true
-        progressHandler.postDelayed(progressTickerRunnable, PROGRESS_TICK_MS)
-    }
-
-    private fun stopProgressTickerIfIdle() {
-        if (trackedActivities.isEmpty() && progressTickerScheduled) {
-            progressHandler.removeCallbacks(progressTickerRunnable)
-            progressTickerScheduled = false
-        }
-    }
-
-    private fun refreshTrackedActivityProgress() {
-        if (trackedActivities.isEmpty()) return
-
-        val notificationManager =
-            appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val now = System.currentTimeMillis()
-        val expired = mutableListOf<String>()
-
-        for ((activityId, tracked) in trackedActivities) {
-            val notificationId = notificationIdFromActivityId(activityId)
-            val stillActive = notificationManager.activeNotifications.any {
-                it.id == notificationId &&
-                    it.notification.channelId == NOTIFICATION_CHANNEL_NAME
-            }
-            if (!stillActive) {
-                expired.add(activityId)
-                continue
-            }
-
-            postProgressNotification(notificationManager, activityId, tracked.data, now)
-
-            if (!shouldTrackProgress(tracked.data)) {
-                expired.add(activityId)
-            }
-        }
-
-        expired.forEach { trackedActivities.remove(it) }
-    }
-
     private fun contentIntentFor(data: Map<String, Any>): PendingIntent {
         val kind = data["kind"] as? String ?: "schedule"
         return if (kind == "timetable") {
@@ -457,114 +365,85 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
             .build()
     }
 
-    private fun postProgressNotification(
-        notificationManager: NotificationManager,
-        activityId: String,
-        data: Map<String, Any>,
-        timestamp: Long,
-    ) {
-        val notification = buildLiveActivityNotification(data, timestamp)
-        notificationManager.notify(
-            null,
-            notificationIdFromActivityId(activityId),
-            notification,
-        )
-    }
-
     private fun updateRemoteViews(views: RemoteViews, data: Map<String, Any>, expanded: Boolean) {
         applyThemeColors(views, expanded)
         val kind = data["kind"] as? String ?: "schedule"
         val now = System.currentTimeMillis()
 
-        if (kind == "timetable") {
-            val segments = parseSegments(data["segmentsJson"] as? String)
-            val activityStartMs = (data["activityStartMs"] as? Number)?.toLong()
-                ?: segments.firstOrNull()?.startMs
-                ?: now
-            val resolved = resolveTimetable(segments, activityStartMs, now) ?: return
-
-            views.setTextViewText(
-                R.id.current_title,
-                if (expanded) resolved.title else compactLeadingLabel(resolved),
-            )
-            applyCountdownChronometer(views, resolved.segmentEndMs)
-
-            if (resolved.isMeal && expanded) {
-                views.setViewVisibility(R.id.arrow_icon, View.GONE)
-                views.setViewVisibility(R.id.next_column, View.GONE)
-                views.setViewVisibility(R.id.next_title, View.GONE)
-                views.setViewVisibility(R.id.next_subtitle, View.GONE)
-                applyMealImage(views, cachedMealBitmap)
-            } else {
-                hideMealImage(views)
-                if (resolved.hasNext) {
-                    views.setViewVisibility(R.id.arrow_icon, View.VISIBLE)
-                    views.setViewVisibility(R.id.next_title, View.VISIBLE)
-                    views.setTextViewText(R.id.next_title, resolved.nextTitle)
-                } else {
-                    views.setViewVisibility(R.id.arrow_icon, View.GONE)
-                    views.setViewVisibility(R.id.next_title, View.GONE)
-                }
-            }
-
-            if (!expanded) return
-
-            setTextOrHide(views, R.id.current_subtitle, resolved.subtitle)
-            if (!resolved.isMeal) {
-                if (resolved.hasNext) {
-                    views.setViewVisibility(R.id.next_column, View.VISIBLE)
-                    setTextOrHide(views, R.id.next_subtitle, resolved.nextSubtitle)
-                } else {
-                    views.setViewVisibility(R.id.next_column, View.GONE)
-                }
-            }
-
-            views.setTextViewText(
-                R.id.segment_start,
-                timeFormat.format(Date(resolved.segmentStartMs)),
-            )
-            views.setTextViewText(
-                R.id.segment_end,
-                timeFormat.format(Date(resolved.segmentEndMs)),
-            )
-
-            val startMs = resolved.segmentStartMs
-            val endMs = resolved.segmentEndMs
-            val progress = if (endMs <= startMs) {
-                1000
-            } else {
-                val ratio = (now - startMs).toDouble() / (endMs - startMs).toDouble()
-                (min(1.0, max(0.0, ratio)) * 1000).toInt()
-            }
-            views.setProgressBar(R.id.segment_progress, 1000, progress, false)
-            return
-        }
-
         val currentTitle = data["currentTitle"] as? String ?: ""
         val currentSubtitle = data["currentSubtitle"] as? String ?: ""
         val nextTitle = data["nextTitle"] as? String ?: ""
         val nextSubtitle = data["nextSubtitle"] as? String ?: ""
-        val startMs = (data["segmentStartMs"] as? Number)?.toLong() ?: 0L
-        val endMs = (data["segmentEndMs"] as? Number)?.toLong() ?: 0L
-        val hasNext = nextTitle.isNotBlank()
+        var startMs = (data["segmentStartMs"] as? Number)?.toLong() ?: 0L
+        var endMs = (data["segmentEndMs"] as? Number)?.toLong() ?: 0L
 
-        views.setTextViewText(R.id.current_title, currentTitle)
+        if (kind == "timetable" && (startMs <= 0L || endMs <= 0L)) {
+            val segments = parseSegments(data["segmentsJson"] as? String)
+            val activityStartMs = (data["activityStartMs"] as? Number)?.toLong()
+                ?: segments.firstOrNull()?.startMs
+                ?: now
+            val resolved = resolveTimetable(segments, activityStartMs, now)
+            if (resolved != null) {
+                views.setTextViewText(
+                    R.id.current_title,
+                    if (expanded) resolved.title else compactLeadingLabel(resolved),
+                )
+                applyCountdownChronometer(views, resolved.segmentEndMs)
+                applySegmentProgress(views, resolved.segmentStartMs, resolved.segmentEndMs, now)
+                return
+            }
+        }
+
+        val isMeal = data["isMeal"] as? Boolean ?: false
+        val hasNext = (data["hasNext"] as? Boolean) ?: nextTitle.isNotBlank()
+        val compactTitle = if (kind == "timetable" && !expanded) {
+            compactLeadingLabel(
+                ResolvedSegment(
+                    title = currentTitle,
+                    subtitle = currentSubtitle,
+                    shortTitle = currentTitle.take(3),
+                    segmentStartMs = startMs,
+                    segmentEndMs = endMs,
+                    hasNext = hasNext,
+                    nextTitle = nextTitle,
+                    nextSubtitle = nextSubtitle,
+                    nextShortTitle = "",
+                    remainingLessons = 0,
+                    isMeal = isMeal,
+                    imageUrl = null,
+                    isPreStart = false,
+                ),
+            )
+        } else {
+            currentTitle
+        }
+
+        views.setTextViewText(R.id.current_title, compactTitle)
         applyCountdownChronometer(views, endMs)
 
-        if (hasNext) {
-            views.setViewVisibility(R.id.arrow_icon, View.VISIBLE)
-            views.setViewVisibility(R.id.next_title, View.VISIBLE)
-            views.setTextViewText(R.id.next_title, nextTitle)
-        } else {
+        if (isMeal && expanded) {
             views.setViewVisibility(R.id.arrow_icon, View.GONE)
+            views.setViewVisibility(R.id.next_column, View.GONE)
             views.setViewVisibility(R.id.next_title, View.GONE)
+            views.setViewVisibility(R.id.next_subtitle, View.GONE)
+            applyMealImage(views, cachedMealBitmap)
+        } else {
+            hideMealImage(views)
+            if (hasNext) {
+                views.setViewVisibility(R.id.arrow_icon, View.VISIBLE)
+                views.setViewVisibility(R.id.next_title, View.VISIBLE)
+                views.setTextViewText(R.id.next_title, nextTitle)
+            } else {
+                views.setViewVisibility(R.id.arrow_icon, View.GONE)
+                views.setViewVisibility(R.id.next_title, View.GONE)
+            }
         }
 
         if (!expanded) return
 
         setTextOrHide(views, R.id.current_subtitle, currentSubtitle)
 
-        if (hasNext) {
+        if (!isMeal && hasNext) {
             views.setViewVisibility(R.id.next_column, View.VISIBLE)
             setTextOrHide(views, R.id.next_subtitle, nextSubtitle)
         } else {
@@ -573,7 +452,15 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
 
         views.setTextViewText(R.id.segment_start, timeFormat.format(Date(startMs)))
         views.setTextViewText(R.id.segment_end, timeFormat.format(Date(endMs)))
+        applySegmentProgress(views, startMs, endMs, now)
+    }
 
+    private fun applySegmentProgress(
+        views: RemoteViews,
+        startMs: Long,
+        endMs: Long,
+        now: Long,
+    ) {
         val progress = if (endMs <= startMs) {
             1000
         } else {
@@ -603,8 +490,6 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
             cachedMealBitmap = null
         }
 
-        val built = buildLiveActivityNotification(data, System.currentTimeMillis())
-        registerForProgressUpdates(data)
-        return built
+        return buildLiveActivityNotification(data, System.currentTimeMillis())
     }
 }

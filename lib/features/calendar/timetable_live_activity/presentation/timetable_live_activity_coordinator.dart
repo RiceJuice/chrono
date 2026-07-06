@@ -11,6 +11,7 @@ import 'package:chronoapp/features/calendar/presentation/providers/calendar_prov
 import 'package:chronoapp/features/calendar/presentation/providers/subjects_providers.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/data/timetable_live_activity_data_source.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/data/timetable_live_activity_local_scheduler.dart';
+import 'package:chronoapp/features/calendar/live_activity/data/schedule_live_activity_service_provider.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/data/timetable_live_activity_service.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_resolver.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_snapshot.dart';
@@ -125,14 +126,22 @@ class TimetableLiveActivityCoordinator {
     final now = DateTime.now();
     final today = AppDateTime.localDay(now);
     final dayAfterTomorrow = AppDateTime.addLocalCalendarDays(today, 2);
+    final filters = _ref.read(calendarFiltersProvider);
 
     final starts = await _dataSource.upcomingActivityStarts(
       rangeStart: today,
       rangeEndExclusive: dayAfterTomorrow,
+      filters: filters,
     );
     final ends = await _dataSource.upcomingDayEnds(
       rangeStart: today,
       rangeEndExclusive: dayAfterTomorrow,
+      filters: filters,
+    );
+    final boundaries = await _dataSource.upcomingSegmentBoundaries(
+      rangeStart: today,
+      rangeEndExclusive: dayAfterTomorrow,
+      filters: filters,
     );
 
     await _localScheduler.reschedule(
@@ -143,15 +152,22 @@ class TimetableLiveActivityCoordinator {
     );
 
     _segmentTimerScheduler.reschedule(
-      starts: starts
-          .map(
-            (s) => (
-              eventId: s.dayDateKey,
-              scheduleId: 'start',
-              at: AppDateTime.toLocal(s.at),
-            ),
-          )
-          .toList(),
+      starts: [
+        ...starts.map(
+          (s) => (
+            eventId: s.dayDateKey,
+            scheduleId: 'start',
+            at: AppDateTime.toLocal(s.at),
+          ),
+        ),
+        ...boundaries.map(
+          (b) => (
+            eventId: b.dayDateKey,
+            scheduleId: b.segmentId,
+            at: AppDateTime.toLocal(b.at),
+          ),
+        ),
+      ],
       dayEnds: ends
           .map(
             (e) => (
@@ -323,7 +339,9 @@ final timetableLiveActivityCoordinatorProvider =
     dataSource: TimetableLiveActivityDataSource(
       ref.watch(calendarRepositoryProvider),
     ),
-    service: TimetableLiveActivityService(),
+    service: TimetableLiveActivityService(
+      sharedService: ref.watch(scheduleLiveActivityServiceProvider),
+    ),
     localScheduler: TimetableLiveActivityLocalScheduler(),
     segmentTimerScheduler: ScheduleSegmentTimerScheduler(),
     imageUrlResolver: CalendarImageUrlResolver(

@@ -10,6 +10,9 @@ verify_jwt = true
 [functions.notify-guardian-link]
 verify_jwt = true
 
+[functions.live-activity]
+verify_jwt = false
+
 [functions.schedule-live-activity]
 verify_jwt = false
 

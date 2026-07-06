@@ -2,8 +2,13 @@ import 'dart:async';
 
 import 'package:chronoapp/core/database/powersync_schema.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
+import 'package:chronoapp/features/calendar/domain/meal_period.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/domain/repositories/calendar_repository.dart';
+import 'package:chronoapp/features/calendar/domain/filter/calendar_display_filters.dart';
+import 'package:chronoapp/features/calendar/domain/layout/school_track_lane_order.dart';
+import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_resolver.dart';
 import 'package:powersync/powersync.dart';
 
 /// Lokale Abfragen für Stundenplan-Live-Activities.
@@ -24,10 +29,11 @@ class TimetableLiveActivityDataSource {
     return _repository.watchEntriesForDay(AppDateTime.todayLocal()).map((_) {});
   }
 
-  /// Für lokale Notification-Planung: Activity-Start (15 min vor erster Stunde).
+  /// Für lokale Notification-Planung: Activity-Start (15 min vor erster eigener Stunde).
   Future<List<({String dayDateKey, DateTime at})>> upcomingActivityStarts({
     required DateTime rangeStart,
     required DateTime rangeEndExclusive,
+    required CalendarFiltersState filters,
   }) async {
     final out = <({String dayDateKey, DateTime at})>[];
     var day = AppDateTime.localDay(rangeStart);
@@ -35,22 +41,64 @@ class TimetableLiveActivityDataSource {
 
     while (!day.isAfter(endDay)) {
       final entries = await entriesForDay(day);
-      final lessons = entries
-          .where((e) => e.type == CalendarEntryType.lesson)
-          .toList()
+      final activityStart = TimetableLiveActivityResolver.activityStartForDay(
+        day: day,
+        entries: entries,
+        filters: filters,
+      );
+      if (activityStart != null &&
+          !activityStart.isBefore(rangeStart) &&
+          activityStart.isBefore(rangeEndExclusive)) {
+        out.add((dayDateKey: _dayKey(day), at: activityStart));
+      }
+
+      day = AppDateTime.addLocalCalendarDays(day, 1);
+    }
+
+    return out;
+  }
+
+  /// Segmentgrenzen für lokale Timer (Start/Ende jedes Segments).
+  Future<List<({String dayDateKey, String segmentId, DateTime at})>>
+      upcomingSegmentBoundaries({
+    required DateTime rangeStart,
+    required DateTime rangeEndExclusive,
+    required CalendarFiltersState filters,
+  }) async {
+    final out = <({String dayDateKey, String segmentId, DateTime at})>[];
+    var day = AppDateTime.localDay(rangeStart);
+    final endDay = AppDateTime.localDay(rangeEndExclusive);
+
+    while (!day.isAfter(endDay)) {
+      final entries = await entriesForDay(day);
+      final dayKey = _dayKey(day);
+      final filtered = applyCalendarDisplayFilters(
+        entries: entries,
+        filters: filters,
+        hideUnknownWhenFilterActive:
+            filters.hasInitializedDefaults && filters.hasActiveFilters,
+        forEventList: true,
+      ).where((entry) {
+        if (entry.type != CalendarEntryType.lesson &&
+            entry.type != CalendarEntryType.meal) {
+          return false;
+        }
+        if (entry.type == CalendarEntryType.meal &&
+            resolveMealPeriod(entry.startTime) != MealPeriod.lunch) {
+          return false;
+        }
+        return lessonMatchesOwnSchoolProfile(entry: entry, filters: filters);
+      }).toList()
         ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
-      if (lessons.isNotEmpty) {
-        final firstStart = AppDateTime.toLocal(lessons.first.startTime);
-        final activityStart = firstStart.subtract(
-          const Duration(minutes: 15),
-        );
-        if (!activityStart.isBefore(rangeStart) &&
-            activityStart.isBefore(rangeEndExclusive)) {
-          out.add((
-            dayDateKey: _dayKey(day),
-            at: activityStart,
-          ));
+      for (final entry in filtered) {
+        final start = AppDateTime.toLocal(entry.startTime);
+        final end = AppDateTime.toLocal(entry.endTime);
+        if (start.isAfter(rangeStart) && start.isBefore(rangeEndExclusive)) {
+          out.add((dayDateKey: dayKey, segmentId: entry.id, at: start));
+        }
+        if (end.isAfter(rangeStart) && end.isBefore(rangeEndExclusive)) {
+          out.add((dayDateKey: dayKey, segmentId: '${entry.id}_end', at: end));
         }
       }
 
@@ -63,6 +111,7 @@ class TimetableLiveActivityDataSource {
   Future<List<({String dayDateKey, DateTime end})>> upcomingDayEnds({
     required DateTime rangeStart,
     required DateTime rangeEndExclusive,
+    required CalendarFiltersState filters,
   }) async {
     final out = <({String dayDateKey, DateTime end})>[];
     var day = AppDateTime.localDay(rangeStart);
@@ -70,22 +119,15 @@ class TimetableLiveActivityDataSource {
 
     while (!day.isAfter(endDay)) {
       final entries = await entriesForDay(day);
-      final relevant = entries
-          .where(
-            (e) =>
-                e.type == CalendarEntryType.lesson ||
-                e.type == CalendarEntryType.meal,
-          )
-          .toList();
-      if (relevant.isNotEmpty) {
-        final last = relevant.reduce(
-          (a, b) => a.endTime.isAfter(b.endTime) ? a : b,
-        );
-        final localEnd = AppDateTime.toLocal(last.endTime);
-        if (!localEnd.isBefore(rangeStart) &&
-            localEnd.isBefore(rangeEndExclusive)) {
-          out.add((dayDateKey: _dayKey(day), end: localEnd));
-        }
+      final dayEnd = TimetableLiveActivityResolver.dayEndForDay(
+        day: day,
+        entries: entries,
+        filters: filters,
+      );
+      if (dayEnd != null &&
+          !dayEnd.isBefore(rangeStart) &&
+          dayEnd.isBefore(rangeEndExclusive)) {
+        out.add((dayDateKey: _dayKey(day), end: dayEnd));
       }
       day = AppDateTime.addLocalCalendarDays(day, 1);
     }

@@ -178,68 +178,85 @@ supabase functions deploy notify-event-change
 
 `verify_jwt = true` — nur authentifizierte Admins.
 
-## 10. Ablaufplan Live Activities (`schedule-live-activity`)
+## 10. Live Activities (vereinheitlicht: `live-activity`)
 
-**Auslöser (bedarfsgesteuert, kein Minuten-Polling):**
-- **Geplante Einmal-Jobs** (`event_live_activity_jobs` + pg_cron) → `start` / `end` exakt zu Termin- oder Segmentzeit — nur für `calendar_events` mit `type = 'event'`
-- **DB-Trigger** auf `calendar_events` (INSERT/UPDATE/DELETE) und `event_schedules` (INSERT/UPDATE/DELETE) → Job-Neuplanung + sofortiger FCM `update`/`end` bei laufender Live Activity
+**Zwei Arten:** Event-Ablaufplan (`kind=event`, `type=event`) und Stundenplan (`kind=timetable`, lesson/meal).
 
-**Termine ohne Ablaufplan:** Eine Live Activity von `start_time` bis `end_time` (Titel = `event_name`).
+**Auslöser (bedarfsgesteuert, kein Polling):**
+- **Einmal-pg_cron-Jobs** in `live_activity_jobs` → HTTP `POST` an `live-activity` mit `mode=dispatch`
+- **DB-Trigger** bei Kalender-/Ablaufplan-/Profiländerungen → Job-Neuplanung + `mode=change` für laufende Activities
 
-**Zielgruppe:** Nur Geräte, deren Profil zu `choir`/`voices` des Events passt.
+**Stundenplan:** Start **15 Min vor erster eigener Stunde** (profilgefiltert nach Klasse/Schulzweig), Segment-`update` an Grenzen, `end` nach letztem Segment.
 
-**Lokal in der App:** `flutter_local_notifications` + Einmal-Timer planen Segment-/Terminstarts und Tagesende; Coordinator startet/beendet die Activity über `live_activities`. FCM `update` aktualisiert Inhalte (Titel, Zeiten, Zielgruppe).
+**Event-Ablaufplan:** `start`/`update` an Segmentgrenzen, ein `end` am Tagesende.
+
+**Countdown/Progress:** iOS nativ (`ProgressView(timerInterval:)`); Android Countdown per Chronometer, Progress bei jedem FCM-/Segment-Update.
+
+**Legacy-Redirects:** `schedule-live-activity` und `timetable-live-activity` leiten auf `live-activity` weiter.
 
 ### Deploy
 
 ```bash
 supabase db push
+supabase functions deploy live-activity --no-verify-jwt
 supabase functions deploy schedule-live-activity --no-verify-jwt
+supabase functions deploy timetable-live-activity --no-verify-jwt
 ```
 
-Migration `*_event_live_activity_on_demand.sql` legt Job-Tabelle, Sync-Funktion und Postgres-Trigger an (Vault-Secret muss gesetzt sein).
+Migration `*_live_activity_unified.sql` legt `live_activity_jobs`, Sync-Funktionen und entfernt den 15-Min-Polling-Cron.
 
 ### Secrets
 
 ```bash
-# 1) Edge Function Secret (CLI)
 supabase secrets set SCHEDULE_LIVE_ACTIVITY_CRON_SECRET="<generierter-hex-string>"
+supabase secrets set FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
 ```
 
-**2) Postgres/pg_cron:** `ALTER DATABASE SET` ist auf Supabase Hosted **nicht erlaubt**.  
-Stattdessen Secret im **Vault** speichern — SQL Editor:
+**Vault (identischer Wert):**
 
 ```sql
 SELECT vault.create_secret(
   '<derselbe-hex-string>',
   'schedule_live_activity_cron_secret',
-  'Cron secret für schedule-live-activity'
+  'Cron secret für live-activity Edge Function'
 );
 ```
 
-Falls die Migration schon ohne Vault lief: komplettes Setup-Skript  
-[`backend/SCHEDULE_LIVE_ACTIVITY_CRON_SETUP.sql`](SCHEDULE_LIVE_ACTIVITY_CRON_SETUP.sql) im SQL Editor ausführen (Secret-Wert anpassen).
+Setup-Skript: [`backend/SCHEDULE_LIVE_ACTIVITY_CRON_SETUP.sql`](SCHEDULE_LIVE_ACTIVITY_CRON_SETUP.sql)
 
-Der pg_cron-Job für Minuten-Polling ist entfernt. Geplante Dispatches lesen das Secret aus `vault.decrypted_secrets`.
+Ohne Vault-Secret: keine Jobs — prüfe `live_activity_job_errors`.
+
+### Jobs nachplanen
+
+```sql
+SELECT sync_event_live_activity_jobs(id)
+FROM calendar_events
+WHERE lower(trim(type::text)) = 'event' AND end_time > now();
+
+SELECT sync_timetable_jobs_horizon();
+```
 
 ### Test (curl)
 
 ```bash
-curl -X POST "https://chrbvfaknykaycwumuba.supabase.co/functions/v1/schedule-live-activity" \
+# Stundenplan
+curl -X POST "https://chrbvfaknykaycwumuba.supabase.co/functions/v1/live-activity" \
   -H "Content-Type: application/json" \
-  -H "x-cron-secret: <SCHEDULE_LIVE_ACTIVITY_CRON_SECRET>" \
-  -d '{"mode":"dispatch","event_id":"<uuid>","action":"start"}'
+  -H "x-cron-secret: <SECRET>" \
+  -d '{"mode":"dispatch","kind":"timetable","reference_id":"2026-07-06","user_id":"<uuid>","action":"start"}'
+
+# Event-Ablaufplan
+curl -X POST "https://chrbvfaknykaycwumuba.supabase.co/functions/v1/live-activity" \
+  -H "Content-Type: application/json" \
+  -H "x-cron-secret: <SECRET>" \
+  -d '{"mode":"dispatch","kind":"event","reference_id":"<event-uuid>","action":"start"}'
 ```
-
-Erwartung: `{"processed":1,"sent":…,"mode":"dispatch",…}` oder `skipped` wenn kein passendes Event/Gerät.
-
-Ohne gültigen `mode`: HTTP `400`. Ohne Secret: HTTP `401`.
 
 ### iOS
 
-- Widget Extension `ChronoWidgetExtension` in Xcode (bereits im Repo)
-- App Group: `group.com.domspatzen.chronoapp`
+- Widget Extension `ChronoWidgetExtension` (App Group `group.com.domspatzen.chronoapp`)
 - Push-to-Start-/Activity-Tokens in `profile_push_devices`
+- APNs Auth Key (.p8) in Firebase
 
 ### Android
 
@@ -261,6 +278,9 @@ Ohne gültigen `mode`: HTTP `400`. Ohne Secret: HTTP `401`.
 | Push ohne Ton | iPhone: Stumm-Schalter/Fokus; Einstellungen → Chrono → Töne; FCM sendet `sound: default` (Edge Function) |
 | Android API 33+ | `POST_NOTIFICATIONS` in Manifest; Nutzer muss erlauben |
 | Token verschwindet | Edge Function löscht ungültige Tokens (`UNREGISTERED`) — App neu öffnen |
+| Live Activity startet nicht extern | Vault-Secret fehlt → `SELECT * FROM live_activity_job_errors`; Jobs in `live_activity_jobs` prüfen |
+| Stundenplan falsche Startzeit | `sync_timetable_live_activity_jobs` nutzt Profil-Klasse/Zweig — Profil in App prüfen |
+| iOS Progressbar steht | Neuer Build mit `ProgressView(timerInterval:)` in Widget Extension nötig |
 
 ## 9. Sicherheit
 

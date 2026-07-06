@@ -7,6 +7,7 @@ import 'package:chronoapp/features/calendar/live_activity/data/schedule_live_act
 import 'package:chronoapp/features/calendar/live_activity/data/schedule_live_activity_local_scheduler.dart';
 import 'package:chronoapp/features/calendar/live_activity/data/schedule_live_activity_repository.dart';
 import 'package:chronoapp/features/calendar/live_activity/data/schedule_live_activity_service.dart';
+import 'package:chronoapp/features/calendar/live_activity/data/schedule_live_activity_service_provider.dart';
 import 'package:chronoapp/features/calendar/live_activity/data/schedule_segment_timer_scheduler.dart';
 import 'package:chronoapp/features/calendar/live_activity/domain/schedule_live_activity_resolver.dart';
 import 'package:chronoapp/features/calendar/live_activity/domain/schedule_live_activity_snapshot.dart';
@@ -99,7 +100,6 @@ class ScheduleLiveActivityCoordinator {
     _dbSub = null;
     _filterSub = null;
     _segmentTimerScheduler.dispose();
-    await _service.dispose();
   }
 
   Future<void> handleLocalNotificationPayload(String payload) async {
@@ -431,7 +431,7 @@ final scheduleLiveActivityCoordinatorProvider =
   ref.keepAlive();
   return ScheduleLiveActivityCoordinator(
     dataSource: ScheduleLiveActivityDataSource(ref.watch(dbProvider)),
-    service: ScheduleLiveActivityService(),
+    service: ref.watch(scheduleLiveActivityServiceProvider),
     repository: ScheduleLiveActivityRepository(),
     localScheduler: ScheduleLiveActivityLocalScheduler(),
     segmentTimerScheduler: ScheduleSegmentTimerScheduler(),

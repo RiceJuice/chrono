@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../login/presentation/providers/profile_gate_notifier.dart';
+import '../data/schedule_live_activity_repository.dart';
+import '../data/schedule_live_activity_service_provider.dart';
 import 'schedule_live_activity_coordinator.dart';
 import 'schedule_live_activity_deep_link_handler.dart';
 import '../../timetable_live_activity/presentation/timetable_live_activity_coordinator.dart';
@@ -80,6 +82,18 @@ class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
     if (!_profileGate.isReady || !_profileGate.data.hasSession) return;
 
     try {
+      final service = _ref.read(scheduleLiveActivityServiceProvider);
+      service.onLiveActivityPushToken = (token) {
+        unawaited(
+          ScheduleLiveActivityRepository().syncLiveActivityPushToken(token),
+        );
+      };
+      service.onPushToStartToken = (token) {
+        unawaited(
+          ScheduleLiveActivityRepository().syncPushToStartToken(token),
+        );
+      };
+
       final coordinator = _ref.read(scheduleLiveActivityCoordinatorProvider);
       _coordinator = coordinator;
       ScheduleLiveActivityCoordinator.instance = coordinator;
