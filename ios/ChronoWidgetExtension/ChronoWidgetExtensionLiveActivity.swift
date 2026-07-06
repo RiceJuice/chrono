@@ -58,16 +58,6 @@ private func formatTime(_ date: Date) -> String {
   return formatter.string(from: date)
 }
 
-private func remainingSeconds(until end: Date, now: Date) -> Int {
-  max(0, Int(end.timeIntervalSince(now)))
-}
-
-private func formatCountdown(seconds: Int) -> String {
-  let minutes = seconds / 60
-  let secs = seconds % 60
-  return String(format: "%d:%02d", minutes, secs)
-}
-
 private func compactTitle(_ title: String) -> String {
   let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
   guard trimmed.count > 10 else { return trimmed }
@@ -366,7 +356,14 @@ private struct TimetableAccentProgressBar: View {
 private struct TimetableMealImageView: View {
   let appGroupPath: String?
   let remoteUrl: String?
-  let size: CGFloat
+  var width: CGFloat = 34
+  var height: CGFloat = 34
+  var cornerRadius: CGFloat? = nil
+  var fillsAvailableWidth: Bool = false
+
+  private var resolvedCornerRadius: CGFloat {
+    cornerRadius ?? height * 0.18
+  }
 
   var body: some View {
     Group {
@@ -393,8 +390,13 @@ private struct TimetableMealImageView: View {
         mealPlaceholder
       }
     }
-    .frame(width: size, height: size)
-    .clipShape(RoundedRectangle(cornerRadius: size * 0.18, style: .continuous))
+    .frame(
+      minWidth: fillsAvailableWidth ? 0 : width,
+      maxWidth: fillsAvailableWidth ? .infinity : width,
+      minHeight: height,
+      maxHeight: height
+    )
+    .clipShape(RoundedRectangle(cornerRadius: resolvedCornerRadius, style: .continuous))
   }
 
   private var mealPlaceholder: some View {
@@ -500,14 +502,7 @@ private struct TimetableLiveActivityView: View {
               titleSize: layout.titleSize,
               subtitleSize: layout.subtitleSize
             )
-            if resolved.isMeal {
-              Spacer(minLength: 8)
-              TimetableMealImageView(
-                appGroupPath: data.mealImagePath,
-                remoteUrl: resolved.imageUrl,
-                size: layout.mealImageSize
-              )
-            } else if resolved.hasNext {
+            if !resolved.isMeal, resolved.hasNext {
               Image(systemName: "arrow.right")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
@@ -521,6 +516,16 @@ private struct TimetableLiveActivityView: View {
                 subtitleSize: layout.subtitleSize
               )
             }
+          }
+
+          if resolved.isMeal {
+            TimetableMealImageView(
+              appGroupPath: data.mealImagePath,
+              remoteUrl: resolved.imageUrl,
+              height: 92,
+              cornerRadius: 14,
+              fillsAvailableWidth: true
+            )
           }
 
           if showsRemainingLessons && resolved.remainingLessons > 0 {
@@ -547,44 +552,104 @@ private struct TimetableLiveActivityView: View {
   }
 }
 
+/// Farbig hinterlegtes Kürzel-Badge für die linke Dynamic-Island-Region.
+/// Bleibt fernab der Sensor-Aussparung und ersetzt lange Fachnamen dort,
+/// wo ohnehin nur wenig Platz ist.
 @available(iOSApplicationExtension 16.1, *)
-private struct TimetableDynamicIslandHeaderView: View {
+private struct TimetableDynamicIslandLeadingBadge: View {
   let data: TimetableLiveData
-  let layout: ScheduleLiveActivityLayout
 
   var body: some View {
-    TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
+    TimelineView(.periodic(from: .now, by: 60.0)) { timeline in
       if let resolved = data.resolve(at: timeline.date) {
-        HStack(alignment: .top, spacing: layout.columnSpacing) {
-          ScheduleColumn(
-            title: resolved.title,
-            subtitle: resolved.subtitle,
-            alignment: .leading,
-            titleSize: layout.titleSize,
-            subtitleSize: layout.subtitleSize
-          )
+        ZStack {
+          RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(resolved.accentColor.opacity(0.92))
           if resolved.isMeal {
-            Spacer(minLength: 6)
             TimetableMealImageView(
               appGroupPath: data.mealImagePath,
               remoteUrl: resolved.imageUrl,
-              size: layout.mealImageSize
+              width: 40,
+              height: 40,
+              cornerRadius: 12
             )
-          } else if resolved.hasNext {
-            Image(systemName: "arrow.right")
-              .font(.system(size: 11, weight: .semibold))
-              .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
-              .padding(.top, 3)
-            ScheduleColumn(
-              title: resolved.nextTitle,
-              subtitle: resolved.nextSubtitle,
-              alignment: .trailing,
-              titleSize: layout.titleSize,
-              subtitleSize: layout.subtitleSize
-            )
+          } else {
+            Text(resolved.currentShortTitle)
+              .font(.system(size: 15, weight: .bold))
+              .foregroundColor(.white)
+              .lineLimit(1)
+              .minimumScaleFactor(0.6)
+              .padding(.horizontal, 4)
           }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(width: 40, height: 40)
+      }
+    }
+  }
+}
+
+/// Aktuelles Fach + Raum, mittig zwischen der Sensor-Aussparung.
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableDynamicIslandCenterView: View {
+  let data: TimetableLiveData
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 60.0)) { timeline in
+      if let resolved = data.resolve(at: timeline.date) {
+        VStack(spacing: 3) {
+          Text(resolved.title)
+            .font(.system(size: 16, weight: .bold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+          if !resolved.subtitle.isEmpty {
+            Text(resolved.subtitle)
+              .font(.system(size: 12, weight: .regular))
+              .foregroundColor(Color(red: 0.67, green: 0.67, blue: 0.67))
+              .lineLimit(1)
+              .minimumScaleFactor(0.8)
+          }
+        }
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
+      }
+    }
+  }
+}
+
+/// Ausblick auf das nächste Fach bzw. verbleibende Stunden, rechts neben
+/// der Sensor-Aussparung.
+@available(iOSApplicationExtension 16.1, *)
+private struct TimetableDynamicIslandTrailingView: View {
+  let data: TimetableLiveData
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 60.0)) { timeline in
+      if let resolved = data.resolve(at: timeline.date) {
+        VStack(alignment: .trailing, spacing: 3) {
+          if resolved.hasNext {
+            Text("Nächstes")
+              .font(.system(size: 10, weight: .medium))
+              .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
+            Text(resolved.nextShortTitle.isEmpty ? resolved.nextTitle : resolved.nextShortTitle)
+              .font(.system(size: 15, weight: .bold))
+              .foregroundColor(.white)
+              .lineLimit(1)
+              .minimumScaleFactor(0.7)
+          } else if resolved.remainingLessons > 0 {
+            Text("Noch")
+              .font(.system(size: 10, weight: .medium))
+              .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
+            Text("\(resolved.remainingLessons)")
+              .font(.system(size: 15, weight: .bold))
+              .foregroundColor(.white)
+          } else {
+            Image(systemName: "flag.checkered")
+              .font(.system(size: 15, weight: .semibold))
+              .foregroundColor(.white)
+          }
+        }
+        .frame(minWidth: 40)
       }
     }
   }
@@ -606,6 +671,8 @@ private struct TimetableDynamicIslandBottomView: View {
           timeFontSize: layout.timeFontSize,
           barOuterHeight: layout.barOuterHeight
         )
+        .padding(.horizontal, layout.horizontalPadding)
+        .padding(.top, layout.topPadding)
         .padding(.bottom, layout.bottomPadding)
       }
     }
@@ -616,7 +683,10 @@ private func timetableCompactLeadingLabel(
   for resolved: TimetableResolvedSegment?
 ) -> String {
   guard let resolved else { return "—" }
-  return resolved.currentShortTitle
+  if resolved.isPreStart || !resolved.hasNext {
+    return resolved.currentShortTitle
+  }
+  return resolved.nextShortTitle
 }
 
 @available(iOSApplicationExtension 16.1, *)
@@ -672,7 +742,6 @@ private struct ScheduleLiveActivityLayout {
   let verticalPadding: CGFloat
   let topPadding: CGFloat
   let bottomPadding: CGFloat
-  let mealImageSize: CGFloat
   let showsBackground: Bool
 
   static let lockScreen = ScheduleLiveActivityLayout(
@@ -686,7 +755,6 @@ private struct ScheduleLiveActivityLayout {
     verticalPadding: 32,
     topPadding: 32,
     bottomPadding: 32,
-    mealImageSize: 0,
     showsBackground: false
   )
 
@@ -701,7 +769,6 @@ private struct ScheduleLiveActivityLayout {
     verticalPadding: 24,
     topPadding: 28,
     bottomPadding: 22,
-    mealImageSize: 58,
     showsBackground: false
   )
 
@@ -719,22 +786,20 @@ private struct ScheduleLiveActivityLayout {
     verticalPadding: 6,
     topPadding: 6,
     bottomPadding: 6,
-    mealImageSize: 0,
     showsBackground: false
   )
 
   static let timetableDynamicIsland = ScheduleLiveActivityLayout(
-    sectionSpacing: 10,
+    sectionSpacing: 8,
     columnSpacing: 10,
-    titleSize: 17,
-    subtitleSize: 13,
-    timeFontSize: 13,
+    titleSize: 16,
+    subtitleSize: 12,
+    timeFontSize: 12,
     barOuterHeight: 10,
-    horizontalPadding: 0,
-    verticalPadding: 4,
-    topPadding: 2,
-    bottomPadding: 10,
-    mealImageSize: 50,
+    horizontalPadding: 16,
+    verticalPadding: 2,
+    topPadding: 8,
+    bottomPadding: 12,
     showsBackground: false
   )
 }
@@ -870,37 +935,36 @@ struct ChronoScheduleLiveActivity: Widget {
       if kind == "timetable" {
         let data = TimetableLiveData(context: context)
         return DynamicIsland {
+          DynamicIslandExpandedRegion(.leading) {
+            TimetableDynamicIslandLeadingBadge(data: data)
+          }
           DynamicIslandExpandedRegion(.center) {
-            TimetableDynamicIslandHeaderView(data: data, layout: .timetableDynamicIsland)
+            TimetableDynamicIslandCenterView(data: data)
+          }
+          DynamicIslandExpandedRegion(.trailing) {
+            TimetableDynamicIslandTrailingView(data: data)
           }
           DynamicIslandExpandedRegion(.bottom) {
             TimetableDynamicIslandBottomView(data: data, layout: .timetableDynamicIsland)
           }
         } compactLeading: {
-          TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
-            let resolved = data.resolve(at: timeline.date)
-            Text(timetableCompactLeadingLabel(for: resolved))
-              .font(.subheadline.weight(.semibold))
+          let resolved = data.resolve(at: Date())
+          Text(timetableCompactLeadingLabel(for: resolved))
+            .font(.footnote.weight(.semibold))
+            .foregroundColor(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+        } compactTrailing: {
+          if let resolved = data.resolve(at: Date()), resolved.segmentEnd > resolved.segmentStart {
+            Text(
+              timerInterval: resolved.segmentStart...resolved.segmentEnd,
+              countsDown: true,
+              showsHours: false
+            )
+              .font(.footnote.monospacedDigit().weight(.semibold))
               .foregroundColor(.white)
               .lineLimit(1)
-              .minimumScaleFactor(0.8)
-              .frame(maxWidth: .infinity, alignment: .leading)
-          }
-        } compactTrailing: {
-          TimelineView(.periodic(from: .now, by: 30.0)) { timeline in
-            if let resolved = data.resolve(at: timeline.date),
-               resolved.segmentEnd > resolved.segmentStart {
-              Text(
-                timerInterval: resolved.segmentStart...resolved.segmentEnd,
-                countsDown: true,
-                showsHours: false
-              )
-                .font(.subheadline.monospacedDigit().weight(.semibold))
-                .foregroundColor(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+              .minimumScaleFactor(0.85)
           }
         } minimal: {
           Image(systemName: "book")

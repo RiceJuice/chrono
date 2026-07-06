@@ -276,7 +276,10 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
     }
 
     private fun compactLeadingLabel(resolved: ResolvedSegment): String {
-        return resolved.shortTitle.ifBlank { "—" }
+        return when {
+            resolved.isPreStart || !resolved.hasNext -> resolved.shortTitle
+            else -> resolved.nextShortTitle
+        }.ifBlank { "—" }
     }
 
     private suspend fun loadMealImageBitmap(imageUrl: String?): Bitmap? {

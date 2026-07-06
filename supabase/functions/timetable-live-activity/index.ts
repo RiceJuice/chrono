@@ -1,6 +1,11 @@
 /**
- * Stundenplan-Live-Activity: Push-to-Start 15 min vor erster Stunde, Ende nach letztem Segment.
+ * Stundenplan-Live-Activity: Push-to-Start einmal täglich fix um 07:45 Uhr
+ * (statt abhängig von der ersten Stunde), Ende nach letztem Segment.
  * Vollständiger Tagesplan liegt im Payload; Segmentwechsel laufen nativ auf dem Gerät.
+ *
+ * Der feste Start-Zeitpunkt sorgt dafür, dass der 15-Minuten-Cron ihn zuverlässig
+ * trifft (07:45 liegt exakt auf dem Cron-Raster) – unabhängig davon, wann die
+ * erste Stunde an einem Tag beginnt.
  *
  * Cron: alle 15 Minuten (kein minütliches Polling).
  * Change: DB-Trigger bei lesson/meal-Änderungen.
@@ -22,8 +27,12 @@ const corsHeaders = {
 };
 
 const SCHEDULE_TIMEZONE = "Europe/Berlin";
-const PRE_START_MINUTES = 15;
 const WINDOW_MS = 120_000;
+
+/** Fixer täglicher Push-Zeitpunkt (lokale Zeit), unabhängig vom Stundenplan. */
+const DAILY_TRIGGER_MINUTE_OF_DAY = 7 * 60 + 45;
+/** Toleranz in Minuten um den fixen Trigger, deckt Cron-Jitter/Cold-Starts ab. */
+const DAILY_TRIGGER_TOLERANCE_MINUTES = 5;
 
 type DeviceRow = {
   id: string;
@@ -95,6 +104,19 @@ function dayBoundsUtc(dayKey: string): { start: string; end: string } {
 
 function effectiveEnd(row: { start_time: string; end_time: string | null }): Date {
   return new Date(row.end_time ?? row.start_time);
+}
+
+/** Minuten seit lokaler Mitternacht in [timeZone], DST-sicher via Intl. */
+function localMinuteOfDay(d: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  return hour * 60 + minute;
 }
 
 async function loadDevices(
@@ -254,11 +276,6 @@ async function handleCronTick(
     return jsonResponse({ processed: 0, sent: 0, mode: "cron" });
   }
 
-  const firstLessonStart = new Date(lessons[0].start_time);
-  const activityStart = new Date(
-    firstLessonStart.getTime() - PRE_START_MINUTES * 60_000,
-  );
-
   const relevant = rows.filter((r) => r.type === "lesson" || r.type === "meal");
   const lastEnd = relevant.reduce((max, row) => {
     const end = effectiveEnd(row);
@@ -266,7 +283,10 @@ async function handleCronTick(
   }, effectiveEnd(relevant[0]));
 
   const nowMs = now.getTime();
-  const shouldStart = Math.abs(nowMs - activityStart.getTime()) <= WINDOW_MS;
+  const nowMinuteOfDay = localMinuteOfDay(now, SCHEDULE_TIMEZONE);
+  const shouldStart =
+    Math.abs(nowMinuteOfDay - DAILY_TRIGGER_MINUTE_OF_DAY) <=
+      DAILY_TRIGGER_TOLERANCE_MINUTES;
   const shouldEnd = Math.abs(nowMs - lastEnd.getTime()) <= WINDOW_MS;
 
   if (!shouldStart && !shouldEnd) {
