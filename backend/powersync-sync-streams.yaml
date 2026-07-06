@@ -4,8 +4,26 @@ config:
 streams:
   appointments_calendar:
     auto_subscribe: true
-    query: SELECT * FROM calendar_events
-  
+    query: |
+      SELECT
+        id,
+        event_name,
+        description,
+        location,
+        note,
+        start_time,
+        end_time,
+        type,
+        choir,
+        voices,
+        schooltrack,
+        class,
+        diet,
+        image_paths,
+        series_id,
+        recurrence_id
+      FROM calendar_events
+
   appointments_calendar_series:
     auto_subscribe: true
     query: |
@@ -33,7 +51,24 @@ streams:
 
   profile_self:
     auto_subscribe: true
-    query: SELECT * FROM profiles WHERE id = auth.user_id()
+    query: |
+      SELECT
+        id,
+        first_name,
+        last_name,
+        class_name,
+        schooltrack,
+        voice,
+        choir,
+        diet,
+        role,
+        calendar_preferences,
+        onboarding_completed_at,
+        active_child_id,
+        created_at,
+        updated_at
+      FROM profiles
+      WHERE id = auth.user_id()
 
   profile_linked_children:
     auto_subscribe: true
@@ -49,7 +84,16 @@ streams:
   guardian_links:
     auto_subscribe: true
     query: |
-      SELECT * FROM guardian_child_links
+      SELECT
+        id,
+        guardian_id,
+        child_id,
+        status,
+        created_at,
+        responded_at,
+        reminder_sent_at,
+        child_share_permissions
+      FROM guardian_child_links
       WHERE guardian_id = auth.user_id()
          OR child_id = auth.user_id()
 
@@ -59,18 +103,53 @@ streams:
 
   event_schedules:
     auto_subscribe: true
-    query: SELECT * FROM event_schedules
+    query: |
+      SELECT
+        id,
+        event_id,
+        title,
+        description,
+        location,
+        start_time,
+        end_time,
+        choir,
+        voices,
+        created_at
+      FROM event_schedules
 
   homework_syntax_suggestions:
     auto_subscribe: true
     query: |
-      SELECT * FROM homework_syntax_suggestions
+      SELECT
+        id,
+        category,
+        label,
+        shorthand,
+        aliases,
+        insert_template,
+        chip_color_key,
+        sort_order,
+        is_global,
+        created_by,
+        created_at
+      FROM homework_syntax_suggestions
       WHERE is_global = true OR created_by = auth.user_id()
 
   homework_contributions:
     auto_subscribe: true
     query: |
-      SELECT h.* FROM homework_contributions h
+      SELECT
+        h.id,
+        h.profile_id,
+        h.class_name,
+        h.schooltrack,
+        h.subject_id,
+        h.lesson_date,
+        h.fragments,
+        h.fragment_hashes,
+        h.created_at,
+        h.updated_at
+      FROM homework_contributions h
       JOIN profiles p ON p.id = auth.user_id()
       WHERE h.class_name = p.class_name
         AND (
@@ -82,7 +161,21 @@ streams:
   homework_tasks:
     auto_subscribe: true
     query: |
-      SELECT * FROM homework_tasks
+      SELECT
+        id,
+        profile_id,
+        title,
+        fragments,
+        plain_text,
+        subject_id,
+        is_completed,
+        completed_at,
+        due_at,
+        due_source,
+        contribution_id,
+        created_at,
+        updated_at
+      FROM homework_tasks
       WHERE profile_id = auth.user_id()
          OR profile_id IN (
            SELECT child_id
@@ -95,7 +188,14 @@ streams:
   homework_peer_dismissals:
     auto_subscribe: true
     query: |
-      SELECT * FROM homework_peer_dismissals
+      SELECT
+        id,
+        profile_id,
+        canonical_key,
+        subject_id,
+        lesson_date,
+        created_at
+      FROM homework_peer_dismissals
       WHERE profile_id = auth.user_id()
          OR profile_id IN (
            SELECT child_id

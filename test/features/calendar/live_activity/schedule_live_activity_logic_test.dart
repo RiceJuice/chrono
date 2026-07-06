@@ -2,6 +2,7 @@ import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state
 import 'package:chronoapp/features/calendar/domain/filter/event_schedule_filter.dart';
 import 'package:chronoapp/features/calendar/domain/models/event_schedule.dart';
 import 'package:chronoapp/features/calendar/live_activity/data/schedule_segment_timer_scheduler.dart';
+import 'package:chronoapp/features/calendar/live_activity/domain/schedule_live_activity_event.dart';
 import 'package:chronoapp/features/calendar/live_activity/domain/schedule_live_activity_resolver.dart';
 import 'package:chronoapp/features/calendar/live_activity/domain/schedule_live_activity_snapshot.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -103,6 +104,50 @@ void main() {
         start.millisecondsSinceEpoch,
       );
       expect(snapshot.segmentEndMs, end.millisecondsSinceEpoch);
+    });
+
+    test('resolveFromEvent für Termin ohne Ablaufplan', () {
+      final start = DateTime(2026, 6, 24, 18, 0);
+      final end = DateTime(2026, 6, 24, 20, 0);
+      final now = DateTime(2026, 6, 24, 18, 30);
+
+      final snapshot = ScheduleLiveActivityResolver.resolveFromEvent(
+        event: ScheduleLiveActivityEvent(
+          id: 'event-only',
+          eventName: 'Sommerfest',
+          location: 'Aula',
+          startTime: start,
+          endTime: end,
+        ),
+        filters: filters,
+        now: now,
+      );
+
+      expect(snapshot, isNotNull);
+      expect(snapshot!.currentTitle, 'Sommerfest');
+      expect(snapshot.currentSubtitle, 'Aula');
+      expect(snapshot.hasNext, isFalse);
+      expect(snapshot.segmentStartMs, start.millisecondsSinceEpoch);
+      expect(snapshot.segmentEndMs, end.millisecondsSinceEpoch);
+    });
+
+    test('resolveFromEvent vor Terminstart liefert null', () {
+      final start = DateTime(2026, 6, 24, 18, 0);
+      final end = DateTime(2026, 6, 24, 20, 0);
+      final now = DateTime(2026, 6, 24, 17, 30);
+
+      final snapshot = ScheduleLiveActivityResolver.resolveFromEvent(
+        event: ScheduleLiveActivityEvent(
+          id: 'event-only',
+          eventName: 'Sommerfest',
+          startTime: start,
+          endTime: end,
+        ),
+        filters: filters,
+        now: now,
+      );
+
+      expect(snapshot, isNull);
     });
   });
 

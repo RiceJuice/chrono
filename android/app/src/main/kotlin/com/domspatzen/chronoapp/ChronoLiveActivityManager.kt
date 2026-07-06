@@ -1,31 +1,69 @@
 package com.domspatzen.chronoapp
 
 import android.app.Notification
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
 import com.istornz.live_activities.LiveActivityManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.math.BigInteger
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.max
 import kotlin.math.min
 
 class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context) {
+    private companion object {
+        private const val NOTIFICATION_CHANNEL_NAME = "Live Activities"
+        private const val PROGRESS_TICK_MS = 1000L
+    }
+
     private val appContext: Context = context.applicationContext
     private val collapsedViews =
         RemoteViews(appContext.packageName, R.layout.live_activity)
     private val expandedViews =
         RemoteViews(appContext.packageName, R.layout.live_activity_expanded)
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.GERMANY)
+
+    private data class TrackedLiveActivity(
+        val activityId: String,
+        val data: Map<String, Any>,
+    )
+
+    private val trackedActivities = ConcurrentHashMap<String, TrackedLiveActivity>()
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private var progressTickerScheduled = false
+    private val progressTickerRunnable = object : Runnable {
+        override fun run() {
+            refreshTrackedActivityProgress()
+            if (trackedActivities.isNotEmpty()) {
+                progressHandler.postDelayed(this, PROGRESS_TICK_MS)
+            } else {
+                progressTickerScheduled = false
+            }
+        }
+    }
+
+    private var cachedMealImageUrl: String? = null
+    private var cachedMealBitmap: Bitmap? = null
 
     private data class TimetableSegment(
         val id: String,
@@ -175,27 +213,27 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         nowMs: Long,
     ): ResolvedSegment? {
         if (segments.isEmpty()) return null
-        val first = segments.first()
-        if (nowMs < first.startMs) {
-            val next = segments.getOrNull(1)
-            return ResolvedSegment(
-                title = first.title,
-                subtitle = first.subtitle,
-                shortTitle = first.displayShortTitle(),
-                segmentStartMs = activityStartMs,
-                segmentEndMs = first.startMs,
-                hasNext = next != null,
-                nextTitle = next?.title ?: "",
-                nextSubtitle = next?.subtitle ?: "",
-                nextShortTitle = next?.displayShortTitle() ?: "",
-                remainingLessons = remainingLessonCount(segments, 0, nowMs),
-                isMeal = first.type == "meal",
-                imageUrl = first.imageUrl,
-                isPreStart = true,
-            )
-        }
 
         segments.forEachIndexed { index, segment ->
+            if (nowMs < segment.startMs) {
+                val gapStart = if (index > 0) segments[index - 1].endMs else activityStartMs
+                val next = segments.getOrNull(index + 1)
+                return ResolvedSegment(
+                    title = segment.title,
+                    subtitle = segment.subtitle,
+                    shortTitle = segment.displayShortTitle(),
+                    segmentStartMs = gapStart,
+                    segmentEndMs = segment.startMs,
+                    hasNext = next != null,
+                    nextTitle = next?.title ?: "",
+                    nextSubtitle = next?.subtitle ?: "",
+                    nextShortTitle = next?.displayShortTitle() ?: "",
+                    remainingLessons = remainingLessonCount(segments, index, isPreStart = true),
+                    isMeal = segment.type == "meal",
+                    imageUrl = segment.imageUrl,
+                    isPreStart = true,
+                )
+            }
             if (nowMs < segment.endMs) {
                 val next = segments.getOrNull(index + 1)
                 return ResolvedSegment(
@@ -208,7 +246,7 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
                     nextTitle = next?.title ?: "",
                     nextSubtitle = next?.subtitle ?: "",
                     nextShortTitle = next?.displayShortTitle() ?: "",
-                    remainingLessons = remainingLessonCount(segments, index, nowMs),
+                    remainingLessons = remainingLessonCount(segments, index, isPreStart = false),
                     isMeal = segment.type == "meal",
                     imageUrl = segment.imageUrl,
                     isPreStart = false,
@@ -221,13 +259,13 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
     private fun remainingLessonCount(
         segments: List<TimetableSegment>,
         fromIndex: Int,
-        nowMs: Long,
+        isPreStart: Boolean,
     ): Int {
         var count = 0
         for (i in fromIndex until segments.size) {
             val segment = segments[i]
             if (segment.type != "lesson") continue
-            if (i == fromIndex && nowMs >= segment.endMs) continue
+            if (i == fromIndex && !isPreStart) continue
             count++
         }
         return count
@@ -242,6 +280,198 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
             resolved.isPreStart || !resolved.hasNext -> resolved.shortTitle
             else -> resolved.nextShortTitle
         }.ifBlank { "—" }
+    }
+
+    private suspend fun loadMealImageBitmap(imageUrl: String?): Bitmap? {
+        val dp = appContext.resources.displayMetrics.density
+        return withContext(Dispatchers.IO) {
+            if (imageUrl.isNullOrBlank()) return@withContext null
+            try {
+                val connection = URL(imageUrl).openConnection() as HttpURLConnection
+                connection.doInput = true
+                connection.connectTimeout = 4000
+                connection.readTimeout = 4000
+                connection.connect()
+                connection.inputStream.use { inputStream ->
+                    val original = BitmapFactory.decodeStream(inputStream) ?: return@withContext null
+                    val targetSize = (72 * dp).toInt().coerceAtLeast(1)
+                    val aspectRatio = original.width.toFloat() / original.height.toFloat()
+                    val (targetWidth, targetHeight) = if (aspectRatio >= 1f) {
+                        targetSize to (targetSize / aspectRatio).toInt().coerceAtLeast(1)
+                    } else {
+                        (targetSize * aspectRatio).toInt().coerceAtLeast(1) to targetSize
+                    }
+                    Bitmap.createScaledBitmap(original, targetWidth, targetHeight, true)
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    private suspend fun ensureMealBitmap(imageUrl: String?): Bitmap? {
+        if (imageUrl.isNullOrBlank()) {
+            cachedMealImageUrl = null
+            cachedMealBitmap = null
+            return null
+        }
+        if (imageUrl == cachedMealImageUrl) {
+            return cachedMealBitmap
+        }
+        val bitmap = loadMealImageBitmap(imageUrl)
+        cachedMealImageUrl = imageUrl
+        cachedMealBitmap = bitmap
+        return bitmap
+    }
+
+    private fun applyMealImage(views: RemoteViews, bitmap: Bitmap?) {
+        if (bitmap == null) {
+            views.setViewVisibility(R.id.meal_image, View.GONE)
+            return
+        }
+        views.setViewVisibility(R.id.meal_image, View.VISIBLE)
+        views.setImageViewBitmap(R.id.meal_image, bitmap)
+    }
+
+    private fun hideMealImage(views: RemoteViews) {
+        views.setViewVisibility(R.id.meal_image, View.GONE)
+    }
+
+    private fun activityIdFromData(data: Map<String, Any>): String? {
+        val kind = data["kind"] as? String ?: "schedule"
+        return when (kind) {
+            "timetable" -> {
+                val dayDate = data["dayDate"] as? String ?: return null
+                "timetable_$dayDate"
+            }
+            else -> {
+                val eventId = data["eventId"] as? String ?: return null
+                "event_$eventId"
+            }
+        }
+    }
+
+    private fun notificationIdFromActivityId(activityId: String): Int {
+        val digest = MessageDigest.getInstance("SHA-256").digest(activityId.toByteArray())
+        return BigInteger(digest).abs().toInt()
+    }
+
+    private fun activityEndMs(data: Map<String, Any>, nowMs: Long): Long {
+        val kind = data["kind"] as? String ?: "schedule"
+        if (kind == "timetable") {
+            val dayEndMs = (data["dayEndMs"] as? Number)?.toLong()
+            if (dayEndMs != null) return dayEndMs
+            val segments = parseSegments(data["segmentsJson"] as? String)
+            return segments.lastOrNull()?.endMs ?: nowMs
+        }
+        return (data["segmentEndMs"] as? Number)?.toLong() ?: nowMs
+    }
+
+    private fun shouldTrackProgress(data: Map<String, Any>): Boolean {
+        val now = System.currentTimeMillis()
+        return activityEndMs(data, now) > now
+    }
+
+    private fun registerForProgressUpdates(data: Map<String, Any>) {
+        val activityId = activityIdFromData(data) ?: return
+        if (!shouldTrackProgress(data)) {
+            trackedActivities.remove(activityId)
+            stopProgressTickerIfIdle()
+            return
+        }
+        trackedActivities[activityId] = TrackedLiveActivity(activityId, data)
+        startProgressTicker()
+    }
+
+    private fun startProgressTicker() {
+        if (progressTickerScheduled) return
+        progressTickerScheduled = true
+        progressHandler.postDelayed(progressTickerRunnable, PROGRESS_TICK_MS)
+    }
+
+    private fun stopProgressTickerIfIdle() {
+        if (trackedActivities.isEmpty() && progressTickerScheduled) {
+            progressHandler.removeCallbacks(progressTickerRunnable)
+            progressTickerScheduled = false
+        }
+    }
+
+    private fun refreshTrackedActivityProgress() {
+        if (trackedActivities.isEmpty()) return
+
+        val notificationManager =
+            appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val now = System.currentTimeMillis()
+        val expired = mutableListOf<String>()
+
+        for ((activityId, tracked) in trackedActivities) {
+            val notificationId = notificationIdFromActivityId(activityId)
+            val stillActive = notificationManager.activeNotifications.any {
+                it.id == notificationId &&
+                    it.notification.channelId == NOTIFICATION_CHANNEL_NAME
+            }
+            if (!stillActive) {
+                expired.add(activityId)
+                continue
+            }
+
+            postProgressNotification(notificationManager, activityId, tracked.data, now)
+
+            if (!shouldTrackProgress(tracked.data)) {
+                expired.add(activityId)
+            }
+        }
+
+        expired.forEach { trackedActivities.remove(it) }
+    }
+
+    private fun contentIntentFor(data: Map<String, Any>): PendingIntent {
+        val kind = data["kind"] as? String ?: "schedule"
+        return if (kind == "timetable") {
+            val dayDate = data["dayDate"] as? String ?: ""
+            pendingIntentForTimetable(dayDate)
+        } else {
+            val eventId = data["eventId"] as? String ?: ""
+            pendingIntentForSchedule(eventId)
+        }
+    }
+
+    private fun buildLiveActivityNotification(
+        data: Map<String, Any>,
+        timestamp: Long,
+    ): Notification {
+        updateRemoteViews(collapsedViews, data, expanded = false)
+        updateRemoteViews(expandedViews, data, expanded = true)
+
+        return Notification.Builder(appContext, NOTIFICATION_CHANNEL_NAME)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setOngoing(true)
+            .setShowWhen(false)
+            .setContentIntent(contentIntentFor(data))
+            .setCustomContentView(collapsedViews)
+            .setCustomBigContentView(expandedViews)
+            .setPriority(Notification.PRIORITY_LOW)
+            .setCategory(Notification.CATEGORY_EVENT)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setOnlyAlertOnce(true)
+            .apply {
+                extras.putLong("activity_timestamp", timestamp)
+            }
+            .build()
+    }
+
+    private fun postProgressNotification(
+        notificationManager: NotificationManager,
+        activityId: String,
+        data: Map<String, Any>,
+        timestamp: Long,
+    ) {
+        val notification = buildLiveActivityNotification(data, timestamp)
+        notificationManager.notify(
+            null,
+            notificationIdFromActivityId(activityId),
+            notification,
+        )
     }
 
     private fun updateRemoteViews(views: RemoteViews, data: Map<String, Any>, expanded: Boolean) {
@@ -262,26 +492,22 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
             )
             applyCountdownChronometer(views, resolved.segmentEndMs)
 
-            if (resolved.isMeal && !resolved.imageUrl.isNullOrBlank() && expanded) {
+            if (resolved.isMeal && expanded) {
                 views.setViewVisibility(R.id.arrow_icon, View.GONE)
-                views.setViewVisibility(R.id.next_column, View.VISIBLE)
-                views.setViewVisibility(R.id.next_title, View.VISIBLE)
-                views.setTextViewText(R.id.next_title, "")
-                try {
-                    views.setImageViewUri(
-                        R.id.next_title,
-                        Uri.parse(resolved.imageUrl),
-                    )
-                } catch (_: Exception) {
-                    views.setTextViewText(R.id.next_title, "Mittagessen")
-                }
-            } else if (resolved.hasNext) {
-                views.setViewVisibility(R.id.arrow_icon, View.VISIBLE)
-                views.setViewVisibility(R.id.next_title, View.VISIBLE)
-                views.setTextViewText(R.id.next_title, resolved.nextTitle)
-            } else {
-                views.setViewVisibility(R.id.arrow_icon, View.GONE)
+                views.setViewVisibility(R.id.next_column, View.GONE)
                 views.setViewVisibility(R.id.next_title, View.GONE)
+                views.setViewVisibility(R.id.next_subtitle, View.GONE)
+                applyMealImage(views, cachedMealBitmap)
+            } else {
+                hideMealImage(views)
+                if (resolved.hasNext) {
+                    views.setViewVisibility(R.id.arrow_icon, View.VISIBLE)
+                    views.setViewVisibility(R.id.next_title, View.VISIBLE)
+                    views.setTextViewText(R.id.next_title, resolved.nextTitle)
+                } else {
+                    views.setViewVisibility(R.id.arrow_icon, View.GONE)
+                    views.setViewVisibility(R.id.next_title, View.GONE)
+                }
             }
 
             if (!expanded) return
@@ -365,28 +591,23 @@ class ChronoLiveActivityManager(context: Context) : LiveActivityManager(context)
         event: String,
         data: Map<String, Any>,
     ): Notification {
-        updateRemoteViews(collapsedViews, data, expanded = false)
-        updateRemoteViews(expandedViews, data, expanded = true)
-
         val kind = data["kind"] as? String ?: "schedule"
-        val contentIntent = if (kind == "timetable") {
-            val dayDate = data["dayDate"] as? String ?: ""
-            pendingIntentForTimetable(dayDate)
+        if (kind == "timetable") {
+            val isMeal = data["isMeal"] as? Boolean ?: false
+            val imageUrl = data["imageUrl"] as? String
+            if (isMeal && !imageUrl.isNullOrBlank()) {
+                ensureMealBitmap(imageUrl)
+            } else {
+                cachedMealImageUrl = null
+                cachedMealBitmap = null
+            }
         } else {
-            val eventId = data["eventId"] as? String ?: ""
-            pendingIntentForSchedule(eventId)
+            cachedMealImageUrl = null
+            cachedMealBitmap = null
         }
 
-        return notification
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setOngoing(true)
-            .setShowWhen(false)
-            .setContentIntent(contentIntent)
-            .setCustomContentView(collapsedViews)
-            .setCustomBigContentView(expandedViews)
-            .setPriority(Notification.PRIORITY_LOW)
-            .setCategory(Notification.CATEGORY_EVENT)
-            .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .build()
+        val built = buildLiveActivityNotification(data, System.currentTimeMillis())
+        registerForProgressUpdates(data)
+        return built
     }
 }

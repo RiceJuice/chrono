@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
 
     const { data: bucketFiles, error: listError } = await supabaseAdmin.storage
       .from("uploads")
-      .list();
+      .list("", { search: prefix, limit: 1000 });
 
     if (listError) {
       console.error("uploads list failed:", listError.message);

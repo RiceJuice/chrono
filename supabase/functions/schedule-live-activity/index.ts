@@ -1,6 +1,7 @@
 /**
- * pg_cron → FCM Live Activities (start/end an Segmentgrenzen).
- * DB-Trigger (calendar_events, event_schedules) → FCM update/end bei Inhaltsänderungen.
+ * Bedarfsgesteuerte FCM Live Activities für Kalender-Events (type = event).
+ * DB-Trigger + geplante pg_cron-Einmal-Jobs → start/end an Termin-/Segmentgrenzen.
+ * DB-Trigger bei Änderungen → FCM update/end bei laufender Live Activity.
  *
  * Countdown läuft nativ auf dem Gerät (iOS TimelineView / Android Chronometer).
  * Server sendet nur: start (Push-to-Start), update (Inhaltsänderung), end.
@@ -37,6 +38,9 @@ type ScheduleRow = {
 type CalendarEventRow = {
   id: string;
   event_name: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  location?: string | null;
   choir: AudienceTokens;
   voices: AudienceTokens;
   type: string | null;
@@ -71,9 +75,12 @@ type Snapshot = {
   segmentEndMs: number;
 };
 
-type ChangeRequest = {
+type RequestBody = {
   mode?: string;
   event_id?: string;
+  schedule_id?: string | null;
+  action?: string;
+  job_id?: string;
   op?: string;
   source?: string;
   event_snapshot?: CalendarEventRow;
@@ -82,11 +89,104 @@ type ChangeRequest = {
 type SendOptions = {
   skipDedup?: boolean;
   dedupAction?: LiveActivityFcmEvent;
+  dispatchCache?: DispatchCache;
 };
+
+function isEventType(raw: string | null | undefined): boolean {
+  return (raw ?? "").trim().toLowerCase() === "event";
+}
+
+function dispatchKey(
+  scheduleId: string,
+  userId: string,
+  deviceId: string,
+  action: LiveActivityFcmEvent,
+): string {
+  return `${scheduleId}:${userId}:${deviceId}:${action}`;
+}
+
+class DispatchCache {
+  private readonly dispatched = new Set<string>();
+  private readonly pendingUpserts: Array<{
+    schedule_id: string;
+    user_id: string;
+    device_id: string;
+    action: LiveActivityFcmEvent;
+    sent_at: string;
+  }> = [];
+
+  wasDispatched(
+    scheduleId: string,
+    userId: string,
+    deviceId: string,
+    action: LiveActivityFcmEvent,
+  ): boolean {
+    return this.dispatched.has(dispatchKey(scheduleId, userId, deviceId, action));
+  }
+
+  markDispatched(
+    scheduleId: string,
+    userId: string,
+    deviceId: string,
+    action: LiveActivityFcmEvent,
+  ): void {
+    const key = dispatchKey(scheduleId, userId, deviceId, action);
+    if (this.dispatched.has(key)) return;
+    this.dispatched.add(key);
+    this.pendingUpserts.push({
+      schedule_id: scheduleId,
+      user_id: userId,
+      device_id: deviceId,
+      action,
+      sent_at: new Date().toISOString(),
+    });
+  }
+
+  static async load(
+    supabase: ReturnType<typeof createClient>,
+    scheduleIds: string[],
+    actions: LiveActivityFcmEvent[],
+  ): Promise<DispatchCache> {
+    const cache = new DispatchCache();
+    if (scheduleIds.length === 0 || actions.length === 0) return cache;
+
+    const { data, error } = await supabase
+      .from("schedule_live_activity_dispatches")
+      .select("schedule_id, user_id, device_id, action")
+      .in("schedule_id", scheduleIds)
+      .in("action", actions);
+
+    if (error) {
+      console.error("dispatch batch lookup failed", error.message);
+      return cache;
+    }
+
+    for (const row of data ?? []) {
+      cache.dispatched.add(
+        dispatchKey(row.schedule_id, row.user_id, row.device_id, row.action),
+      );
+    }
+    return cache;
+  }
+
+  async flush(supabase: ReturnType<typeof createClient>): Promise<void> {
+    const chunkSize = 100;
+    for (let i = 0; i < this.pendingUpserts.length; i += chunkSize) {
+      const chunk = this.pendingUpserts.slice(i, i + chunkSize);
+      const { error } = await supabase
+        .from("schedule_live_activity_dispatches")
+        .upsert(chunk, {
+          onConflict: "schedule_id,user_id,device_id,action",
+        });
+      if (error) {
+        console.error("dispatch batch upsert failed", error.message);
+      }
+    }
+  }
+}
 
 function resolveSegmentStartEvent(device: DeviceRow): LiveActivityFcmEvent {
   const liveToken = device.live_activity_push_token?.trim();
-  // Bereits laufende Activity → nur Inhalt aktualisieren, kein erneutes Push-to-Start.
   return liveToken && liveToken.length > 0 ? "update" : "start";
 }
 
@@ -214,6 +314,25 @@ function hasSchedulesToday(schedules: ScheduleRow[], now: Date): boolean {
   return schedules.some((s) => isSameLocalDay(new Date(s.start_time), now));
 }
 
+function isEventActiveToday(event: CalendarEventRow, now: Date): boolean {
+  if (!event.start_time || !event.end_time) return false;
+  const start = new Date(event.start_time);
+  const end = new Date(event.end_time);
+  return isSameLocalDay(start, now) && start <= now && end > now;
+}
+
+function isEventRelevantToday(
+  event: CalendarEventRow,
+  schedules: ScheduleRow[],
+  now: Date,
+): boolean {
+  if (schedules.length > 0) {
+    return hasSchedulesToday(schedules, now);
+  }
+  if (!event.start_time || !event.end_time) return false;
+  return isSameLocalDay(new Date(event.start_time), now);
+}
+
 function buildSnapshot(
   schedules: ScheduleRow[],
   now: Date,
@@ -254,6 +373,22 @@ function buildSnapshot(
   };
 }
 
+function buildEventOnlySnapshot(
+  event: CalendarEventRow,
+): Snapshot | null {
+  if (!event.start_time || !event.end_time) return null;
+  return {
+    currentScheduleId: event.id,
+    currentTitle: event.event_name ?? "",
+    currentSubtitle: event.location ?? "",
+    hasNext: false,
+    nextTitle: "",
+    nextSubtitle: "",
+    segmentStartMs: new Date(event.start_time).getTime(),
+    segmentEndMs: new Date(event.end_time).getTime(),
+  };
+}
+
 function snapshotToContentState(
   snapshot: Snapshot,
   eventId: string,
@@ -270,6 +405,19 @@ function snapshotToContentState(
   };
 }
 
+function emptyContentState(eventId: string): Record<string, string | number | boolean> {
+  return {
+    currentTitle: "",
+    currentSubtitle: "",
+    hasNext: false,
+    nextTitle: "",
+    nextSubtitle: "",
+    segmentStartMs: 0,
+    segmentEndMs: 0,
+    eventId,
+  };
+}
+
 function isLastVisibleSegmentOfDay(
   schedule: ScheduleRow,
   visibleToday: ScheduleRow[],
@@ -278,42 +426,11 @@ function isLastVisibleSegmentOfDay(
   return visibleToday[visibleToday.length - 1].id === schedule.id;
 }
 
-async function wasDispatched(
-  supabase: ReturnType<typeof createClient>,
-  scheduleId: string,
-  userId: string,
-  deviceId: string,
-  action: LiveActivityFcmEvent,
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("schedule_live_activity_dispatches")
-    .select("id")
-    .eq("schedule_id", scheduleId)
-    .eq("user_id", userId)
-    .eq("device_id", deviceId)
-    .eq("action", action)
-    .maybeSingle();
-  if (error) {
-    console.error("dispatch lookup failed", error.message);
-    return true;
-  }
-  return data != null;
-}
-
-async function markDispatched(
-  supabase: ReturnType<typeof createClient>,
-  scheduleId: string,
-  userId: string,
-  deviceId: string,
-  action: LiveActivityFcmEvent,
-): Promise<void> {
-  await supabase.from("schedule_live_activity_dispatches").upsert({
-    schedule_id: scheduleId,
-    user_id: userId,
-    device_id: deviceId,
-    action,
-    sent_at: new Date().toISOString(),
-  }, { onConflict: "schedule_id,user_id,device_id,action" });
+function dedupScheduleId(
+  eventId: string,
+  scheduleId: string | null | undefined,
+): string {
+  return scheduleId?.trim() ? scheduleId : eventId;
 }
 
 async function sendForDevice(
@@ -326,17 +443,14 @@ async function sendForDevice(
   contentState: Record<string, string | number | boolean>,
   options?: SendOptions,
 ): Promise<"sent" | "skipped" | "failed"> {
-  if (
-    !options?.skipDedup &&
-    await wasDispatched(
-      supabase,
-      scheduleId,
-      device.user_id,
-      device.device_id,
-      options?.dedupAction ?? fcmEvent,
-    )
-  ) {
-    return "skipped";
+  const dedupAction = options?.dedupAction ?? fcmEvent;
+  const cache = options?.dispatchCache;
+
+  if (!options?.skipDedup) {
+    const alreadySent = cache
+      ? cache.wasDispatched(scheduleId, device.user_id, device.device_id, dedupAction)
+      : false;
+    if (alreadySent) return "skipped";
   }
 
   const token = device.fcm_token?.trim();
@@ -356,12 +470,11 @@ async function sendForDevice(
 
   if (result.ok) {
     if (!options?.skipDedup) {
-      await markDispatched(
-        supabase,
+      cache?.markDispatched(
         scheduleId,
         device.user_id,
         device.device_id,
-        options?.dedupAction ?? fcmEvent,
+        dedupAction,
       );
     }
     return "sent";
@@ -374,81 +487,125 @@ async function sendForDevice(
   return "failed";
 }
 
-async function loadDevices(
+async function loadDevicesForEvent(
   supabase: ReturnType<typeof createClient>,
+  event: CalendarEventRow,
 ): Promise<DeviceRow[]> {
   const { data: devices, error: devicesError } = await supabase
     .from("profile_push_devices")
     .select(
       "id, user_id, device_id, fcm_token, platform, schedule_filter, push_to_start_token, live_activity_push_token, profiles!inner(id, choir, voice)",
     )
-    .not("fcm_token", "is", null);
+    .not("fcm_token", "is", null)
+    .or(
+      "push_to_start_token.not.is.null,live_activity_push_token.not.is.null",
+    );
 
   if (devicesError) {
     console.error("profile_push_devices query failed", devicesError.message);
     throw new Error(devicesError.message);
   }
 
-  return (devices ?? []) as DeviceRow[];
+  return ((devices ?? []) as DeviceRow[]).filter((device) => {
+    const profile = asProfile(device.profiles);
+    return profile != null && profileMatchesEvent(profile, event);
+  });
 }
 
-async function handleContentChange(
+async function loadEvent(
   supabase: ReturnType<typeof createClient>,
-  serviceAccount: ReturnType<typeof parseServiceAccountJson>,
-  request: ChangeRequest,
-  now: Date,
-): Promise<Response> {
-  const eventId = request.event_id;
-  if (!eventId) {
-    return jsonResponse({ error: "event_id required" }, 400);
+  eventId: string,
+  snapshot?: CalendarEventRow | null,
+): Promise<CalendarEventRow | null> {
+  if (snapshot?.id) return snapshot;
+
+  const { data, error } = await supabase
+    .from("calendar_events")
+    .select("id, event_name, start_time, end_time, location, choir, voices, type")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("calendar_events lookup failed", error.message);
+    throw new Error(error.message);
   }
 
-  let event: CalendarEventRow | null = null;
-  if (request.op === "DELETE" && request.event_snapshot?.id) {
-    event = request.event_snapshot;
-  } else {
-    const { data, error } = await supabase
-      .from("calendar_events")
-      .select("id, event_name, choir, voices, type")
-      .eq("id", eventId)
-      .maybeSingle();
-    if (error) {
-      console.error("calendar_events lookup failed", error.message);
-      return jsonResponse({ error: "Query failed", detail: error.message }, 500);
-    }
-    event = data as CalendarEventRow | null;
-  }
+  return data as CalendarEventRow | null;
+}
 
-  const { data: allSchedules, error: schedulesError } = await supabase
+async function loadSchedulesForEvent(
+  supabase: ReturnType<typeof createClient>,
+  eventId: string,
+): Promise<ScheduleRow[]> {
+  const { data, error } = await supabase
     .from("event_schedules")
     .select("id, event_id, title, location, start_time, end_time, choir, voices")
     .eq("event_id", eventId)
     .order("start_time", { ascending: true });
 
-  if (schedulesError) {
-    console.error("event_schedules query failed", schedulesError.message);
-    return jsonResponse({ error: "Query failed", detail: schedulesError.message }, 500);
+  if (error) {
+    console.error("event_schedules query failed", error.message);
+    throw new Error(error.message);
   }
 
-  const schedules = (allSchedules ?? []) as ScheduleRow[];
+  return (data ?? []) as ScheduleRow[];
+}
 
-  if (request.op !== "DELETE" && !hasSchedulesToday(schedules, now)) {
-    return jsonResponse({ processed: 1, sent: 0, skipped: 0, mode: "change" });
+async function handleDispatch(
+  supabase: ReturnType<typeof createClient>,
+  serviceAccount: ReturnType<typeof parseServiceAccountJson>,
+  request: RequestBody,
+  now: Date,
+): Promise<Response> {
+  const eventId = request.event_id;
+  const action = request.action;
+  if (!eventId || (action !== "start" && action !== "end")) {
+    return jsonResponse({ error: "event_id and action (start|end) required" }, 400);
   }
+
+  let event: CalendarEventRow | null;
+  try {
+    event = await loadEvent(supabase, eventId);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return jsonResponse({ error: "Query failed", detail: message }, 500);
+  }
+
+  if (!event || !isEventType(event.type)) {
+    return jsonResponse({ processed: 0, sent: 0, skipped: 0, mode: "dispatch" });
+  }
+
+  let schedules: ScheduleRow[];
+  try {
+    schedules = await loadSchedulesForEvent(supabase, eventId);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return jsonResponse({ error: "Query failed", detail: message }, 500);
+  }
+
+  const hasSchedules = schedules.length > 0;
+  const scheduleId = dedupScheduleId(eventId, request.schedule_id);
 
   let devices: DeviceRow[];
   try {
-    devices = await loadDevices(supabase);
+    devices = await loadDevicesForEvent(supabase, event);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return jsonResponse({ error: "Query failed", step: "profile_push_devices", detail: message }, 500);
   }
 
+  const dispatchScheduleIds = hasSchedules
+    ? schedules.map((s) => s.id)
+    : [eventId];
+  const dispatchCache = await DispatchCache.load(
+    supabase,
+    dispatchScheduleIds,
+    ["start", "end"],
+  );
+
   let sent = 0;
   let failed = 0;
   let skipped = 0;
-
-  const isDeleted = request.op === "DELETE" || event == null;
 
   for (const device of devices) {
     const profile = asProfile(device.profiles);
@@ -457,32 +614,71 @@ async function handleContentChange(
       continue;
     }
 
-    if (isDeleted) {
-      if (!event || !profileMatchesEvent(profile, event)) {
+    const filter = device.schedule_filter ?? "all";
+
+    if (!hasSchedules) {
+      const snapshot = buildEventOnlySnapshot(event);
+      if (!snapshot) {
         skipped++;
         continue;
       }
-      const lastScheduleId = schedules.length > 0
-        ? schedules[schedules.length - 1].id
-        : eventId;
+
+      if (action === "start") {
+        const fcmEvent = resolveSegmentStartEvent(device);
+        const result = await sendForDevice(
+          supabase,
+          serviceAccount,
+          device,
+          eventId,
+          eventId,
+          fcmEvent,
+          snapshotToContentState(snapshot, eventId),
+          { dispatchCache, dedupAction: "start" },
+        );
+        if (result === "sent") sent++;
+        else if (result === "failed") failed++;
+        else skipped++;
+      } else {
+        const result = await sendForDevice(
+          supabase,
+          serviceAccount,
+          device,
+          eventId,
+          eventId,
+          "end",
+          snapshotToContentState(snapshot, eventId),
+          { dispatchCache },
+        );
+        if (result === "sent") sent++;
+        else if (result === "failed") failed++;
+        else skipped++;
+      }
+      continue;
+    }
+
+    const visible = visibleSchedulesToday(schedules, profile, filter, now);
+    const targetSchedule = schedules.find((s) => s.id === scheduleId);
+
+    if (action === "start") {
+      if (!targetSchedule) {
+        skipped++;
+        continue;
+      }
+      const snapshot = buildSnapshot(visible, now);
+      if (!snapshot || snapshot.currentScheduleId !== targetSchedule.id) {
+        skipped++;
+        continue;
+      }
+      const fcmEvent = resolveSegmentStartEvent(device);
       const result = await sendForDevice(
         supabase,
         serviceAccount,
         device,
         eventId,
-        lastScheduleId,
-        "end",
-        {
-          currentTitle: "",
-          currentSubtitle: "",
-          hasNext: false,
-          nextTitle: "",
-          nextSubtitle: "",
-          segmentStartMs: 0,
-          segmentEndMs: 0,
-          eventId,
-        },
-        { skipDedup: true },
+        targetSchedule.id,
+        fcmEvent,
+        snapshotToContentState(snapshot, eventId),
+        { dispatchCache, dedupAction: "start" },
       );
       if (result === "sent") sent++;
       else if (result === "failed") failed++;
@@ -490,27 +686,146 @@ async function handleContentChange(
       continue;
     }
 
-    if (!profileMatchesEvent(profile, event)) {
-      const lastScheduleId = schedules.length > 0
-        ? schedules[schedules.length - 1].id
-        : eventId;
+    if (!targetSchedule) {
+      skipped++;
+      continue;
+    }
+    if (!isLastVisibleSegmentOfDay(targetSchedule, visible)) {
+      skipped++;
+      continue;
+    }
+
+    const last = visible[visible.length - 1];
+    const contentState = snapshotToContentState({
+      currentScheduleId: last.id,
+      currentTitle: last.title,
+      currentSubtitle: last.location ?? "",
+      hasNext: false,
+      nextTitle: "",
+      nextSubtitle: "",
+      segmentStartMs: new Date(last.start_time).getTime(),
+      segmentEndMs: effectiveEnd(last).getTime(),
+    }, eventId);
+
+    const result = await sendForDevice(
+      supabase,
+      serviceAccount,
+      device,
+      eventId,
+      targetSchedule.id,
+      "end",
+      contentState,
+      { dispatchCache },
+    );
+    if (result === "sent") sent++;
+    else if (result === "failed") failed++;
+    else skipped++;
+  }
+
+  await dispatchCache.flush(supabase);
+
+  return jsonResponse({
+    processed: 1,
+    sent,
+    failed,
+    skipped,
+    mode: "dispatch",
+    event_id: eventId,
+    action,
+    schedule_id: request.schedule_id ?? null,
+    job_id: request.job_id ?? null,
+  });
+}
+
+async function handleContentChange(
+  supabase: ReturnType<typeof createClient>,
+  serviceAccount: ReturnType<typeof parseServiceAccountJson>,
+  request: RequestBody,
+  now: Date,
+): Promise<Response> {
+  const eventId = request.event_id;
+  if (!eventId) {
+    return jsonResponse({ error: "event_id required" }, 400);
+  }
+
+  let event: CalendarEventRow | null;
+  try {
+    event = await loadEvent(
+      supabase,
+      eventId,
+      request.op === "DELETE" ? request.event_snapshot : null,
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return jsonResponse({ error: "Query failed", detail: message }, 500);
+  }
+
+  if (event && !isEventType(event.type)) {
+    return jsonResponse({ processed: 0, sent: 0, skipped: 0, mode: "change" });
+  }
+
+  let schedules: ScheduleRow[];
+  try {
+    schedules = await loadSchedulesForEvent(supabase, eventId);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return jsonResponse({ error: "Query failed", detail: message }, 500);
+  }
+
+  const isDeleted = request.op === "DELETE" || event == null;
+  if (!isDeleted && event && !isEventRelevantToday(event, schedules, now)) {
+    return jsonResponse({ processed: 1, sent: 0, skipped: 0, mode: "change" });
+  }
+
+  if (isDeleted && !event) {
+    return jsonResponse({ processed: 1, sent: 0, skipped: 0, mode: "change" });
+  }
+
+  const referenceEvent = event!;
+  let devices: DeviceRow[];
+  try {
+    devices = isDeleted
+      ? await loadDevicesForEvent(supabase, referenceEvent)
+      : await loadDevicesForEvent(supabase, referenceEvent);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return jsonResponse({ error: "Query failed", step: "profile_push_devices", detail: message }, 500);
+  }
+
+  const hasSchedules = schedules.length > 0;
+  const dispatchScheduleIds = hasSchedules
+    ? schedules.map((s) => s.id)
+    : [eventId];
+  const dispatchCache = await DispatchCache.load(
+    supabase,
+    dispatchScheduleIds,
+    ["start", "end"],
+  );
+
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const device of devices) {
+    const profile = asProfile(device.profiles);
+    if (!profile) {
+      skipped++;
+      continue;
+    }
+
+    const endScheduleId = hasSchedules
+      ? schedules[schedules.length - 1].id
+      : eventId;
+
+    if (isDeleted || !profileMatchesEvent(profile, referenceEvent)) {
       const result = await sendForDevice(
         supabase,
         serviceAccount,
         device,
         eventId,
-        lastScheduleId,
+        endScheduleId,
         "end",
-        {
-          currentTitle: "",
-          currentSubtitle: "",
-          hasNext: false,
-          nextTitle: "",
-          nextSubtitle: "",
-          segmentStartMs: 0,
-          segmentEndMs: 0,
-          eventId,
-        },
+        emptyContentState(eventId),
         { skipDedup: true },
       );
       if (result === "sent") sent++;
@@ -520,6 +835,59 @@ async function handleContentChange(
     }
 
     const filter = device.schedule_filter ?? "all";
+
+    if (!hasSchedules) {
+      const snapshot = buildEventOnlySnapshot(referenceEvent);
+      if (!snapshot || !isEventActiveToday(referenceEvent, now)) {
+        if (snapshot && new Date(referenceEvent.end_time!) <= now) {
+          const result = await sendForDevice(
+            supabase,
+            serviceAccount,
+            device,
+            eventId,
+            eventId,
+            "end",
+            snapshotToContentState(snapshot, eventId),
+            { skipDedup: true },
+          );
+          if (result === "sent") sent++;
+          else if (result === "failed") failed++;
+          else skipped++;
+        } else {
+          skipped++;
+        }
+        continue;
+      }
+
+      const alreadyStarted = dispatchCache.wasDispatched(
+        eventId,
+        device.user_id,
+        device.device_id,
+        "start",
+      );
+      const fcmEvent: LiveActivityFcmEvent = alreadyStarted
+        ? "update"
+        : resolveSegmentStartEvent(device);
+      const result = await sendForDevice(
+        supabase,
+        serviceAccount,
+        device,
+        eventId,
+        eventId,
+        fcmEvent,
+        snapshotToContentState(snapshot, eventId),
+        {
+          dispatchCache,
+          skipDedup: fcmEvent === "update",
+          dedupAction: "start",
+        },
+      );
+      if (result === "sent") sent++;
+      else if (result === "failed") failed++;
+      else skipped++;
+      continue;
+    }
+
     const visible = visibleSchedulesToday(schedules, profile, filter, now);
     const snapshot = buildSnapshot(visible, now);
 
@@ -554,8 +922,7 @@ async function handleContentChange(
       continue;
     }
 
-    const alreadyStarted = await wasDispatched(
-      supabase,
+    const alreadyStarted = dispatchCache.wasDispatched(
       snapshot.currentScheduleId,
       device.user_id,
       device.device_id,
@@ -564,8 +931,6 @@ async function handleContentChange(
     const fcmEvent: LiveActivityFcmEvent = alreadyStarted
       ? "update"
       : resolveSegmentStartEvent(device);
-    const contentState = snapshotToContentState(snapshot, eventId);
-
     const result = await sendForDevice(
       supabase,
       serviceAccount,
@@ -573,13 +938,19 @@ async function handleContentChange(
       eventId,
       snapshot.currentScheduleId,
       fcmEvent,
-      contentState,
-      fcmEvent === "update" ? { skipDedup: true } : undefined,
+      snapshotToContentState(snapshot, eventId),
+      {
+        dispatchCache,
+        skipDedup: fcmEvent === "update",
+        dedupAction: "start",
+      },
     );
     if (result === "sent") sent++;
     else if (result === "failed") failed++;
     else skipped++;
   }
+
+  await dispatchCache.flush(supabase);
 
   return jsonResponse({
     processed: 1,
@@ -593,236 +964,60 @@ async function handleContentChange(
   });
 }
 
-async function handleCronTick(
-  supabase: ReturnType<typeof createClient>,
-  serviceAccount: ReturnType<typeof parseServiceAccountJson>,
-  now: Date,
-): Promise<Response> {
-  const windowStart = new Date(now.getTime() - 30_000).toISOString();
-  const windowEnd = new Date(now.getTime() + 30_000).toISOString();
-
-  const { data: startingSchedules, error: scheduleError } = await supabase
-    .from("event_schedules")
-    .select("id, event_id, title, location, start_time, end_time, choir, voices")
-    .gte("start_time", windowStart)
-    .lte("start_time", windowEnd);
-
-  if (scheduleError) {
-    console.error("event_schedules query failed", scheduleError.message);
-    return jsonResponse({ error: "Query failed", step: "starting_schedules", detail: scheduleError.message }, 500);
-  }
-
-  const { data: endingSchedules, error: endingError } = await supabase
-    .from("event_schedules")
-    .select("id, event_id, title, location, start_time, end_time, choir, voices")
-    .or(
-      `and(end_time.gte."${windowStart}",end_time.lte."${windowEnd}"),and(end_time.is.null,start_time.gte."${windowStart}",start_time.lte."${windowEnd}")`,
-    );
-
-  if (endingError) {
-    console.error("ending schedules query failed", endingError.message);
-    return jsonResponse({ error: "Query failed", step: "ending_schedules", detail: endingError.message }, 500);
-  }
-
-  const eventIds = new Set<string>();
-  for (const row of [...(startingSchedules ?? []), ...(endingSchedules ?? [])]) {
-    eventIds.add(row.event_id);
-  }
-
-  if (eventIds.size === 0) {
-    return jsonResponse({ processed: 0, sent: 0, mode: "cron" });
-  }
-
-  const { data: events, error: eventsError } = await supabase
-    .from("calendar_events")
-    .select("id, event_name, choir, voices, type")
-    .in("id", [...eventIds]);
-
-  if (eventsError) {
-    console.error("calendar_events query failed", eventsError.message);
-    return jsonResponse({ error: "Query failed", step: "calendar_events", detail: eventsError.message }, 500);
-  }
-
-  const eventsById = new Map<string, CalendarEventRow>();
-  for (const event of events ?? []) {
-    eventsById.set(event.id, event as CalendarEventRow);
-  }
-
-  let devices: DeviceRow[];
-  try {
-    devices = await loadDevices(supabase);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return jsonResponse({ error: "Query failed", step: "profile_push_devices", detail: message }, 500);
-  }
-
-  const schedulesByEvent = new Map<string, ScheduleRow[]>();
-  for (const eventId of eventIds) {
-    const { data: allSchedules, error: allError } = await supabase
-      .from("event_schedules")
-      .select("id, event_id, title, location, start_time, end_time, choir, voices")
-      .eq("event_id", eventId)
-      .order("start_time", { ascending: true });
-
-    if (allError || !allSchedules?.length) continue;
-    schedulesByEvent.set(eventId, allSchedules as ScheduleRow[]);
-  }
-
-  let sent = 0;
-  let failed = 0;
-  let skipped = 0;
-
-  for (const startRow of (startingSchedules ?? []) as ScheduleRow[]) {
-    const event = eventsById.get(startRow.event_id);
-    if (!event) continue;
-
-    const allSchedules = schedulesByEvent.get(startRow.event_id);
-    if (!allSchedules?.length) continue;
-
-    for (const device of devices) {
-      const profile = asProfile(device.profiles);
-      if (!profile || !profileMatchesEvent(profile, event)) {
-        skipped++;
-        continue;
-      }
-
-      const filter = device.schedule_filter ?? "all";
-      const visible = visibleSchedulesToday(allSchedules, profile, filter, now);
-      const snapshot = buildSnapshot(visible, now);
-      if (!snapshot || snapshot.currentScheduleId !== startRow.id) {
-        skipped++;
-        continue;
-      }
-
-      const contentState = snapshotToContentState(snapshot, startRow.event_id);
-      const fcmEvent = resolveSegmentStartEvent(device);
-      const result = await sendForDevice(
-        supabase,
-        serviceAccount,
-        device,
-        startRow.event_id,
-        startRow.id,
-        fcmEvent,
-        contentState,
-        { dedupAction: "start" },
-      );
-      if (result === "sent") sent++;
-      else if (result === "failed") failed++;
-      else skipped++;
-    }
-  }
-
-  for (const endRow of (endingSchedules ?? []) as ScheduleRow[]) {
-    const event = eventsById.get(endRow.event_id);
-    if (!event) continue;
-
-    const allSchedules = schedulesByEvent.get(endRow.event_id);
-    if (!allSchedules?.length) continue;
-
-    for (const device of devices) {
-      const profile = asProfile(device.profiles);
-      if (!profile || !profileMatchesEvent(profile, event)) {
-        skipped++;
-        continue;
-      }
-
-      const filter = device.schedule_filter ?? "all";
-      const visible = visibleSchedulesToday(allSchedules, profile, filter, now);
-      if (!isLastVisibleSegmentOfDay(endRow, visible)) {
-        skipped++;
-        continue;
-      }
-
-      const last = visible[visible.length - 1];
-      const contentState = snapshotToContentState({
-        currentScheduleId: last.id,
-        currentTitle: last.title,
-        currentSubtitle: last.location ?? "",
-        hasNext: false,
-        nextTitle: "",
-        nextSubtitle: "",
-        segmentStartMs: new Date(last.start_time).getTime(),
-        segmentEndMs: effectiveEnd(last).getTime(),
-      }, endRow.event_id);
-
-      const result = await sendForDevice(
-        supabase,
-        serviceAccount,
-        device,
-        endRow.event_id,
-        endRow.id,
-        "end",
-        contentState,
-      );
-      if (result === "sent") sent++;
-      else if (result === "failed") failed++;
-      else skipped++;
-    }
-  }
-
-  return jsonResponse({
-    processed: eventIds.size,
-    sent,
-    failed,
-    skipped,
-    mode: "cron",
-  });
-}
-
 Deno.serve(async (req) => {
   try {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
-  }
-
-  const cronSecret = Deno.env.get("SCHEDULE_LIVE_ACTIVITY_CRON_SECRET");
-  const headerSecret = req.headers.get("x-cron-secret");
-  if (!cronSecret || headerSecret !== cronSecret) {
-    return jsonResponse({ error: "Unauthorized" }, 401);
-  }
-
-  const serviceAccountRaw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!serviceAccountRaw || !supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: "Server misconfigured" }, 500);
-  }
-
-  let serviceAccount;
-  try {
-    serviceAccount = parseServiceAccountJson(serviceAccountRaw);
-  } catch (e) {
-    console.error("Firebase service account parse error", e);
-    return jsonResponse({ error: "Server configuration error" }, 500);
-  }
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-  const now = new Date();
-
-  let changeRequest: ChangeRequest = {};
-  try {
-    const rawBody = await req.text();
-    if (rawBody.trim().length > 0) {
-      changeRequest = JSON.parse(rawBody) as ChangeRequest;
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
     }
-  } catch (e) {
-    console.error("request body parse error", e);
-    return jsonResponse({ error: "Invalid JSON body" }, 400);
-  }
 
-  if (changeRequest.mode === "change" && changeRequest.event_id) {
-    return await handleContentChange(
-      supabase,
-      serviceAccount,
-      changeRequest,
-      now,
-    );
-  }
+    if (req.method !== "POST") {
+      return jsonResponse({ error: "Method not allowed" }, 405);
+    }
 
-  return await handleCronTick(supabase, serviceAccount, now);
+    const cronSecret = Deno.env.get("SCHEDULE_LIVE_ACTIVITY_CRON_SECRET");
+    const headerSecret = req.headers.get("x-cron-secret");
+    if (!cronSecret || headerSecret !== cronSecret) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const serviceAccountRaw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceAccountRaw || !supabaseUrl || !serviceRoleKey) {
+      return jsonResponse({ error: "Server misconfigured" }, 500);
+    }
+
+    let serviceAccount;
+    try {
+      serviceAccount = parseServiceAccountJson(serviceAccountRaw);
+    } catch (e) {
+      console.error("Firebase service account parse error", e);
+      return jsonResponse({ error: "Server configuration error" }, 500);
+    }
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const now = new Date();
+
+    let body: RequestBody = {};
+    try {
+      const rawBody = await req.text();
+      if (rawBody.trim().length === 0) {
+        return jsonResponse({ error: "Request body required" }, 400);
+      }
+      body = JSON.parse(rawBody) as RequestBody;
+    } catch (e) {
+      console.error("request body parse error", e);
+      return jsonResponse({ error: "Invalid JSON body" }, 400);
+    }
+
+    if (body.mode === "dispatch" && body.event_id) {
+      return await handleDispatch(supabase, serviceAccount, body, now);
+    }
+
+    if (body.mode === "change" && body.event_id) {
+      return await handleContentChange(supabase, serviceAccount, body, now);
+    }
+
+    return jsonResponse({ error: "Invalid mode" }, 400);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error("schedule-live-activity unhandled", e);

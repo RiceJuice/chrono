@@ -44,6 +44,7 @@ class LessionCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accent = resolveCalendarEntryAccent(ref, entry);
+    final isOtherSchoolTrack = isOtherSchoolTrackLessonForRef(ref, entry);
     final lookupKey = lessonHomeworkLookupKeyForEntry(entry);
     final openTasks = lookupKey == null
         ? const <HomeworkTask>[]
@@ -64,9 +65,10 @@ class LessionCard extends ConsumerWidget {
           contentPadding:
               contentPadding ?? CalendarCardLeadingIndicator.contentPadding,
           titleFontSize: titleFontSize,
-          backgroundColor: CalendarPresentationTheme.lessonCardBackgroundColor(
+          backgroundColor: _lessonBackgroundColor(
             context,
             accent,
+            isOtherSchoolTrack: isOtherSchoolTrack,
           ),
           leadingIndicatorColor: accent,
           modalHeaderPreview: modalHeaderPreview,
@@ -83,5 +85,18 @@ class LessionCard extends ConsumerWidget {
           ),
       ],
     );
+  }
+
+  Color _lessonBackgroundColor(
+    BuildContext context,
+    Color accent, {
+    required bool isOtherSchoolTrack,
+  }) {
+    final base = CalendarPresentationTheme.lessonCardBackgroundColor(
+      context,
+      accent,
+    );
+    if (!isOtherSchoolTrack) return base;
+    return CalendarPresentationTheme.dimmedSurface(context, base);
   }
 }

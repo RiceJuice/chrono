@@ -40,7 +40,6 @@
         </LinearLayout>
 
         <TextView
-            android:id="@+id/arrow_icon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="10dp"
@@ -85,6 +84,16 @@
         </LinearLayout>
     </LinearLayout>
 
+    <ImageView
+        android:id="@+id/meal_image"
+        android:layout_width="match_parent"
+        android:layout_height="90dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/live_activity_meal_image_bg"
+        android:clipToOutline="true"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -94,12 +103,15 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/segment_start"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="start"
                 android:textColor="@color/live_activity_text_secondary"
                 android:textSize="15sp" />
 
@@ -107,7 +119,7 @@
                 android:id="@+id/remaining_chronometer"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_weight="1.4"
                 android:gravity="center"
                 android:textColor="@color/live_activity_text_primary"
                 android:textSize="15sp"
@@ -115,8 +127,10 @@
 
             <TextView
                 android:id="@+id/segment_end"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
                 android:textColor="@color/live_activity_text_secondary"
                 android:textSize="15sp" />
         </LinearLayout>
