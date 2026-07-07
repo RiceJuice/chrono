@@ -60,15 +60,17 @@ export async function loadEventDevices(
   supabase: ReturnType<typeof createClient>,
   event: CalendarEventRow,
 ): Promise<DeviceRow[]> {
+  // Nur fcm_token ist zwingend: push_to_start_token existiert nur auf iOS und
+  // erst nach Registrierung, live_activity_push_token erst nach dem ersten
+  // Start. Ein zusaetzlicher .or()-Filter auf diese Spalten wuerde Android-
+  // Geraete (die beide Felder nie befuellen) und frische iOS-Geraete
+  // faelschlich komplett ausschliessen -> Live Activity startet nie.
   const { data, error } = await supabase
     .from("profile_push_devices")
     .select(
       "id, user_id, device_id, fcm_token, platform, schedule_filter, push_to_start_token, live_activity_push_token, profiles!inner(id, choir, voice)",
     )
-    .not("fcm_token", "is", null)
-    .or(
-      "push_to_start_token.not.is.null,live_activity_push_token.not.is.null",
-    );
+    .not("fcm_token", "is", null);
 
   if (error) throw new Error(error.message);
 
@@ -82,16 +84,14 @@ export async function loadTimetableDevices(
   supabase: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<DeviceRow[]> {
+  // Siehe loadEventDevices: nur fcm_token ist zwingend erforderlich.
   const { data, error } = await supabase
     .from("profile_push_devices")
     .select(
       "id, user_id, device_id, fcm_token, platform, schedule_filter, push_to_start_token, live_activity_push_token, profiles!inner(id, choir, voice, class_name, schooltrack)",
     )
     .eq("user_id", userId)
-    .not("fcm_token", "is", null)
-    .or(
-      "push_to_start_token.not.is.null,live_activity_push_token.not.is.null",
-    );
+    .not("fcm_token", "is", null);
 
   if (error) throw new Error(error.message);
   return (data ?? []) as DeviceRow[];
