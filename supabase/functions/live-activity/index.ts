@@ -438,10 +438,12 @@ async function handleTimetableChange(
     timeZone: "Europe/Berlin",
   }).format(now);
 
-  const { data: userRows } = await supabase
+  const { data: userRows, error: userRowsError } = await supabase
     .from("profile_push_devices")
     .select("user_id")
     .not("fcm_token", "is", null);
+
+  if (userRowsError) throw new Error(userRowsError.message);
 
   const userIds = [...new Set((userRows ?? []).map((r) => r.user_id as string))];
 

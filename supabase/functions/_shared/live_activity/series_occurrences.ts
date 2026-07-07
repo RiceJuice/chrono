@@ -41,6 +41,74 @@ function normalizeRrule(raw: string | null | undefined): string | null {
   return null;
 }
 
+const WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] as const;
+
+type ParsedWeeklyRule = {
+  freq: "WEEKLY";
+  interval: number;
+  byDay: number[];
+};
+
+function parseRruleParams(rrule: string): Record<string, string> {
+  const body = rrule.trim().replace(/^RRULE:/i, "");
+  const params: Record<string, string> = {};
+  for (const part of body.split(";")) {
+    const [key, value] = part.split("=");
+    if (key && value) params[key.trim().toUpperCase()] = value.trim();
+  }
+  return params;
+}
+
+// Eigene minimalistische RRULE-Auswertung fuer FREQ=WEEKLY;BYDAY=... statt der
+// npm:rrule-Bibliothek: dynamische npm-Imports sind im Deno Edge-Runtime nicht
+// zuverlaessig verfuegbar und schlugen dort still fehl (try/catch schluckte den
+// Fehler), wodurch Serien nie expandiert wurden - obwohl es lokal in Node
+// funktionierte. Die hier verwendeten Regeln sind ausschliesslich einfache
+// woechentliche Stundenplan-Wiederholungen, daher reicht diese Eigenloesung.
+function parseWeeklyRule(normalized: string): ParsedWeeklyRule | null {
+  const params = parseRruleParams(normalized);
+  if ((params.FREQ ?? "").toUpperCase() !== "WEEKLY") return null;
+
+  const interval = Math.max(1, parseInt(params.INTERVAL ?? "1", 10) || 1);
+  const byDayRaw = params.BYDAY ?? "";
+  const byDay = byDayRaw
+    .split(",")
+    .map((code) => WEEKDAY_CODES.indexOf(code.trim().toUpperCase() as typeof WEEKDAY_CODES[number]))
+    .filter((idx) => idx >= 0);
+
+  if (byDay.length === 0) return null;
+  return { freq: "WEEKLY", interval, byDay };
+}
+
+function isoWeekday(date: Date): number {
+  // 0=Montag .. 6=Sonntag, passend zu WEEKDAY_CODES
+  return (date.getUTCDay() + 6) % 7;
+}
+
+function weeksBetween(fromMonday: Date, toMonday: Date): number {
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  return Math.round((toMonday.getTime() - fromMonday.getTime()) / msPerWeek);
+}
+
+function mondayOfWeek(date: Date): Date {
+  const weekday = isoWeekday(date);
+  const monday = new Date(date.getTime());
+  monday.setUTCDate(monday.getUTCDate() - weekday);
+  monday.setUTCHours(0, 0, 0, 0);
+  return monday;
+}
+
+function occursOnDay(rule: ParsedWeeklyRule, dtstart: Date, targetDayUtcMidnight: Date): boolean {
+  const targetWeekday = isoWeekday(targetDayUtcMidnight);
+  if (!rule.byDay.includes(targetWeekday)) return false;
+  if (rule.interval === 1) return true;
+
+  const dtstartMonday = mondayOfWeek(dtstart);
+  const targetMonday = mondayOfWeek(targetDayUtcMidnight);
+  const diffWeeks = weeksBetween(dtstartMonday, targetMonday);
+  return diffWeeks >= 0 && diffWeeks % rule.interval === 0;
+}
+
 function extractWallHms(wallIso: string): string {
   const part = wallIso.includes("T") ? wallIso.split("T")[1]! : wallIso;
   return part.replace(/([+-]\d{2}(?::?\d{2})?|Z)$/i, "");
@@ -61,13 +129,18 @@ function berlinInstant(dayKey: string, wallIso: string): Date {
 function parseSeriesDate(value: string | null | undefined): Date | null {
   const s = value?.trim().slice(0, 10);
   if (!s) return null;
-  return new Date(`${s}T00:00:00${berlinOffsetSuffix(value ?? "")}`);
+  // Wichtig: series_start/series_end sind reine Datums-Strings (YYYY-MM-DD)
+  // ohne echten Offset. berlinOffsetSuffix() ist fuer Uhrzeit-Strings mit
+  // Offset gedacht - auf ein Datum angewendet, matcht die Regex faelschlich
+  // den Tag ("...-15" -> Offset "-15") und liefert ein Invalid Date. Daher
+  // hier die DST-sichere Tagesgrenze aus dayBoundsBerlin() nutzen.
+  return new Date(dayBoundsBerlin(s).start);
 }
 
 function seriesEndExclusive(seriesEnd: string | null | undefined): Date | null {
   const day = seriesEnd?.trim().slice(0, 10);
   if (!day) return null;
-  const endLocal = berlinInstant(day, "23:59:59+02:00");
+  const endLocal = new Date(dayBoundsBerlin(day).end);
   return new Date(endLocal.getTime() + 1000);
 }
 
@@ -110,7 +183,13 @@ export async function expandSeriesForDay(
   if (seriesStart && dayEnd < seriesStart) return [];
   if (seriesEnd && dayStart >= seriesEnd) return [];
 
+  const rule = parseWeeklyRule(normalized);
+  if (!rule) return [];
+
   const dtstart = berlinInstant(seriesStartDay, series.start_time);
+  const targetDayUtcMidnight = new Date(`${dayKey}T00:00:00Z`);
+  if (!occursOnDay(rule, dtstart, targetDayUtcMidnight)) return [];
+
   const templateStart = berlinInstant(dayKey, series.start_time);
   const templateEnd = berlinInstant(
     dayKey,
@@ -121,38 +200,19 @@ export async function expandSeriesForDay(
     45 * 60_000,
   );
 
-  let rule;
-  try {
-    const { rrulestr } = await import("npm:rrule@2.8.1");
-    rule = rrulestr(normalized, { dtstart });
-  } catch {
-    return [];
-  }
-
-  const instances = rule.between(
-    new Date(dayStart.getTime() - 1),
-    new Date(dayEnd.getTime() + 1),
-    true,
-  );
-
-  return instances.map((instance) => {
-    const day = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Berlin",
-    }).format(instance);
-    const start = berlinInstant(day, series.start_time);
-    const end = new Date(start.getTime() + durationMs);
-    return {
-      id: series.id,
-      event_name: series.event_name,
-      type: series.type,
-      start_time: start.toISOString(),
-      end_time: end.toISOString(),
-      class: series.class,
-      schooltrack: series.schooltrack,
-      image_paths: series.image_paths ?? null,
-      series_id: series.id,
-    };
-  });
+  const start = templateStart;
+  const end = new Date(start.getTime() + durationMs);
+  return [{
+    id: series.id,
+    event_name: series.event_name,
+    type: series.type,
+    start_time: start.toISOString(),
+    end_time: end.toISOString(),
+    class: series.class,
+    schooltrack: series.schooltrack,
+    image_paths: series.image_paths ?? null,
+    series_id: series.id,
+  }];
 }
 
 export async function mergeTimetableRowsForDay(

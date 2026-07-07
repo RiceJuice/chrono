@@ -12,10 +12,29 @@ type CalendarRow = {
   image_paths: string | null;
 };
 
+function berlinOffsetForDay(dayKey: string): string {
+  // Sommer-/Winterzeit (CEST/CET) via echtem TZ-Lookup statt fest verdrahtetem
+  // Offset, da ein hartes "+01:00" im Sommer (CEST=+02:00) die Tagesgrenzen um
+  // eine Stunde verschiebt.
+  const probe = new Date(`${dayKey}T12:00:00Z`);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: SCHEDULE_TIMEZONE,
+    timeZoneName: "shortOffset",
+  }).formatToParts(probe);
+  const tzPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+1";
+  const match = tzPart.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/);
+  const rawHours = match?.[1] ?? "+1";
+  const minutes = match?.[2] ?? "00";
+  const sign = rawHours.startsWith("-") ? "-" : "+";
+  const hours = Math.abs(Number(rawHours)).toString().padStart(2, "0");
+  return `${sign}${hours}:${minutes}`;
+}
+
 export function dayBoundsBerlin(dayKey: string): { start: string; end: string } {
+  const offset = berlinOffsetForDay(dayKey);
   return {
-    start: `${dayKey}T00:00:00+01:00`,
-    end: `${dayKey}T23:59:59+01:00`,
+    start: `${dayKey}T00:00:00${offset}`,
+    end: `${dayKey}T23:59:59${offset}`,
   };
 }
 
