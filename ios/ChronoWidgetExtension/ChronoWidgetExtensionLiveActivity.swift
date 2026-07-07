@@ -87,7 +87,80 @@ private func readKind(context: ActivityViewContext<LiveActivitiesAppAttributes>)
   return sharedDefault.string(forKey: key) ?? "schedule"
 }
 
-/// Stundenplan: primär payload-gesteuert (wie Schedule), segmentsJson nur App-Fallback.
+/// Ein Segment aus `segmentsJson` (Fallback-Quelle, siehe unten).
+private struct TimetableSegmentData {
+  let id: String
+  let title: String
+  let shortTitle: String
+  let subtitle: String
+  let startMs: Double
+  let endMs: Double
+  let accentColor: String
+  let isMeal: Bool
+  let imageUrl: String?
+}
+
+private func parseTimetableSegments(_ rawJson: String?) -> [TimetableSegmentData] {
+  guard let rawJson = rawJson, !rawJson.isEmpty,
+    let data = rawJson.data(using: .utf8),
+    let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+  else { return [] }
+
+  return array.compactMap { dict in
+    guard let id = dict["id"] as? String,
+      let title = dict["title"] as? String,
+      let startMs = (dict["startMs"] as? NSNumber)?.doubleValue,
+      let endMs = (dict["endMs"] as? NSNumber)?.doubleValue
+    else { return nil }
+
+    return TimetableSegmentData(
+      id: id,
+      title: title,
+      shortTitle: dict["shortTitle"] as? String ?? title,
+      subtitle: dict["subtitle"] as? String ?? "",
+      startMs: startMs,
+      endMs: endMs,
+      accentColor: dict["accentColor"] as? String ?? "#124E30",
+      isMeal: (dict["type"] as? String) == "meal",
+      imageUrl: dict["imageUrl"] as? String
+    )
+  }
+}
+
+private struct ResolvedTimetableSegment {
+  let index: Int
+  let segmentStartMs: Double
+  let segmentEndMs: Double
+  let isPreStart: Bool
+}
+
+/// Ermittelt das aktuelle Segment rein aus den Rohdaten - identische Logik wie
+/// serverseitig (timetable_snapshot.ts) und im Dart-Resolver. Dient als
+/// Fallback, falls das per Push gesendete segmentStart/segmentEnd fehlt oder
+/// ungueltig ist (z. B. 0/0 bei einem fehlgeschlagenen Server-Snapshot).
+private func resolveTimetableSegment(
+  segments: [TimetableSegmentData],
+  activityStartMs: Double,
+  nowMs: Double
+) -> ResolvedTimetableSegment? {
+  for (index, segment) in segments.enumerated() {
+    if nowMs < segment.startMs {
+      let gapStart = index > 0 ? segments[index - 1].endMs : activityStartMs
+      return ResolvedTimetableSegment(
+        index: index, segmentStartMs: gapStart, segmentEndMs: segment.startMs, isPreStart: true)
+    }
+    if nowMs < segment.endMs {
+      return ResolvedTimetableSegment(
+        index: index, segmentStartMs: segment.startMs, segmentEndMs: segment.endMs,
+        isPreStart: false)
+    }
+  }
+  return nil
+}
+
+/// Stundenplan: primär payload-gesteuert (wie Schedule); segmentsJson dient als
+/// lokaler Fallback, wenn segmentStart/segmentEnd aus dem Push fehlen oder
+/// ungueltig sind (verhindert eingefrorene "0:00"-Anzeige).
 private struct TimetableLiveData {
   let dayDate: String
   let currentTitle: String
@@ -108,25 +181,65 @@ private struct TimetableLiveData {
       context.attributes.prefixedKey(name)
     }
     dayDate = sharedDefault.string(forKey: key("dayDate")) ?? ""
-    currentTitle = sharedDefault.string(forKey: key("currentTitle")) ?? ""
-    currentSubtitle = sharedDefault.string(forKey: key("currentSubtitle")) ?? ""
-    nextTitle = sharedDefault.string(forKey: key("nextTitle")) ?? ""
-    nextSubtitle = sharedDefault.string(forKey: key("nextSubtitle")) ?? ""
+
+    var resolvedCurrentTitle = sharedDefault.string(forKey: key("currentTitle")) ?? ""
+    var resolvedCurrentSubtitle = sharedDefault.string(forKey: key("currentSubtitle")) ?? ""
+    var resolvedNextTitle = sharedDefault.string(forKey: key("nextTitle")) ?? ""
+    var resolvedNextSubtitle = sharedDefault.string(forKey: key("nextSubtitle")) ?? ""
+    var resolvedHasNext: Bool
     if sharedDefault.object(forKey: key("hasNext")) != nil {
-      hasNext = sharedDefault.bool(forKey: key("hasNext"))
+      resolvedHasNext = sharedDefault.bool(forKey: key("hasNext"))
     } else {
-      hasNext = !nextTitle.isEmpty
+      resolvedHasNext = !resolvedNextTitle.isEmpty
     }
-    let startMs = sharedDefault.double(forKey: key("segmentStartMs"))
-    let endMs = sharedDefault.double(forKey: key("segmentEndMs"))
+    var resolvedAccentHex = sharedDefault.string(forKey: key("accentColor")) ?? "#124E30"
+    var resolvedIsMeal = sharedDefault.bool(forKey: key("isMeal"))
+    var resolvedRemainingLessons = Int(sharedDefault.integer(forKey: key("remainingLessons")))
+
+    var startMs = sharedDefault.double(forKey: key("segmentStartMs"))
+    var endMs = sharedDefault.double(forKey: key("segmentEndMs"))
+
+    if endMs <= startMs {
+      let segments = parseTimetableSegments(sharedDefault.string(forKey: key("segmentsJson")))
+      let activityStartMs = sharedDefault.double(forKey: key("activityStartMs"))
+      let nowMs = Date().timeIntervalSince1970 * 1000
+      if let resolved = resolveTimetableSegment(
+        segments: segments, activityStartMs: activityStartMs, nowMs: nowMs)
+      {
+        startMs = resolved.segmentStartMs
+        endMs = resolved.segmentEndMs
+        let current = segments[resolved.index]
+        let next = resolved.index + 1 < segments.count ? segments[resolved.index + 1] : nil
+        resolvedCurrentTitle = current.title
+        resolvedCurrentSubtitle = current.subtitle
+        resolvedNextTitle = next?.title ?? ""
+        resolvedNextSubtitle = next?.subtitle ?? ""
+        resolvedHasNext = next != nil
+        resolvedAccentHex = current.accentColor
+        resolvedIsMeal = current.isMeal
+
+        var remainingCount = 0
+        for i in resolved.index..<segments.count {
+          if segments[i].isMeal { continue }
+          if i == resolved.index && !resolved.isPreStart { continue }
+          remainingCount += 1
+        }
+        resolvedRemainingLessons = remainingCount
+      }
+    }
+
+    currentTitle = resolvedCurrentTitle
+    currentSubtitle = resolvedCurrentSubtitle
+    nextTitle = resolvedNextTitle
+    nextSubtitle = resolvedNextSubtitle
+    hasNext = resolvedHasNext
+    accentColor = parseHexColor(resolvedAccentHex)
+    isMeal = resolvedIsMeal
+    remainingLessons = resolvedRemainingLessons
     segmentStart = Date(timeIntervalSince1970: startMs / 1000)
     segmentEnd = Date(timeIntervalSince1970: endMs / 1000)
-    let accentHex = sharedDefault.string(forKey: key("accentColor")) ?? "#124E30"
-    accentColor = parseHexColor(accentHex)
-    isMeal = sharedDefault.bool(forKey: key("isMeal"))
     imageUrl = sharedDefault.string(forKey: key("imageUrl"))
     mealImagePath = sharedDefault.string(forKey: key("mealImage"))
-    remainingLessons = Int(sharedDefault.integer(forKey: key("remainingLessons")))
   }
 
   var compactLeadingLabel: String {
