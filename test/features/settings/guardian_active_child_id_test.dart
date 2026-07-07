@@ -13,6 +13,7 @@ const _gate = ProfileGateData(
   role: 'Elternteil',
   voice: null,
   choir: null,
+  diet: null,
   onboardingCompletedAt: null,
   activeChildId: 'child-b',
   hasAnyGuardianLink: true,

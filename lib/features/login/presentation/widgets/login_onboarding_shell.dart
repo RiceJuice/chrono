@@ -28,6 +28,7 @@ class LoginOnboardingShell extends StatelessWidget {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: LoginSplitScreen(
         contentMaxWidth: isChoirPage ? 620 : 560,
+        visual: const LoginSplitBrandVisual(),
         child: SafeArea(
           // Startscreen: Squircle-Panel bis zum unteren Bildschirmrand.
           bottom: !isStart,

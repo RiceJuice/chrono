@@ -9,6 +9,8 @@ class CalendarPreferencesCodec {
   CalendarPreferencesCodec._();
 
   static const String subjectAccentsKey = 'subject_accents';
+  static const String eventChangeNotificationsKey = 'event_change_notifications';
+  static const String showMealImagesKey = 'show_meal_images';
 
   static Map<String, dynamic> decodeRoot(Object? raw) {
     if (raw == null) return <String, dynamic>{};
@@ -66,6 +68,56 @@ class CalendarPreferencesCodec {
         for (final e in subjectAccents.entries)
           e.key: SubjectColorCodec.toHex(e.value),
       };
+    }
+    return jsonEncode(root);
+  }
+
+  /// Standard: aktiv, wenn der Schlüssel fehlt oder ungültig ist.
+  static bool decodeEventChangeNotifications(Object? raw) {
+    final value = decodeRoot(raw)[eventChangeNotificationsKey];
+    if (value is bool) return value;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true') return true;
+      if (normalized == 'false') return false;
+    }
+    return true;
+  }
+
+  static String encodeEventChangeNotifications({
+    required Object? existingPreferences,
+    required bool enabled,
+  }) {
+    final root = decodeRoot(existingPreferences);
+    if (enabled) {
+      root.remove(eventChangeNotificationsKey);
+    } else {
+      root[eventChangeNotificationsKey] = false;
+    }
+    return jsonEncode(root);
+  }
+
+  /// Standard: aktiv, wenn der Schlüssel fehlt oder ungültig ist.
+  static bool decodeShowMealImages(Object? raw) {
+    final value = decodeRoot(raw)[showMealImagesKey];
+    if (value is bool) return value;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true') return true;
+      if (normalized == 'false') return false;
+    }
+    return true;
+  }
+
+  static String encodeShowMealImages({
+    required Object? existingPreferences,
+    required bool enabled,
+  }) {
+    final root = decodeRoot(existingPreferences);
+    if (enabled) {
+      root.remove(showMealImagesKey);
+    } else {
+      root[showMealImagesKey] = false;
     }
     return jsonEncode(root);
   }

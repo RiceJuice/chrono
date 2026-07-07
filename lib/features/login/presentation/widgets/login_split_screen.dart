@@ -78,6 +78,37 @@ class LoginSplitScreen extends StatelessWidget {
   }
 }
 
+class LoginSplitBrandVisual extends StatelessWidget {
+  const LoginSplitBrandVisual({super.key});
+
+  static const assetPath = 'assets/login_split_visual.png';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            scheme.primaryContainer.withValues(alpha: 0.95),
+            scheme.secondaryContainer.withValues(alpha: 0.88),
+            scheme.tertiaryContainer.withValues(alpha: 0.82),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 64),
+          child: Image.asset(assetPath, fit: BoxFit.contain),
+        ),
+      ),
+    );
+  }
+}
+
 class LoginSplitPlaceholderVisual extends StatelessWidget {
   const LoginSplitPlaceholderVisual({super.key});
 

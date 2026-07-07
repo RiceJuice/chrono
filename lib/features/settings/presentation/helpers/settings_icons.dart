@@ -16,6 +16,7 @@ abstract final class SettingsIcons {
   static IconData get voice => PhosphorIcons.microphoneStage(_style);
   static IconData get diet => PhosphorIcons.forkKnife(_style);
   static IconData get appearance => PhosphorIcons.palette(_style);
+  static IconData get notifications => PhosphorIcons.bell(_style);
   static IconData get family => PhosphorIcons.usersThree(_style);
   static IconData get addChild => PhosphorIcons.userPlus(_style);
   static IconData get password => PhosphorIcons.lockKey(_style);

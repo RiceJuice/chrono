@@ -13,6 +13,8 @@ class LoginFlowDraft {
   String lastName = '';
   String? schoolClass;
   String? schoolTrack;
+  String? diet;
+  bool showMealImages = true;
   int choirPage = 1;
   String voice = '';
 
@@ -25,6 +27,8 @@ class LoginFlowDraft {
     lastName = '';
     schoolClass = null;
     schoolTrack = null;
+    diet = null;
+    showMealImages = true;
     choirPage = 1;
     voice = '';
   }

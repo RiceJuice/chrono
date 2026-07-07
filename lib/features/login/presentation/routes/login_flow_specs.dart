@@ -48,7 +48,8 @@ final List<LoginFlowStepSpec> loginFlowSpecs = <LoginFlowStepSpec>[
         (_isNonEmpty(data.firstName) &&
             _isNonEmpty(data.lastName) &&
             _isNonEmpty(data.className) &&
-            _isNonEmpty(data.schoolTrack)),
+            _isNonEmpty(data.schoolTrack) &&
+            _isNonEmpty(data.diet)),
   ),
   LoginFlowStepSpec(
     path: LoginPaths.choir,

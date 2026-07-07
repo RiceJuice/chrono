@@ -18,6 +18,7 @@ ProfileGateData _guardianGate() {
     schoolTrack: null,
     voice: null,
     choir: null,
+    diet: null,
     onboardingCompletedAt: null,
   );
 }
@@ -71,6 +72,7 @@ void main() {
           schoolTrack: 'Gymnasium',
           voice: 'Bass',
           choir: 'Giehl',
+          diet: null,
           onboardingCompletedAt: null,
           activeChildId: null,
         ),

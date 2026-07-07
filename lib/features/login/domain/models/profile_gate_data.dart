@@ -11,6 +11,7 @@ class ProfileGateData {
     required this.role,
     required this.voice,
     required this.choir,
+    required this.diet,
     required this.onboardingCompletedAt,
     required this.activeChildId,
     required this.hasAnyGuardianLink,
@@ -28,6 +29,7 @@ class ProfileGateData {
         role = null,
         voice = null,
         choir = null,
+        diet = null,
         onboardingCompletedAt = null,
         activeChildId = null,
         hasAnyGuardianLink = false,
@@ -43,6 +45,7 @@ class ProfileGateData {
   final String? role;
   final String? voice;
   final String? choir;
+  final String? diet;
   final DateTime? onboardingCompletedAt;
   final String? activeChildId;
   final bool hasAnyGuardianLink;
@@ -61,6 +64,7 @@ class ProfileGateData {
     String? role,
     String? voice,
     String? choir,
+    String? diet,
     DateTime? onboardingCompletedAt,
     String? activeChildId,
     bool? hasAnyGuardianLink,
@@ -77,6 +81,7 @@ class ProfileGateData {
       role: role ?? this.role,
       voice: voice ?? this.voice,
       choir: choir ?? this.choir,
+      diet: diet ?? this.diet,
       onboardingCompletedAt:
           onboardingCompletedAt ?? this.onboardingCompletedAt,
       activeChildId: activeChildId ?? this.activeChildId,

@@ -99,6 +99,7 @@ class SettingsSwitchTile extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.subtitle,
+    this.enabled = true,
   });
 
   final String title;
@@ -106,23 +107,28 @@ class SettingsSwitchTile extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
   final String? subtitle;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final contentColor = enabled ? scheme.onSurface : scheme.outline;
+    final iconColor = enabled ? scheme.onSurfaceVariant : scheme.outline;
 
     return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onChanged(!value);
-      },
+      onTap: enabled
+          ? () {
+              HapticFeedback.selectionClick();
+              onChanged(!value);
+            }
+          : null,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 56),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              PhosphorIcon(icon, size: 22, color: scheme.onSurfaceVariant),
+              PhosphorIcon(icon, size: 22, color: iconColor),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
@@ -130,7 +136,7 @@ class SettingsSwitchTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: scheme.onSurface,
+                    color: contentColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -145,7 +151,7 @@ class SettingsSwitchTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
+                      color: enabled ? scheme.onSurfaceVariant : scheme.outline,
                     ),
                   ),
                 ),
@@ -159,10 +165,12 @@ class SettingsSwitchTile extends StatelessWidget {
                   child: Switch(
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     value: value,
-                    onChanged: (enabled) {
-                      HapticFeedback.selectionClick();
-                      onChanged(enabled);
-                    },
+                    onChanged: enabled
+                        ? (next) {
+                            HapticFeedback.selectionClick();
+                            onChanged(next);
+                          }
+                        : null,
                   ),
                 ),
               ),

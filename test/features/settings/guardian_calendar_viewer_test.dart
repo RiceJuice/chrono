@@ -15,6 +15,7 @@ const _gateWithConfirmedLink = ProfileGateData(
   role: LoginFlowRoleIds.guardian,
   voice: null,
   choir: null,
+  diet: null,
   onboardingCompletedAt: null,
   activeChildId: 'child-1',
   hasAnyGuardianLink: true,

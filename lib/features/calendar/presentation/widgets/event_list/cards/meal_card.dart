@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/meal_images_preference_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/calendar_meal_card_image_strip.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/calendar_meal_period_label.dart';
 import 'package:chronoapp/features/calendar/presentation/widgets/event_list/cards/widgets/text_content.dart';
@@ -42,6 +43,7 @@ class MealCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final temporalState = CalendarEntryTemporalState.fromEntry(entry);
     final accent = resolveCalendarEntryAccent(ref, entry);
+    final showMealImages = ref.watch(showMealImagesProvider).value ?? true;
     final style = CalendarCardStyleResolver.resolve(
       context: context,
       baseBackgroundColor: accent,
@@ -143,6 +145,7 @@ class MealCard extends ConsumerWidget {
                               ),
                             ),
                             if (!homeWidgetSnapshot &&
+                                showMealImages &&
                                 ((entry.imageUrls?.isNotEmpty ?? false) ||
                                     (entry.imagePaths?.isNotEmpty ?? false)))
                               CalendarMealCardImageStrip(

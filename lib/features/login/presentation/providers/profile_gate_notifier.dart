@@ -149,7 +149,7 @@ class ProfileGateNotifier extends ChangeNotifier {
     return _client
         .from('profiles')
         .select(
-          'first_name, last_name, class_name, schooltrack, voice, role, choir, '
+          'first_name, last_name, class_name, schooltrack, voice, role, choir, diet, '
           'onboarding_completed_at, active_child_id',
         )
         .eq('id', userId)
@@ -223,6 +223,7 @@ class ProfileGateNotifier extends ChangeNotifier {
       role: role,
       voice: _asString(row?['voice']),
       choir: _asString(row?['choir']),
+      diet: _asString(row?['diet']),
       onboardingCompletedAt: _asDateTime(row?['onboarding_completed_at']),
       activeChildId: _asString(row?['active_child_id']),
       hasAnyGuardianLink: linkSummary.hasAnyLink,
@@ -237,7 +238,7 @@ class ProfileGateNotifier extends ChangeNotifier {
     try {
       final sqliteRow = await db.getOptional(
         '''
-        SELECT first_name, last_name, class_name, schooltrack, voice, role, choir,
+        SELECT first_name, last_name, class_name, schooltrack, voice, role, choir, diet,
                onboarding_completed_at, active_child_id
         FROM $kProfilesTable
         WHERE id = ?

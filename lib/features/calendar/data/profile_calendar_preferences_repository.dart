@@ -12,6 +12,118 @@ class ProfileCalendarPreferencesRepository {
 
   final PowerSyncDatabase _db;
 
+  Stream<bool> watchShowMealImages(String userId) {
+    return _db
+        .watch(
+          '''
+          SELECT calendar_preferences
+          FROM $kProfilesTable
+          WHERE id = ?
+          LIMIT 1
+          ''',
+          parameters: [userId],
+          triggerOnTables: const {kProfilesTable},
+        )
+        .map((rows) {
+          if (rows.isEmpty) return true;
+          return CalendarPreferencesCodec.decodeShowMealImages(
+            rows.first['calendar_preferences'],
+          );
+        });
+  }
+
+  Future<void> setShowMealImages({
+    required String userId,
+    required bool enabled,
+  }) async {
+    await _db.writeTransaction((tx) async {
+      final rows = await tx.getAll(
+        '''
+        SELECT calendar_preferences
+        FROM $kProfilesTable
+        WHERE id = ?
+        LIMIT 1
+        ''',
+        [userId],
+      );
+      if (rows.isEmpty) {
+        throw StateError('Profil nicht gefunden.');
+      }
+
+      final existing = rows.first['calendar_preferences'];
+      final encoded = CalendarPreferencesCodec.encodeShowMealImages(
+        existingPreferences: existing,
+        enabled: enabled,
+      );
+      if (_storedPreferencesEqual(existing, encoded)) return;
+
+      await tx.execute(
+        '''
+        UPDATE $kProfilesTable
+        SET calendar_preferences = ?
+        WHERE id = ?
+        ''',
+        [encoded, userId],
+      );
+    });
+  }
+
+  Stream<bool> watchEventChangeNotifications(String userId) {
+    return _db
+        .watch(
+          '''
+          SELECT calendar_preferences
+          FROM $kProfilesTable
+          WHERE id = ?
+          LIMIT 1
+          ''',
+          parameters: [userId],
+          triggerOnTables: const {kProfilesTable},
+        )
+        .map((rows) {
+          if (rows.isEmpty) return true;
+          return CalendarPreferencesCodec.decodeEventChangeNotifications(
+            rows.first['calendar_preferences'],
+          );
+        });
+  }
+
+  Future<void> setEventChangeNotifications({
+    required String userId,
+    required bool enabled,
+  }) async {
+    await _db.writeTransaction((tx) async {
+      final rows = await tx.getAll(
+        '''
+        SELECT calendar_preferences
+        FROM $kProfilesTable
+        WHERE id = ?
+        LIMIT 1
+        ''',
+        [userId],
+      );
+      if (rows.isEmpty) {
+        throw StateError('Profil nicht gefunden.');
+      }
+
+      final existing = rows.first['calendar_preferences'];
+      final encoded = CalendarPreferencesCodec.encodeEventChangeNotifications(
+        existingPreferences: existing,
+        enabled: enabled,
+      );
+      if (_storedPreferencesEqual(existing, encoded)) return;
+
+      await tx.execute(
+        '''
+        UPDATE $kProfilesTable
+        SET calendar_preferences = ?
+        WHERE id = ?
+        ''',
+        [encoded, userId],
+      );
+    });
+  }
+
   Stream<Map<String, Color>> watchSubjectAccentOverrides(String userId) {
     return _db
         .watch(

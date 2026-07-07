@@ -1,4 +1,5 @@
 import 'package:chronoapp/core/widgets/app_toast.dart';
+import 'package:chronoapp/features/calendar/presentation/providers/meal_images_preference_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,10 +32,13 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
   final _lastNameFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _classFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _schoolTrackFieldKey = GlobalKey<FormFieldState<dynamic>>();
+  final _dietFieldKey = GlobalKey<FormFieldState<dynamic>>();
   late final DraftTextController _firstNameController;
   late final DraftTextController _lastNameController;
   String? _selectedClass;
   String? _selectedSchoolTrack;
+  String? _selectedDiet;
+  bool _showMealImages = true;
   bool _busy = false;
 
   bool get _isGuardian => _draft.role.trim() == LoginFlowRoleIds.guardian;
@@ -52,6 +56,8 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
     );
     _selectedClass = _draft.schoolClass;
     _selectedSchoolTrack = _draft.schoolTrack;
+    _selectedDiet = _draft.diet;
+    _showMealImages = _draft.showMealImages;
   }
 
   @override
@@ -85,6 +91,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
           _lastNameFieldKey,
           if (!_isGuardian) _classFieldKey,
           if (!_isGuardian) _schoolTrackFieldKey,
+          if (!_isGuardian) _dietFieldKey,
         ],
       ),
       onAsyncProceed: (goNext) async {
@@ -128,12 +135,24 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
               );
               throw const LoginStepErrorAlreadyShown();
             }
+            final diet = _draft.diet;
+            if (diet == null || diet.trim().isEmpty) {
+              if (!context.mounted) return;
+              showAppToast(
+                context,
+                'Bitte wähle eine Ernährung aus.',
+                kind: AppToastKind.info,
+              );
+              throw const LoginStepErrorAlreadyShown();
+            }
             await ref.read(authRepositoryProvider).updateProfile(
                   firstName: _draft.firstName,
                   lastName: _draft.lastName,
                   className: className,
                   schoolTrack: schoolTrack,
+                  diet: diet,
                 );
+            await setShowMealImages(ref, _draft.showMealImages);
           }
 
           await ref.read(profileGateProvider).refresh();
@@ -161,10 +180,13 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
                   lastNameFieldKey: _lastNameFieldKey,
                   classFieldKey: _classFieldKey,
                   schoolTrackFieldKey: _schoolTrackFieldKey,
+                  dietFieldKey: _dietFieldKey,
                   firstNameController: _firstNameController,
                   lastNameController: _lastNameController,
                   selectedClass: _selectedClass,
                   selectedSchoolTrack: _selectedSchoolTrack,
+                  selectedDiet: _selectedDiet,
+                  showMealImages: _showMealImages,
                   classOptions: classOptions,
                   onClassChanged: (value) => setState(() {
                     _selectedClass = value;
@@ -173,6 +195,14 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
                   onSchoolTrackChanged: (value) => setState(() {
                     _selectedSchoolTrack = value;
                     _draft.schoolTrack = value;
+                  }),
+                  onDietChanged: (value) => setState(() {
+                    _selectedDiet = value;
+                    _draft.diet = value;
+                  }),
+                  onShowMealImagesChanged: (value) => setState(() {
+                    _showMealImages = value;
+                    _draft.showMealImages = value;
                   }),
                 ),
         ),
