@@ -326,37 +326,19 @@ private struct PillProgressMetrics {
   var innerHeight: CGFloat { outerHeight - contentInset * 2 }
 }
 
-/// Systemanimierter Fortschrittsbalken (Live Activities suspendieren TimelineView).
-@available(iOSApplicationExtension 16.1, *)
-private struct PillTimerProgressStyle: ProgressViewStyle {
-  var fillColor: Color
-  var outerHeight: CGFloat = 15
-
-  private var trackColor: Color {
-    Color(red: 50 / 255, green: 50 / 255, blue: 50 / 255)
-  }
-
-  func makeBody(configuration: Configuration) -> some View {
-    let metrics = PillProgressMetrics(outerHeight: outerHeight)
-    let inset = metrics.contentInset
-    let innerHeight = metrics.innerHeight
-    let progress = min(max(configuration.fractionCompleted ?? 0, 0), 1)
-
-    GeometryReader { geo in
-      let innerWidth = max(0, geo.size.width - inset * 2)
-      ZStack(alignment: .leading) {
-        Capsule()
-          .fill(trackColor)
-        Capsule()
-          .fill(fillColor)
-          .frame(width: max(0, innerWidth * progress), height: innerHeight)
-          .padding(.leading, inset)
-      }
-    }
-    .frame(height: outerHeight)
-  }
-}
-
+/// Systemanimierter Fortschrittsbalken, direkt an den nativen Zeit-Timer
+/// von `ProgressView(timerInterval:)` gekoppelt.
+///
+/// Wichtig: `configuration.fractionCompleted` einer `timerInterval`-basierten
+/// `ProgressView` wird von iOS **nur** dann laufend aktualisiert, wenn der
+/// *Standard*-Stil verwendet wird. Sobald ein eigener `ProgressViewStyle`
+/// (z. B. via `GeometryReader` + `configuration.fractionCompleted`) zum
+/// Einsatz kommt, bleibt der Wert bei `0` bzw. dem Startwert stehen – der
+/// Balken erscheint dann leer/gar nicht mehr befüllt (bekannte iOS-
+/// Einschränkung von ActivityKit/SwiftUI, siehe u. a. SerialCoder.dev sowie
+/// mehrere Apple-Forum-/Stack-Overflow-Reports). Deshalb hier bewusst der
+/// Standard-Stil (rein lokal, ohne App-Prozess von der Systemuhr
+/// interpoliert) und nur per View-Modifier (Farbe, Form, Höhe) angepasst.
 @available(iOSApplicationExtension 16.1, *)
 private struct SegmentTimerProgressBar: View {
   let segmentStart: Date
@@ -364,24 +346,40 @@ private struct SegmentTimerProgressBar: View {
   var fillColor: Color
   var outerHeight: CGFloat = 15
 
+  private var trackColor: Color {
+    Color(red: 50 / 255, green: 50 / 255, blue: 50 / 255)
+  }
+
+  /// Native Balkendicke der Standard-`ProgressView` (linear), auf die wir
+  /// per `scaleEffect` hochskalieren. `.frame(height:)` allein beeinflusst
+  /// die gerenderte Balkendicke des Systemstils nicht.
+  private var baseBarHeight: CGFloat { 4 }
+
   var body: some View {
-    Group {
-      if segmentEnd > segmentStart {
-        ProgressView(
-          timerInterval: segmentStart...segmentEnd,
-          countsDown: false,
-          label: { EmptyView() },
-          currentValueLabel: { EmptyView() }
-        )
-        .progressViewStyle(
-          PillTimerProgressStyle(fillColor: fillColor, outerHeight: outerHeight)
-        )
-      } else {
-        ProgressView(value: 1)
-          .progressViewStyle(
-            PillTimerProgressStyle(fillColor: fillColor, outerHeight: outerHeight)
-          )
-      }
+    let metrics = PillProgressMetrics(outerHeight: outerHeight)
+    let verticalScale = metrics.innerHeight / baseBarHeight
+
+    progressView
+      .tint(fillColor)
+      .background(trackColor)
+      .clipShape(Capsule())
+      .scaleEffect(x: 1, y: verticalScale, anchor: .center)
+      .frame(height: outerHeight)
+  }
+
+  @ViewBuilder
+  private var progressView: some View {
+    if segmentEnd > segmentStart {
+      ProgressView(
+        timerInterval: segmentStart...segmentEnd,
+        countsDown: false,
+        label: { EmptyView() },
+        currentValueLabel: { EmptyView() }
+      )
+      .labelsHidden()
+    } else {
+      ProgressView(value: 1)
+        .labelsHidden()
     }
   }
 }
