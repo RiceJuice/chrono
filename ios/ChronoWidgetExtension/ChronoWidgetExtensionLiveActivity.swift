@@ -282,12 +282,14 @@ private struct ScheduleColumn: View {
         .font(.system(size: titleSize, weight: .bold))
         .foregroundColor(.white)
         .lineLimit(2)
+        .minimumScaleFactor(0.75)
         .multilineTextAlignment(alignment == .leading ? .leading : .trailing)
       if !subtitle.isEmpty {
         Text(subtitle)
           .font(.system(size: subtitleSize, weight: .regular))
           .foregroundColor(Color(red: 0.67, green: 0.67, blue: 0.67))
           .lineLimit(2)
+          .minimumScaleFactor(0.8)
           .multilineTextAlignment(alignment == .leading ? .leading : .trailing)
       }
     }
