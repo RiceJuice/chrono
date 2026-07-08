@@ -56,6 +56,7 @@ void main() {
             role: LoginFlowRoleIds.student,
             voice: 'Sopran',
             choir: 'Rädlinger',
+            diet: null,
             onboardingCompletedAt: null,
             activeChildId: null,
             hasAnyGuardianLink: false,
