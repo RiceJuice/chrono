@@ -361,11 +361,15 @@ private struct SegmentTimerProgressBar: View {
     let metrics = PillProgressMetrics(outerHeight: outerHeight)
     let verticalScale = metrics.innerHeight / baseBarHeight
 
+    // Reihenfolge wichtig: Erst skalieren, dann clippen. Ein Capsule-Clip vor
+    // dem scaleEffect würde auf Basis der ungestreckten (dünnen) Balkenhöhe
+    // berechnet und durch die anisotrope Y-Skalierung zu ovalen statt runden
+    // Enden verzerrt.
     progressView
       .tint(fillColor)
       .background(trackColor)
-      .clipShape(Capsule())
       .scaleEffect(x: 1, y: verticalScale, anchor: .center)
+      .clipShape(Capsule())
       .frame(height: outerHeight)
   }
 
