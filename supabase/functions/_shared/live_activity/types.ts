@@ -8,6 +8,8 @@ export type RequestBody = {
   reference_id?: string;
   event_id?: string;
   user_id?: string;
+  class_name?: string | null;
+  schooltrack?: string | null;
   schedule_id?: string | null;
   action?: LiveActivityFcmEvent;
   job_id?: string;
