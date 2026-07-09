@@ -280,14 +280,14 @@ private struct ScheduleColumn: View {
     VStack(alignment: alignment, spacing: 5) {
       Text(title)
         .font(.system(size: titleSize, weight: .bold))
-        .foregroundColor(.primary)
+        .foregroundColor(.white)
         .lineLimit(2)
         .minimumScaleFactor(0.85)
         .multilineTextAlignment(alignment == .leading ? .leading : .trailing)
       if !subtitle.isEmpty {
         Text(subtitle)
           .font(.system(size: subtitleSize, weight: .regular))
-          .foregroundColor(.secondary)
+          .foregroundColor(Color(red: 0.67, green: 0.67, blue: 0.67))
           .lineLimit(2)
           .minimumScaleFactor(0.85)
           .multilineTextAlignment(alignment == .leading ? .leading : .trailing)
@@ -319,58 +319,46 @@ private struct ScheduleNextColumn: View {
   }
 }
 
-/// Proportionen wie [CalendarDayMarkerPill]: schlanker Innen-Balken in einer
-/// größeren, transparenten Außen-Pille (Inset analog zu deren `_pillContentInset`).
+/// Proportionen wie [CalendarDayMarkerPill]: Außenhöhe mit Inset, Innenhöhe für
+/// den schlanken Fortschrittsbalken darin.
 @available(iOSApplicationExtension 16.1, *)
 private struct PillProgressMetrics {
   let outerHeight: CGFloat
 
   var contentInset: CGFloat { outerHeight * (1.5 / 9.0) }
+  var innerHeight: CGFloat { outerHeight - contentInset * 2 }
 }
 
 /// Systemanimierter Fortschrittsbalken, direkt an den nativen Zeit-Timer
 /// von `ProgressView(timerInterval:)` gekoppelt.
 ///
-/// Wichtig: `configuration.fractionCompleted` einer `timerInterval`-basierten
-/// `ProgressView` wird von iOS **nur** dann laufend aktualisiert, wenn der
-/// *Standard*-Stil verwendet wird. Sobald ein eigener `ProgressViewStyle`
-/// (z. B. via `GeometryReader` + `configuration.fractionCompleted`) zum
-/// Einsatz kommt, bleibt der Wert bei `0` bzw. dem Startwert stehen – der
-/// Balken erscheint dann leer/gar nicht mehr befüllt (bekannte iOS-
-/// Einschränkung von ActivityKit/SwiftUI, siehe u. a. SerialCoder.dev sowie
-/// mehrere Apple-Forum-/Stack-Overflow-Reports). Deshalb hier bewusst der
-/// Standard-Stil (rein lokal, ohne App-Prozess von der Systemuhr
-/// interpoliert). Die schlanke, native Balkendicke bleibt unangetastet
-/// (kein `scaleEffect` mehr, das runde Enden zu Ovalen verzerrt hat) – wie
-/// bei [CalendarDayMarkerPill] sitzt der dünne Balken mittig in einer
-/// größeren, transparenten Außen-Pille.
+/// Visuell wie [CalendarDayMarkerPill] / früheres `PillTimerProgressStyle`:
+/// größere transparente Außen-Pille, darin ein schmalerer Innen-Balken mit
+/// Inset. Der Standard-`ProgressView`-Stil bleibt erhalten (eigener
+/// `ProgressViewStyle` würde den Timer einfrieren).
 @available(iOSApplicationExtension 16.1, *)
 private struct SegmentTimerProgressBar: View {
   let segmentStart: Date
   let segmentEnd: Date
   var fillColor: Color
-  var outerHeight: CGFloat = 22
+  var outerHeight: CGFloat = 18
 
-  /// Transparente Außen-Pille statt einer grauen Fläche – bleibt auf
-  /// Liquid Glass und hellen Hintergründen dezent sichtbar, ohne den
-  /// Glass-Effekt zuzudecken.
-  private var outerFill: Color {
-    Color.white.opacity(0.16)
-  }
-
-  private var outerBorder: Color {
-    Color.white.opacity(0.22)
-  }
+  /// Native Balkendicke der Standard-`ProgressView` (linear), auf die wir
+  /// per `scaleEffect` auf [PillProgressMetrics.innerHeight] hochskalieren.
+  private var baseBarHeight: CGFloat { 4 }
 
   var body: some View {
-    let inset = PillProgressMetrics(outerHeight: outerHeight).contentInset
+    let metrics = PillProgressMetrics(outerHeight: outerHeight)
+    let inset = metrics.contentInset
+    let verticalScale = metrics.innerHeight / baseBarHeight
 
     ZStack {
       Capsule()
-        .fill(outerFill)
-        .overlay(Capsule().stroke(outerBorder, lineWidth: 0.75))
+        .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+
       progressView
         .tint(fillColor)
+        .scaleEffect(x: 1, y: verticalScale, anchor: .center)
         .clipShape(Capsule())
         .padding(.horizontal, inset)
     }
@@ -457,7 +445,7 @@ private struct SegmentTimeCountdownRow: View {
     HStack(spacing: 4) {
       Text(formatTime(segmentStart))
         .font(.system(size: timeFontSize, weight: .regular))
-        .foregroundColor(.primary)
+        .foregroundColor(.white)
         .frame(maxWidth: .infinity, alignment: .leading)
       TimetableCountdownText(
         segmentStart: segmentStart,
@@ -467,7 +455,7 @@ private struct SegmentTimeCountdownRow: View {
       .frame(maxWidth: .infinity, alignment: .center)
       Text(formatTime(segmentEnd))
         .font(.system(size: timeFontSize, weight: .regular))
-        .foregroundColor(.primary)
+        .foregroundColor(.white)
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
   }
@@ -494,7 +482,7 @@ private struct TimetableCountdownText: View {
       }
     }
     .font(.system(size: fontSize, weight: fontWeight).monospacedDigit())
-    .foregroundColor(.primary)
+    .foregroundColor(.white)
   }
 }
 
@@ -553,7 +541,7 @@ private struct TimetableLiveActivityView: View {
         } else if data.hasNext {
           Image(systemName: "arrow.right")
             .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(.secondary)
+            .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
             .frame(width: 16)
             .padding(.top, 2)
           ScheduleColumn(
@@ -579,7 +567,7 @@ private struct TimetableLiveActivityView: View {
       if showsRemainingLessons && data.remainingLessons > 0 {
         Text(remainingLessonsLabel(data.remainingLessons))
           .font(.system(size: layout.timeFontSize, weight: .medium))
-          .foregroundColor(.secondary)
+          .foregroundColor(Color(red: 0.67, green: 0.67, blue: 0.67))
       }
 
       LiveActivityProgressSection(
@@ -638,16 +626,16 @@ private struct TimetableDynamicIslandCenterView: View {
   var body: some View {
     VStack(spacing: 3) {
       Text(data.currentTitle)
-        .font(.system(size: 17, weight: .bold))
+        .font(.system(size: 16, weight: .bold))
         .foregroundColor(.white)
         .lineLimit(1)
-        .minimumScaleFactor(0.8)
+        .minimumScaleFactor(0.7)
       if !data.currentSubtitle.isEmpty {
         Text(data.currentSubtitle)
-          .font(.system(size: 13, weight: .regular))
+          .font(.system(size: 12, weight: .regular))
           .foregroundColor(Color(red: 0.67, green: 0.67, blue: 0.67))
           .lineLimit(1)
-          .minimumScaleFactor(0.85)
+          .minimumScaleFactor(0.8)
       }
     }
     .frame(maxWidth: .infinity)
@@ -665,23 +653,23 @@ private struct TimetableDynamicIslandTrailingView: View {
     VStack(alignment: .trailing, spacing: 3) {
       if data.hasNext {
         Text("Nächstes")
-          .font(.system(size: 11, weight: .medium))
+          .font(.system(size: 10, weight: .medium))
           .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
         Text(compactTitle(data.nextTitle))
-          .font(.system(size: 16, weight: .bold))
+          .font(.system(size: 15, weight: .bold))
           .foregroundColor(.white)
           .lineLimit(1)
-          .minimumScaleFactor(0.75)
+          .minimumScaleFactor(0.7)
       } else if data.remainingLessons > 0 {
         Text("Noch")
-          .font(.system(size: 11, weight: .medium))
+          .font(.system(size: 10, weight: .medium))
           .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
         Text("\(data.remainingLessons)")
-          .font(.system(size: 16, weight: .bold))
+          .font(.system(size: 15, weight: .bold))
           .foregroundColor(.white)
       } else {
         Image(systemName: "flag.checkered")
-          .font(.system(size: 16, weight: .semibold))
+          .font(.system(size: 15, weight: .semibold))
           .foregroundColor(.white)
       }
     }
@@ -713,26 +701,13 @@ private struct TimetableLiveActivityLockScreenView: View {
   @Environment(\.showsWidgetContainerBackground) private var showsWidgetContainerBackground
 
   var body: some View {
-    let content = TimetableLiveActivityView(data: data, layout: .timetableLockScreen)
+    TimetableLiveActivityView(data: data, layout: .timetableLockScreen)
       .background {
         if showsWidgetContainerBackground {
-          // Gleicher deckender Untergrund wie beim Schedule-Kind (statt
-          // reinem Glass-Rechteck ohne Füllung): sonst scheint bei hellen
-          // Hintergründen/Wallpapers der Liquid-Glass-Effekt zu stark durch
-          // und der Text wird kaum lesbar.
-          ScheduleEventLiveActivityLockScreenBackground()
+          ScheduleLiveActivityLockScreenGlassBackground()
             .ignoresSafeArea()
         }
       }
-
-    // Nur erzwingen, wenn wir selbst den (dunklen) Hintergrund zeichnen –
-    // sonst überlassen wir .primary/.secondary der System-Umgebung, damit
-    // sie sich auf reinem Liquid-Glass-Untergrund korrekt anpassen.
-    if showsWidgetContainerBackground {
-      content.environment(\.colorScheme, .dark)
-    } else {
-      content
-    }
   }
 }
 
@@ -779,7 +754,7 @@ private struct ScheduleLiveActivityLayout {
     titleSize: 21,
     subtitleSize: 17,
     timeFontSize: 15,
-    barOuterHeight: 22,
+    barOuterHeight: 18,
     horizontalPadding: 30,
     verticalPadding: 32,
     topPadding: 32,
@@ -793,7 +768,7 @@ private struct ScheduleLiveActivityLayout {
     titleSize: 21,
     subtitleSize: 16,
     timeFontSize: 15,
-    barOuterHeight: 20,
+    barOuterHeight: 18,
     horizontalPadding: 28,
     verticalPadding: 24,
     topPadding: 28,
@@ -807,10 +782,10 @@ private struct ScheduleLiveActivityLayout {
   static let dynamicIsland = ScheduleLiveActivityLayout(
     sectionSpacing: 20,
     columnSpacing: 16,
-    titleSize: 18,
-    subtitleSize: 15,
+    titleSize: 17,
+    subtitleSize: 14,
     timeFontSize: 13,
-    barOuterHeight: 16,
+    barOuterHeight: 12,
     horizontalPadding: 10,
     verticalPadding: 6,
     topPadding: 6,
@@ -821,10 +796,10 @@ private struct ScheduleLiveActivityLayout {
   static let timetableDynamicIsland = ScheduleLiveActivityLayout(
     sectionSpacing: 8,
     columnSpacing: 10,
-    titleSize: 17,
-    subtitleSize: 13,
+    titleSize: 16,
+    subtitleSize: 12,
     timeFontSize: 12,
-    barOuterHeight: 14,
+    barOuterHeight: 12,
     horizontalPadding: 16,
     verticalPadding: 2,
     topPadding: 8,
@@ -851,7 +826,7 @@ private struct ScheduleLiveActivityView: View {
         if data.hasNext {
           Image(systemName: "arrow.right")
             .font(.system(size: 14, weight: .semibold))
-            .foregroundColor(.secondary)
+            .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
             .frame(width: 20)
         }
         if data.hasNext {
@@ -876,10 +851,21 @@ private struct ScheduleLiveActivityView: View {
   }
 }
 
-/// Event-Ablaufplan bzw. Stundenplan: schwarze Fläche mit Liquid-Glass-Rand
-/// (Lockscreen). Bewusst deckend statt reinem Glass-Rechteck, damit der
-/// weiße Text auch auf hellen Wallpapers/Liquid-Glass-Hintergründen lesbar
-/// bleibt.
+@available(iOSApplicationExtension 16.1, *)
+private struct ScheduleLiveActivityLockScreenGlassBackground: View {
+  var body: some View {
+    if #available(iOSApplicationExtension 26.0, *) {
+      Rectangle()
+        .fill(.clear)
+        .glassEffect(.regular, in: .rect(cornerRadius: 22))
+    } else {
+      Rectangle()
+        .fill(.ultraThinMaterial)
+    }
+  }
+}
+
+/// Event-Ablaufplan: schwarze Fläche mit Liquid-Glass-Rand (Lockscreen).
 @available(iOSApplicationExtension 16.1, *)
 private struct ScheduleEventLiveActivityLockScreenBackground: View {
   private let cornerRadius: CGFloat = 22
@@ -911,19 +897,13 @@ private struct ScheduleLiveActivityLockScreenView: View {
   @Environment(\.showsWidgetContainerBackground) private var showsWidgetContainerBackground
 
   var body: some View {
-    let content = ScheduleLiveActivityView(data: data, layout: .lockScreen)
+    ScheduleLiveActivityView(data: data, layout: .lockScreen)
       .background {
         if showsWidgetContainerBackground {
           ScheduleEventLiveActivityLockScreenBackground()
             .ignoresSafeArea()
         }
       }
-
-    if showsWidgetContainerBackground {
-      content.environment(\.colorScheme, .dark)
-    } else {
-      content
-    }
   }
 }
 
