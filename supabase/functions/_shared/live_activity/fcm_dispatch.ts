@@ -38,6 +38,26 @@ export async function sendLiveActivityToDevice(
   const token = device.fcm_token?.trim();
   if (!token) return "skipped";
 
+  // iOS braucht fuer Live-Activity-Pushes zwingend den passenden Token im
+  // apns.live_activity_token-Feld (push_to_start_token fuer "start",
+  // live_activity_push_token fuer "update"/"end"). Ohne ihn lehnt APNs den
+  // Push mit INVALID_ARGUMENT ab - das sah lange wie ein "totes fcm_token"
+  // aus und fuehrte zum faelschlichen Loeschen frisch registrierter Geraete
+  // (siehe isUnregisteredTokenError). Deshalb hier vorher pruefen und ohne
+  // Sendeversuch ueberspringen, statt einen garantiert scheiternden Push
+  // abzuschicken.
+  if (device.platform === "ios") {
+    const hasPushToStart = !!device.push_to_start_token?.trim();
+    const hasLiveActivityToken = !!device.live_activity_push_token?.trim();
+    if (options.fcmEvent === "start" && !hasPushToStart) return "skipped";
+    if (
+      (options.fcmEvent === "update" || options.fcmEvent === "end") &&
+      !hasLiveActivityToken
+    ) {
+      return "skipped";
+    }
+  }
+
   const activityId = options.kind === "timetable"
     ? `timetable_${options.referenceId}`
     : `event_${options.referenceId}`;
@@ -67,7 +87,9 @@ export async function sendLiveActivityToDevice(
     return "sent";
   }
 
-  console.error(`LiveActivity FCM failed ${device.id}: ${result.errorCode}`);
+  console.error(
+    `LiveActivity FCM failed ${device.id}: ${result.errorCode} ${result.errorMessage}`,
+  );
   if (isUnregisteredTokenError(result.errorCode)) {
     await supabase.from("profile_push_devices").delete().eq("id", device.id);
   }

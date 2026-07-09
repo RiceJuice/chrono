@@ -144,12 +144,10 @@ export async function sendLiveActivityFcm(
   const nowMs = Date.now();
   const nowSec = Math.floor(nowMs / 1000);
 
-  const contentStateJson = JSON.stringify(payload.contentState);
   const activityType = payload.activityType ?? "schedule_live_activity";
   const data: Record<string, string> = {
     timestamp: String(nowMs),
     event: payload.event,
-    "content-state": contentStateJson,
     "activity-id": payload.activityId,
     activity_id: payload.activityId,
     type: activityType,
@@ -157,6 +155,18 @@ export async function sendLiveActivityFcm(
   };
   if (payload.dayDate) {
     data.day_date = payload.dayDate;
+  }
+  // Auf iOS steckt der komplette Content-State bereits (unkomprimiert) in
+  // aps["content-state"] - das ist der einzige Ort, den ActivityKit fuer die
+  // Live-Activity-Aktualisierung tatsaechlich liest. Ihn zusaetzlich als
+  // JSON-String in `data` zu duplizieren hat bei einem vollen Stundenplan
+  // (mehrere Segmente inkl. Titel/Farben) die harte FCM-Groessengrenze von
+  // 4096 Bytes gerissen ("Message is too large") - der Push wurde dann fuer
+  // JEDEN Update/End-Versuch abgelehnt. Auf Android hingegen wird genau
+  // dieses `data["content-state"]`-Feld vom nativen Handler ausgewertet, dort
+  // bleibt es also zwingend erforderlich.
+  if (payload.platform !== "ios") {
+    data["content-state"] = JSON.stringify(payload.contentState);
   }
 
   const message: Record<string, unknown> = {
@@ -235,7 +245,13 @@ export function parseServiceAccountJson(raw: string): FirebaseServiceAccount {
 }
 
 export function isUnregisteredTokenError(errorCode?: string): boolean {
-  return errorCode === "UNREGISTERED" ||
-    errorCode === "INVALID_ARGUMENT" ||
-    errorCode === "NOT_FOUND";
+  // "INVALID_ARGUMENT" bewusst NICHT hier: dieser Code kommt von FCM auch bei
+  // einem strukturell fehlerhaften Payload (z. B. fehlendes
+  // apns.live_activity_token bei einer Live-Activity-Push), NICHT nur bei
+  // einem toten fcm_token. Ihn hier zu behandeln hat wiederholt gesunde,
+  // frisch registrierte Geraete geloescht, bevor die App
+  // push_to_start_token/live_activity_push_token nachliefern konnte - siehe
+  // sendLiveActivityToDevice(), das genau deshalb jetzt vorher prueft, ob der
+  // fuer den jeweiligen Event-Typ benoetigte Token ueberhaupt vorhanden ist.
+  return errorCode === "UNREGISTERED" || errorCode === "NOT_FOUND";
 }
