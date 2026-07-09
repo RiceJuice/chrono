@@ -1,4 +1,8 @@
+import 'dart:io' show Platform;
+
 import 'package:chronoapp/features/calendar/domain/filter/event_schedule_filter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -53,6 +57,13 @@ class ScheduleLiveActivityRepository {
     );
   }
 
+  String? _platformLabel() {
+    if (kIsWeb) return null;
+    if (Platform.isIOS) return 'ios';
+    if (Platform.isAndroid) return 'android';
+    return null;
+  }
+
   Future<void> _syncDeviceMetadata({
     String? scheduleFilter,
     String? liveActivityPushToken,
@@ -65,6 +76,8 @@ class ScheduleLiveActivityRepository {
     try {
       final deviceId = await _deviceInstallId();
       final patch = <String, dynamic>{
+        'user_id': userId,
+        'device_id': deviceId,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
       if (scheduleFilter != null) {
@@ -82,11 +95,36 @@ class ScheduleLiveActivityRepository {
         }
       }
 
+      // Upsert statt Update: Die Live-Activity-Token-Streams (Push-to-Start/
+      // Activity-Token) koennen beim App-Start VOR der FCM-Token-Registrierung
+      // feuern (Bootstrap-Reihenfolge ist nicht garantiert). Ein reines
+      // update() auf eine noch nicht existierende Zeile ist ein stiller
+      // No-op -> der Token geht dauerhaft verloren, bis die Streams erneut
+      // feuern (was oft nie wieder passiert). Deshalb hier per upsert
+      // sicherstellen, dass die Zeile inkl. der NOT-NULL-Spalten
+      // (fcm_token, platform) existiert.
+      final existing = await _client
+          .from('profile_push_devices')
+          .select('fcm_token')
+          .eq('user_id', userId)
+          .eq('device_id', deviceId)
+          .maybeSingle();
+
+      if (existing == null) {
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+        final platform = _platformLabel();
+        if (fcmToken == null || fcmToken.isEmpty || platform == null) {
+          // Ohne fcm_token/platform kann die NOT-NULL-Zeile nicht angelegt
+          // werden - in diesem Fall bleibt es beim No-op wie zuvor.
+          return;
+        }
+        patch['fcm_token'] = fcmToken;
+        patch['platform'] = platform;
+      }
+
       await _client
           .from('profile_push_devices')
-          .update(patch)
-          .eq('user_id', userId)
-          .eq('device_id', deviceId);
+          .upsert(patch, onConflict: 'user_id,device_id');
     } catch (_) {
       // Sync darf App nicht blockieren.
     }
