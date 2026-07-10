@@ -14,11 +14,72 @@ struct ChronoWidgetExtensionBundle: WidgetBundle {
 
 struct LiveActivitiesAppAttributes: ActivityAttributes, Identifiable {
   public typealias LiveDeliveryData = ContentState
-  public struct ContentState: Codable, Hashable {}
+
+  /// Vollstaendiger Payload fuer Remote Push-to-Start/-Update (APNS `content-state`).
+  /// Lokale Starts via Flutter schreiben weiterhin in UserDefaults; fehlende Felder
+  /// werden dort als Fallback gelesen.
+  public struct ContentState: Codable, Hashable {
+    var appGroupId: String?
+    var kind: String?
+    var dayDate: String?
+    var segmentsJson: String?
+    var activityStartMs: Double?
+    var dayEndMs: Double?
+    var remainingLessons: Int?
+    var currentIndex: Int?
+    var currentTitle: String?
+    var currentSubtitle: String?
+    var hasNext: Bool?
+    var nextTitle: String?
+    var nextSubtitle: String?
+    var segmentStartMs: Double?
+    var segmentEndMs: Double?
+    var accentColor: String?
+    var isMeal: Bool?
+    var imageUrl: String?
+    var eventId: String?
+    var isPreStart: Bool?
+  }
+
   var id = UUID()
 }
 
 let sharedDefault = UserDefaults(suiteName: "group.com.domspatzen.chronoapp")!
+
+/// Liest Anzeigefelder primaer aus [ActivityViewContext.state] (Remote-Push),
+/// mit UserDefaults als Fallback (lokaler App-Start via live_activities-Plugin).
+private struct LiveActivityDataSource {
+  let state: LiveActivitiesAppAttributes.ContentState
+  let prefixedKey: (String) -> String
+
+  init(context: ActivityViewContext<LiveActivitiesAppAttributes>) {
+    state = context.state
+    prefixedKey = context.attributes.prefixedKey
+  }
+
+  func string(_ name: String, stateValue: String?) -> String {
+    if let value = stateValue { return value }
+    return sharedDefault.string(forKey: prefixedKey(name)) ?? ""
+  }
+
+  func double(_ name: String, stateValue: Double?) -> Double {
+    if let value = stateValue { return value }
+    return sharedDefault.double(forKey: prefixedKey(name))
+  }
+
+  func int(_ name: String, stateValue: Int?) -> Int {
+    if let value = stateValue { return value }
+    return Int(sharedDefault.integer(forKey: prefixedKey(name)))
+  }
+
+  func bool(_ name: String, stateValue: Bool?) -> Bool? {
+    if let value = stateValue { return value }
+    if sharedDefault.object(forKey: prefixedKey(name)) != nil {
+      return sharedDefault.bool(forKey: prefixedKey(name))
+    }
+    return nil
+  }
+}
 
 private struct ScheduleLiveData {
   let eventId: String
@@ -31,21 +92,19 @@ private struct ScheduleLiveData {
   let segmentEnd: Date
 
   init(context: ActivityViewContext<LiveActivitiesAppAttributes>) {
-    func key(_ name: String) -> String {
-      context.attributes.prefixedKey(name)
-    }
-    currentTitle = sharedDefault.string(forKey: key("currentTitle")) ?? ""
-    currentSubtitle = sharedDefault.string(forKey: key("currentSubtitle")) ?? ""
-    eventId = sharedDefault.string(forKey: key("eventId")) ?? ""
-    nextTitle = sharedDefault.string(forKey: key("nextTitle")) ?? ""
-    nextSubtitle = sharedDefault.string(forKey: key("nextSubtitle")) ?? ""
-    if sharedDefault.object(forKey: key("hasNext")) != nil {
-      hasNext = sharedDefault.bool(forKey: key("hasNext"))
+    let source = LiveActivityDataSource(context: context)
+    currentTitle = source.string("currentTitle", stateValue: source.state.currentTitle)
+    currentSubtitle = source.string("currentSubtitle", stateValue: source.state.currentSubtitle)
+    eventId = source.string("eventId", stateValue: source.state.eventId)
+    nextTitle = source.string("nextTitle", stateValue: source.state.nextTitle)
+    nextSubtitle = source.string("nextSubtitle", stateValue: source.state.nextSubtitle)
+    if let resolvedHasNext = source.bool("hasNext", stateValue: source.state.hasNext) {
+      hasNext = resolvedHasNext
     } else {
       hasNext = !nextTitle.isEmpty
     }
-    let startMs = sharedDefault.double(forKey: key("segmentStartMs"))
-    let endMs = sharedDefault.double(forKey: key("segmentEndMs"))
+    let startMs = source.double("segmentStartMs", stateValue: source.state.segmentStartMs)
+    let endMs = source.double("segmentEndMs", stateValue: source.state.segmentEndMs)
     segmentStart = Date(timeIntervalSince1970: startMs / 1000)
     segmentEnd = Date(timeIntervalSince1970: endMs / 1000)
   }
@@ -83,6 +142,9 @@ private func timetableDeepLink(for dayDate: String) -> URL? {
 }
 
 private func readKind(context: ActivityViewContext<LiveActivitiesAppAttributes>) -> String {
+  if let kind = context.state.kind, !kind.isEmpty {
+    return kind
+  }
   let key = context.attributes.prefixedKey("kind")
   return sharedDefault.string(forKey: key) ?? "schedule"
 }
@@ -177,31 +239,36 @@ private struct TimetableLiveData {
   let remainingLessons: Int
 
   init(context: ActivityViewContext<LiveActivitiesAppAttributes>) {
-    func key(_ name: String) -> String {
-      context.attributes.prefixedKey(name)
-    }
-    dayDate = sharedDefault.string(forKey: key("dayDate")) ?? ""
+    let source = LiveActivityDataSource(context: context)
+    dayDate = source.string("dayDate", stateValue: source.state.dayDate)
 
-    var resolvedCurrentTitle = sharedDefault.string(forKey: key("currentTitle")) ?? ""
-    var resolvedCurrentSubtitle = sharedDefault.string(forKey: key("currentSubtitle")) ?? ""
-    var resolvedNextTitle = sharedDefault.string(forKey: key("nextTitle")) ?? ""
-    var resolvedNextSubtitle = sharedDefault.string(forKey: key("nextSubtitle")) ?? ""
+    var resolvedCurrentTitle = source.string("currentTitle", stateValue: source.state.currentTitle)
+    var resolvedCurrentSubtitle = source.string(
+      "currentSubtitle", stateValue: source.state.currentSubtitle)
+    var resolvedNextTitle = source.string("nextTitle", stateValue: source.state.nextTitle)
+    var resolvedNextSubtitle = source.string("nextSubtitle", stateValue: source.state.nextSubtitle)
     var resolvedHasNext: Bool
-    if sharedDefault.object(forKey: key("hasNext")) != nil {
-      resolvedHasNext = sharedDefault.bool(forKey: key("hasNext"))
+    if let hasNextValue = source.bool("hasNext", stateValue: source.state.hasNext) {
+      resolvedHasNext = hasNextValue
     } else {
       resolvedHasNext = !resolvedNextTitle.isEmpty
     }
-    var resolvedAccentHex = sharedDefault.string(forKey: key("accentColor")) ?? "#124E30"
-    var resolvedIsMeal = sharedDefault.bool(forKey: key("isMeal"))
-    var resolvedRemainingLessons = Int(sharedDefault.integer(forKey: key("remainingLessons")))
+    var resolvedAccentHex = source.string("accentColor", stateValue: source.state.accentColor)
+    if resolvedAccentHex.isEmpty {
+      resolvedAccentHex = "#124E30"
+    }
+    var resolvedIsMeal = source.bool("isMeal", stateValue: source.state.isMeal) ?? false
+    var resolvedRemainingLessons = source.int(
+      "remainingLessons", stateValue: source.state.remainingLessons)
 
-    var startMs = sharedDefault.double(forKey: key("segmentStartMs"))
-    var endMs = sharedDefault.double(forKey: key("segmentEndMs"))
+    var startMs = source.double("segmentStartMs", stateValue: source.state.segmentStartMs)
+    var endMs = source.double("segmentEndMs", stateValue: source.state.segmentEndMs)
 
     if endMs <= startMs {
-      let segments = parseTimetableSegments(sharedDefault.string(forKey: key("segmentsJson")))
-      let activityStartMs = sharedDefault.double(forKey: key("activityStartMs"))
+      let segmentsJson = source.string("segmentsJson", stateValue: source.state.segmentsJson)
+      let segments = parseTimetableSegments(segmentsJson.isEmpty ? nil : segmentsJson)
+      let activityStartMs = source.double(
+        "activityStartMs", stateValue: source.state.activityStartMs)
       let nowMs = Date().timeIntervalSince1970 * 1000
       if let resolved = resolveTimetableSegment(
         segments: segments, activityStartMs: activityStartMs, nowMs: nowMs)
@@ -238,8 +305,8 @@ private struct TimetableLiveData {
     remainingLessons = resolvedRemainingLessons
     segmentStart = Date(timeIntervalSince1970: startMs / 1000)
     segmentEnd = Date(timeIntervalSince1970: endMs / 1000)
-    imageUrl = sharedDefault.string(forKey: key("imageUrl"))
-    mealImagePath = sharedDefault.string(forKey: key("mealImage"))
+    imageUrl = source.string("imageUrl", stateValue: source.state.imageUrl)
+    mealImagePath = sharedDefault.string(forKey: source.prefixedKey("mealImage"))
   }
 
   var compactLeadingLabel: String {
