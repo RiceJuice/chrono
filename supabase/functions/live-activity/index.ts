@@ -185,6 +185,7 @@ function resolveFcmEvent(
 ): LiveActivityFcmEvent {
   if (requested === "end") return "end";
   if (requested === "update") return "update";
+  if (requested === "start") return "start";
   return resolveSegmentStartEvent(device);
 }
 
