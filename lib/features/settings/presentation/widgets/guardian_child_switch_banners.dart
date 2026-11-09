@@ -84,7 +84,7 @@ class _GuardianChildSwitchBannersState
 
     return linksAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (links) {
         final inactive = inactiveConfirmedGuardianLinks(
           links: links,

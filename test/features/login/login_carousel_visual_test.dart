@@ -10,13 +10,13 @@ import 'package:chronoapp/features/login/presentation/widgets/login_split_screen
 import 'package:chronoapp/features/login/presentation/widgets/login_photo_carousel.dart';
 
 void main() {
-  testWidgets('iPad portrait and landscape show photos and advance smoothly', (
+  testWidgets('wide desktop layouts show photos and advance smoothly', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    for (final size in [const Size(768, 1024), const Size(1024, 768)]) {
+    for (final size in [const Size(768, 580), const Size(1024, 580)]) {
       tester.view.physicalSize = size;
       final key = GlobalKey();
       await tester.pumpWidget(

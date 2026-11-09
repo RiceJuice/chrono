@@ -26,7 +26,7 @@ abstract final class TimetableLiveActivityResolver {
     required List<CalendarEntry> entries,
     required CalendarFiltersState filters,
     required TimetableAccentResolver resolveAccent,
-    String? imageUrlForEntry(CalendarEntry entry)?,
+    String? Function(CalendarEntry entry)? imageUrlForEntry,
     DateTime? now,
   }) {
     final clock = now ?? DateTime.now();
