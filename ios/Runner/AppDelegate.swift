@@ -17,6 +17,14 @@ import SwiftUI
        let searchRegistrar = engineBridge.pluginRegistry.registrar(forPlugin: "ChronoNativeSearch") {
       searchRegistrar.register(ChronoSearchFactory(messenger: searchRegistrar.messenger()), withId: "chrono/native_search")
     }
+    if let switchRegistrar = engineBridge.pluginRegistry.registrar(forPlugin: "ChronoSettingsSwitch") {
+      let messenger = switchRegistrar.messenger()
+      switchRegistrar.register(SettingsSwitchFactory(messenger: messenger), withId: "chrono/settings_switch")
+      FlutterMethodChannel(name: "chrono/settings_switch", binaryMessenger: messenger)
+        .setMethodCallHandler { call, result in
+          result(call.method == "isAvailable" ? true : FlutterMethodNotImplemented)
+        }
+    }
     guard let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "HomeworkDatePicker") else { return }
     registrar.register(HomeworkContextMenuFactory(messenger: registrar.messenger()),
                        withId: "chrono/homework_context_menu")
@@ -240,4 +248,59 @@ private final class HomeworkContextMenuView: NSObject, FlutterPlatformView, UICo
       return UIMenu(children: [edit, toggle, flag, UIMenu(options: .displayInline, children: [delete])])
     }
   }
+}
+
+private final class SettingsSwitchFactory: NSObject, FlutterPlatformViewFactory {
+  private let messenger: FlutterBinaryMessenger
+
+  init(messenger: FlutterBinaryMessenger) { self.messenger = messenger }
+
+  func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
+    FlutterStandardMessageCodec.sharedInstance()
+  }
+
+  func create(withFrame frame: CGRect, viewIdentifier id: Int64, arguments args: Any?) -> FlutterPlatformView {
+    SettingsSwitchView(frame: frame, id: id, args: args, messenger: messenger)
+  }
+}
+
+private final class SettingsSwitchView: NSObject, FlutterPlatformView {
+  private let container: UIView
+  private let control = UISwitch()
+  private let channel: FlutterMethodChannel
+
+  init(frame: CGRect, id: Int64, args: Any?, messenger: FlutterBinaryMessenger) {
+    container = UIView(frame: frame)
+    channel = FlutterMethodChannel(name: "chrono/settings_switch/\(id)", binaryMessenger: messenger)
+    super.init()
+    control.translatesAutoresizingMaskIntoConstraints = false
+    container.addSubview(control)
+    NSLayoutConstraint.activate([
+      control.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+      control.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+    ])
+    control.addTarget(self, action: #selector(changed), for: .valueChanged)
+    update(args)
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "update" else { result(FlutterMethodNotImplemented); return }
+      self?.update(call.arguments)
+      result(nil)
+    }
+  }
+
+  func view() -> UIView { container }
+
+  private func update(_ arguments: Any?) {
+    guard let args = arguments as? [String: Any] else { return }
+    control.setOn(args["value"] as? Bool ?? false, animated: false)
+    control.isEnabled = args["enabled"] as? Bool ?? false
+    control.accessibilityLabel = args["label"] as? String
+    container.overrideUserInterfaceStyle = args["isDark"] as? Bool == true ? .dark : .light
+  }
+
+  @objc private func changed() {
+    channel.invokeMethod("changed", arguments: control.isOn)
+  }
+
+  deinit { channel.setMethodCallHandler(nil) }
 }
