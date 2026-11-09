@@ -214,7 +214,6 @@ class _HomeworkEmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     const accent = Color(0xFF0B4AA5);
-    final buttonRadius = BorderRadius.circular(AppRadius.m);
 
     return Padding(
       padding: EdgeInsets.only(bottom: mainShellBottomContentInset(context)),
@@ -240,9 +239,9 @@ class _HomeworkEmptyState extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: buttonRadius,
-                    boxShadow: const [
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
                       BoxShadow(
                         color: Color(0x40072B63),
                         offset: Offset(0, 10),
@@ -251,18 +250,16 @@ class _HomeworkEmptyState extends StatelessWidget {
                       BoxShadow(color: Color(0xFF07377E), offset: Offset(0, 4)),
                     ],
                   ),
-                  child: SizedBox(
-                    width: 88,
-                    height: 56,
+                  child: SizedBox.square(
+                    dimension: 64,
                     child: IconButton.filled(
                       tooltip: 'Neue Aufgabe erstellen',
                       enableFeedback: false,
                       style: IconButton.styleFrom(
                         backgroundColor: accent,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: buttonRadius,
-                          side: const BorderSide(color: Color(0x26FFFFFF)),
+                        shape: const CircleBorder(
+                          side: BorderSide(color: Color(0x26FFFFFF)),
                         ),
                       ),
                       onPressed: onCreate,
