@@ -1,4 +1,5 @@
 import 'package:chronoapp/core/theme/theme_tokens.dart';
+import 'package:chronoapp/core/widgets/app_glass_icon_button.dart';
 import 'package:chronoapp/core/widgets/app_hairline_divider.dart';
 import 'package:chronoapp/core/widgets/app_sheet_drag_handle.dart';
 import 'package:figma_squircle/figma_squircle.dart';
@@ -113,7 +114,7 @@ class HomeworkFormModalHeader extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const SizedBox(width: 40),
+              const SizedBox(width: 44),
               Expanded(
                 child: Text(
                   title,
@@ -125,11 +126,11 @@ class HomeworkFormModalHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              IconButton(
+              AppGlassIconButton(
                 tooltip: 'Schließen',
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(CupertinoIcons.xmark_circle_fill),
-                color: scheme.onSurfaceVariant,
+                icon: Icons.close,
+                iconSize: 16,
               ),
             ],
           ),

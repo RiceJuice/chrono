@@ -20,9 +20,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class HomeworkPage extends ConsumerWidget {
   const HomeworkPage({super.key});
 
-  Future<void> _openCreateSheet(BuildContext context) async {
+  Future<void> _openCreateSheet(
+    BuildContext context, {
+    VoidCallback feedback = AppHaptics.light,
+  }) async {
     if (AppModalSheetTracker.depth.value > 0) return;
-    AppHaptics.light();
+    feedback();
     await HomeworkCreateFormSheet.show(context);
   }
 
@@ -211,6 +214,7 @@ class _HomeworkEmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     const accent = Color(0xFF0B4AA5);
+    final buttonRadius = BorderRadius.circular(AppRadius.m);
 
     return Padding(
       padding: EdgeInsets.only(bottom: mainShellBottomContentInset(context)),
@@ -235,17 +239,35 @@ class _HomeworkEmptyState extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                SizedBox.square(
-                  dimension: 64,
-                  child: IconButton.filled(
-                    tooltip: 'Neue Aufgabe erstellen',
-                    style: IconButton.styleFrom(
-                      backgroundColor: accent,
-                      foregroundColor: Colors.white,
-                      shape: const CircleBorder(),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: buttonRadius,
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x40072B63),
+                        offset: Offset(0, 10),
+                        blurRadius: 18,
+                      ),
+                      BoxShadow(color: Color(0xFF07377E), offset: Offset(0, 4)),
+                    ],
+                  ),
+                  child: SizedBox(
+                    width: 88,
+                    height: 56,
+                    child: IconButton.filled(
+                      tooltip: 'Neue Aufgabe erstellen',
+                      enableFeedback: false,
+                      style: IconButton.styleFrom(
+                        backgroundColor: accent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: buttonRadius,
+                          side: const BorderSide(color: Color(0x26FFFFFF)),
+                        ),
+                      ),
+                      onPressed: onCreate,
+                      icon: const Icon(CupertinoIcons.plus, size: 27),
                     ),
-                    onPressed: onCreate,
-                    icon: const Icon(CupertinoIcons.plus, size: 27),
                   ),
                 ),
               ],

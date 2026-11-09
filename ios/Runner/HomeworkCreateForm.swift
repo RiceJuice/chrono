@@ -242,7 +242,7 @@ private struct HomeworkCreateForm: View {
         .navigationTitle("Neue Aufgabe")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-          ToolbarItem(placement: .cancellationAction) { cancelButton }
+          ToolbarItem(placement: .cancellationAction) { closeButton }
           ToolbarItem(placement: .confirmationAction) { saveButton }
         }
     }
@@ -257,7 +257,7 @@ private struct HomeworkCreateForm: View {
       Divider()
       HStack {
         Spacer()
-        cancelButton.keyboardShortcut(.cancelAction)
+        closeButton.keyboardShortcut(.cancelAction)
         saveButton.keyboardShortcut(.defaultAction)
       }
       .padding()
@@ -340,9 +340,28 @@ private struct HomeworkCreateForm: View {
       .accessibilityLabel("Titel")
   }
 
-  private var cancelButton: some View {
-    Button("Abbrechen", action: model.close)
-      .disabled(model.saving)
+  @ViewBuilder
+  private var closeButton: some View {
+    let button = Button(action: model.close) {
+      Image(systemName: "xmark")
+        .font(.body.weight(.semibold))
+    }
+    .accessibilityLabel("Schließen")
+    .disabled(model.saving)
+
+    #if os(macOS)
+    if #available(macOS 26.0, *) {
+      button
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
+    } else {
+      button
+    }
+    #else
+    // The navigation toolbar supplies its own Liquid Glass background on iOS 26.
+    button
+    #endif
   }
 
   private var saveButton: some View {
