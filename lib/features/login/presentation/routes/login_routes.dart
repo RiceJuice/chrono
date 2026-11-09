@@ -5,6 +5,7 @@ import '../pages/credentials/credentials_page.dart';
 import '../pages/credentials/widgets/account_auth_mode.dart';
 import '../pages/email_confirmation/email_confirmation_page.dart';
 import '../pages/login_success/login_success_page.dart';
+import '../pages/notifications/login_notifications_page.dart';
 import '../pages/select_child/select_child_page.dart';
 import '../pages/select_choir/select_choir.dart';
 import '../pages/select_personal_data/personal_data.dart';
@@ -132,47 +133,35 @@ final List<RouteBase> loginRoutes = [
     routes: [
       GoRoute(
         path: LoginPaths.login,
-        pageBuilder: (context, state) => loginSlidePage(
-              state: state,
-              child: const StartScreenPage(),
-            ),
+        pageBuilder: (context, state) =>
+            loginSlidePage(state: state, child: const StartScreenPage()),
       ),
       GoRoute(
         path: LoginPaths.credentials,
         pageBuilder: (context, state) => loginSlidePage(
-              state: state,
-              child: CredentialsPage(
-                initialMode: _authModeFromQuery(state),
-              ),
-            ),
+          state: state,
+          child: CredentialsPage(initialMode: _authModeFromQuery(state)),
+        ),
       ),
       GoRoute(
         path: LoginPaths.role,
-        pageBuilder: (context, state) => loginSlidePage(
-              state: state,
-              child: const SelectRolePage(),
-            ),
+        pageBuilder: (context, state) =>
+            loginSlidePage(state: state, child: const SelectRolePage()),
       ),
       GoRoute(
         path: LoginPaths.personalData,
-        pageBuilder: (context, state) => loginSlidePage(
-              state: state,
-              child: const PersonalDataPage(),
-            ),
+        pageBuilder: (context, state) =>
+            loginSlidePage(state: state, child: const PersonalDataPage()),
       ),
       GoRoute(
         path: LoginPaths.choir,
-        pageBuilder: (context, state) => loginSlidePage(
-              state: state,
-              child: const ChoirPage(),
-            ),
+        pageBuilder: (context, state) =>
+            loginSlidePage(state: state, child: const ChoirPage()),
       ),
       GoRoute(
         path: LoginPaths.selectChild,
-        pageBuilder: (context, state) => loginSlidePage(
-              state: state,
-              child: const SelectChildPage(),
-            ),
+        pageBuilder: (context, state) =>
+            loginSlidePage(state: state, child: const SelectChildPage()),
       ),
       GoRoute(
         path: LoginPaths.guardianPending,
@@ -180,17 +169,25 @@ final List<RouteBase> loginRoutes = [
       ),
       GoRoute(
         path: LoginPaths.emailConfirmation,
+        pageBuilder: (context, state) =>
+            loginSlidePage(state: state, child: const EmailConfirmationPage()),
+      ),
+      GoRoute(
+        path: LoginPaths.notificationsIntro,
+        pageBuilder: (context, state) =>
+            loginSlidePage(state: state, child: const LoginNotificationsPage()),
+      ),
+      GoRoute(
+        path: LoginPaths.notificationsPermission,
         pageBuilder: (context, state) => loginSlidePage(
-              state: state,
-              child: const EmailConfirmationPage(),
-            ),
+          state: state,
+          child: const LoginNotificationsPage(requestStep: true),
+        ),
       ),
       GoRoute(
         path: LoginPaths.success,
-        pageBuilder: (context, state) => loginSlidePage(
-              state: state,
-              child: const LoginSuccessPage(),
-            ),
+        pageBuilder: (context, state) =>
+            loginSlidePage(state: state, child: const LoginSuccessPage()),
       ),
     ],
   ),

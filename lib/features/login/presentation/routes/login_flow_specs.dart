@@ -74,10 +74,12 @@ final List<LoginFlowStepSpec> loginFlowSpecs = <LoginFlowStepSpec>[
 ];
 
 List<LoginFlowStepSpec> _specsFor(ProfileGateData data) {
-  return loginFlowSpecs.where((spec) {
-    final applies = spec.appliesTo;
-    return applies == null || applies(data);
-  }).toList(growable: false);
+  return loginFlowSpecs
+      .where((spec) {
+        final applies = spec.appliesTo;
+        return applies == null || applies(data);
+      })
+      .toList(growable: false);
 }
 
 int loginFlowOrderIndex(String path) {
@@ -90,9 +92,11 @@ int loginFlowOrderIndex(String path) {
   for (var i = 0; i < loginFlowSpecs.length; i++) {
     if (loginFlowSpecs[i].path == path) return i + 2;
   }
-  if (path == LoginPaths.success) {
-    return loginFlowSpecs.length + 2;
+  if (path == LoginPaths.notificationsIntro) return loginFlowSpecs.length + 2;
+  if (path == LoginPaths.notificationsPermission) {
+    return loginFlowSpecs.length + 3;
   }
+  if (path == LoginPaths.success) return loginFlowSpecs.length + 4;
   return -1;
 }
 
@@ -105,8 +109,10 @@ String? resolveRequiredOnboardingPath(ProfileGateData data) {
 }
 
 Set<String> get onboardingLoginPaths => <String>{
-      LoginPaths.login,
-      LoginPaths.credentials,
-      for (final spec in loginFlowSpecs) spec.path,
-      LoginPaths.success,
-    };
+  LoginPaths.login,
+  LoginPaths.credentials,
+  for (final spec in loginFlowSpecs) spec.path,
+  LoginPaths.notificationsIntro,
+  LoginPaths.notificationsPermission,
+  LoginPaths.success,
+};

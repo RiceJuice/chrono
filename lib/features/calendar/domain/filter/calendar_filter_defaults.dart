@@ -8,6 +8,9 @@ CalendarFiltersState calendarFiltersStateFromProfileFields({
   String? className,
   String? schoolTrack,
   String? diet,
+  String? artsSubject,
+  String? languageSubject,
+  Map<String, dynamic> timetableChoices = const {},
 }) {
   final defaultChoirs = normalizedCalendarFilterList([choir]);
   final defaultVoices = normalizedCalendarFilterList([voice]);
@@ -21,6 +24,9 @@ CalendarFiltersState calendarFiltersStateFromProfileFields({
     classNames: defaultClassNames,
     schoolTracks: defaultSchoolTracks,
     diets: defaultDiets,
+    artsSubject: artsSubject ?? '',
+    languageSubject: languageSubject ?? '',
+    timetableChoices: timetableChoices,
     defaultChoirs: defaultChoirs,
     defaultVoices: defaultVoices,
     defaultClassNames: defaultClassNames,

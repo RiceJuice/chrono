@@ -426,13 +426,17 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     super.dispose();
   }
 
+  String? _lastProfileFilterKey;
+
   Future<void> _openScheduleFromLiveActivity(String eventId) async {
     ref.read(scheduleLiveActivityOpenRequestProvider.notifier).clear();
 
     final entry = await ref.read(calendarRepositoryProvider).entryById(eventId);
     if (!mounted || entry == null) return;
 
-    ref.read(selectedDayProvider.notifier).update(
+    ref
+        .read(selectedDayProvider.notifier)
+        .update(
           entry.startTime,
           haptic: false,
           origin: CalendarDaySelectionOrigin.external,
@@ -451,18 +455,29 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
       if (next == null || next.isEmpty) return;
       unawaited(_openScheduleFromLiveActivity(next));
     });
-    ref.listen(effectiveCalendarProfileProvider, (_, next) {
+    ref.watch(effectiveCalendarProfileProvider).whenData((profile) {
       final gate = ref.read(profileGateDataProvider);
       final ownProfile = ref.read(syncedProfileProvider).asData?.value;
       if (isGuardianCalendarViewer(gate: gate, ownProfile: ownProfile)) return;
 
-      next.whenData((profile) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!context.mounted) return;
-          ref
-              .read(calendarFiltersProvider.notifier)
-              .initializeFromProfile(profile);
-        });
+      if (profile == null) return;
+      final key = [
+        profile.choir,
+        profile.voice,
+        profile.className,
+        profile.schoolTrack,
+        profile.diet,
+        profile.artsSubject,
+        profile.languageSubject,
+        profile.timetableChoices,
+      ].join('|');
+      if (key == _lastProfileFilterKey) return;
+      _lastProfileFilterKey = key;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        ref
+            .read(calendarFiltersProvider.notifier)
+            .initializeFromProfile(profile);
       });
     });
     ref.listen<CalendarFiltersState>(calendarFiltersProvider, (_, next) {
@@ -475,8 +490,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     final isAdmin = ref.watch(isAdminProvider);
     final storedViewMode = ref.watch(calendarViewModeProvider);
     final usePhoneLandscapeChrome = calendarUsePhoneLandscapeChrome(context);
-    final viewMode =
-        usePhoneLandscapeChrome ? CalendarViewMode.week : storedViewMode;
+    final viewMode = usePhoneLandscapeChrome
+        ? CalendarViewMode.week
+        : storedViewMode;
 
     if (usePhoneLandscapeChrome && _prevIsPhoneLandscape == false) {
       _prevIsPhoneLandscape = true;
@@ -574,10 +590,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage>
     }
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: stackChildren,
-      ),
+      body: Stack(fit: StackFit.expand, children: stackChildren),
     );
   }
 }

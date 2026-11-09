@@ -123,6 +123,7 @@ flutter:
     - assets/domspatzen.svg
     - assets/domspatzen_compact.svg
     - assets/login_split_visual.png
+    - assets/login_carousel/
     - assets/icon/app_icon_foreground.png
     - assets/icon/google_g.svg
     - assets/Carusell/

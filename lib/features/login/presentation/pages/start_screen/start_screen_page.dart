@@ -40,7 +40,8 @@ class StartScreenPage extends StatelessWidget {
             child: Text(
               'Chorplanung und Termine an einem Ort.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyLarge?.copyWith(
+              style:
+                  theme.textTheme.bodyLarge?.copyWith(
                     color: scheme.onSurface.withValues(alpha: 0.78),
                     fontSize: compact ? 14 : 16,
                     height: 1.35,

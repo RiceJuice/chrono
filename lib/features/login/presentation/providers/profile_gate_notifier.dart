@@ -1,4 +1,6 @@
+import 'package:chronoapp/core/database/school_subject_choices_cache.dart';
 import 'dart:async';
+import 'package:chronoapp/core/database/school_subject_choices.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
@@ -18,9 +20,9 @@ class ProfileGateNotifier extends ChangeNotifier {
     SupabaseClient? client,
     PowerSyncDatabase? localDb,
     GuardianLinkRepository? guardianLinkRepository,
-  })  : _client = client ?? Supabase.instance.client,
-        _localDb = localDb,
-        _guardianLinks = guardianLinkRepository {
+  }) : _client = client ?? Supabase.instance.client,
+       _localDb = localDb,
+       _guardianLinks = guardianLinkRepository {
     _authSub = _client.auth.onAuthStateChange.listen(_handleAuthEvent);
     _attachSyncListener();
 
@@ -130,8 +132,9 @@ class ProfileGateNotifier extends ChangeNotifier {
     Map<String, dynamic>? row;
     if (remote) {
       try {
-        row = await _fetchRemoteProfileRow(user.id)
-            .timeout(_remoteProfileTimeout);
+        row = await _fetchRemoteProfileRow(
+          user.id,
+        ).timeout(_remoteProfileTimeout);
       } catch (_) {
         row = null;
       }
@@ -146,14 +149,16 @@ class ProfileGateNotifier extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>?> _fetchRemoteProfileRow(String userId) async {
-    return _client
+    final row = await _client
         .from('profiles')
         .select(
-          'first_name, last_name, class_name, schooltrack, voice, role, choir, diet, '
+          'first_name, last_name, class_name, schooltrack, arts_subject, language_subject, timetable_subject_choices, voice, role, choir, diet, '
           'onboarding_completed_at, active_child_id',
         )
         .eq('id', userId)
         .maybeSingle();
+    if (row != null) await SchoolSubjectChoicesCache.save(userId, row);
+    return row;
   }
 
   Future<GuardianLinkSummary> _loadGuardianLinkSummary(String userId) async {
@@ -173,10 +178,7 @@ class ProfileGateNotifier extends ChangeNotifier {
   ) async {
     final db = _localDb;
     if (db == null) {
-      return const GuardianLinkSummary(
-        confirmedLinks: [],
-        pendingLinks: [],
-      );
+      return const GuardianLinkSummary(confirmedLinks: [], pendingLinks: []);
     }
     try {
       final rows = await db.getAll(
@@ -188,21 +190,18 @@ class ProfileGateNotifier extends ChangeNotifier {
         [userId],
       );
       final links = rows
-          .map((row) => GuardianChildLink.fromRow(
-                Map<String, dynamic>.from(row),
-              ))
+          .map(
+            (row) => GuardianChildLink.fromRow(Map<String, dynamic>.from(row)),
+          )
           .toList(growable: false);
       return GuardianLinkSummary(
-        confirmedLinks:
-            links.where((l) => l.isConfirmed).toList(growable: false),
-        pendingLinks:
-            links.where((l) => l.isPending).toList(growable: false),
+        confirmedLinks: links
+            .where((l) => l.isConfirmed)
+            .toList(growable: false),
+        pendingLinks: links.where((l) => l.isPending).toList(growable: false),
       );
     } catch (_) {
-      return const GuardianLinkSummary(
-        confirmedLinks: [],
-        pendingLinks: [],
-      );
+      return const GuardianLinkSummary(confirmedLinks: [], pendingLinks: []);
     }
   }
 
@@ -220,6 +219,11 @@ class ProfileGateNotifier extends ChangeNotifier {
       lastName: _asString(row?['last_name']),
       className: _asString(row?['class_name']),
       schoolTrack: _asString(row?['schooltrack']),
+      artsSubject: _asString(row?['arts_subject']),
+      languageSubject: _asString(row?['language_subject']),
+      timetableChoices: decodeSchoolSubjectChoices(
+        row?['timetable_subject_choices'],
+      ),
       role: role,
       voice: _asString(row?['voice']),
       choir: _asString(row?['choir']),
@@ -238,7 +242,7 @@ class ProfileGateNotifier extends ChangeNotifier {
     try {
       final sqliteRow = await db.getOptional(
         '''
-        SELECT first_name, last_name, class_name, schooltrack, voice, role, choir, diet,
+        SELECT first_name, last_name, class_name, schooltrack, arts_subject, language_subject, timetable_subject_choices, voice, role, choir, diet,
                onboarding_completed_at, active_child_id
         FROM $kProfilesTable
         WHERE id = ?
@@ -247,7 +251,10 @@ class ProfileGateNotifier extends ChangeNotifier {
         [userId],
       );
       if (sqliteRow == null) return null;
-      return Map<String, dynamic>.from(sqliteRow);
+      return SchoolSubjectChoicesCache.supplement(
+        userId,
+        Map<String, dynamic>.from(sqliteRow),
+      );
     } catch (_) {
       return null;
     }

@@ -13,6 +13,7 @@ import 'package:chronoapp/features/settings/presentation/widgets/settings_island
 import 'package:chronoapp/features/settings/presentation/widgets/settings_section_label.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_tile.dart';
 import 'package:flutter/material.dart';
+import 'package:chronoapp/core/database/arts_subject.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -28,6 +29,8 @@ class SettingsCalendarDefaultsSection extends ConsumerWidget {
     this.onEditChoir,
     this.onEditVoice,
     this.onEditDiet,
+    this.onEditArtsSubject,
+    this.onEditLanguageSubject,
   });
 
   final bool readOnly;
@@ -36,6 +39,8 @@ class SettingsCalendarDefaultsSection extends ConsumerWidget {
   final VoidCallback? onEditChoir;
   final VoidCallback? onEditVoice;
   final VoidCallback? onEditDiet;
+  final VoidCallback? onEditArtsSubject;
+  final VoidCallback? onEditLanguageSubject;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -140,6 +145,8 @@ class SettingsCalendarDefaultsSection extends ConsumerWidget {
       onEditChoir: onEditChoir,
       onEditVoice: onEditVoice,
       onEditDiet: onEditDiet,
+      onEditArtsSubject: onEditArtsSubject,
+      onEditLanguageSubject: onEditLanguageSubject,
     );
   }
 }
@@ -154,6 +161,8 @@ class _CalendarDefaultsContent extends StatelessWidget {
     this.onEditChoir,
     this.onEditVoice,
     this.onEditDiet,
+    this.onEditArtsSubject,
+    this.onEditLanguageSubject,
   });
 
   final CalendarDefaultsDisplay display;
@@ -164,6 +173,8 @@ class _CalendarDefaultsContent extends StatelessWidget {
   final VoidCallback? onEditChoir;
   final VoidCallback? onEditVoice;
   final VoidCallback? onEditDiet;
+  final VoidCallback? onEditArtsSubject;
+  final VoidCallback? onEditLanguageSubject;
 
   @override
   Widget build(BuildContext context) {
@@ -179,9 +190,9 @@ class _CalendarDefaultsContent extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               'Standardwerte des aktiven Kindes — Änderungen wirken auf Kalender und Filter.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ),
         SettingsIsland(
@@ -218,6 +229,24 @@ class _CalendarDefaultsContent extends StatelessWidget {
               onTap: canEdit ? onEditSchoolTrack : null,
               trailing: canEdit ? null : _noTrailing,
             ),
+            if (requiresLanguageSubject(display.className))
+              SettingsTile(
+                title: 'Fremdsprache',
+                subtitle: display.languageSubject ?? 'Noch nicht gewählt',
+                icon: SettingsIcons.schoolTrack,
+                enabled: canEdit,
+                onTap: canEdit ? onEditLanguageSubject : null,
+                trailing: canEdit ? null : _noTrailing,
+              ),
+            if (requiresArtsSubject(display.className, display.schoolTrack))
+              SettingsTile(
+                title: 'Kunst / Musik',
+                subtitle: display.artsSubject ?? 'Noch nicht gewählt',
+                icon: SettingsIcons.schoolTrack,
+                enabled: canEdit,
+                onTap: canEdit ? onEditArtsSubject : null,
+                trailing: canEdit ? null : _noTrailing,
+              ),
             SettingsTile(
               title: 'Ernährung',
               subtitle: settingsValueOrFallback(display.diet),

@@ -116,6 +116,26 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Storage-owned objects must be removed before Auth can delete the user.
+    // Repeatedly remove the first page so failed/replaced uploads are covered too.
+    while (true) {
+      const { data: avatars, error: avatarListError } = await supabaseAdmin.storage
+        .from("profile_avatars")
+        .list(userId, { limit: 100 });
+      if (avatarListError) {
+        console.error("profile avatars list failed:", avatarListError.message);
+        return jsonResponse({ error: "Profilbilder konnten nicht gelöscht werden. Bitte erneut versuchen." }, 500);
+      }
+      if (!avatars?.length) break;
+      const { error: avatarRemoveError } = await supabaseAdmin.storage
+        .from("profile_avatars")
+        .remove(avatars.map((file) => `${userId}/${file.name}`));
+      if (avatarRemoveError) {
+        console.error("profile avatars remove failed:", avatarRemoveError.message);
+        return jsonResponse({ error: "Profilbilder konnten nicht gelöscht werden. Bitte erneut versuchen." }, 500);
+      }
+    }
+
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(
       userId,
     );

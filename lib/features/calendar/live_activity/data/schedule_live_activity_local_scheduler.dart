@@ -50,7 +50,12 @@ class ScheduleLiveActivityLocalScheduler {
     }
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings();
+    // Permission is requested explicitly after the notification onboarding.
+    const iosInit = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
     await _plugin.initialize(
       const InitializationSettings(
         android: androidInit,

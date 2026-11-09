@@ -8,6 +8,8 @@ abstract final class LoginPaths {
   static const personalData = '/login/personal-data';
   static const choir = '/login/choir';
   static const emailConfirmation = '/login/email-confirmation';
+  static const notificationsIntro = '/login/notifications-intro';
+  static const notificationsPermission = '/login/notifications-permission';
   static const success = '/login/success';
   static const selectChild = '/login/select-child';
   static const guardianPending = '/login/guardian-pending';

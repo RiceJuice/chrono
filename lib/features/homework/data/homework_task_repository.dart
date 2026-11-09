@@ -77,12 +77,36 @@ class HomeworkTaskRepository {
     });
   }
 
+  Future<void> updateTask({
+    required String profileId,
+    required String taskId,
+    required String title,
+    required String description,
+    String? subjectId,
+    DateTime? dueAt,
+    HomeworkDueSource? dueSource,
+  }) async {
+    await _db.execute(
+      'UPDATE $kHomeworkTasksTable SET title = ?, plain_text = ?, subject_id = ?, '
+      'due_at = ?, due_source = ?, updated_at = ? WHERE id = ? AND profile_id = ?',
+      [
+        title.trim(),
+        description,
+        subjectId,
+        dueAt?.toUtc().toIso8601String(),
+        dueSource == null ? null : homeworkDueSourceToJson(dueSource),
+        DateTime.now().toUtc().toIso8601String(),
+        taskId,
+        profileId,
+      ],
+    );
+  }
+
   Future<void> deleteTask({required String taskId}) async {
     await _db.writeTransaction((tx) async {
-      await tx.execute(
-        'DELETE FROM $kHomeworkTasksTable WHERE id = ?',
-        [taskId],
-      );
+      await tx.execute('DELETE FROM $kHomeworkTasksTable WHERE id = ?', [
+        taskId,
+      ]);
     });
   }
 
@@ -98,12 +122,7 @@ class HomeworkTaskRepository {
         SET is_completed = ?, completed_at = ?, updated_at = ?
         WHERE id = ?
         ''',
-        [
-          isCompleted ? 1 : 0,
-          isCompleted ? now : null,
-          now,
-          taskId,
-        ],
+        [isCompleted ? 1 : 0, isCompleted ? now : null, now, taskId],
       );
     });
   }

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../routes/login_paths.dart';
 import 'login_split_screen.dart';
+import 'login_tablet_layout.dart';
 
 /// Fester Rahmen für den Login-Onboarding-Flow: Scaffold + Split-Layout.
 /// Top-Bar und Schritt-Indikator liegen in [LoginFlowChrome] im Seiteninhalt.
@@ -21,20 +22,22 @@ class LoginOnboardingShell extends StatelessWidget {
     final location = state.matchedLocation;
     final isStart = location == LoginPaths.login;
     final isChoirPage = location == LoginPaths.choir;
-    final bool resizeBody = location != LoginPaths.credentials;
+    final tablet = LoginTabletLayout.isAppleTablet(context);
+    final bool resizeBody = tablet || location != LoginPaths.credentials;
 
     return Scaffold(
       resizeToAvoidBottomInset: resizeBody,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: LoginSplitScreen(
-        contentMaxWidth: isChoirPage ? 620 : 560,
-        visual: const LoginSplitBrandVisual(),
-        child: SafeArea(
-          // Startscreen: Squircle-Panel bis zum unteren Bildschirmrand.
-          bottom: !isStart,
-          child: child,
-        ),
-      ),
+      body: tablet
+          ? LoginTabletFrame(location: location, child: child)
+          : LoginSplitScreen(
+              contentMaxWidth: isChoirPage ? 620 : 560,
+              child: SafeArea(
+                // Startscreen: Squircle-Panel bis zum unteren Bildschirmrand.
+                bottom: !isStart,
+                child: child,
+              ),
+            ),
     );
   }
 }

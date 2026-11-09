@@ -44,7 +44,7 @@ class _LoginSocialSignInBlockState extends ConsumerState<LoginSocialSignInBlock>
     await ref.read(profileGateProvider).refresh();
     if (!mounted) return;
     final target =
-        ref.read(profileGateProvider).requiredPath ?? LoginPaths.success;
+        ref.read(profileGateProvider).requiredPath ?? LoginPaths.notificationsIntro;
     context.go(target);
   }
 

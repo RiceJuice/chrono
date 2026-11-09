@@ -18,7 +18,9 @@ class LoginPrimaryButton extends StatelessWidget {
   final Color color;
   final bool isLoading;
 
-  static Future<void> _runWithOutcomeHaptic(FutureOr<void> Function()? fn) async {
+  static Future<void> _runWithOutcomeHaptic(
+    FutureOr<void> Function()? fn,
+  ) async {
     if (fn == null) return;
     try {
       final result = fn();
@@ -33,8 +35,10 @@ class LoginPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onColor =
-        color.computeLuminance() < 0.5 ? Colors.white : Colors.black87;
+    final onColor = color.computeLuminance() < 0.5
+        ? Colors.white
+        : Colors.black87;
+
     return SizedBox(
       height: 60,
       width: double.infinity,
@@ -49,7 +53,9 @@ class LoginPrimaryButton extends StatelessWidget {
           backgroundColor: color,
           foregroundColor: onColor,
           disabledBackgroundColor: color.withValues(alpha: AppOpacity.disabled),
-          disabledForegroundColor: onColor.withValues(alpha: AppOpacity.disabled),
+          disabledForegroundColor: onColor.withValues(
+            alpha: AppOpacity.disabled,
+          ),
           elevation: 0,
           shadowColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,

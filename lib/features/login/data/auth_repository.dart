@@ -1,5 +1,8 @@
+import 'package:chronoapp/core/database/school_subject_choices_cache.dart';
 import 'package:chronoapp/core/auth/auth_redirect_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:chronoapp/core/database/school_subject_choices.dart';
+import '../../calendar/data/calendar_preferences_codec.dart';
 
 import 'social_auth_service.dart';
 
@@ -13,16 +16,10 @@ class AuthRepositoryException implements Exception {
   String toString() => message;
 }
 
-enum SignUpOutcome {
-  registeredAndSignedIn,
-  registeredNeedsEmailVerification,
-}
+enum SignUpOutcome { registeredAndSignedIn, registeredNeedsEmailVerification }
 
 class SignUpResult {
-  const SignUpResult({
-    required this.outcome,
-    required this.email,
-  });
+  const SignUpResult({required this.outcome, required this.email});
 
   final SignUpOutcome outcome;
   final String email;
@@ -175,10 +172,7 @@ class AuthRepository {
         email: normalizedEmail,
         password: password,
         emailRedirectTo: authEmailRedirectTo(),
-        data: {
-          'first_name': firstName.trim(),
-          'last_name': lastName.trim(),
-        },
+        data: {'first_name': firstName.trim(), 'last_name': lastName.trim()},
       );
       final isSignedIn = response.session != null;
       return SignUpResult(
@@ -420,6 +414,10 @@ class AuthRepository {
     String? role,
     String? choir,
     String? activeChildId,
+    bool? showMealImages,
+    String? artsSubject,
+    String? languageSubject,
+    Map<String, dynamic>? timetableChoices,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -437,15 +435,63 @@ class AuthRepository {
     if (choir != null) updates['choir'] = choir;
     if (activeChildId != null) updates['active_child_id'] = activeChildId;
 
-    if (updates.isEmpty) return true;
+    if (updates.isEmpty &&
+        showMealImages == null &&
+        artsSubject == null &&
+        languageSubject == null &&
+        timetableChoices == null) {
+      return true;
+    }
 
     try {
+      if (artsSubject != null ||
+          languageSubject != null ||
+          timetableChoices != null) {
+        final existing = await _client
+            .from('profiles')
+            .select('class_name,schooltrack,timetable_subject_choices')
+            .eq('id', user.id)
+            .single();
+        if (artsSubject != null) updates['arts_subject'] = artsSubject;
+        if (languageSubject != null) {
+          updates['language_subject'] = languageSubject;
+        }
+        updates['timetable_subject_choices'] = updateSchoolSubjectChoices(
+          existing:
+              timetableChoices ??
+              decodeSchoolSubjectChoices(existing['timetable_subject_choices']),
+          className: className ?? existing['class_name']?.toString(),
+          schoolTrack: schoolTrack ?? existing['schooltrack']?.toString(),
+          artsSubject: artsSubject,
+          languageSubject: languageSubject,
+        );
+      }
+      // A new account may not have reached the PowerSync cache yet. Save the
+      // onboarding preference with the same authenticated profile update.
+      if (showMealImages != null) {
+        final profile = await _client
+            .from('profiles')
+            .select('calendar_preferences')
+            .eq('id', user.id)
+            .single();
+        final preferences = CalendarPreferencesCodec.decodeRoot(
+          profile['calendar_preferences'],
+        );
+        preferences[CalendarPreferencesCodec.showMealImagesKey] =
+            showMealImages;
+        updates['calendar_preferences'] = preferences;
+      }
       final updatedRows = await _client
           .from('profiles')
           .update(updates)
           .eq('id', user.id)
-          .select('id');
-      if (updatedRows.isNotEmpty) return true;
+          .select(
+            'id,class_name,schooltrack,arts_subject,language_subject,timetable_subject_choices',
+          );
+      if (updatedRows.isNotEmpty) {
+        await SchoolSubjectChoicesCache.save(user.id, updatedRows.first);
+        return true;
+      }
       throw AuthRepositoryException(
         'Profil konnte nicht gespeichert werden. Bitte erneut versuchen.',
       );

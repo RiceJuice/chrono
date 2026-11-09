@@ -1,3 +1,4 @@
+import 'package:chronoapp/features/settings/presentation/widgets/school_subject_choice_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -85,7 +86,8 @@ class CalendarFilterBottomSheet extends ConsumerWidget {
                     isSearchFilterMode: !isCalendarSettings,
                     options: choirOptions,
                     labelFor: calendarFilterChoirLabel,
-                    selectedAccentForOption: calendarFilterChoirChipSelectedAccent,
+                    selectedAccentForOption:
+                        calendarFilterChoirChipSelectedAccent,
                     selectedColor: colorScheme.primary,
                     chipBackgroundColor: colorScheme.surfaceContainerHighest,
                     onToggle: (value) {
@@ -284,32 +286,35 @@ class _CalendarSettingsListSectionState
     );
     final permissions = ref.watch(activeGuardianChildPermissionsProvider);
 
-    final rows = <_CalendarSettingsRowData>[
-      _CalendarSettingsRowData(
-        title: 'Chor',
-        isVisible: widget.filters.showChoirCalendar,
-        calendarVisibility: CalendarVisibility.choir,
-        settingsKind: CalendarSettingsKind.choir,
-      ),
-      _CalendarSettingsRowData(
-        title: 'Speiseplan',
-        isVisible: widget.filters.showMealCalendar,
-        calendarVisibility: CalendarVisibility.meal,
-        settingsKind: CalendarSettingsKind.meal,
-      ),
-      _CalendarSettingsRowData(
-        title: 'Schule',
-        isVisible: widget.filters.showSchoolCalendar,
-        calendarVisibility: CalendarVisibility.school,
-        settingsKind: CalendarSettingsKind.school,
-      ),
-    ].where(
-      (row) => guardianCalendarTypeConfigurable(
-        isGuardianViewer: isGuardianViewer,
-        permissions: permissions,
-        calendar: row.calendarVisibility,
-      ),
-    ).toList(growable: false);
+    final rows =
+        <_CalendarSettingsRowData>[
+              _CalendarSettingsRowData(
+                title: 'Chor',
+                isVisible: widget.filters.showChoirCalendar,
+                calendarVisibility: CalendarVisibility.choir,
+                settingsKind: CalendarSettingsKind.choir,
+              ),
+              _CalendarSettingsRowData(
+                title: 'Speiseplan',
+                isVisible: widget.filters.showMealCalendar,
+                calendarVisibility: CalendarVisibility.meal,
+                settingsKind: CalendarSettingsKind.meal,
+              ),
+              _CalendarSettingsRowData(
+                title: 'Schule',
+                isVisible: widget.filters.showSchoolCalendar,
+                calendarVisibility: CalendarVisibility.school,
+                settingsKind: CalendarSettingsKind.school,
+              ),
+            ]
+            .where(
+              (row) => guardianCalendarTypeConfigurable(
+                isGuardianViewer: isGuardianViewer,
+                permissions: permissions,
+                calendar: row.calendarVisibility,
+              ),
+            )
+            .toList(growable: false);
 
     final notifier = ref.read(calendarFiltersProvider.notifier);
     final filters = ref.watch(calendarFiltersProvider);
@@ -322,9 +327,9 @@ class _CalendarSettingsListSectionState
           isGuardianViewer
               ? 'Dein Kind hat noch keine Kalender-Bereiche freigegeben.'
               : 'Keine Kalender-Bereiche verfügbar.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
       );
@@ -369,21 +374,26 @@ class _CalendarSettingsListSectionState
                             padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: calendarSettingsFilterSections(
-                                calendarKind: rows[index].settingsKind,
-                                filters: filters,
-                                colorScheme: colorScheme,
-                                choirOptions: widget.choirOptions,
-                                voiceOptions: widget.voiceOptions,
-                                classOptions: widget.classOptions,
-                                schoolTrackOptions: widget.schoolTrackOptions,
-                                dietOptions: widget.dietOptions,
-                                actions:
-                                    CalendarFilterSectionActions.fromNotifier(
-                                      notifier,
-                                    ),
-                                animateChipEntrance: true,
-                              ),
+                              children: [
+                                ...calendarSettingsFilterSections(
+                                  calendarKind: rows[index].settingsKind,
+                                  filters: filters,
+                                  colorScheme: colorScheme,
+                                  choirOptions: widget.choirOptions,
+                                  voiceOptions: widget.voiceOptions,
+                                  classOptions: widget.classOptions,
+                                  schoolTrackOptions: widget.schoolTrackOptions,
+                                  dietOptions: widget.dietOptions,
+                                  actions:
+                                      CalendarFilterSectionActions.fromNotifier(
+                                        notifier,
+                                      ),
+                                  animateChipEntrance: true,
+                                ),
+                                if (rows[index].settingsKind ==
+                                    CalendarSettingsKind.school)
+                                  const SchoolSubjectChoiceSettings(),
+                              ],
                             ),
                           ),
                         ),

@@ -1,3 +1,6 @@
+import 'login_photo_carousel.dart';
+import 'login_tablet_layout.dart';
+
 import 'package:flutter/material.dart';
 
 enum LoginSplitVisualSide { left, right }
@@ -22,7 +25,7 @@ class LoginSplitScreen extends StatelessWidget {
     this.visualBorderRadius = BorderRadius.zero,
   });
 
-  static const double defaultBreakpoint = 900;
+  static const double defaultBreakpoint = 700;
 
   final Widget child;
   final Widget? visual;
@@ -39,20 +42,21 @@ class LoginSplitScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < breakpoint) {
+        if (LoginTabletLayout.isTablet(context) ||
+            constraints.maxWidth < breakpoint) {
           return child;
         }
 
         final visualPane = Expanded(
-          flex: visualFlex,
+          flex: constraints.maxWidth < 900 ? 4 : visualFlex,
           child: ClipRRect(
             borderRadius: visualBorderRadius,
-            child: visual ?? const LoginSplitPlaceholderVisual(),
+            child: visual ?? const LoginPhotoCarousel(),
           ),
         );
 
         final contentPane = Expanded(
-          flex: contentFlex,
+          flex: constraints.maxWidth < 900 ? 6 : contentFlex,
           child: Align(
             alignment: Alignment.center,
             child: ConstrainedBox(
@@ -74,104 +78,6 @@ class LoginSplitScreen extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class LoginSplitBrandVisual extends StatelessWidget {
-  const LoginSplitBrandVisual({super.key});
-
-  static const assetPath = 'assets/login_split_visual.png';
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            scheme.primaryContainer.withValues(alpha: 0.95),
-            scheme.secondaryContainer.withValues(alpha: 0.88),
-            scheme.tertiaryContainer.withValues(alpha: 0.82),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 64),
-          child: Image.asset(assetPath, fit: BoxFit.contain),
-        ),
-      ),
-    );
-  }
-}
-
-class LoginSplitPlaceholderVisual extends StatelessWidget {
-  const LoginSplitPlaceholderVisual({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            scheme.primaryContainer.withValues(alpha: 0.95),
-            scheme.secondaryContainer.withValues(alpha: 0.88),
-            scheme.tertiaryContainer.withValues(alpha: 0.82),
-          ],
-        ),
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned(
-            top: -80,
-            right: -60,
-            child: _VisualGlow(
-              size: 260,
-              color: scheme.primary.withValues(alpha: 0.22),
-            ),
-          ),
-          Positioned(
-            left: -70,
-            bottom: -90,
-            child: _VisualGlow(
-              size: 320,
-              color: scheme.tertiary.withValues(alpha: 0.20),
-            ),
-          ),
-          Center(
-            child: Icon(
-              Icons.image_outlined,
-              size: 164,
-              color: scheme.onPrimaryContainer.withValues(alpha: 0.30),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VisualGlow extends StatelessWidget {
-  const _VisualGlow({required this.size, required this.color});
-
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }

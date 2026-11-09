@@ -1,3 +1,4 @@
+import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
@@ -12,6 +13,7 @@ import 'package:chronoapp/features/homework/presentation/widgets/homework_peer_s
 import 'package:chronoapp/features/homework/presentation/widgets/homework_create_form_sheet.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_task_swipe_to_delete.dart';
 import 'package:flutter/material.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_task_form_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeworkPage extends ConsumerWidget {
@@ -35,7 +37,9 @@ class HomeworkPage extends ConsumerWidget {
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aufgabe konnte nicht übernommen werden.')),
+        const SnackBar(
+          content: Text('Aufgabe konnte nicht übernommen werden.'),
+        ),
       );
     }
   }
@@ -69,7 +73,9 @@ class HomeworkPage extends ConsumerWidget {
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vorschlag konnte nicht abgelehnt werden.')),
+        const SnackBar(
+          content: Text('Vorschlag konnte nicht abgelehnt werden.'),
+        ),
       );
     }
   }
@@ -94,8 +100,7 @@ class HomeworkPage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             HomeworkPageHeader(
-              onAddPressed:
-                  readOnly ? null : () => _openCreateSheet(context),
+              onAddPressed: readOnly ? null : () => _openCreateSheet(context),
             ),
             Expanded(
               child: tasksAsync.when(
@@ -110,7 +115,8 @@ class HomeworkPage extends ConsumerWidget {
                 data: (tasks) {
                   final peerSuggestions =
                       peerSuggestionsAsync.asData?.value ?? const [];
-                  final isLoadingPeer = peerSuggestionsAsync.isLoading &&
+                  final isLoadingPeer =
+                      peerSuggestionsAsync.isLoading &&
                       peerSuggestionsAsync.asData == null;
 
                   if (tasks.isEmpty && peerSuggestions.isEmpty) {
@@ -125,10 +131,11 @@ class HomeworkPage extends ConsumerWidget {
                         ),
                         child: Text(
                           'Noch keine Aufgaben.',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                           textAlign: TextAlign.center,
                         ),
@@ -136,11 +143,16 @@ class HomeworkPage extends ConsumerWidget {
                     );
                   }
 
+                  final sortedTasks = sortHomeworkTasksByDueDay(
+                    tasks,
+                    subjectName: (id) => subjectsById[id]?.name ?? '',
+                  );
                   final itemCount = peerSuggestions.length + tasks.length;
 
                   return ListView.builder(
                     padding: EdgeInsets.only(
-                      bottom: mainShellBottomContentInset(context) + AppSpacing.l,
+                      bottom:
+                          mainShellBottomContentInset(context) + AppSpacing.l,
                     ),
                     itemCount: itemCount,
                     itemBuilder: (context, index) {
@@ -153,27 +165,28 @@ class HomeworkPage extends ConsumerWidget {
                           subject: subject,
                           onAccept: readOnly
                               ? null
-                              : () => _acceptSuggestion(
-                                    context,
-                                    ref,
-                                    suggestion,
-                                  ),
+                              : () =>
+                                    _acceptSuggestion(context, ref, suggestion),
                           onReject: readOnly
                               ? null
-                              : () => _rejectSuggestion(
-                                    context,
-                                    ref,
-                                    suggestion,
-                                  ),
+                              : () =>
+                                    _rejectSuggestion(context, ref, suggestion),
                         );
                       }
 
-                      final task = tasks[index - peerSuggestions.length];
+                      final task = sortedTasks[index - peerSuggestions.length];
                       final subject = task.subjectId == null
                           ? null
                           : subjectsById[task.subjectId];
 
                       return HomeworkTaskSwipeToDelete(
+                        key: ValueKey(task.id),
+                        onEdit: readOnly
+                            ? null
+                            : () => HomeworkTaskFormSheet.show(
+                                context,
+                                task: task,
+                              ),
                         task: task,
                         subject: subject,
                         onToggleCompleted: readOnly
@@ -185,11 +198,7 @@ class HomeworkPage extends ConsumerWidget {
                               },
                         onConfirmDelete: readOnly
                             ? null
-                            : () => _confirmDeleteTask(
-                                  context,
-                                  ref,
-                                  task.id,
-                                ),
+                            : () => _confirmDeleteTask(context, ref, task.id),
                       );
                     },
                   );

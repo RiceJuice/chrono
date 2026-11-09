@@ -305,7 +305,7 @@ class TextContent extends StatelessWidget {
     final effectiveTitleFontSize = (titleFontSize ?? 16) - (compact ? 1 : 0);
     final mutedTimeColor = (secondaryTextColor ?? theme.colorScheme.onSurface)
         .withValues(alpha: 0.58);
-    final trimmedDescription = (entry.description ?? '').trim();
+    final trimmedDescription = entry.displayDescription;
     final hasDescription = !compact && trimmedDescription.isNotEmpty;
     final trimmedLocation = (entry.location ?? '').trim();
     final preferLocationOnCard = entry.type == CalendarEntryType.event;

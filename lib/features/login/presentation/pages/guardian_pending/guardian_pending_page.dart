@@ -117,7 +117,7 @@ class _GuardianPendingPageState extends ConsumerState<GuardianPendingPage>
     final activeChild = pickGuardianActiveChild(confirmed);
     await activateGuardianChildAndSyncFilters(ref, activeChild: activeChild);
     if (!mounted) return;
-    router.go(LoginPaths.success);
+    router.go(LoginPaths.notificationsIntro);
   }
 
   @override

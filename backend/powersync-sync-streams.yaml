@@ -73,7 +73,7 @@ streams:
   profile_linked_children:
     auto_subscribe: true
     query: |
-      SELECT id, first_name, last_name, class_name, schooltrack, voice, choir, diet, role,
+      SELECT id, first_name, last_name, class_name, schooltrack, arts_subject, language_subject, timetable_subject_choices, voice, choir, diet, role,
              created_at, updated_at, onboarding_completed_at
       FROM profiles
       WHERE id IN (

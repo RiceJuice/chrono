@@ -5,20 +5,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final nextLessonForSubjectProvider =
     Provider.family<AsyncValue<CalendarEntry?>, String?>((ref, subjectId) {
-  final normalizedSubjectId = subjectId?.trim();
-  if (normalizedSubjectId == null || normalizedSubjectId.isEmpty) {
-    return const AsyncData(null);
-  }
+      final normalizedSubjectId = subjectId?.trim();
+      if (normalizedSubjectId == null || normalizedSubjectId.isEmpty) {
+        return const AsyncData(null);
+      }
 
-  final entriesAsync = ref.watch(filteredCalendarAllEntriesProvider);
-  return entriesAsync.when(
-    loading: () => const AsyncLoading(),
-    error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
-    data: (entries) => AsyncData(
-      pickNextLessonForSubject(
-        entries: entries,
-        subjectId: normalizedSubjectId,
-      ),
-    ),
-  );
-});
+      final entriesAsync = ref.watch(filteredCalendarAllEntriesProvider);
+      return entriesAsync.when(
+        loading: () => const AsyncLoading(),
+        error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
+        data: (entries) => AsyncData(
+          pickNextLessonForSubject(
+            entries: entries,
+            subjectId: normalizedSubjectId,
+          ),
+        ),
+      );
+    });
+
+final lessonForSubjectOnDayProvider =
+    Provider.family<
+      AsyncValue<CalendarEntry?>,
+      ({String subjectId, DateTime day})
+    >((ref, args) {
+      return ref
+          .watch(filteredCalendarAllEntriesProvider)
+          .whenData(
+            (entries) => pickLessonForSubjectOnDay(
+              entries: entries,
+              subjectId: args.subjectId,
+              day: args.day,
+            ),
+          );
+    });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'calendar_entry_display_text.dart';
 import '../../../../core/database/backend_enums.dart';
 
 enum CalendarEntryType { lesson, meal, event, choir, breakType }
@@ -53,6 +54,9 @@ class CalendarEntry {
     this.isRecurringInstance = false,
     this.subjectId,
   });
+
+  String get displayDescription => calendarEntryDisplayText(description);
+  String get displayNote => calendarEntryDisplayText(note);
 
   CalendarEntry copyWith({
     List<String>? imageUrls,

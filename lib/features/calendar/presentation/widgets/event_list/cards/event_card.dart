@@ -81,7 +81,7 @@ class _EventCardState extends State<EventCard> {
     final wantTimeRange =
         widget.showInlineTimeRange ?? !widget.showTimeColumn;
     final trimmedLocation = (entry.location ?? '').trim();
-    final hasDescription = (entry.description ?? '').trim().isNotEmpty;
+    final hasDescription = entry.displayDescription.isNotEmpty;
 
     if (widget.weekGridCompact) {
       return Material(
@@ -206,7 +206,7 @@ class _EventCardState extends State<EventCard> {
                                           AppDimensions.eventCardDescriptionSpacing,
                                     ),
                                     Text(
-                                      entry.description!,
+                                      entry.displayDescription,
                                       textHeightBehavior:
                                           _compactTextHeightBehavior,
                                       style: theme.textTheme.bodySmall

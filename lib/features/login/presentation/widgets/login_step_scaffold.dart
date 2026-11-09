@@ -121,15 +121,13 @@ class LoginStepScaffold extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            titleOverride ?? step.title,
-            style: titleStyle,
-          ),
+          Text(titleOverride ?? step.title, style: titleStyle),
           if (subtitleOverride != null) ...[
             SizedBox(height: LoginFlowSpacing.gapAfterFieldLabel(context)),
             Text(
               subtitleOverride!,
-              style: theme.textTheme.bodyLarge?.copyWith(
+              style:
+                  theme.textTheme.bodyLarge?.copyWith(
                     color: scheme.onSurface.withValues(alpha: 0.78),
                     fontSize: subtitleSize,
                     fontWeight: FontWeight.w400,
@@ -174,8 +172,9 @@ class LoginStepScaffold extends StatelessWidget {
 
     final double tail = footerTailHeight ?? spacing.tail;
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-    final double bottomGap =
-        keyboardInset > 0 ? keyboardInset + 16 : _stepPageBottomInset;
+    final double bottomGap = keyboardInset > 0
+        ? keyboardInset + 16
+        : _stepPageBottomInset;
     final double reserved = _primaryButtonHeight + tail + bottomGap;
     return EdgeInsets.only(bottom: reserved);
   }
@@ -191,10 +190,7 @@ class LoginStepScaffold extends StatelessWidget {
     );
   }
 
-  Widget _buildPrimaryButton(
-    BuildContext context, {
-    required String location,
-  }) {
+  Widget _buildPrimaryButton(BuildContext context, {required String location}) {
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double horizontalInset = _pageHorizontalInset(location);
 
@@ -223,7 +219,7 @@ class LoginStepScaffold extends StatelessWidget {
               void goNext() {
                 final path = nextPath;
                 if (path == null) {
-                  context.go(LoginPaths.success);
+                  context.go(LoginPaths.notificationsIntro);
                   return;
                 }
                 context.go(path);
@@ -266,8 +262,8 @@ class LoginStepScaffold extends StatelessWidget {
 
     final List<Widget> scrollFooterBlock =
         resolvedBottomBehavior == LoginBottomBehavior.footerInScroll
-            ? _footerInScrollBlock(spacing)
-            : const [];
+        ? _footerInScrollBlock(spacing)
+        : const [];
 
     final Widget scrollArea = LoginFlowBody(
       location: location,
@@ -291,7 +287,8 @@ class LoginStepScaffold extends StatelessWidget {
     return LoginStepLayout(
       scrollArea: scrollArea,
       bottomBehavior: resolvedBottomBehavior,
-      footer: resolvedBottomBehavior == LoginBottomBehavior.footerFixed &&
+      footer:
+          resolvedBottomBehavior == LoginBottomBehavior.footerFixed &&
               footer != null
           ? _wrapBottomArea(location, footer!)
           : null,

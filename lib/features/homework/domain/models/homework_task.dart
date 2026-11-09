@@ -1,9 +1,6 @@
 import 'homework_fragment.dart';
 
-enum HomeworkDueSource {
-  nextLesson,
-  customDate,
-}
+enum HomeworkDueSource { nextLesson, customDate }
 
 HomeworkDueSource? homeworkDueSourceFromJson(String? value) {
   return switch (value) {
@@ -81,9 +78,7 @@ class HomeworkTask {
       subjectId: clearSubjectId ? null : (subjectId ?? this.subjectId),
       isCompleted: isCompleted ?? this.isCompleted,
       createdAt: createdAt ?? this.createdAt,
-      completedAt: clearCompletedAt
-          ? null
-          : (completedAt ?? this.completedAt),
+      completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
       dueAt: clearDueAt ? null : (dueAt ?? this.dueAt),
       dueSource: clearDueSource ? null : (dueSource ?? this.dueSource),
       contributionId: contributionId ?? this.contributionId,
@@ -103,7 +98,9 @@ class HomeworkTask {
       'created_at': createdAt.toUtc().toIso8601String(),
       'completed_at': completedAt?.toUtc().toIso8601String(),
       'due_at': dueAt?.toUtc().toIso8601String(),
-      'due_source': dueSource == null ? null : homeworkDueSourceToJson(dueSource!),
+      'due_source': dueSource == null
+          ? null
+          : homeworkDueSourceToJson(dueSource!),
       'contribution_id': contributionId,
       'updated_at': updatedAt?.toUtc().toIso8601String(),
     };
@@ -197,4 +194,26 @@ String formatLessonDate(DateTime day) {
   return '${day.year.toString().padLeft(4, '0')}-'
       '${day.month.toString().padLeft(2, '0')}-'
       '${day.day.toString().padLeft(2, '0')}';
+}
+
+/// Keeps completion changes in place while grouping each due day by subject.
+List<HomeworkTask> sortHomeworkTasksByDueDay(
+  Iterable<HomeworkTask> tasks, {
+  required String Function(String? subjectId) subjectName,
+}) {
+  DateTime? day(DateTime? value) {
+    final local = value?.toLocal();
+    return local == null ? null : DateTime(local.year, local.month, local.day);
+  }
+
+  return tasks.toList()..sort((a, b) {
+    final dates = _compareDueAt(day(a.dueAt), day(b.dueAt));
+    if (dates != 0) return dates;
+    final subjects = subjectName(
+      a.subjectId,
+    ).toLowerCase().compareTo(subjectName(b.subjectId).toLowerCase());
+    if (subjects != 0) return subjects;
+    final created = a.createdAt.compareTo(b.createdAt);
+    return created == 0 ? a.id.compareTo(b.id) : created;
+  });
 }

@@ -80,6 +80,9 @@ const powersyncSchema = Schema([
       Column.text('last_name'),
       Column.text('class_name'),
       Column.text('schooltrack'),
+      Column.text('arts_subject'),
+      Column.text('language_subject'),
+      Column.text('timetable_subject_choices'),
       Column.text('voice'),
       Column.text('role'),
       Column.text('choir'),
@@ -109,14 +112,8 @@ const powersyncSchema = Schema([
       Column.text('child_share_permissions'),
     ],
     indexes: [
-      Index(
-        'guardian_child_links_guardian_id',
-        [IndexedColumn('guardian_id')],
-      ),
-      Index(
-        'guardian_child_links_child_id',
-        [IndexedColumn('child_id')],
-      ),
+      Index('guardian_child_links_guardian_id', [IndexedColumn('guardian_id')]),
+      Index('guardian_child_links_child_id', [IndexedColumn('child_id')]),
     ],
   ),
   Table(
@@ -128,10 +125,7 @@ const powersyncSchema = Schema([
   ),
   Table(
     kSubjectsTable,
-    [
-      Column.text('name'),
-      Column.text('default_color'),
-    ],
+    [Column.text('name'), Column.text('default_color')],
     indexes: [
       Index('subjects_name', [IndexedColumn('name')]),
     ],
@@ -168,10 +162,9 @@ const powersyncSchema = Schema([
       Column.text('created_at'),
     ],
     indexes: [
-      Index(
-        'homework_syntax_suggestions_category',
-        [IndexedColumn('category')],
-      ),
+      Index('homework_syntax_suggestions_category', [
+        IndexedColumn('category'),
+      ]),
     ],
   ),
   Table(
@@ -188,14 +181,11 @@ const powersyncSchema = Schema([
       Column.text('updated_at'),
     ],
     indexes: [
-      Index(
-        'homework_contributions_class_day',
-        [IndexedColumn('class_name'), IndexedColumn('lesson_date')],
-      ),
-      Index(
-        'homework_contributions_profile',
-        [IndexedColumn('profile_id')],
-      ),
+      Index('homework_contributions_class_day', [
+        IndexedColumn('class_name'),
+        IndexedColumn('lesson_date'),
+      ]),
+      Index('homework_contributions_profile', [IndexedColumn('profile_id')]),
     ],
   ),
   Table(
@@ -215,10 +205,7 @@ const powersyncSchema = Schema([
       Column.text('updated_at'),
     ],
     indexes: [
-      Index(
-        'homework_tasks_profile',
-        [IndexedColumn('profile_id')],
-      ),
+      Index('homework_tasks_profile', [IndexedColumn('profile_id')]),
     ],
   ),
   Table(
@@ -231,10 +218,7 @@ const powersyncSchema = Schema([
       Column.text('created_at'),
     ],
     indexes: [
-      Index(
-        'homework_peer_dismissals_profile',
-        [IndexedColumn('profile_id')],
-      ),
+      Index('homework_peer_dismissals_profile', [IndexedColumn('profile_id')]),
     ],
   ),
   Table(
@@ -249,14 +233,11 @@ const powersyncSchema = Schema([
       Column.text('updated_at'),
     ],
     indexes: [
-      Index(
-        'school_assessments_profile',
-        [IndexedColumn('profile_id')],
-      ),
-      Index(
-        'school_assessments_subject_scheduled',
-        [IndexedColumn('subject_id'), IndexedColumn('scheduled_at')],
-      ),
+      Index('school_assessments_profile', [IndexedColumn('profile_id')]),
+      Index('school_assessments_subject_scheduled', [
+        IndexedColumn('subject_id'),
+        IndexedColumn('scheduled_at'),
+      ]),
     ],
   ),
 ]);

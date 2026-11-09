@@ -23,13 +23,46 @@ void main() {
       );
     }
 
-    test('returns earliest upcoming lesson for subject', () {
+    test('selected day resolves earliest matching subject lesson only', () {
       final entries = [
         lesson(
           id: 'later',
           subjectId: 'math',
-          start: DateTime(2026, 6, 27, 8),
+          start: DateTime(2026, 6, 28, 11),
         ),
+        lesson(id: 'first', subjectId: 'math', start: DateTime(2026, 6, 28, 8)),
+        lesson(
+          id: 'other',
+          subjectId: 'english',
+          start: DateTime(2026, 6, 28, 7),
+        ),
+        lesson(
+          id: 'next-day',
+          subjectId: 'math',
+          start: DateTime(2026, 6, 29, 7),
+        ),
+      ];
+      expect(
+        pickLessonForSubjectOnDay(
+          entries: entries,
+          subjectId: 'math',
+          day: DateTime(2026, 6, 28),
+        )?.id,
+        'first',
+      );
+      expect(
+        pickLessonForSubjectOnDay(
+          entries: entries,
+          subjectId: 'math',
+          day: DateTime(2026, 6, 30),
+        ),
+        isNull,
+      );
+    });
+
+    test('returns earliest upcoming lesson for subject', () {
+      final entries = [
+        lesson(id: 'later', subjectId: 'math', start: DateTime(2026, 6, 27, 8)),
         lesson(
           id: 'earlier',
           subjectId: 'math',
@@ -53,11 +86,7 @@ void main() {
 
     test('ignores past lessons and non-lesson entries', () {
       final entries = [
-        lesson(
-          id: 'past',
-          subjectId: 'math',
-          start: DateTime(2026, 6, 26, 8),
-        ),
+        lesson(id: 'past', subjectId: 'math', start: DateTime(2026, 6, 26, 8)),
         CalendarEntry(
           id: 'event',
           eventName: 'Event',

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:powersync/powersync.dart';
 import 'package:sqlite3/common.dart';
 
@@ -35,8 +36,10 @@ class SubjectsRepository {
       if (seen.contains(id)) continue;
       seen.add(id);
 
-      final color = SubjectColorCodec.parseHex(row['default_color']);
-      if (color == null) continue;
+      // A missing optional accent must not remove a selectable subject.
+      final color =
+          SubjectColorCodec.parseHex(row['default_color']) ??
+          const Color(0xFF607D8B);
 
       out.add(CalendarSubject(id: id, name: name, defaultColor: color));
     }

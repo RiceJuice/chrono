@@ -294,6 +294,29 @@ class HomeworkTasksNotifier extends AsyncNotifier<List<HomeworkTask>> {
     );
   }
 
+  Future<void> updateTask(
+    HomeworkTask task, {
+    required String title,
+    required String description,
+    String? subjectId,
+    DateTime? dueAt,
+    HomeworkDueSource? dueSource,
+  }) async {
+    final profileId = ref.read(effectiveHomeworkProfileIdProvider);
+    if (profileId == null || profileId.isEmpty) return;
+    await ref
+        .read(homeworkTaskRepositoryProvider)
+        .updateTask(
+          profileId: profileId,
+          taskId: task.id,
+          title: title,
+          description: description,
+          subjectId: subjectId,
+          dueAt: dueAt,
+          dueSource: dueSource,
+        );
+  }
+
   Future<void> deleteTask(String taskId) async {
     final profileId = ref.read(effectiveHomeworkProfileIdProvider);
     if (profileId == null || profileId.isEmpty) return;

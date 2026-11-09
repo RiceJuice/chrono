@@ -15,6 +15,9 @@ String guardianCalendarFilterSyncKey(
     profile?.className,
     profile?.schoolTrack,
     profile?.diet,
+    profile?.artsSubject,
+    profile?.languageSubject,
+    profile?.timetableChoices,
   ].join('|');
 }
 
@@ -25,7 +28,9 @@ void syncGuardianCalendarFilters(
 }) {
   ref.read(calendarFiltersProvider.notifier).replaceFromProfile(profile);
   if (sharePermissions != null) {
-    ref.read(calendarFiltersProvider.notifier).applyGuardianSharePermissions(
+    ref
+        .read(calendarFiltersProvider.notifier)
+        .applyGuardianSharePermissions(
           shareSchool: sharePermissions.shareSchool,
           shareMeal: sharePermissions.shareMeal,
           shareChoir: sharePermissions.shareChoir,

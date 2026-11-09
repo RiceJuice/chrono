@@ -7,6 +7,9 @@ class CalendarFiltersState {
     this.classNames = const <String>[],
     this.schoolTracks = const <String>[],
     this.diets = const <String>[],
+    this.artsSubject = '',
+    this.languageSubject = '',
+    this.timetableChoices = const {},
     this.defaultChoirs = const <String>[],
     this.defaultVoices = const <String>[],
     this.defaultClassNames = const <String>[],
@@ -29,6 +32,9 @@ class CalendarFiltersState {
   final List<String> classNames;
   final List<String> schoolTracks;
   final List<String> diets;
+  final String artsSubject;
+  final String languageSubject;
+  final Map<String, dynamic> timetableChoices;
   final List<String> defaultChoirs;
   final List<String> defaultVoices;
   final List<String> defaultClassNames;
@@ -116,6 +122,9 @@ class CalendarFiltersState {
       classNames: List<String>.from(classNames),
       schoolTracks: List<String>.from(schoolTracks),
       diets: List<String>.from(diets),
+      artsSubject: artsSubject,
+      languageSubject: languageSubject,
+      timetableChoices: Map<String, dynamic>.from(timetableChoices),
       defaultChoirs: List<String>.from(defaultChoirs),
       defaultVoices: List<String>.from(defaultVoices),
       defaultClassNames: List<String>.from(defaultClassNames),
@@ -140,6 +149,9 @@ class CalendarFiltersState {
     List<String>? classNames,
     List<String>? schoolTracks,
     List<String>? diets,
+    String? artsSubject,
+    String? languageSubject,
+    Map<String, dynamic>? timetableChoices,
     List<String>? defaultChoirs,
     List<String>? defaultVoices,
     List<String>? defaultClassNames,
@@ -162,6 +174,9 @@ class CalendarFiltersState {
       classNames: classNames ?? this.classNames,
       schoolTracks: schoolTracks ?? this.schoolTracks,
       diets: diets ?? this.diets,
+      artsSubject: artsSubject ?? this.artsSubject,
+      languageSubject: languageSubject ?? this.languageSubject,
+      timetableChoices: timetableChoices ?? this.timetableChoices,
       defaultChoirs: defaultChoirs ?? this.defaultChoirs,
       defaultVoices: defaultVoices ?? this.defaultVoices,
       defaultClassNames: defaultClassNames ?? this.defaultClassNames,

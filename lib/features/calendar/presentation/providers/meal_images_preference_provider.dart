@@ -1,24 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/auth/auth_user_id_provider.dart';
-import 'subjects_providers.dart';
+import '../../event_editor/presentation/providers/is_admin_provider.dart';
 
-final showMealImagesProvider = StreamProvider<bool>((ref) {
-  final userId = ref.watch(authUserIdProvider).value;
-  if (userId == null) {
-    return Stream<bool>.value(true);
-  }
-
-  return ref
-      .watch(profileCalendarPreferencesRepositoryProvider)
-      .watchShowMealImages(userId);
+/// Meal photos are only displayed for a confirmed admin profile.
+final showMealImagesProvider = Provider<bool>((ref) {
+  return ref.watch(isAdminProvider);
 });
-
-Future<void> setShowMealImages(WidgetRef ref, bool enabled) async {
-  final userId = ref.read(authUserIdProvider).value;
-  if (userId == null) return;
-
-  await ref
-      .read(profileCalendarPreferencesRepositoryProvider)
-      .setShowMealImages(userId: userId, enabled: enabled);
-}

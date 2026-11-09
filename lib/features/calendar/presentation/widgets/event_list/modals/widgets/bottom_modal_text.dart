@@ -87,8 +87,8 @@ class _EventBottomModalTextContent extends ConsumerWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    final descriptionText = (entry.description ?? '').trim();
-    final noteText = (entry.note ?? '').trim();
+    final descriptionText = entry.displayDescription;
+    final noteText = entry.displayNote;
     final locationText = (entry.location ?? '').trim();
     final schedulesAsync = ref.watch(eventSchedulesForEntryProvider(entry.id));
 
@@ -326,8 +326,8 @@ class _StandardBottomModalTextContent extends ConsumerWidget {
       color: mutedColor,
     );
 
-    final descriptionText = (entry.description ?? '').trim();
-    final noteText = (entry.note ?? '').trim();
+    final descriptionText = entry.displayDescription;
+    final noteText = entry.displayNote;
     final locationText = (entry.location ?? '').trim();
     final schedulesAsync = ref.watch(eventSchedulesForEntryProvider(entry.id));
     final isLesson = entry.type == CalendarEntryType.lesson;

@@ -1,3 +1,6 @@
+import 'package:cupertino_native_better/cupertino_native_better.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'login_dropdown_menu.dart';
@@ -39,6 +42,68 @@ class LoginDropdownField extends StatelessWidget {
         return LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final double width = constraints.maxWidth;
+            final nativeApple =
+                !kIsWeb &&
+                (defaultTargetPlatform == TargetPlatform.iOS ||
+                    defaultTargetPlatform == TargetPlatform.macOS) &&
+                PlatformVersion.shouldUseNativeGlass;
+            if (nativeApple) {
+              final value = options.contains(field.value) ? field.value : null;
+              return InputDecorator(
+                decoration: loginInputDecoration(context, hintText).copyWith(
+                  errorText: field.errorText,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                child: SizedBox(
+                  height: 56,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ExcludeFocus(
+                        excluding: !isEnabled,
+                        child: IgnorePointer(
+                          ignoring: !isEnabled,
+                          child: CNPopupMenuButton(
+                            buttonLabel: value ?? hintText,
+                            height: 56,
+                            tint: value == null ? mutedColor : scheme.onSurface,
+                            buttonStyle: CNButtonStyle.plain,
+                            preserveTopToBottomOrder: true,
+                            items: [
+                              for (final option in options)
+                                CNPopupMenuItem(
+                                  label: option,
+                                  checked: option == value,
+                                ),
+                            ],
+                            onSelected: (index) {
+                              if (index < 0 || index >= options.length) return;
+                              final selection = options[index];
+                              loginDropdownSelectionHaptic();
+                              field.didChange(selection);
+                              onChanged(selection);
+                            },
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 16,
+                        top: 0,
+                        bottom: 0,
+                        child: IgnorePointer(
+                          child: Icon(
+                            CupertinoIcons.chevron_up_chevron_down,
+                            size: 16,
+                            color: mutedColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
             return DropdownMenu<String>(
               width: width,
               enabled: isEnabled,
@@ -66,13 +131,11 @@ class LoginDropdownField extends StatelessWidget {
                   ),
                   _ => rawLeading,
                 };
-                return loginDropdownDecorationWithOpenHaptic(
-                  loginInputDecoration(context, label).copyWith(
-                    hintText: hintText,
-                    hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
-                    prefixIcon: mutedLeadingIcon,
-                    errorText: field.errorText,
-                  ),
+                return loginInputDecoration(context, label).copyWith(
+                  hintText: hintText,
+                  hintStyle: Theme.of(context).inputDecorationTheme.hintStyle,
+                  prefixIcon: mutedLeadingIcon,
+                  errorText: field.errorText,
                 );
               },
               initialSelection: field.value,
@@ -83,6 +146,7 @@ class LoginDropdownField extends StatelessWidget {
                 field.didChange(value);
                 onChanged(value);
               },
+              requestFocusOnTap: false,
               enableSearch: false,
               enableFilter: false,
               selectOnly: true,

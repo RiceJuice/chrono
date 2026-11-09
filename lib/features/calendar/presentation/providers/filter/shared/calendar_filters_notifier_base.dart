@@ -14,6 +14,9 @@ abstract class CalendarFiltersNotifierBase
     required List<String> classNames,
     required List<String> schoolTracks,
     required List<String> diets,
+    String artsSubject = '',
+    String languageSubject = '',
+    Map<String, dynamic> timetableChoices = const {},
   }) {
     if (!state.hasInitializedDefaults || !state.hasUserOverrides) {
       state = state.copyWith(
@@ -22,6 +25,9 @@ abstract class CalendarFiltersNotifierBase
         classNames: classNames,
         schoolTracks: schoolTracks,
         diets: diets,
+        artsSubject: artsSubject,
+        languageSubject: languageSubject,
+        timetableChoices: timetableChoices,
         defaultChoirs: choirs,
         defaultVoices: voices,
         defaultClassNames: classNames,
@@ -47,6 +53,9 @@ abstract class CalendarFiltersNotifierBase
       classNames: state.classNames,
       schoolTracks: state.schoolTracks,
       diets: state.diets,
+      artsSubject: artsSubject,
+      languageSubject: languageSubject,
+      timetableChoices: timetableChoices,
       defaultChoirs: choirs,
       defaultVoices: voices,
       defaultClassNames: classNames,

@@ -12,7 +12,8 @@ String formatHomeworkDueLabel({
     HomeworkDueSource.nextLesson =>
       '${AppDateTime.formatLocalFullWeekdayDate(localDueAt)}, '
           '${AppDateTime.formatLocalHourMinute(localDueAt)}',
-    HomeworkDueSource.customDate => EventDateTimePickers.formatDate(localDueAt),
+    HomeworkDueSource.customDate =>
+      '${EventDateTimePickers.formatDate(localDueAt)}, ${AppDateTime.formatLocalHourMinute(localDueAt)}',
     null => EventDateTimePickers.formatDate(localDueAt),
   };
 }
@@ -23,29 +24,20 @@ DateTime homeworkTaskDueDeadline(HomeworkTask task) {
   return switch (task.dueSource) {
     HomeworkDueSource.nextLesson => dueAt,
     HomeworkDueSource.customDate => AppDateTime.addLocalCalendarDays(
-        AppDateTime.localDay(dueAt),
-        1,
-      ),
-    null => AppDateTime.addLocalCalendarDays(
-        AppDateTime.localDay(dueAt),
-        1,
-      ),
+      AppDateTime.localDay(dueAt),
+      1,
+    ),
+    null => AppDateTime.addLocalCalendarDays(AppDateTime.localDay(dueAt), 1),
   };
 }
 
-bool isHomeworkTaskPastDue({
-  required HomeworkTask task,
-  DateTime? now,
-}) {
+bool isHomeworkTaskPastDue({required HomeworkTask task, DateTime? now}) {
   if (task.dueAt == null) return false;
   final clock = AppDateTime.toLocal(now ?? DateTime.now());
   return !clock.isBefore(homeworkTaskDueDeadline(task));
 }
 
-bool isHomeworkTaskVisibleInList({
-  required HomeworkTask task,
-  DateTime? now,
-}) {
+bool isHomeworkTaskVisibleInList({required HomeworkTask task, DateTime? now}) {
   return !isHomeworkTaskPastDue(task: task, now: now);
 }
 
@@ -58,10 +50,7 @@ List<HomeworkTask> visibleHomeworkTasks(
       .toList(growable: false);
 }
 
-bool isHomeworkTaskOverdue({
-  required HomeworkTask task,
-  DateTime? now,
-}) {
+bool isHomeworkTaskOverdue({required HomeworkTask task, DateTime? now}) {
   if (task.isCompleted || task.dueAt == null) return false;
   final clock = AppDateTime.toLocal(now ?? DateTime.now());
   return task.dueAt!.isBefore(clock);

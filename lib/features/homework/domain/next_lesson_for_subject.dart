@@ -10,15 +10,32 @@ CalendarEntry? pickNextLessonForSubject({
   final normalizedSubjectId = subjectId.trim();
   if (normalizedSubjectId.isEmpty) return null;
 
-  final candidates = entries
-      .where(
-        (entry) =>
-            entry.type == CalendarEntryType.lesson &&
-            entry.subjectId == normalizedSubjectId &&
-            !AppDateTime.isPastInstant(entry.startTime, now: clock),
-      )
-      .toList(growable: false)
-    ..sort((a, b) => a.startTime.compareTo(b.startTime));
+  final candidates =
+      entries
+          .where(
+            (entry) =>
+                entry.type == CalendarEntryType.lesson &&
+                entry.subjectId == normalizedSubjectId &&
+                !AppDateTime.isPastInstant(entry.startTime, now: clock),
+          )
+          .toList(growable: false)
+        ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
   return candidates.isEmpty ? null : candidates.first;
+}
+
+CalendarEntry? pickLessonForSubjectOnDay({
+  required List<CalendarEntry> entries,
+  required String subjectId,
+  required DateTime day,
+}) {
+  final matches = entries.where((entry) {
+    final start = entry.startTime.toLocal();
+    return entry.type == CalendarEntryType.lesson &&
+        entry.subjectId == subjectId.trim() &&
+        start.year == day.year &&
+        start.month == day.month &&
+        start.day == day.day;
+  }).toList()..sort((a, b) => a.startTime.compareTo(b.startTime));
+  return matches.firstOrNull;
 }

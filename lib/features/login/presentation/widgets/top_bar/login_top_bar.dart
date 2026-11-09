@@ -21,6 +21,7 @@ class LoginTopBar extends StatelessWidget {
             child: onBack != null
                 ? IconButton(
                     onPressed: onBack,
+                    tooltip: 'Zurück',
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor: fg,
@@ -50,6 +51,7 @@ class LoginTopBar extends StatelessWidget {
         if (onBack != null)
           IconButton(
             onPressed: onBack,
+            tooltip: 'Zurück',
             style: IconButton.styleFrom(
               backgroundColor: Colors.transparent,
               foregroundColor: fg,
