@@ -10,6 +10,8 @@ import 'package:chronoapp/features/homework/presentation/widgets/homework_due_se
 import 'package:chronoapp/features/homework/presentation/widgets/homework_form_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeworkTaskFormSheet extends ConsumerStatefulWidget {
@@ -166,6 +168,7 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
     setState(() => _saving = true);
     try {
       final notifier = ref.read(homeworkTasksProvider.notifier);
+      String? createdTaskId;
       if (widget.task != null) {
         await notifier.updateTask(
           widget.task!,
@@ -176,7 +179,7 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
           dueSource: dueFields.dueSource,
         );
       } else {
-        await notifier.addTask(
+        createdTaskId = await notifier.addTask(
           title: title,
           description: _descriptionController.text.trim().isEmpty
               ? null
@@ -185,9 +188,24 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
           dueAt: dueFields.dueAt,
           dueSource: dueFields.dueSource,
         );
+        if (createdTaskId == null) {
+          throw StateError('No homework task was created.');
+        }
       }
       if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      final colors = Theme.of(context).colorScheme;
+      final route = ModalRoute.of(context);
       Navigator.of(context).pop();
+      if (createdTaskId case final taskId?) {
+        await route?.completed;
+        if (!messenger.mounted) return;
+        await _offerUndo(
+          messenger: messenger,
+          colors: colors,
+          deleteTask: () => notifier.deleteTask(taskId),
+        );
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -201,6 +219,61 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
         setState(() => _saving = false);
       }
     }
+  }
+
+  Future<void> _offerUndo({
+    required ScaffoldMessengerState messenger,
+    required ColorScheme colors,
+    required Future<void> Function() deleteTask,
+  }) async {
+    const message = 'Aufgabe erstellt';
+    const action = 'Rückgängig';
+
+    Future<void> undo() async {
+      try {
+        await deleteTask();
+      } catch (_) {
+        if (!messenger.mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Aufgabe konnte nicht gelöscht werden.'),
+          ),
+        );
+      }
+    }
+
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
+      try {
+        final tapped = await const MethodChannel(
+          'chrono/homework_undo',
+        ).invokeMethod<bool>('show', {'message': message, 'action': action});
+        if (tapped == true) await undo();
+        return;
+      } on MissingPluginException {
+        // A running build may not have the native handler yet.
+      } on PlatformException {
+        // Fall back when the native window is unavailable.
+      }
+    }
+
+    if (!messenger.mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        elevation: 1,
+        backgroundColor: colors.surfaceContainerHighest,
+        showCloseIcon: false,
+        content: Text(message, style: TextStyle(color: colors.onSurface)),
+        action: SnackBarAction(
+          label: action,
+          textColor: colors.onSurfaceVariant,
+          onPressed: undo,
+        ),
+      ),
+    );
   }
 
   @override

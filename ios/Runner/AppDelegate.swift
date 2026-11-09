@@ -4,6 +4,8 @@ import SwiftUI
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  private var dismissHomeworkUndo: (() -> Void)?
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -28,14 +30,26 @@ import SwiftUI
     guard let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "HomeworkDatePicker") else { return }
     registrar.register(HomeworkContextMenuFactory(messenger: registrar.messenger()),
                        withId: "chrono/homework_context_menu")
+    let undoChannel = FlutterMethodChannel(name: "chrono/homework_undo", binaryMessenger: registrar.messenger())
+    undoChannel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "show",
+            let args = call.arguments as? [String: String],
+            let message = args["message"], let action = args["action"] else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard let self, let host = self.keyWindow?.rootViewController?.view else {
+        result(FlutterError(code: "no_window", message: nil, details: nil))
+        return
+      }
+      self.showHomeworkUndo(in: host, message: message, action: action, result: result)
+    }
     let channel = FlutterMethodChannel(name: "chrono/homework_date", binaryMessenger: registrar.messenger())
     channel.setMethodCallHandler { [weak self] call, result in
       guard call.method == "pickDate", let args = call.arguments as? [String: String] else {
         result(FlutterMethodNotImplemented); return
       }
-      guard let root = self?.window?.rootViewController ??
-        UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
-          .flatMap({ $0.windows }).first(where: { $0.isKeyWindow })?.rootViewController else {
+      guard let root = self?.keyWindow?.rootViewController else {
         result(FlutterError(code: "no_window", message: "Kalender nicht verfügbar", details: nil)); return
       }
       var presenter = root
@@ -46,6 +60,63 @@ import SwiftUI
       picker.arguments = args
       picker.completion = result
       presenter.present(picker, animated: true)
+    }
+  }
+
+  private var keyWindow: UIWindow? {
+    window ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }.first(where: { $0.isKeyWindow })
+  }
+
+  private func showHomeworkUndo(in host: UIView, message: String, action: String, result: @escaping FlutterResult) {
+    dismissHomeworkUndo?()
+
+    let label = UILabel()
+    label.text = message
+    label.font = .preferredFont(forTextStyle: .subheadline)
+    label.adjustsFontForContentSizeCategory = true
+    label.numberOfLines = 0
+    label.textColor = .label
+
+    let button = UIButton(type: .system)
+    button.setTitle(action, for: .normal)
+    button.titleLabel?.font = .preferredFont(forTextStyle: .subheadline)
+    button.titleLabel?.adjustsFontForContentSizeCategory = true
+    button.tintColor = .secondaryLabel
+    button.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+    let toast = UIStackView(arrangedSubviews: [label, button])
+    toast.axis = host.traitCollection.preferredContentSizeCategory.isAccessibilityCategory ? .vertical : .horizontal
+    toast.alignment = .center
+    toast.spacing = 12
+    toast.isLayoutMarginsRelativeArrangement = true
+    toast.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: 14, bottom: 0, trailing: 14)
+    toast.backgroundColor = .secondarySystemBackground
+    toast.layer.cornerRadius = 16
+    toast.translatesAutoresizingMaskIntoConstraints = false
+    host.addSubview(toast)
+
+    let safeArea = host.safeAreaLayoutGuide
+    NSLayoutConstraint.activate([
+      toast.centerXAnchor.constraint(equalTo: safeArea.centerXAnchor),
+      toast.leadingAnchor.constraint(greaterThanOrEqualTo: safeArea.leadingAnchor, constant: 16),
+      toast.trailingAnchor.constraint(lessThanOrEqualTo: safeArea.trailingAnchor, constant: -16),
+      // Keep the action above the tab bar.
+      toast.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor, constant: -72),
+      button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
+    ])
+
+    let finish: (Bool) -> Void = { [weak self, weak toast] tapped in
+      guard let toast, toast.superview != nil else { return }
+      toast.removeFromSuperview()
+      self?.dismissHomeworkUndo = nil
+      result(tapped)
+    }
+    dismissHomeworkUndo = { finish(false) }
+    button.addAction(UIAction { _ in finish(true) }, for: .touchUpInside)
+    UIAccessibility.post(notification: .announcement, argument: "\(message). \(action).")
+    DispatchQueue.main.asyncAfter(deadline: .now() + (UIAccessibility.isVoiceOverRunning ? 10 : 4)) {
+      finish(false)
     }
   }
 }

@@ -34,7 +34,7 @@ class HomeworkTaskRepository {
     return rows.first['c'] as int? ?? 0;
   }
 
-  Future<void> insertTask({
+  Future<String> insertTask({
     required String profileId,
     required String title,
     required List<HomeworkFragment> fragments,
@@ -75,6 +75,7 @@ class HomeworkTaskRepository {
         ],
       );
     });
+    return id;
   }
 
   Future<void> updateTask({

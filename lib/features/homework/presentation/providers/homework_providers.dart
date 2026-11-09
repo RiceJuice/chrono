@@ -264,7 +264,7 @@ class HomeworkTasksNotifier extends AsyncNotifier<List<HomeworkTask>> {
     await localRepo.clearTasks(profileId);
   }
 
-  Future<void> addTask({
+  Future<String?> addTask({
     String? title,
     List<HomeworkFragment> fragments = const [],
     String? description,
@@ -274,15 +274,15 @@ class HomeworkTasksNotifier extends AsyncNotifier<List<HomeworkTask>> {
     String? contributionId,
   }) async {
     final profileId = ref.read(effectiveHomeworkProfileIdProvider);
-    if (profileId == null || profileId.isEmpty) return;
+    if (profileId == null || profileId.isEmpty) return null;
 
     final resolvedTitle = title?.trim().isNotEmpty == true
         ? title!.trim()
         : fragmentsToPlainText(fragments);
-    if (resolvedTitle.isEmpty) return;
+    if (resolvedTitle.isEmpty) return null;
 
     final repository = ref.read(homeworkTaskRepositoryProvider);
-    await repository.insertTask(
+    return repository.insertTask(
       profileId: profileId,
       title: resolvedTitle,
       fragments: fragments,
