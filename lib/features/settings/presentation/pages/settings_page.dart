@@ -37,6 +37,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/settings_profile_providers.dart';
 import '../widgets/guardian_children_section.dart';
+import '../widgets/profile_appearance.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -131,9 +132,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
 
     final theme = Theme.of(context);
-    final bg = theme.scaffoldBackgroundColor;
+    final bg = isNativeAppleProfile
+        ? (theme.brightness == Brightness.dark
+              ? const Color(0xff000000)
+              : const Color(0xfff2f2f7))
+        : theme.scaffoldBackgroundColor;
+    final width = MediaQuery.sizeOf(context).width;
+    final horizontalPadding = isNativeAppleProfile && width >= 700
+        ? ((width - 660) / 2).clamp(24.0, double.infinity)
+        : 16.0;
 
     return Scaffold(
+      backgroundColor: bg,
       appBar: AppBar(
         toolbarHeight: 44,
         backgroundColor: bg,
@@ -159,12 +169,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           CustomScrollView(
             controller: _scrollController,
             slivers: [
-              SettingsSliverHeader.largeTitleSliver(context),
+              SettingsSliverHeader.largeTitleSliver(
+                context,
+                horizontalPadding: horizontalPadding,
+              ),
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(
-                  16,
+                  horizontalPadding,
                   0,
-                  16,
+                  horizontalPadding,
                   24 + MediaQuery.paddingOf(context).bottom,
                 ),
                 sliver: SliverList.list(
@@ -173,6 +186,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ownProfileAsync.when(
                       data: (profile) => SettingsProfileHeaderCard(
                         profile: profile,
+                        showOwnAvatar: true,
                         onTap: _openProfile,
                       ),
                       loading: () => const _SettingsLoadingIsland(

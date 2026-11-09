@@ -7,6 +7,8 @@ import 'package:flutter_svg/svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../../core/theme/theme_tokens.dart';
+import 'profile_avatar.dart';
+import 'profile_appearance.dart';
 
 const _domspatzenAssetPath = 'assets/domspatzen.svg';
 
@@ -17,37 +19,32 @@ class SettingsProfileHeaderCard extends StatelessWidget {
     this.onTap,
     this.subtitleOverride,
     this.compact = false,
+    this.showOwnAvatar = false,
   });
 
   final ProfileSnapshot? profile;
   final VoidCallback? onTap;
   final String? subtitleOverride;
   final bool compact;
+  final bool showOwnAvatar;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final initials = _initials(profile);
     final tappable = onTap != null;
+    final apple = isNativeAppleProfile;
 
     final content = Padding(
       padding: compact
           ? const EdgeInsets.symmetric(horizontal: 14, vertical: 10)
           : const EdgeInsets.all(18),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: compact ? 18 : 28,
-            backgroundColor: scheme.primaryContainer,
-            foregroundColor: scheme.onPrimaryContainer,
-            child: Text(
-              initials,
-              style: (compact
-                      ? Theme.of(context).textTheme.bodyMedium
-                      : Theme.of(context).textTheme.titleMedium)
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-          ),
+          if (showOwnAvatar)
+            OwnProfileAvatar(profile: profile, radius: compact ? 18 : 28)
+          else
+            ProfileAvatarView(profile: profile, radius: compact ? 18 : 28),
           SizedBox(width: compact ? 12 : 14),
           Expanded(
             child: compact
@@ -56,20 +53,24 @@ class SettingsProfileHeaderCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   )
                 : Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         settingsProfileName(profile),
-                        maxLines: 1,
+                        textAlign: TextAlign.start,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: apple
+                                  ? FontWeight.w600
+                                  : FontWeight.w800,
+                            ),
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -80,8 +81,8 @@ class SettingsProfileHeaderCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -113,15 +114,31 @@ class SettingsProfileHeaderCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: ShapeDecoration(
-        color: compact ? scheme.surfaceContainer : scheme.surfaceContainerHigh,
-        shape: AppSquircle.shape(compact ? AppRadius.l : AppRadius.xl),
+        color: apple && !compact
+            ? (Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xff1c1c1e)
+                  : Colors.white)
+            : compact
+            ? scheme.surfaceContainer
+            : scheme.surfaceContainerHigh,
+        shape: AppSquircle.shape(
+          compact
+              ? AppRadius.l
+              : apple
+              ? 26
+              : AppRadius.xl,
+        ),
       ),
       child: tappable
           ? Material(
               type: MaterialType.transparency,
               child: InkWell(
                 customBorder: AppSquircle.shape(
-                  compact ? AppRadius.l : AppRadius.xl,
+                  compact
+                      ? AppRadius.l
+                      : apple
+                      ? 26
+                      : AppRadius.xl,
                 ),
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -138,16 +155,7 @@ class SettingsProfileHeaderCard extends StatelessWidget {
 String _tapHint(ProfileSnapshot? profile) {
   final subtitle = settingsProfileSubtitle(profile);
   if (subtitle == 'Persönliche Angaben bearbeiten') {
-    return 'Konto und Anmeldung';
+    return 'Profilbild und persönliche Angaben';
   }
-  return '$subtitle · Konto';
-}
-
-String _initials(ProfileSnapshot? profile) {
-  final firstName = (profile?.firstName ?? '').trim();
-  final lastName = (profile?.lastName ?? '').trim();
-  final first = firstName.isEmpty ? '' : firstName.characters.first;
-  final last = lastName.isEmpty ? '' : lastName.characters.first;
-  final initials = '$first$last'.toUpperCase();
-  return initials.isEmpty ? 'CH' : initials;
+  return 'Profil anpassen';
 }

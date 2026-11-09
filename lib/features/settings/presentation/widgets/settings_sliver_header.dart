@@ -12,11 +12,19 @@ abstract final class SettingsSliverHeader {
   /// Zwei Zeilen für die große Überschrift unter der AppBar.
   static const largeTitle = 'Einstellungen und\nPräferenzen';
 
-  static Widget largeTitleSliver(BuildContext context) {
+  static Widget largeTitleSliver(
+    BuildContext context, {
+    double horizontalPadding = 16,
+  }) {
     final theme = Theme.of(context);
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          2,
+          horizontalPadding,
+          10,
+        ),
         child: Text(
           largeTitle,
           maxLines: 2,
