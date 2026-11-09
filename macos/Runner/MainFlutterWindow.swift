@@ -2,6 +2,7 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
+  private var homeworkCreateChannel: AnyObject?
   private weak var homeworkUndoToast: HomeworkUndoToast?
 
   override func awakeFromNib() {
@@ -19,6 +20,10 @@ class MainFlutterWindow: NSWindow {
       .setMethodCallHandler { call, result in
         result(call.method == "isAvailable" ? true : FlutterMethodNotImplemented)
       }
+
+    if #available(macOS 11.0, *) {
+      homeworkCreateChannel = HomeworkCreateChannel(messenger: messenger) { [weak self] in self }
+    }
 
     FlutterMethodChannel(
       name: "chrono/homework_undo",

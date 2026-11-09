@@ -3,15 +3,13 @@ import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filtered_entries_providers.dart';
 import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
-import 'package:chronoapp/features/homework/domain/next_lesson_for_subject.dart';
+import 'package:chronoapp/features/homework/presentation/helpers/homework_creation_undo.dart';
 import 'package:chronoapp/features/homework/presentation/providers/homework_due_providers.dart';
 import 'package:chronoapp/features/homework/presentation/providers/homework_providers.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_due_section.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_form_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeworkTaskFormSheet extends ConsumerStatefulWidget {
@@ -75,7 +73,7 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
   }
 
   void _applyAutoSubject() {
-    if (_autoSubjectApplied || _selectedSubjectId != null) return;
+    if (!mounted || _autoSubjectApplied || _selectedSubjectId != null) return;
     final subjectId = ref.read(currentSubjectIdProvider);
     if (subjectId == null || subjectId.isEmpty) return;
     setState(() {
@@ -113,57 +111,17 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
     );
   }
 
-  ({DateTime? dueAt, HomeworkDueSource? dueSource}) _resolveDueFields() {
-    if (!_dueNextLesson) {
-      final day = _selectedDay!;
-      final lesson = _selectedSubjectId == null
-          ? null
-          : ref
-                .read(
-                  lessonForSubjectOnDayProvider((
-                    subjectId: _selectedSubjectId!,
-                    day: day,
-                  )),
-                )
-                .asData
-                ?.value;
-      return (
-        dueAt:
-            lesson?.startTime.toLocal() ??
-            DateTime(day.year, day.month, day.day, 23, 59),
-        dueSource: HomeworkDueSource.customDate,
-      );
-    }
-    return _resolveNextLessonDue();
-  }
-
-  ({DateTime? dueAt, HomeworkDueSource? dueSource}) _resolveNextLessonDue() {
-    final subjectId = _selectedSubjectId?.trim();
-    if (subjectId == null || subjectId.isEmpty) {
-      return (dueAt: null, dueSource: null);
-    }
-
-    final entries = ref.read(filteredCalendarAllEntriesProvider).asData?.value;
-    if (entries == null) return (dueAt: null, dueSource: null);
-
-    final lesson = pickNextLessonForSubject(
-      entries: entries,
-      subjectId: subjectId,
-    );
-    if (lesson == null) return (dueAt: null, dueSource: null);
-
-    return (
-      dueAt: lesson.startTime.toLocal(),
-      dueSource: HomeworkDueSource.nextLesson,
-    );
-  }
-
   Future<void> _onCreate() async {
     if (_saving || !_canCreate) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final title = _titleController.text.trim();
-    final dueFields = _resolveDueFields();
+    final dueFields = resolveHomeworkFormDue(
+      entries: ref.read(filteredCalendarAllEntriesProvider).asData?.value,
+      subjectId: _selectedSubjectId,
+      nextLesson: _dueNextLesson,
+      day: _selectedDay,
+    );
 
     setState(() => _saving = true);
     try {
@@ -200,7 +158,7 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
       if (createdTaskId case final taskId?) {
         await route?.completed;
         if (!messenger.mounted) return;
-        await _offerUndo(
+        await offerHomeworkCreationUndo(
           messenger: messenger,
           colors: colors,
           deleteTask: () => notifier.deleteTask(taskId),
@@ -219,61 +177,6 @@ class _HomeworkTaskFormSheetState extends ConsumerState<HomeworkTaskFormSheet> {
         setState(() => _saving = false);
       }
     }
-  }
-
-  Future<void> _offerUndo({
-    required ScaffoldMessengerState messenger,
-    required ColorScheme colors,
-    required Future<void> Function() deleteTask,
-  }) async {
-    const message = 'Aufgabe erstellt';
-    const action = 'Rückgängig';
-
-    Future<void> undo() async {
-      try {
-        await deleteTask();
-      } catch (_) {
-        if (!messenger.mounted) return;
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Aufgabe konnte nicht gelöscht werden.'),
-          ),
-        );
-      }
-    }
-
-    if (!kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.iOS ||
-            defaultTargetPlatform == TargetPlatform.macOS)) {
-      try {
-        final tapped = await const MethodChannel(
-          'chrono/homework_undo',
-        ).invokeMethod<bool>('show', {'message': message, 'action': action});
-        if (tapped == true) await undo();
-        return;
-      } on MissingPluginException {
-        // A running build may not have the native handler yet.
-      } on PlatformException {
-        // Fall back when the native window is unavailable.
-      }
-    }
-
-    if (!messenger.mounted) return;
-    messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
-        elevation: 1,
-        backgroundColor: colors.surfaceContainerHighest,
-        showCloseIcon: false,
-        content: Text(message, style: TextStyle(color: colors.onSurface)),
-        action: SnackBarAction(
-          label: action,
-          textColor: colors.onSurfaceVariant,
-          onPressed: undo,
-        ),
-      ),
-    );
   }
 
   @override

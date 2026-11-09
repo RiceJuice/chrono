@@ -4,6 +4,7 @@ import SwiftUI
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  private var homeworkCreateChannel: HomeworkCreateChannel?
   private var dismissHomeworkUndo: (() -> Void)?
 
   override func application(
@@ -30,6 +31,7 @@ import SwiftUI
     guard let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "HomeworkDatePicker") else { return }
     registrar.register(HomeworkContextMenuFactory(messenger: registrar.messenger()),
                        withId: "chrono/homework_context_menu")
+    homeworkCreateChannel = HomeworkCreateChannel(messenger: registrar.messenger()) { [weak self] in self?.keyWindow }
     let undoChannel = FlutterMethodChannel(name: "chrono/homework_undo", binaryMessenger: registrar.messenger())
     undoChannel.setMethodCallHandler { [weak self] call, result in
       guard call.method == "show",

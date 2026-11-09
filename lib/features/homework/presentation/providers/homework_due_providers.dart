@@ -1,4 +1,5 @@
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
+import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/filter/calendar/calendar_filtered_entries_providers.dart';
 import 'package:chronoapp/features/homework/domain/next_lesson_for_subject.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,3 +39,35 @@ final lessonForSubjectOnDayProvider =
             ),
           );
     });
+
+({DateTime? dueAt, HomeworkDueSource? dueSource}) resolveHomeworkFormDue({
+  required List<CalendarEntry>? entries,
+  required String? subjectId,
+  required bool nextLesson,
+  required DateTime? day,
+}) {
+  if (nextLesson) {
+    final lesson = entries == null || subjectId == null
+        ? null
+        : pickNextLessonForSubject(entries: entries, subjectId: subjectId);
+    return (
+      dueAt: lesson?.startTime.toLocal(),
+      dueSource: lesson == null ? null : HomeworkDueSource.nextLesson,
+    );
+  }
+
+  if (day == null) return (dueAt: null, dueSource: null);
+  final lesson = entries == null || subjectId == null
+      ? null
+      : pickLessonForSubjectOnDay(
+          entries: entries,
+          subjectId: subjectId,
+          day: day,
+        );
+  return (
+    dueAt:
+        lesson?.startTime.toLocal() ??
+        DateTime(day.year, day.month, day.day, 23, 59),
+    dueSource: HomeworkDueSource.customDate,
+  );
+}

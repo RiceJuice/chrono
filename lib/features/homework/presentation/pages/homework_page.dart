@@ -12,6 +12,7 @@ import 'package:chronoapp/features/homework/presentation/widgets/homework_page_h
 import 'package:chronoapp/features/homework/presentation/widgets/homework_peer_suggestion_tile.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_create_form_sheet.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_task_swipe_to_delete.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_task_form_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -124,22 +125,10 @@ class HomeworkPage extends ConsumerWidget {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xl,
-                        ),
-                        child: Text(
-                          'Noch keine Aufgaben.',
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                    return _HomeworkEmptyState(
+                      onCreate: readOnly
+                          ? null
+                          : () => _openCreateSheet(context),
                     );
                   }
 
@@ -206,6 +195,62 @@ class HomeworkPage extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeworkEmptyState extends StatelessWidget {
+  const _HomeworkEmptyState({required this.onCreate});
+
+  final VoidCallback? onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    const accent = Color(0xFF0B4AA5);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: mainShellBottomContentInset(context)),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Noch keine Aufgaben.',
+                style: theme.textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              if (onCreate != null) ...[
+                const SizedBox(height: AppSpacing.s),
+                Text(
+                  'Erstelle deine erste Aufgabe.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                SizedBox.square(
+                  dimension: 64,
+                  child: IconButton.filled(
+                    tooltip: 'Neue Aufgabe erstellen',
+                    style: IconButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      shape: const CircleBorder(),
+                    ),
+                    onPressed: onCreate,
+                    icon: const Icon(CupertinoIcons.plus, size: 27),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
