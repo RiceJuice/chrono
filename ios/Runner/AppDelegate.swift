@@ -5,6 +5,7 @@ import SwiftUI
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var homeworkCreateChannel: HomeworkCreateChannel?
+  private var musicLessonEditorChannel: AnyObject?
   private var dismissHomeworkUndo: (() -> Void)?
 
   override func application(
@@ -27,6 +28,12 @@ import SwiftUI
         .setMethodCallHandler { call, result in
           result(call.method == "isAvailable" ? true : FlutterMethodNotImplemented)
         }
+    }
+    if #available(iOS 16.0, *),
+       let musicRegistrar = engineBridge.pluginRegistry.registrar(forPlugin: "ChronoMusicLessonEditor") {
+      musicLessonEditorChannel = MusicLessonEditorChannel(messenger: musicRegistrar.messenger()) { [weak self] in
+        self?.keyWindow
+      }
     }
     guard let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "HomeworkDatePicker") else { return }
     registrar.register(HomeworkContextMenuFactory(messenger: registrar.messenger()),

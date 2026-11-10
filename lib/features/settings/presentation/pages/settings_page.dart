@@ -17,6 +17,7 @@ import 'package:chronoapp/features/settings/presentation/widgets/settings_choir_
 import 'package:chronoapp/features/settings/presentation/widgets/settings_footer.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_island.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_logout_button.dart';
+import 'package:chronoapp/features/settings/presentation/widgets/settings_music_lessons_section.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_notifications_section.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_profile_header_card.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_calendar_defaults_update.dart';
@@ -312,6 +313,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               _updateCalendarDefaults(diet: value),
                         ),
                       ),
+                    if (gateData.role?.trim() == LoginFlowRoleIds.student)
+                      const SettingsMusicLessonsSection(),
                     const SettingsNotificationsSection(),
                     const SettingsSectionLabel(title: 'Darstellung'),
                     SettingsIsland(

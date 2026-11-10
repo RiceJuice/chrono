@@ -15,8 +15,10 @@ abstract final class LoginFlowRoute {
         return LoginPaths.credentials;
       case LoginPaths.personalData:
         return LoginPaths.role;
-      case LoginPaths.choir:
+      case LoginPaths.musicLessons:
         return LoginPaths.personalData;
+      case LoginPaths.choir:
+        return LoginPaths.musicLessons;
       case LoginPaths.selectChild:
         return LoginPaths.personalData;
       case LoginPaths.guardianPending:
@@ -39,6 +41,8 @@ abstract final class LoginFlowRoute {
         return LoginFlowStep.role.stepNumber;
       case LoginPaths.personalData:
         return LoginFlowStep.personalData.stepNumber;
+      case LoginPaths.musicLessons:
+        return LoginFlowStep.musicLessons.stepNumber;
       case LoginPaths.choir:
         return LoginFlowStep.choir.stepNumber;
       case LoginPaths.selectChild:

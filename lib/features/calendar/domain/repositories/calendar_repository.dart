@@ -6,15 +6,18 @@ import 'package:sqlite3/common.dart';
 
 import '../../../../core/database/powersync_schema.dart';
 import '../../../../core/time/app_date_time.dart';
+import '../../../music_lessons/domain/music_lesson_schedule.dart';
 import '../../data/calendar_entry_mapper.dart';
 import '../../event_editor/data/calendar_event_recurrence_id.dart';
 import '../calendar_series_merge.dart';
 import '../models/calendar_entry.dart';
+import '../music_lesson_calendar_entries.dart';
 
 class CalendarRepository {
-  CalendarRepository(this._db);
+  CalendarRepository(this._db, {this.musicLessons});
 
   final PowerSyncDatabase _db;
+  final MusicLessonSchedule? musicLessons;
   static const Duration _searchHorizon = Duration(days: 365);
 
   Stream<List<CalendarEntry>> watchEntriesForDay(DateTime date) {
@@ -298,6 +301,17 @@ class CalendarRepository {
       startUtc: startUtc,
       endExclusiveUtc: endExclusiveUtc,
     );
+    final musicSchedule = musicLessons;
+    if (musicSchedule != null) {
+      merged.addAll(
+        musicLessonCalendarEntries(
+          musicSchedule,
+          startUtc: startUtc,
+          endExclusiveUtc: endExclusiveUtc,
+          freeDays: freeDays,
+        ),
+      );
+    }
     final filtered = query == null
         ? merged
         : merged.where((entry) => _matchesQuery(entry, query)).toList();

@@ -1,3 +1,5 @@
+import '../../../music_lessons/domain/music_lesson_schedule.dart';
+
 /// Projected snapshot der auth- und profile-Felder, die für das Onboarding-Gate
 /// relevant sind. Wird vom ProfileGateNotifier gefüllt und vom Router gelesen.
 class ProfileGateData {
@@ -11,6 +13,7 @@ class ProfileGateData {
     this.artsSubject,
     this.languageSubject,
     this.timetableChoices = const {},
+    this.musicLessons,
     required this.role,
     required this.voice,
     required this.choir,
@@ -32,6 +35,7 @@ class ProfileGateData {
       artsSubject = null,
       languageSubject = null,
       timetableChoices = const {},
+      musicLessons = null,
       role = null,
       voice = null,
       choir = null,
@@ -51,6 +55,7 @@ class ProfileGateData {
   final String? artsSubject;
   final String? languageSubject;
   final Map<String, dynamic> timetableChoices;
+  final MusicLessonSchedule? musicLessons;
   final String? role;
   final String? voice;
   final String? choir;
@@ -73,6 +78,7 @@ class ProfileGateData {
     String? artsSubject,
     String? languageSubject,
     Map<String, dynamic>? timetableChoices,
+    MusicLessonSchedule? musicLessons,
     String? role,
     String? voice,
     String? choir,
@@ -93,6 +99,7 @@ class ProfileGateData {
       artsSubject: artsSubject ?? this.artsSubject,
       languageSubject: languageSubject ?? this.languageSubject,
       timetableChoices: timetableChoices ?? this.timetableChoices,
+      musicLessons: musicLessons ?? this.musicLessons,
       role: role ?? this.role,
       voice: voice ?? this.voice,
       choir: choir ?? this.choir,

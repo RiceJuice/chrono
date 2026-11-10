@@ -64,54 +64,53 @@ Widget buildLoginEntryTransition({
     ),
   );
 
-  final pageSurface = ColoredBox(
+  return ColoredBox(
     color: bg,
-    child: SizedBox.expand(child: child),
-  );
+    child: ClipRect(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([
+          enterSlide,
+          exitSlide,
+          enterFade,
+          exitFade,
+          enterScale,
+          exitScale,
+          blurSigma,
+        ]),
+        child: SizedBox.expand(child: child),
+        builder: (context, surface) {
+          final opacity = (enterFade.value * exitFade.value).clamp(0.0, 1.0);
+          final slide = enterSlide.value + exitSlide.value;
+          final scale = (enterScale.value * exitScale.value).clamp(0.9, 1.0);
+          final incomingBlur = forward ? (1 - blurSigma.value) * 4.0 : 0.0;
 
-  return ClipRect(
-    child: AnimatedBuilder(
-      animation: Listenable.merge([
-        enterSlide,
-        exitSlide,
-        enterFade,
-        exitFade,
-        enterScale,
-        exitScale,
-        blurSigma,
-      ]),
-      child: pageSurface,
-      builder: (context, surface) {
-        final opacity = (enterFade.value * exitFade.value).clamp(0.0, 1.0);
-        final slide = enterSlide.value + exitSlide.value;
-        final scale = (enterScale.value * exitScale.value).clamp(0.9, 1.0);
-        final incomingBlur = forward ? (1 - blurSigma.value) * 4.0 : 0.0;
+          Widget revealed = surface!;
 
-        Widget revealed = surface!;
-
-        if (incomingBlur > 0.1) {
-          revealed = ImageFiltered(
-            imageFilter: ImageFilter.blur(
-              sigmaX: incomingBlur,
-              sigmaY: incomingBlur,
-            ),
-            child: revealed,
-          );
-        }
-
-        return Opacity(
-          opacity: opacity,
-          child: FractionalTranslation(
-            translation: slide,
-            child: Transform.scale(
-              scale: scale,
-              alignment:
-                  forward ? Alignment.bottomCenter : Alignment.topCenter,
+          if (incomingBlur > 0.1) {
+            revealed = ImageFiltered(
+              imageFilter: ImageFilter.blur(
+                sigmaX: incomingBlur,
+                sigmaY: incomingBlur,
+              ),
               child: revealed,
+            );
+          }
+
+          return Opacity(
+            opacity: opacity,
+            child: FractionalTranslation(
+              translation: slide,
+              child: Transform.scale(
+                scale: scale,
+                alignment: forward
+                    ? Alignment.bottomCenter
+                    : Alignment.topCenter,
+                child: revealed,
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     ),
   );
 }

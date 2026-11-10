@@ -6,6 +6,7 @@ abstract final class LoginPaths {
   static const credentials = '/login/credentials';
   static const role = '/login/role';
   static const personalData = '/login/personal-data';
+  static const musicLessons = '/login/music-lessons';
   static const choir = '/login/choir';
   static const emailConfirmation = '/login/email-confirmation';
   static const notificationsIntro = '/login/notifications-intro';
