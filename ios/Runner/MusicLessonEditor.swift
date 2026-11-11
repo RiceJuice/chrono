@@ -178,7 +178,14 @@ private struct MusicLessonEditor: View {
           .accessibilityLabel("Wochentag")
 
           DatePicker("Beginn", selection: $model.date, displayedComponents: .hourAndMinute)
+            #if os(iOS)
+            .datePickerStyle(.wheel)
+            .labelsHidden()
+            .accessibilityLabel("Beginn")
+            .frame(maxWidth: .infinity)
+            #elseif os(macOS)
             .datePickerStyle(.compact)
+            #endif
           if model.endsTooLate {
             Text("Der Termin muss am selben Tag enden.")
               .font(.footnote)
