@@ -13,7 +13,7 @@ import '../live_activity_constants.dart';
 /// Wrapper um das live_activities-Plugin.
 class ScheduleLiveActivityService {
   ScheduleLiveActivityService({LiveActivities? plugin})
-      : _plugin = plugin ?? LiveActivities();
+    : _plugin = plugin ?? LiveActivities();
 
   final LiveActivities _plugin;
   bool _initialized = false;
@@ -87,6 +87,7 @@ class ScheduleLiveActivityService {
     Map<String, dynamic> payload,
   ) async {
     if (!supportsLiveActivities || !_initialized) return null;
+    if (payload['kind'] != 'timetable') return null;
     try {
       return await _plugin.createOrUpdateActivity(customId, payload);
     } catch (e, st) {

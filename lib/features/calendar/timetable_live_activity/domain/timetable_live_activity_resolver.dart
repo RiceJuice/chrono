@@ -2,7 +2,6 @@ import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_display_filters.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
 import 'package:chronoapp/features/calendar/domain/layout/school_track_lane_order.dart';
-import 'package:chronoapp/features/calendar/domain/meal_period.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_segment.dart';
 import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timetable_live_activity_snapshot.dart';
@@ -35,30 +34,23 @@ abstract final class TimetableLiveActivityResolver {
       if (clock.isBefore(localDay)) return null;
     }
 
-    final filtered = applyCalendarDisplayFilters(
-      entries: entries,
-      filters: filters,
-      hideUnknownWhenFilterActive: _hideUnknownWhenFilterActive(filters),
-      forEventList: true,
-    ).where((entry) {
-      if (entry.type != CalendarEntryType.lesson &&
-          entry.type != CalendarEntryType.meal) {
-        return false;
-      }
-      if (entry.type == CalendarEntryType.meal &&
-          resolveMealPeriod(entry.startTime) != MealPeriod.lunch) {
-        return false;
-      }
-      return AppDateTime.isSameLocalDay(entry.startTime, localDay);
-    }).toList()
-      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    final filtered =
+        applyCalendarDisplayFilters(
+            entries: entries,
+            filters: filters,
+            hideUnknownWhenFilterActive: _hideUnknownWhenFilterActive(filters),
+            forEventList: true,
+          ).where((entry) {
+            if (entry.type != CalendarEntryType.lesson) return false;
+            if (!entry.endTime.isAfter(entry.startTime)) return false;
+            return AppDateTime.isSameLocalDay(entry.startTime, localDay);
+          }).toList()
+          ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
     final ownProfileEntries = filtered
         .where(
-          (entry) => lessonMatchesOwnSchoolProfile(
-            entry: entry,
-            filters: filters,
-          ),
+          (entry) =>
+              lessonMatchesOwnSchoolProfile(entry: entry, filters: filters),
         )
         .toList(growable: false);
 
@@ -77,11 +69,13 @@ abstract final class TimetableLiveActivityResolver {
     final activityStartMs = activityStart.millisecondsSinceEpoch;
 
     final segments = ownProfileEntries
-        .map((entry) => _segmentFromEntry(
-              entry: entry,
-              resolveAccent: resolveAccent,
-              imageUrlForEntry: imageUrlForEntry,
-            ))
+        .map(
+          (entry) => _segmentFromEntry(
+            entry: entry,
+            resolveAccent: resolveAccent,
+            imageUrlForEntry: imageUrlForEntry,
+          ),
+        )
         .toList(growable: false);
 
     final lastEnd = segments
@@ -153,13 +147,24 @@ abstract final class TimetableLiveActivityResolver {
     required List<CalendarEntry> entries,
     required CalendarFiltersState filters,
   }) {
-    final filtered = applyCalendarDisplayFilters(
-      entries: entries,
-      filters: filters,
-      hideUnknownWhenFilterActive: _hideUnknownWhenFilterActive(filters),
-      forEventList: true,
-    ).where((e) => e.type == CalendarEntryType.lesson).toList()
-      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    final filtered =
+        applyCalendarDisplayFilters(
+              entries: entries,
+              filters: filters,
+              hideUnknownWhenFilterActive: _hideUnknownWhenFilterActive(
+                filters,
+              ),
+              forEventList: true,
+            )
+            .where(
+              (e) =>
+                  e.type == CalendarEntryType.lesson &&
+                  AppDateTime.isSameLocalDay(e.startTime, day) &&
+                  e.endTime.isAfter(e.startTime) &&
+                  lessonMatchesOwnSchoolProfile(entry: e, filters: filters),
+            )
+            .toList()
+          ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
     if (filtered.isEmpty) return null;
     final firstLessonStart = AppDateTime.toLocal(filtered.first.startTime);
@@ -173,16 +178,18 @@ abstract final class TimetableLiveActivityResolver {
     required List<CalendarEntry> entries,
     required CalendarFiltersState filters,
   }) {
-    final filtered = applyCalendarDisplayFilters(
-      entries: entries,
-      filters: filters,
-      hideUnknownWhenFilterActive: _hideUnknownWhenFilterActive(filters),
-      forEventList: true,
-    ).where((entry) {
-      return entry.type == CalendarEntryType.lesson ||
-          (entry.type == CalendarEntryType.meal &&
-              resolveMealPeriod(entry.startTime) == MealPeriod.lunch);
-    }).toList();
+    final filtered =
+        applyCalendarDisplayFilters(
+          entries: entries,
+          filters: filters,
+          hideUnknownWhenFilterActive: _hideUnknownWhenFilterActive(filters),
+          forEventList: true,
+        ).where((entry) {
+          return entry.type == CalendarEntryType.lesson &&
+              AppDateTime.isSameLocalDay(entry.startTime, day) &&
+              entry.endTime.isAfter(entry.startTime) &&
+              lessonMatchesOwnSchoolProfile(entry: entry, filters: filters);
+        }).toList();
 
     if (filtered.isEmpty) return null;
     final last = filtered.reduce(
@@ -220,7 +227,7 @@ abstract final class TimetableLiveActivityResolver {
   }
 
   static ({int index, int segmentStartMs, int segmentEndMs, bool isPreStart})?
-      _resolveCurrent({
+  _resolveCurrent({
     required List<TimetableLiveActivitySegment> segments,
     required int activityStartMs,
     required int nowMs,

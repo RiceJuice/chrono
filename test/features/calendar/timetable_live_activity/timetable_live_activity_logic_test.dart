@@ -84,15 +84,18 @@ void main() {
       );
 
       expect(snapshot, isNotNull);
-      expect(snapshot!.segments.length, 3);
+      expect(snapshot!.segments.length, 2);
       expect(snapshot.isPreStart, isTrue);
       expect(snapshot.currentTitle, 'Mathe');
       expect(snapshot.remainingLessons, 2);
-      expect(snapshot.customId, liveActivityCustomIdForTimetableDay('2026-07-02'));
+      expect(
+        snapshot.customId,
+        liveActivityCustomIdForTimetableDay('2026-07-02'),
+      );
       expect(snapshot.toActivityPayload()['kind'], kTimetableLiveActivityKind);
     });
 
-    test('wechselt nativ zur Mittagspause mit zwei verbleibenden Stunden', () {
+    test('überspringt Mittagessen und zeigt den nächsten Unterricht', () {
       final day = DateTime(2026, 7, 2);
       final entries = [
         lesson(
@@ -121,12 +124,112 @@ void main() {
       );
 
       expect(snapshot, isNotNull);
-      expect(snapshot!.isMeal, isTrue);
-      expect(snapshot.currentTitle, 'Mittagessen');
+      expect(snapshot!.isMeal, isFalse);
+      expect(snapshot.isPreStart, isTrue);
+      expect(snapshot.currentTitle, 'Mathe');
       expect(snapshot.remainingLessons, 1);
-      expect(snapshot.hasNext, isTrue);
-      expect(snapshot.nextTitle, 'Mathe');
+      expect(snapshot.hasNext, isFalse);
+      expect(snapshot.segments.every((segment) => segment.isLesson), isTrue);
     });
+
+    test(
+      'Unterrichtsende ignoriert spätere Mahlzeiten und fremde Schulzweige',
+      () {
+        final day = DateTime(2026, 7, 2);
+        final profileFilters = calendarFiltersStateFromProfileFields(
+          className: '10a',
+          schoolTrack: 'NTG',
+        );
+        final entries = [
+          lesson(
+            id: 'other',
+            start: DateTime(2026, 7, 2, 7),
+            duration: const Duration(hours: 8),
+            className: '10a',
+            schoolTrack: BackendSchoolTrack.musisch,
+          ),
+          lesson(
+            id: 'own',
+            start: DateTime(2026, 7, 2, 8),
+            duration: const Duration(hours: 1),
+            className: '10a',
+            schoolTrack: BackendSchoolTrack.ntg,
+          ),
+          lunch(
+            id: 'lunch',
+            start: DateTime(2026, 7, 2, 12),
+            duration: const Duration(hours: 1),
+          ),
+        ];
+        expect(
+          TimetableLiveActivityResolver.activityStartForDay(
+            day: day,
+            entries: entries,
+            filters: profileFilters,
+          ),
+          DateTime(2026, 7, 2, 7, 45),
+        );
+        expect(
+          TimetableLiveActivityResolver.dayEndForDay(
+            day: day,
+            entries: entries,
+            filters: profileFilters,
+          ),
+          DateTime(2026, 7, 2, 9),
+        );
+        expect(
+          TimetableLiveActivityResolver.resolve(
+            day: day,
+            entries: entries,
+            filters: profileFilters,
+            resolveAccent: (e) => e.accentColor,
+            now: DateTime(2026, 7, 2, 9),
+          ),
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'wechselt exakt an der Stundengrenze und endet nach letzter Stunde',
+      () {
+        final day = DateTime(2026, 7, 2);
+        final entries = [
+          lesson(
+            id: 'a',
+            name: 'Mathe',
+            start: DateTime(2026, 7, 2, 8),
+            duration: const Duration(hours: 1),
+          ),
+          lesson(
+            id: 'b',
+            name: 'Deutsch',
+            start: DateTime(2026, 7, 2, 9),
+            duration: const Duration(hours: 1),
+          ),
+        ];
+        final snapshot = TimetableLiveActivityResolver.resolve(
+          day: day,
+          entries: entries,
+          filters: filters,
+          resolveAccent: (e) => e.accentColor,
+          now: DateTime(2026, 7, 2, 9),
+        );
+        expect(snapshot!.currentTitle, 'Deutsch');
+        expect(snapshot.isPreStart, isFalse);
+        expect(snapshot.hasNext, isFalse);
+        expect(
+          TimetableLiveActivityResolver.resolve(
+            day: day,
+            entries: entries,
+            filters: filters,
+            resolveAccent: (e) => e.accentColor,
+            now: DateTime(2026, 7, 2, 10),
+          ),
+          isNull,
+        );
+      },
+    );
 
     test('liefert null nach Tagesende', () {
       final day = DateTime(2026, 7, 2);
@@ -397,8 +500,14 @@ void main() {
       expect(snapshot!.isPreStart, isTrue);
       expect(snapshot.currentTitle, 'Englisch');
       expect(snapshot.nextTitle, 'Latein');
-      expect(snapshot.segmentStartMs, DateTime(2026, 7, 2, 10, 15).millisecondsSinceEpoch);
-      expect(snapshot.segmentEndMs, DateTime(2026, 7, 2, 10, 35).millisecondsSinceEpoch);
+      expect(
+        snapshot.segmentStartMs,
+        DateTime(2026, 7, 2, 10, 15).millisecondsSinceEpoch,
+      );
+      expect(
+        snapshot.segmentEndMs,
+        DateTime(2026, 7, 2, 10, 35).millisecondsSinceEpoch,
+      );
       expect(snapshot.remainingLessons, 2);
     });
   });
