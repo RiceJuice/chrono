@@ -130,4 +130,5 @@ flutter:
     - assets/lottie/login_success.json
     - assets/audio/piano_a440.wav
     - assets/models/tuning_fork.glb
+    - assets/fonts/
 

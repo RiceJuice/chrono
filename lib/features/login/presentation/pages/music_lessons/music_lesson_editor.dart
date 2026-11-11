@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/widgets/app_apply_button.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -293,7 +294,15 @@ class _FlutterLessonEditorState extends State<_FlutterLessonEditor> {
                     setState(() => _extended = value ?? false),
               ),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _accept, child: const Text('Übernehmen')),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  AppApplyButton.cancel(
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  AppApplyButton(onPressed: _accept),
+                ],
+              ),
               if (widget.saved != null)
                 TextButton(
                   onPressed: () =>

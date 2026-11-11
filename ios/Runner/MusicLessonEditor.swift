@@ -231,16 +231,34 @@ private struct MusicLessonEditor: View {
       }
       .formStyle(.grouped)
       Divider()
-      HStack {
-        Button("Abbrechen", role: .cancel) { model.close?(nil) }
-          .keyboardShortcut(.cancelAction)
-        Spacer()
-        Button("Übernehmen") { model.accept() }
-          .buttonStyle(.borderedProminent)
-          .keyboardShortcut(.defaultAction)
-          .disabled(!model.canSave)
+      if #available(iOS 26.0, macOS 26.0, *) {
+        actions
+          .buttonStyle(.glass)
+          .buttonBorderShape(.circle)
+          .controlSize(.large)
+      } else {
+        actions
+          .buttonStyle(.bordered)
+          .controlSize(.large)
       }
-      .padding(16)
     }
+  }
+
+  private var actions: some View {
+    HStack {
+      Button(role: .cancel) { model.close?(nil) } label: {
+        Image(systemName: "xmark")
+      }
+      .accessibilityLabel("Abbrechen")
+      .keyboardShortcut(.cancelAction)
+      Spacer()
+      Button { model.accept() } label: {
+        Image(systemName: "checkmark")
+      }
+      .accessibilityLabel("Übernehmen")
+      .keyboardShortcut(.defaultAction)
+      .disabled(!model.canSave)
+    }
+    .padding(16)
   }
 }

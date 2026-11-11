@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:chronoapp/core/widgets/app_apply_button.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,13 +24,11 @@ Future<int?> showMusicLessonTimePicker(BuildContext context, int initial) {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CupertinoButton(
+                  AppApplyButton.cancel(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Abbrechen'),
                   ),
-                  CupertinoButton(
+                  AppApplyButton(
                     onPressed: () => Navigator.pop(context, selection),
-                    child: const Text('Übernehmen'),
                   ),
                 ],
               ),
@@ -148,21 +147,22 @@ class _ClockDialogState extends State<_ClockDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Abbrechen'),
-        ),
+        AppApplyButton.cancel(onPressed: () => Navigator.pop(context)),
         if (_choosingMinute)
           TextButton(
             onPressed: () => setState(() => _choosingMinute = false),
             child: const Text('Stunde ändern'),
           ),
-        TextButton(
-          onPressed: _choosingMinute
-              ? () => Navigator.pop(context, _hour * 60 + _minute)
-              : () => setState(() => _choosingMinute = true),
-          child: Text(_choosingMinute ? 'Übernehmen' : 'Weiter'),
-        ),
+        if (_choosingMinute)
+          AppApplyButton(
+            filled: false,
+            onPressed: () => Navigator.pop(context, _hour * 60 + _minute),
+          )
+        else
+          TextButton(
+            onPressed: () => setState(() => _choosingMinute = true),
+            child: const Text('Weiter'),
+          ),
       ],
     );
   }
