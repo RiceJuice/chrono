@@ -33,6 +33,19 @@
   </style>
 </head>
 <body>
+  <script>
+    // Safari/iOS: PowerSync-Sync im SharedWorker funktioniert dort nicht zuverlaessig
+    // (Klassen/Termine kommen nicht an). Ohne SharedWorker nutzt PowerSync den
+    // Sync direkt im Tab. Testen: ?sw=1 erzwingt SharedWorker, ?sw=0 schaltet ihn ab.
+    (function () {
+      var ua = navigator.userAgent;
+      var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var isSafari = /Safari/.test(ua) && !/Chrome|Chromium|CriOS|Edg|Android/.test(ua);
+      var param = new URLSearchParams(location.search).get('sw');
+      var disable = param === '0' || (param !== '1' && (isIOS || isSafari));
+      if (disable) { try { delete window.SharedWorker; } catch (e) {} }
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
