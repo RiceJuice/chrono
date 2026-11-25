@@ -39,6 +39,8 @@ class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
     required WidgetRef ref,
     required GoRouter router,
   }) {
+    // Live Activities / Benachrichtigungs-Timer gibt es nur auf iOS/Android.
+    if (kIsWeb) return;
     _instance?.dispose();
     _instance = ScheduleLiveActivityBootstrap(
       profileGate: profileGate,

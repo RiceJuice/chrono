@@ -128,7 +128,7 @@ class CalendarProgressiveBackdropBlur extends StatelessWidget {
 
     // Impeller-Shader-Blur rendert auf manchen Android-Geräten/Emulatoren schwarz.
     final useShaderBlur = ui.ImageFilter.isShaderFilterSupported &&
-        !(Platform.isAndroid && !kIsWeb);
+        !(!kIsWeb && Platform.isAndroid);
     if (!useShaderBlur) {
       return _CalendarProgressiveBackdropBlurFallback(
         maxSigma: _resolvedSigma,
