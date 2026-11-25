@@ -52,3 +52,6 @@ config/supabase.local.env
 # Android release signing (do not commit)
 android/key.properties
 android/app/upload-release-keystore.p12
+
+# Fertige Builds zum Verteilen (APK, Web-ZIPs)
+/dist/

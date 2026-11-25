@@ -28,6 +28,8 @@ class CalendarHomeWidgetBootstrap with WidgetsBindingObserver {
     required ProfileGateNotifier profileGate,
     required WidgetRef ref,
   }) {
+    // Homescreen-Widgets gibt es nur auf iOS/Android.
+    if (kIsWeb) return;
     _instance?.dispose();
     _instance = CalendarHomeWidgetBootstrap(
       profileGate: profileGate,
