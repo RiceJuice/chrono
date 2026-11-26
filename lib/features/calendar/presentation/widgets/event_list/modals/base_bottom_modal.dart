@@ -101,7 +101,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
 
   bool get _supportsAccentMorph =>
       _liveEntry.type == CalendarEntryType.lesson &&
-      _liveEntry.subjectId != null;
+      _liveEntry.accentPreferenceKey != null;
 
   bool _eventSheetStartsExpanded(CalendarEntry entry) {
     if (!BaseBottomModal.isEventSheetType(entry.type)) return false;
@@ -139,7 +139,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
 
   CalendarEntry get _displayEntry {
     final entry = _liveEntry;
-    final subjectId = entry.subjectId;
+    final subjectId = entry.accentPreferenceKey;
     if (subjectId == null) return entry;
     final overrides =
         ref.watch(subjectAccentOverridesProvider).value ??
@@ -151,7 +151,7 @@ class _BaseBottomModalState extends ConsumerState<BaseBottomModal>
   void _onAccentPressed() {
     AppHaptics.light();
     final entry = _liveEntry;
-    final subjectId = entry.subjectId;
+    final subjectId = entry.accentPreferenceKey;
     final config = subjectId != null
         ? CalendarAppearanceBySubject(
             subjectId: subjectId,

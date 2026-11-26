@@ -43,6 +43,13 @@ void main() {
         45,
       );
       expect(entries.last.eventName, 'Klavier');
+      expect(entries.map((entry) => entry.accentPreferenceKey), [
+        'music-lesson:voice',
+        'music-lesson:voice',
+        'music-lesson:instrument',
+        'music-lesson:instrument',
+      ]);
+      expect(entries.every((entry) => entry.subjectId == null), isTrue);
       expect(
         entries.last.endTime.difference(entries.last.startTime).inMinutes,
         25,
@@ -55,6 +62,10 @@ void main() {
         freeDays: {},
       );
       expect(afterDst.first.startTime, DateTime.utc(2026, 4, 10, 12));
+      expect(
+        afterDst.first.accentPreferenceKey,
+        entries.first.accentPreferenceKey,
+      );
     },
   );
 }

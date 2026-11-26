@@ -27,7 +27,7 @@ class LessonAccentButton extends ConsumerWidget {
     }
 
     final scheme = Theme.of(context).colorScheme;
-    final subjectId = entry.subjectId;
+    final subjectId = entry.accentPreferenceKey;
 
     return AppGlassIconButton(
       icon: AppGlassIconButton.accentColorIcon,

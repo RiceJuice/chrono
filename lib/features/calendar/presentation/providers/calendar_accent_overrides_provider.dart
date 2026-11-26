@@ -105,10 +105,10 @@ Color resolveCalendarEntryAccent(WidgetRef ref, CalendarEntry entry) {
       calendarFiltersProvider.select((filters) => filters.defaultSchoolTracks),
     );
     Color accent;
-    if (entry.subjectId != null) {
+    if (entry.accentPreferenceKey != null) {
       final subjectOverrides = ref.watch(subjectAccentOverridesProvider).value ??
           const <String, Color>{};
-      accent = subjectOverrides[entry.subjectId!] ?? entry.accentColor;
+      accent = subjectOverrides[entry.accentPreferenceKey!] ?? entry.accentColor;
     } else {
       accent = entry.accentColor;
     }
