@@ -65,7 +65,7 @@ void main() {
           final image = await boundary.toImage();
           final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
           await File(
-            '/private/tmp/login-${size.width.toInt()}-$suffix.png',
+            '${Directory.systemTemp.path}/login-${size.width.toInt()}-$suffix.png',
           ).writeAsBytes(bytes!.buffer.asUint8List());
           image.dispose();
         });
