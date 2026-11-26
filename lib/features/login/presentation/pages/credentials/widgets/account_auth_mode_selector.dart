@@ -25,23 +25,23 @@ class AccountAuthModeSelector extends StatelessWidget {
         TextSpan(
           text: isSignIn ? 'Noch keinen Account? ' : 'Bereits registriert? ',
           style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
-        children: [
-          TextSpan(
-            text: isSignIn ? 'Hier registrieren' : 'Jetzt anmelden',
-            style: TextStyle(
-              color: scheme.primary,
-              fontWeight: FontWeight.bold,
-              decoration: TextDecoration.underline,
+          children: [
+            TextSpan(
+              text: isSignIn ? 'Hier registrieren' : 'Jetzt anmelden',
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.bold,
+                decoration: TextDecoration.underline,
+              ),
+              recognizer: TapGestureRecognizer()
+                ..onTap = () {
+                  HapticFeedback.selectionClick();
+                  onChanged(
+                    isSignIn ? AccountAuthMode.signUp : AccountAuthMode.signIn,
+                  );
+                },
             ),
-            recognizer: TapGestureRecognizer()
-              ..onTap = () {
-                HapticFeedback.selectionClick();
-                onChanged(
-                  isSignIn ? AccountAuthMode.signUp : AccountAuthMode.signIn,
-                );
-              },
-          ),
-        ],
+          ],
         ),
       ),
     );

@@ -3,6 +3,7 @@ import '../models/calendar_entry.dart';
 import 'calendar_filters_state.dart';
 import 'calendar_filter_text.dart';
 import 'calendar_meal_diet_filter.dart';
+import 'calendar_subject_choices.dart';
 
 bool calendarEntryCountsAsAppointment(CalendarEntry entry) {
   return entry.type != CalendarEntryType.breakType;
@@ -14,6 +15,7 @@ bool calendarEntryMatchesFilters({
   required bool hideUnknownWhenFilterActive,
   Set<MealDietSlotKey> mealSlotsWithDietAlternatives = const {},
 }) {
+  if (!calendarLessonMatchesSubjectChoices(entry, filters)) return false;
   if (!calendarEntryCountsAsAppointment(entry)) {
     return false;
   }
@@ -72,7 +74,9 @@ bool calendarEntryMatchesFilters({
     }
   }
 
-  if (filters.schoolTracks.isNotEmpty && _isSchoolCategoryEntry(entry.type)) {
+  if (filters.schoolTracks.isNotEmpty &&
+      _isSchoolCategoryEntry(entry.type) &&
+      !calendarSubjectOverridesSchoolTrack(entry, filters)) {
     final value = normalizeCalendarFilterText(entry.schoolTrack.toBackend());
     if (!_matchesCategory(
       selectedValues: filters.schoolTracks,

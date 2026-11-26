@@ -7,6 +7,8 @@ import 'package:chronoapp/features/homework/presentation/providers/homework_due_
 import 'package:chronoapp/features/homework/presentation/widgets/homework_form_shell.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_subject_section.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeworkDueSection extends ConsumerWidget {
@@ -16,65 +18,196 @@ class HomeworkDueSection extends ConsumerWidget {
     required this.onSubjectChanged,
     required this.dueNextLesson,
     required this.onDueNextLessonChanged,
+    required this.selectedDay,
+    required this.onDayChanged,
   });
 
+  final DateTime? selectedDay;
+  final ValueChanged<DateTime> onDayChanged;
   final String? selectedSubjectId;
   final ValueChanged<String?> onSubjectChanged;
   final bool dueNextLesson;
   final ValueChanged<bool> onDueNextLessonChanged;
 
+  static String formatDay(DateTime day) =>
+      '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final hasSubject =
         selectedSubjectId != null && selectedSubjectId!.trim().isNotEmpty;
     final nextLessonAsync = hasSubject
         ? ref.watch(nextLessonForSubjectProvider(selectedSubjectId))
         : const AsyncData<CalendarEntry?>(null);
 
-    return HomeworkFormGroup(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        HomeworkSubjectPickerRow(
-          selectedSubjectId: selectedSubjectId,
-          onSubjectChanged: onSubjectChanged,
-        ),
-        HomeworkFormField(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.l,
-            vertical: AppSpacing.s,
-          ),
-          child: SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              'Bis nächste Stunde',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+        HomeworkFormGroup(
+          children: [
+            HomeworkSubjectPickerRow(
+              selectedSubjectId: selectedSubjectId,
+              onSubjectChanged: onSubjectChanged,
             ),
-            subtitle: hasSubject
-                ? null
-                : Text(
-                    'Zuerst ein Fach wählen',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+            HomeworkFormField(
+              child: HomeworkFormSegmentedControl<bool>(
+                value: dueNextLesson && hasSubject,
+                onChanged: (value) {
+                  AppHaptics.selection();
+                  onDueNextLessonChanged(value);
+                },
+                segments: [
+                  HomeworkFormSegment(
+                    value: true,
+                    label: 'Nächste Stunde',
+                    enabled: hasSubject,
                   ),
-            value: dueNextLesson && hasSubject,
-            onChanged: hasSubject
-                ? (value) {
-                    AppHaptics.selection();
-                    onDueNextLessonChanged(value);
+                  const HomeworkFormSegment(
+                    value: false,
+                    label: 'Anderes Datum',
+                  ),
+                ],
+              ),
+            ),
+            if (!dueNextLesson || !hasSubject) ...[
+              HomeworkFormPickerRow(
+                label: 'Abgabetag',
+                value: selectedDay == null
+                    ? 'Auswählen'
+                    : '${selectedDay!.day}.${selectedDay!.month}.${selectedDay!.year}',
+                onTap: () async {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  final today = DateUtils.dateOnly(DateTime.now());
+                  final initial =
+                      selectedDay != null && !selectedDay!.isBefore(today)
+                      ? selectedDay!
+                      : today;
+                  final last = DateTime(today.year + 5, 12, 31);
+                  final platform = Theme.of(context).platform;
+                  try {
+                    if (platform == TargetPlatform.iOS ||
+                        platform == TargetPlatform.android) {
+                      final result =
+                          await const MethodChannel(
+                            'chrono/homework_date',
+                          ).invokeMethod<String>('pickDate', {
+                            'initial': formatDay(initial),
+                            'minimum': formatDay(today),
+                            'maximum': formatDay(last),
+                          });
+                      if (context.mounted && result != null) {
+                        onDayChanged(DateTime.parse(result));
+                      }
+                    } else {
+                      final result = await showDatePicker(
+                        context: context,
+                        initialDate: initial,
+                        firstDate: today,
+                        lastDate: last,
+                      );
+                      if (context.mounted && result != null) {
+                        onDayChanged(result);
+                      }
+                    }
+                  } on PlatformException {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Kalender konnte nicht geöffnet werden. Bitte erneut versuchen.',
+                        ),
+                      ),
+                    );
+                  } on MissingPluginException {
+                    if (!context.mounted) return;
+                    final result = await showCupertinoModalPopup<DateTime>(
+                      context: context,
+                      builder: (pickerContext) {
+                        var date = initial;
+                        return Container(
+                          height: 360,
+                          color: CupertinoColors.systemBackground.resolveFrom(
+                            pickerContext,
+                          ),
+                          child: SafeArea(
+                            top: false,
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    CupertinoButton(
+                                      onPressed: () =>
+                                          Navigator.pop(pickerContext),
+                                      child: const Text('Abbrechen'),
+                                    ),
+                                    CupertinoButton(
+                                      onPressed: () =>
+                                          Navigator.pop(pickerContext, date),
+                                      child: const Text('Fertig'),
+                                    ),
+                                  ],
+                                ),
+                                Expanded(
+                                  child: CupertinoDatePicker(
+                                    mode: CupertinoDatePickerMode.date,
+                                    initialDateTime: initial,
+                                    minimumDate: today,
+                                    maximumDate: last,
+                                    onDateTimeChanged: (value) => date = value,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                    if (context.mounted && result != null) onDayChanged(result);
                   }
-                : null,
-          ),
+                },
+              ),
+              if (selectedDay != null && hasSubject)
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.l),
+                  child: ref
+                      .watch(
+                        lessonForSubjectOnDayProvider((
+                          subjectId: selectedSubjectId!,
+                          day: selectedDay!,
+                        )),
+                      )
+                      .when(
+                        loading: () => const Text('Stunde wird gesucht …'),
+                        error: (_, _) =>
+                            const Text('Kalender konnte nicht geladen werden.'),
+                        data: (lesson) => Text(
+                          lesson == null
+                              ? 'An diesem Tag kein Unterricht in diesem Fach. Fällig am gewählten Datum.'
+                              : 'Fällig um ${TimeOfDay.fromDateTime(lesson.startTime.toLocal()).format(context)} Uhr',
+                        ),
+                      ),
+                ),
+            ],
+          ],
         ),
+        if (!hasSubject)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: _CompactDueHint(
+              icon: Icons.info_outline_rounded,
+              message:
+                  'Wähle ein Fach für die nächste Stunde oder lege ein eigenes Datum fest.',
+            ),
+          ),
         if (dueNextLesson && hasSubject)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.l,
+              AppSpacing.m,
+              AppSpacing.l,
               0,
-              AppSpacing.l,
-              AppSpacing.l,
             ),
             child: nextLessonAsync.when(
               loading: () => const _CompactDueHint(
@@ -101,7 +234,7 @@ class HomeworkDueSection extends ConsumerWidget {
                 );
                 return _CompactDueHint(
                   icon: Icons.schedule_rounded,
-                  message: 'Fällig vor $preview',
+                  message: 'Fällig zum Unterrichtsbeginn: $preview',
                 );
               },
             ),
@@ -128,18 +261,19 @@ class _CompactDueHint extends StatelessWidget {
     final color = isError ? scheme.error : scheme.onSurfaceVariant;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: color),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(icon, size: 16, color: color),
+        ),
         const SizedBox(width: AppSpacing.s),
         Expanded(
           child: Text(
             message,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: color, height: 1.45),
           ),
         ),
       ],

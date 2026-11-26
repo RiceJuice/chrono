@@ -20,6 +20,9 @@ class SearchFiltersNotifier extends CalendarFiltersNotifierBase {
       classNames: defaultClassNames,
       schoolTracks: defaultSchoolTracks,
       diets: defaultDiets,
+      artsSubject: calendarFilters.artsSubject,
+      languageSubject: calendarFilters.languageSubject,
+      timetableChoices: calendarFilters.timetableChoices,
     );
   }
 

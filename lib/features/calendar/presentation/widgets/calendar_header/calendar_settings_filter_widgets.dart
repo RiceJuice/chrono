@@ -7,6 +7,7 @@ import '../../../domain/filter/calendar_filters_state.dart';
 import '../../../domain/preview/calendar_settings_kind.dart';
 import '../../providers/filter/shared/calendar_filters_notifier_base.dart';
 import 'calendar_marker_color_palette.dart';
+import 'calendar_class_filter_section.dart';
 
 /// Aktionen für die Filter-Chips (Notifier oder lokaler Entwurf im Appearance-Sheet).
 class CalendarFilterSectionActions {
@@ -123,20 +124,11 @@ List<Widget> calendarSettingsFilterSections({
       ];
     case CalendarSettingsKind.school:
       return [
-        CalendarFilterChipSection(
-          title: 'Klasse',
+        CalendarClassFilterSection(
           selectedValues: filters.classNames,
-          defaultValues: filters.defaultClassNames,
-          isExplicitSelection: filters.isClassNameExplicit,
-          isSearchFilterMode: false,
           options: classOptions,
-          labelFor: calendarFilterClassLabel,
-          selectedColor: selectedColor,
-          chipBackgroundColor: chipColor,
           onToggle: actions.toggleClassName,
           onClear: actions.clearClassNames,
-          animateEntrance: animateChipEntrance,
-          entranceStaggerIndex: 0,
         ),
         const SizedBox(height: 12),
         CalendarFilterChipSection(
@@ -327,9 +319,9 @@ class CalendarFilterChipSection extends StatelessWidget {
               labelStyle: TextStyle(
                 color: showAllAsSelected
                     ? (ThemeData.estimateBrightnessForColor(selectedColor) ==
-                            Brightness.light
-                        ? const Color(0xFF1C1B1F)
-                        : Colors.white)
+                              Brightness.light
+                          ? const Color(0xFF1C1B1F)
+                          : Colors.white)
                     : scheme.onSurface,
               ),
               color: WidgetStateProperty.resolveWith((states) {
@@ -349,9 +341,7 @@ class CalendarFilterChipSection extends StatelessWidget {
                 label: Text(labelFor(option)),
                 selected: selectedValues.contains(option),
                 showCheckmark: false,
-                labelStyle: TextStyle(
-                  color: optionChipLabelColor(option),
-                ),
+                labelStyle: TextStyle(color: optionChipLabelColor(option)),
                 color: WidgetStateProperty.resolveWith((states) {
                   if (!states.contains(WidgetState.selected)) {
                     return chipBackgroundColor;

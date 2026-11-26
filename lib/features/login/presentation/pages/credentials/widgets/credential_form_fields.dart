@@ -78,6 +78,8 @@ class CredentialFormFields extends StatelessWidget {
             controller: emailController,
             hintText: 'name@beispiel.de',
             keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.username, AutofillHints.email],
+            textInputAction: TextInputAction.next,
             validator: fieldErrors != null && emailFieldId != null
                 ? fieldErrors.merge(emailFieldId!, validateEmail)
                 : validateEmail,
@@ -93,6 +95,14 @@ class CredentialFormFields extends StatelessWidget {
             formFieldKey: passwordFieldKey,
             controller: passwordController,
             hintText: 'Passwort eingeben',
+            autofillHints: [
+              requirePasswordConfirmation
+                  ? AutofillHints.newPassword
+                  : AutofillHints.password,
+            ],
+            textInputAction: requirePasswordConfirmation
+                ? TextInputAction.next
+                : TextInputAction.done,
             obscureText: true,
             showPasswordVisibilityToggle: true,
             validator: fieldErrors != null && passwordFieldId != null
@@ -111,6 +121,8 @@ class CredentialFormFields extends StatelessWidget {
               formFieldKey: passwordConfirmFieldKey,
               controller: passwordConfirmController,
               hintText: 'Passwort bestätigen',
+              autofillHints: const [AutofillHints.newPassword],
+              textInputAction: TextInputAction.done,
               obscureText: true,
               showPasswordVisibilityToggle: true,
               validator: fieldErrors != null && passwordConfirmFieldId != null

@@ -12,16 +12,22 @@ Future<void> updateGuardianActiveChildCalendarDefaults(
   String? voice,
   String? diet,
   String? choir,
+  String? artsSubject,
+  String? languageSubject,
 }) async {
   final childId = await requireActiveGuardianChildId(ref);
 
-  await ref.read(settingsProfileRepositoryProvider).updateLinkedChildCalendarDefaults(
+  await ref
+      .read(settingsProfileRepositoryProvider)
+      .updateLinkedChildCalendarDefaults(
         childId: childId,
         className: className,
         schoolTrack: schoolTrack,
         voice: voice,
         diet: diet,
         choir: choir,
+        artsSubject: artsSubject,
+        languageSubject: languageSubject,
       );
 
   ref.invalidate(linkedChildProfileProvider(childId));
@@ -30,6 +36,8 @@ Future<void> updateGuardianActiveChildCalendarDefaults(
       .read(calendarFiltersProvider.notifier)
       .applyProfileFilterChanges(
         choir: choir,
+        artsSubject: artsSubject,
+        languageSubject: languageSubject,
         voice: voice,
         className: className,
         schoolTrack: schoolTrack,

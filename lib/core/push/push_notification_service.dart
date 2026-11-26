@@ -17,10 +17,10 @@ class PushNotificationService {
     FirebaseMessaging? messaging,
     PushDeviceRepository? tokenRepository,
     GuardianLinkPushHandler? onGuardianLinkPush,
-  })  : _messaging = messaging ?? FirebaseMessaging.instance,
-        _tokenRepository = tokenRepository ?? PushDeviceRepository(),
-        _onGuardianLinkPush =
-            onGuardianLinkPush ?? GuardianLinkBootstrap.handlePushPayload;
+  }) : _messaging = messaging ?? FirebaseMessaging.instance,
+       _tokenRepository = tokenRepository ?? PushDeviceRepository(),
+       _onGuardianLinkPush =
+           onGuardianLinkPush ?? GuardianLinkBootstrap.handlePushPayload;
 
   final FirebaseMessaging _messaging;
   final PushDeviceRepository _tokenRepository;
@@ -49,15 +49,11 @@ class PushNotificationService {
     final data = _stringifyData(message.data);
     if (_handleGuardianLinkData(data)) return;
     if (data['type'] == 'schedule_live_activity') {
-      unawaited(
-        ScheduleLiveActivityCoordinator.instance?.handleFcmData(data),
-      );
+      unawaited(ScheduleLiveActivityCoordinator.instance?.handleFcmData(data));
       return;
     }
     if (data['type'] == 'timetable_live_activity') {
-      unawaited(
-        TimetableLiveActivityCoordinator.instance?.handleFcmData(data),
-      );
+      unawaited(TimetableLiveActivityCoordinator.instance?.handleFcmData(data));
       return;
     }
     if (kDebugMode) {
@@ -69,15 +65,11 @@ class PushNotificationService {
     final data = _stringifyData(message.data);
     if (_handleGuardianLinkData(data)) return;
     if (data['type'] == 'schedule_live_activity') {
-      unawaited(
-        ScheduleLiveActivityCoordinator.instance?.handleFcmData(data),
-      );
+      unawaited(ScheduleLiveActivityCoordinator.instance?.handleFcmData(data));
       return;
     }
     if (data['type'] == 'timetable_live_activity') {
-      unawaited(
-        TimetableLiveActivityCoordinator.instance?.handleFcmData(data),
-      );
+      unawaited(TimetableLiveActivityCoordinator.instance?.handleFcmData(data));
     }
   }
 
@@ -96,17 +88,20 @@ class PushNotificationService {
     return data.map((k, v) => MapEntry(k, v.toString()));
   }
 
-  Future<void> syncTokenForCurrentUser() async {
+  Future<void> syncTokenForCurrentUser({bool requestPermission = false}) async {
     if (!supportsPush) return;
 
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    // Background sync must never open the system permission dialog.
+    final settings = requestPermission
+        ? await _messaging.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+          )
+        : await _messaging.getNotificationSettings();
 
-    final authorized = settings.authorizationStatus ==
-            AuthorizationStatus.authorized ||
+    final authorized =
+        settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;
 
     if (!authorized) {

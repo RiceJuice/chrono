@@ -11,7 +11,7 @@ class MealBottomModal extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final showMealImages = ref.watch(showMealImagesProvider).value ?? true;
+    final showMealImages = ref.watch(showMealImagesProvider);
 
     return Column(
       mainAxisSize: MainAxisSize.min,

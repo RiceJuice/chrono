@@ -43,7 +43,7 @@ class MealCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final temporalState = CalendarEntryTemporalState.fromEntry(entry);
     final accent = resolveCalendarEntryAccent(ref, entry);
-    final showMealImages = ref.watch(showMealImagesProvider).value ?? true;
+    final showMealImages = ref.watch(showMealImagesProvider);
     final style = CalendarCardStyleResolver.resolve(
       context: context,
       baseBackgroundColor: accent,
@@ -150,14 +150,15 @@ class MealCard extends ConsumerWidget {
                                     (entry.imagePaths?.isNotEmpty ?? false)))
                               CalendarMealCardImageStrip(
                                 entry: entry,
-                                placeholderColor: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest,
+                                placeholderColor: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
                                 overlayColor: style.imageOverlayOpacity > 0
-                                    ? Theme.of(context).colorScheme.surface
-                                        .withValues(
-                                          alpha: style.imageOverlayOpacity,
-                                        )
+                                    ? Theme.of(
+                                        context,
+                                      ).colorScheme.surface.withValues(
+                                        alpha: style.imageOverlayOpacity,
+                                      )
                                     : null,
                               ),
                           ],

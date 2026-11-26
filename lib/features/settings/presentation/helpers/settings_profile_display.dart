@@ -12,7 +12,7 @@ String settingsProfileName(ProfileSnapshot? profile) {
     profile?.lastName,
   ].where((part) => (part ?? '').trim().isNotEmpty);
   final name = parts.map((part) => part!.trim()).join(' ');
-  return name.isEmpty ? 'Profil vervollständigen' : name;
+  return name.isEmpty ? 'Profil anpassen' : name;
 }
 
 String settingsProfileSubtitle(ProfileSnapshot? profile) {

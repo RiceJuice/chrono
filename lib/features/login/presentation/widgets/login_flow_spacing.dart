@@ -17,24 +17,17 @@ abstract final class LoginFlowSpacing {
   }) {
     final double h = MediaQuery.sizeOf(context).height;
     final double scaled = h * factor;
-    final double effectiveMax =
-        isCompact(context) ? max * compactMaxFactor : max;
+    final double effectiveMax = isCompact(context)
+        ? max * compactMaxFactor
+        : max;
     return scaled.clamp(min, effectiveMax);
   }
 
-  static double gapAfterTopBar(BuildContext context) => _proportional(
-        context,
-        factor: 0.018,
-        min: AppSpacing.s,
-        max: 16,
-      );
+  static double gapAfterTopBar(BuildContext context) =>
+      _proportional(context, factor: 0.018, min: AppSpacing.s, max: 16);
 
-  static double gapAfterStepIndicator(BuildContext context) => _proportional(
-        context,
-        factor: 0.022,
-        min: AppSpacing.m,
-        max: 20,
-      );
+  static double gapAfterStepIndicator(BuildContext context) =>
+      _proportional(context, factor: 0.022, min: AppSpacing.m, max: 20);
 
   static double gapBetweenFields(BuildContext context) => isCompact(context)
       ? AppSpacing.m
@@ -49,41 +42,36 @@ abstract final class LoginFlowSpacing {
       isCompact(context) ? AppSpacing.xs : AppSpacing.s;
 
   static double gapAfterHeader(BuildContext context) => _proportional(
-        context,
-        factor: 0.018,
-        min: AppSpacing.xs,
-        max: AppSpacing.m,
-      );
+    context,
+    factor: 0.018,
+    min: AppSpacing.xs,
+    max: AppSpacing.m,
+  );
 
   static double gapBeforeFooter(BuildContext context) => _proportional(
-        context,
-        factor: 0.02,
-        min: AppSpacing.m,
-        max: AppSpacing.l,
-      );
+    context,
+    factor: 0.02,
+    min: AppSpacing.m,
+    max: AppSpacing.l,
+  );
 
   static double gapAfterFooter(BuildContext context) => _proportional(
-        context,
-        factor: 0.012,
-        min: AppSpacing.xs,
-        max: AppSpacing.m,
-      );
+    context,
+    factor: 0.012,
+    min: AppSpacing.xs,
+    max: AppSpacing.m,
+  );
 
   static double gapBeforePrimaryButton(BuildContext context) => _proportional(
-        context,
-        factor: 0.012,
-        min: AppSpacing.xs,
-        max: AppSpacing.s,
-      );
+    context,
+    factor: 0.012,
+    min: AppSpacing.xs,
+    max: AppSpacing.s,
+  );
 
   /// Abstand zwischen fixem Footer-Text und Primärbutton (Credentials).
   static double gapBetweenFooterAndPrimaryButton(BuildContext context) =>
-      _proportional(
-        context,
-        factor: 0.04,
-        min: AppSpacing.xl,
-        max: 40,
-      );
+      _proportional(context, factor: 0.04, min: AppSpacing.xl, max: 40);
 
   /// Titelgröße für Schritt-Header — kleiner auf kompakten Screens.
   static double headerTitleSize(BuildContext context, {double desktop = 44}) {

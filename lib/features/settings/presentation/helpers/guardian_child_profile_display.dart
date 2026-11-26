@@ -19,9 +19,7 @@ String guardianChildCardSubtitle({
 
   final base = settingsProfileSubtitle(profile);
   if (isActive) {
-    return base == 'Persönliche Angaben bearbeiten'
-        ? 'Aktiv'
-        : '$base · Aktiv';
+    return base == 'Persönliche Angaben bearbeiten' ? 'Aktiv' : '$base · Aktiv';
   }
   return base == 'Persönliche Angaben bearbeiten'
       ? 'Profil anzeigen'
@@ -37,6 +35,9 @@ ProfileSnapshot guardianChildProfileSnapshot({
     lastName: loaded?.lastName ?? link.childLastName,
     className: loaded?.className ?? link.childClassName,
     schoolTrack: loaded?.schoolTrack ?? link.childSchoolTrack,
+    artsSubject: loaded?.artsSubject,
+    languageSubject: loaded?.languageSubject,
+    timetableChoices: loaded?.timetableChoices ?? const {},
     voice: loaded?.voice ?? link.childVoice,
     role: loaded?.role,
     choir: loaded?.choir ?? link.childChoir,

@@ -16,8 +16,12 @@ class LoginTextField extends StatefulWidget {
     this.prefixIcon,
     this.contentPadding,
     this.formFieldKey,
+    this.autofillHints,
+    this.textInputAction,
   });
 
+  final Iterable<String>? autofillHints;
+  final TextInputAction? textInputAction;
   final TextEditingController controller;
   final String hintText;
   final TextInputType? keyboardType;
@@ -62,6 +66,15 @@ class _LoginTextFieldState extends State<LoginTextField> {
       key: widget.formFieldKey,
       controller: widget.controller,
       keyboardType: widget.keyboardType,
+      autofillHints: widget.autofillHints,
+      textInputAction: widget.textInputAction,
+      autocorrect:
+          !widget.obscureText &&
+          widget.keyboardType != TextInputType.emailAddress,
+      enableSuggestions: !widget.obscureText,
+      onFieldSubmitted: widget.textInputAction == TextInputAction.next
+          ? (_) => FocusScope.of(context).nextFocus()
+          : null,
       obscureText: obscured,
       validator: widget.validator,
       onChanged: widget.onChanged,

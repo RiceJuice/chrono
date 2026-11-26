@@ -1,5 +1,3 @@
-import '../../domain/models/login_flow_role_ids.dart';
-
 class LoginFlowDraft {
   LoginFlowDraft._();
 
@@ -8,13 +6,14 @@ class LoginFlowDraft {
   String email = '';
   String password = '';
   String passwordConfirm = '';
-  String role = LoginFlowRoleIds.guardian;
+  String role = '';
   String firstName = '';
   String lastName = '';
   String? schoolClass;
   String? schoolTrack;
   String? diet;
-  bool showMealImages = true;
+  String? artsSubject;
+  String? languageSubject;
   int choirPage = 1;
   String voice = '';
 
@@ -22,13 +21,14 @@ class LoginFlowDraft {
     email = '';
     password = '';
     passwordConfirm = '';
-    role = LoginFlowRoleIds.guardian;
+    role = '';
     firstName = '';
     lastName = '';
     schoolClass = null;
     schoolTrack = null;
     diet = null;
-    showMealImages = true;
+    artsSubject = null;
+    languageSubject = null;
     choirPage = 1;
     voice = '';
   }

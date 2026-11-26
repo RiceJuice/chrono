@@ -285,7 +285,7 @@ class HomeworkSyntaxParser {
       fields: {
         'code': suggestion.shorthand,
         'page': page,
-        if (exercise != null) 'exercise': exercise,
+        'exercise': ?exercise,
       },
     );
 

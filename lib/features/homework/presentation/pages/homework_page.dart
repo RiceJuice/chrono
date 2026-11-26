@@ -1,3 +1,4 @@
+import 'package:chronoapp/features/homework/domain/models/homework_task.dart';
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
@@ -11,15 +12,20 @@ import 'package:chronoapp/features/homework/presentation/widgets/homework_page_h
 import 'package:chronoapp/features/homework/presentation/widgets/homework_peer_suggestion_tile.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_create_form_sheet.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_task_swipe_to_delete.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:chronoapp/features/homework/presentation/widgets/homework_task_form_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeworkPage extends ConsumerWidget {
   const HomeworkPage({super.key});
 
-  Future<void> _openCreateSheet(BuildContext context) async {
+  Future<void> _openCreateSheet(
+    BuildContext context, {
+    VoidCallback feedback = AppHaptics.light,
+  }) async {
     if (AppModalSheetTracker.depth.value > 0) return;
-    AppHaptics.light();
+    feedback();
     await HomeworkCreateFormSheet.show(context);
   }
 
@@ -35,7 +41,9 @@ class HomeworkPage extends ConsumerWidget {
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aufgabe konnte nicht übernommen werden.')),
+        const SnackBar(
+          content: Text('Aufgabe konnte nicht übernommen werden.'),
+        ),
       );
     }
   }
@@ -69,7 +77,9 @@ class HomeworkPage extends ConsumerWidget {
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vorschlag konnte nicht abgelehnt werden.')),
+        const SnackBar(
+          content: Text('Vorschlag konnte nicht abgelehnt werden.'),
+        ),
       );
     }
   }
@@ -94,8 +104,7 @@ class HomeworkPage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             HomeworkPageHeader(
-              onAddPressed:
-                  readOnly ? null : () => _openCreateSheet(context),
+              onAddPressed: readOnly ? null : () => _openCreateSheet(context),
             ),
             Expanded(
               child: tasksAsync.when(
@@ -110,7 +119,8 @@ class HomeworkPage extends ConsumerWidget {
                 data: (tasks) {
                   final peerSuggestions =
                       peerSuggestionsAsync.asData?.value ?? const [];
-                  final isLoadingPeer = peerSuggestionsAsync.isLoading &&
+                  final isLoadingPeer =
+                      peerSuggestionsAsync.isLoading &&
                       peerSuggestionsAsync.asData == null;
 
                   if (tasks.isEmpty && peerSuggestions.isEmpty) {
@@ -118,29 +128,23 @@ class HomeworkPage extends ConsumerWidget {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xl,
-                        ),
-                        child: Text(
-                          'Noch keine Aufgaben.',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                    return _HomeworkEmptyState(
+                      onCreate: readOnly
+                          ? null
+                          : () => _openCreateSheet(context),
                     );
                   }
 
+                  final sortedTasks = sortHomeworkTasksByDueDay(
+                    tasks,
+                    subjectName: (id) => subjectsById[id]?.name ?? '',
+                  );
                   final itemCount = peerSuggestions.length + tasks.length;
 
                   return ListView.builder(
                     padding: EdgeInsets.only(
-                      bottom: mainShellBottomContentInset(context) + AppSpacing.l,
+                      bottom:
+                          mainShellBottomContentInset(context) + AppSpacing.l,
                     ),
                     itemCount: itemCount,
                     itemBuilder: (context, index) {
@@ -153,27 +157,28 @@ class HomeworkPage extends ConsumerWidget {
                           subject: subject,
                           onAccept: readOnly
                               ? null
-                              : () => _acceptSuggestion(
-                                    context,
-                                    ref,
-                                    suggestion,
-                                  ),
+                              : () =>
+                                    _acceptSuggestion(context, ref, suggestion),
                           onReject: readOnly
                               ? null
-                              : () => _rejectSuggestion(
-                                    context,
-                                    ref,
-                                    suggestion,
-                                  ),
+                              : () =>
+                                    _rejectSuggestion(context, ref, suggestion),
                         );
                       }
 
-                      final task = tasks[index - peerSuggestions.length];
+                      final task = sortedTasks[index - peerSuggestions.length];
                       final subject = task.subjectId == null
                           ? null
                           : subjectsById[task.subjectId];
 
                       return HomeworkTaskSwipeToDelete(
+                        key: ValueKey(task.id),
+                        onEdit: readOnly
+                            ? null
+                            : () => HomeworkTaskFormSheet.show(
+                                context,
+                                task: task,
+                              ),
                         task: task,
                         subject: subject,
                         onToggleCompleted: readOnly
@@ -185,11 +190,7 @@ class HomeworkPage extends ConsumerWidget {
                               },
                         onConfirmDelete: readOnly
                             ? null
-                            : () => _confirmDeleteTask(
-                                  context,
-                                  ref,
-                                  task.id,
-                                ),
+                            : () => _confirmDeleteTask(context, ref, task.id),
                       );
                     },
                   );
@@ -197,6 +198,65 @@ class HomeworkPage extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeworkEmptyState extends StatelessWidget {
+  const _HomeworkEmptyState({required this.onCreate});
+
+  final VoidCallback? onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    const accent = Color(0xFF0B4AA5);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: mainShellBottomContentInset(context)),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Noch keine Aufgaben.',
+                style: theme.textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              if (onCreate != null) ...[
+                const SizedBox(height: AppSpacing.s),
+                Text(
+                  'Erstelle deine erste Aufgabe.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                SizedBox.square(
+                  dimension: 64,
+                  child: IconButton.filled(
+                    tooltip: 'Neue Aufgabe erstellen',
+                    enableFeedback: false,
+                    style: IconButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      shape: const CircleBorder(
+                        side: BorderSide(color: Color(0x26FFFFFF)),
+                      ),
+                    ),
+                    onPressed: onCreate,
+                    icon: const Icon(CupertinoIcons.plus, size: 27),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

@@ -15,10 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Liquid-Glass-Suchleiste im Suchmodus (ersetzt die Tab-Bar).
 class CalendarSearchBottomBar extends ConsumerStatefulWidget {
-  const CalendarSearchBottomBar({
-    required this.onClose,
-    super.key,
-  });
+  const CalendarSearchBottomBar({required this.onClose, super.key});
 
   final VoidCallback onClose;
 
@@ -27,9 +24,11 @@ class CalendarSearchBottomBar extends ConsumerStatefulWidget {
       _CalendarSearchBottomBarState();
 }
 
-class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBar>
+class _CalendarSearchBottomBarState
+    extends ConsumerState<CalendarSearchBottomBar>
     with SingleTickerProviderStateMixin {
   static const _morphDuration = Duration(milliseconds: 420);
+
   /// Entspricht [kMainShellNavigationBarHeight] — dupliziert wegen Zirkelimport.
   static const _shellBarHeight = 56.0;
   static const _barHeight = 48.0;
@@ -47,6 +46,7 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   late final TextEditingController _textController;
   late final FocusNode _focusNode;
   Rect? _morphOriginGlobal;
+  MethodChannel? _nativeSearchChannel;
 
   @override
   void initState() {
@@ -54,7 +54,10 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
     final existingQuery = ref.read(calendarSearchQueryProvider);
     _textController = TextEditingController(text: existingQuery);
     _focusNode = FocusNode();
-    _morphController = AnimationController(vsync: this, duration: _morphDuration);
+    _morphController = AnimationController(
+      vsync: this,
+      duration: _morphDuration,
+    );
     _morphCurve = CurvedAnimation(
       parent: _morphController,
       curve: Curves.easeOutCubic,
@@ -73,7 +76,9 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   Rect _morphStartLocalRect(double slotWidth, RenderBox? slotBox) {
     if (_morphOriginGlobal != null && slotBox != null) {
       final topLeft = slotBox.globalToLocal(_morphOriginGlobal!.topLeft);
-      final bottomRight = slotBox.globalToLocal(_morphOriginGlobal!.bottomRight);
+      final bottomRight = slotBox.globalToLocal(
+        _morphOriginGlobal!.bottomRight,
+      );
       return Rect.fromPoints(topLeft, bottomRight);
     }
 
@@ -101,6 +106,7 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
       _focusNode.unfocus();
     }
     ref.read(calendarSearchInputFocusedProvider.notifier).dismiss();
+    _nativeSearchChannel?.setMethodCallHandler(null);
     _morphController.dispose();
     _textController.dispose();
     _focusNode.dispose();
@@ -125,19 +131,15 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
   }
 
   bool _useNativeGlass() {
-    final isApple = defaultTargetPlatform == TargetPlatform.iOS ||
+    final isApple =
+        defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS;
     return isApple && PlatformVersion.shouldUseNativeGlass;
   }
 
-  Widget _buildCalendarCloseButton({
-    required bool useNativeGlass,
-  }) {
+  Widget _buildCalendarCloseButton({required bool useNativeGlass}) {
     final scheme = Theme.of(context).colorScheme;
-    final icon = DomspatzenIcon(
-      glyphSize: _glyphSize,
-      color: scheme.onSurface,
-    );
+    final icon = DomspatzenIcon(glyphSize: _glyphSize, color: scheme.onSurface);
 
     final button = SizedBox(
       width: _closeButtonSize,
@@ -300,13 +302,52 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
     );
   }
 
+  Widget _buildNativeSearchBar() {
+    return UiKitView(
+      viewType: 'chrono/native_search',
+      creationParamsCodec: const StandardMessageCodec(),
+      creationParams: {
+        'text': _textController.text,
+        'isDark': Theme.of(context).brightness == Brightness.dark,
+      },
+      onPlatformViewCreated: (id) {
+        final channel = MethodChannel('chrono/native_search/$id');
+        _nativeSearchChannel = channel;
+        channel.setMethodCallHandler((call) async {
+          if (!mounted) return;
+          if (call.method == 'textChanged') {
+            final text = call.arguments as String;
+            _textController.text = text;
+            ref.read(calendarSearchQueryProvider.notifier).updateQuery(text);
+          } else if (call.method == 'focusChanged') {
+            ref
+                .read(calendarSearchInputFocusedProvider.notifier)
+                .update(call.arguments as bool);
+          } else if (call.method == 'filter') {
+            await _openSearchFilters();
+          }
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final nativeSearch =
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS &&
+        _useNativeGlass();
+    ref.listen(calendarSearchInputFocusedProvider, (previous, focused) {
+      if (nativeSearch && !focused) {
+        _nativeSearchChannel?.invokeMethod<void>('unfocus');
+      }
+    });
     final scheme = Theme.of(context).colorScheme;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final inputFocused = ref.watch(calendarSearchInputFocusedProvider);
-    final keyboardInset =
-        inputFocused ? MediaQuery.viewInsetsOf(context).bottom : 0.0;
+    final keyboardInset = inputFocused
+        ? MediaQuery.viewInsetsOf(context).bottom
+        : 0.0;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return AnimatedPadding(
@@ -395,19 +436,21 @@ class _CalendarSearchBottomBarState extends ConsumerState<CalendarSearchBottomBa
                                   top: fieldTop,
                                   width: fieldWidth,
                                   height: fieldHeight,
-                                  child: _buildGlassShell(
-                                    cornerRadius: cornerRadius,
-                                    useNativeGlass: useNativeGlass,
-                                    child: SizedBox(
-                                      height: fieldHeight,
-                                      child: _buildSearchFieldContent(
-                                        scheme: scheme,
-                                        chromeOpacity: chromeOpacity,
-                                        fieldInteractive: morphComplete,
-                                        searchIconLeft: searchIconLeft,
-                                      ),
-                                    ),
-                                  ),
+                                  child: nativeSearch && morphComplete
+                                      ? _buildNativeSearchBar()
+                                      : _buildGlassShell(
+                                          cornerRadius: cornerRadius,
+                                          useNativeGlass: useNativeGlass,
+                                          child: SizedBox(
+                                            height: fieldHeight,
+                                            child: _buildSearchFieldContent(
+                                              scheme: scheme,
+                                              chromeOpacity: chromeOpacity,
+                                              fieldInteractive: morphComplete,
+                                              searchIconLeft: searchIconLeft,
+                                            ),
+                                          ),
+                                        ),
                                 ),
                               ],
                             );
