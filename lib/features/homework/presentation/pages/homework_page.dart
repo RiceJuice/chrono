@@ -12,7 +12,9 @@ import 'package:chronoapp/features/homework/presentation/widgets/homework_page_h
 import 'package:chronoapp/features/homework/presentation/widgets/homework_peer_suggestion_tile.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_create_form_sheet.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_task_swipe_to_delete.dart';
+import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_task_form_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -214,6 +216,11 @@ class _HomeworkEmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     const accent = Color(0xFF0B4AA5);
+    final useNativeGlass =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS) &&
+        PlatformVersion.shouldUseNativeGlass;
 
     return Padding(
       padding: EdgeInsets.only(bottom: mainShellBottomContentInset(context)),
@@ -240,19 +247,38 @@ class _HomeworkEmptyState extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xl),
                 SizedBox.square(
                   dimension: 64,
-                  child: IconButton.filled(
-                    tooltip: 'Neue Aufgabe erstellen',
-                    enableFeedback: false,
-                    style: IconButton.styleFrom(
-                      backgroundColor: accent,
-                      foregroundColor: Colors.white,
-                      shape: const CircleBorder(
-                        side: BorderSide(color: Color(0x26FFFFFF)),
-                      ),
-                    ),
-                    onPressed: onCreate,
-                    icon: const Icon(CupertinoIcons.plus, size: 27),
-                  ),
+                  child: useNativeGlass
+                      ? Tooltip(
+                          message: 'Neue Aufgabe erstellen',
+                          child: CNButton.icon(
+                            icon: const CNSymbol(
+                              'plus',
+                              size: 27,
+                              color: Colors.white,
+                            ),
+                            tint: accent,
+                            onPressed: onCreate,
+                            config: const CNButtonConfig(
+                              style: CNButtonStyle.prominentGlass,
+                              width: 64,
+                              minHeight: 64,
+                              borderRadius: 32,
+                            ),
+                          ),
+                        )
+                      : IconButton.filled(
+                          tooltip: 'Neue Aufgabe erstellen',
+                          enableFeedback: false,
+                          style: IconButton.styleFrom(
+                            backgroundColor: accent,
+                            foregroundColor: Colors.white,
+                            shape: const CircleBorder(
+                              side: BorderSide(color: Color(0x26FFFFFF)),
+                            ),
+                          ),
+                          onPressed: onCreate,
+                          icon: const Icon(CupertinoIcons.plus, size: 27),
+                        ),
                 ),
               ],
             ],
