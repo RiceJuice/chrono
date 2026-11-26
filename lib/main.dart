@@ -65,6 +65,21 @@ Future<void> _registerPushListeners() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Web: statt grauer Flaeche den Fehlertext anzeigen (Diagnose auf iPhone/Safari).
+  if (kIsWeb) {
+    ErrorWidget.builder = (details) => Material(
+          color: const Color(0xFFFFF1F1),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: SelectableText(
+              'Fehler: ${details.exceptionAsString()}\n\n'
+              '${details.stack.toString().split('\n').take(12).join('\n')}',
+              style: const TextStyle(color: Color(0xFF8B0000), fontSize: 12),
+            ),
+          ),
+        );
+  }
+
   await Inspire.warmUp();
 
   await _initializeFirebaseCore();
