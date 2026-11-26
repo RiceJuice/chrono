@@ -159,11 +159,16 @@ private struct MusicLessonEditor: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      Text(model.title)
-        .font(.headline)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .accessibilityAddTraits(.isHeader)
+      HStack(spacing: 12) {
+        cancelButton
+        Text(model.title)
+          .font(.headline)
+          .multilineTextAlignment(.center)
+          .frame(maxWidth: .infinity)
+          .accessibilityAddTraits(.isHeader)
+        confirmButton
+      }
+      .padding(16)
       Form {
         Section {
           Picker("Wochentag", selection: $model.weekday) {
@@ -194,6 +199,8 @@ private struct MusicLessonEditor: View {
         } header: {
           Text("Wochentag und Uhrzeit")
         }
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
 
         Section {
           if model.hasInstrument {
@@ -230,35 +237,44 @@ private struct MusicLessonEditor: View {
         }
       }
       .formStyle(.grouped)
-      Divider()
-      if #available(iOS 26.0, macOS 26.0, *) {
-        actions
-          .buttonStyle(.glass)
-          .buttonBorderShape(.circle)
-          .controlSize(.large)
-      } else {
-        actions
-          .buttonStyle(.bordered)
-          .controlSize(.large)
-      }
     }
   }
 
-  private var actions: some View {
-    HStack {
-      Button(role: .cancel) { model.close?(nil) } label: {
-        Image(systemName: "xmark")
-      }
+  private var cancelButton: some View {
+    let button = Button(role: .cancel) { model.close?(nil) } label: {
+      Image(systemName: "xmark")
+        .frame(width: 24, height: 24)
+    }
       .accessibilityLabel("Abbrechen")
       .keyboardShortcut(.cancelAction)
-      Spacer()
-      Button { model.accept() } label: {
-        Image(systemName: "checkmark")
+
+    return Group {
+      if #available(iOS 26.0, macOS 26.0, *) {
+        button.buttonStyle(.glass).buttonBorderShape(.circle)
+      } else {
+        button.buttonStyle(.bordered)
       }
+    }
+    .controlSize(.large)
+  }
+
+  private var confirmButton: some View {
+    let button = Button { model.accept() } label: {
+      Image(systemName: "checkmark")
+        .frame(width: 24, height: 24)
+    }
       .accessibilityLabel("Übernehmen")
       .keyboardShortcut(.defaultAction)
       .disabled(!model.canSave)
+
+    return Group {
+      if #available(iOS 26.0, macOS 26.0, *) {
+        button.buttonStyle(.glassProminent).buttonBorderShape(.circle)
+      } else {
+        button.buttonStyle(.borderedProminent)
+      }
     }
-    .padding(16)
+    .tint(.blue)
+    .controlSize(.large)
   }
 }

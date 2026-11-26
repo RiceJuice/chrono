@@ -176,7 +176,21 @@ class _FlutterLessonEditorState extends State<_FlutterLessonEditor> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(widget.kind.editorTitle, style: theme.textTheme.titleLarge),
+              Row(
+                children: [
+                  AppApplyButton.cancel(
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Expanded(
+                    child: Text(
+                      widget.kind.editorTitle,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleLarge,
+                    ),
+                  ),
+                  AppApplyButton(onPressed: _accept),
+                ],
+              ),
               const SizedBox(height: 18),
               FormField<int>(
                 initialValue: _weekday,
@@ -292,16 +306,6 @@ class _FlutterLessonEditorState extends State<_FlutterLessonEditor> {
                 value: _extended,
                 onChanged: (value) =>
                     setState(() => _extended = value ?? false),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  AppApplyButton.cancel(
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  AppApplyButton(onPressed: _accept),
-                ],
               ),
               if (widget.saved != null)
                 TextButton(
