@@ -1,6 +1,7 @@
 import 'package:chronoapp/core/widgets/app_toast.dart';
-import 'package:chronoapp/features/calendar/presentation/providers/meal_images_preference_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:chronoapp/core/database/arts_subject.dart';
+import 'package:chronoapp/core/database/school_subject_choices.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/auth_repository.dart';
@@ -33,12 +34,15 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
   final _classFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _schoolTrackFieldKey = GlobalKey<FormFieldState<dynamic>>();
   final _dietFieldKey = GlobalKey<FormFieldState<dynamic>>();
+  final _artsSubjectFieldKey = GlobalKey<FormFieldState<dynamic>>();
+  final _languageSubjectFieldKey = GlobalKey<FormFieldState<dynamic>>();
   late final DraftTextController _firstNameController;
   late final DraftTextController _lastNameController;
   String? _selectedClass;
   String? _selectedSchoolTrack;
   String? _selectedDiet;
-  bool _showMealImages = true;
+  String? _selectedArtsSubject;
+  String? _selectedLanguageSubject;
   bool _busy = false;
 
   bool get _isGuardian => _draft.role.trim() == LoginFlowRoleIds.guardian;
@@ -46,6 +50,31 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
   @override
   void initState() {
     super.initState();
+    final profile = ref.read(profileGateProvider).data;
+    if (profile.hasSession) {
+      _draft.role = profile.role ?? _draft.role;
+      _draft.firstName = profile.firstName ?? _draft.firstName;
+      _draft.lastName = profile.lastName ?? _draft.lastName;
+      _draft.schoolClass = profile.className ?? _draft.schoolClass;
+      _draft.schoolTrack = profile.schoolTrack ?? _draft.schoolTrack;
+      _draft.diet = profile.diet ?? _draft.diet;
+      _draft.artsSubject = savedSchoolSubjectChoice(
+        options: artsSubjectOptions,
+        legacy: profile.artsSubject,
+        choices: profile.timetableChoices,
+        className: profile.className,
+        schoolTrack: profile.schoolTrack,
+        at: DateTime.now(),
+      );
+      _draft.languageSubject = savedSchoolSubjectChoice(
+        options: languageSubjectOptions,
+        legacy: profile.languageSubject,
+        choices: profile.timetableChoices,
+        className: profile.className,
+        schoolTrack: profile.schoolTrack,
+        at: DateTime.now(),
+      );
+    }
     _firstNameController = DraftTextController(
       initialValue: _draft.firstName,
       onChanged: (value) => _draft.firstName = value,
@@ -57,7 +86,8 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
     _selectedClass = _draft.schoolClass;
     _selectedSchoolTrack = _draft.schoolTrack;
     _selectedDiet = _draft.diet;
-    _showMealImages = _draft.showMealImages;
+    _selectedArtsSubject = _draft.artsSubject;
+    _selectedLanguageSubject = _draft.languageSubject;
   }
 
   @override
@@ -91,6 +121,11 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
           _lastNameFieldKey,
           if (!_isGuardian) _classFieldKey,
           if (!_isGuardian) _schoolTrackFieldKey,
+          if (!_isGuardian && requiresLanguageSubject(_selectedClass))
+            _languageSubjectFieldKey,
+          if (!_isGuardian &&
+              requiresArtsSubject(_selectedClass, _selectedSchoolTrack))
+            _artsSubjectFieldKey,
           if (!_isGuardian) _dietFieldKey,
         ],
       ),
@@ -110,7 +145,9 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
           }
 
           if (_isGuardian) {
-            await ref.read(authRepositoryProvider).updateProfile(
+            await ref
+                .read(authRepositoryProvider)
+                .updateProfile(
                   firstName: _draft.firstName,
                   lastName: _draft.lastName,
                 );
@@ -145,16 +182,24 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
               );
               throw const LoginStepErrorAlreadyShown();
             }
-            await ref.read(authRepositoryProvider).updateProfile(
+            await ref
+                .read(authRepositoryProvider)
+                .updateProfile(
                   firstName: _draft.firstName,
                   lastName: _draft.lastName,
                   className: className,
                   schoolTrack: schoolTrack,
                   diet: diet,
+                  artsSubject: requiresArtsSubject(className, schoolTrack)
+                      ? _selectedArtsSubject
+                      : null,
+                  languageSubject: requiresLanguageSubject(className)
+                      ? _selectedLanguageSubject
+                      : null,
                 );
-            await setShowMealImages(ref, _draft.showMealImages);
           }
 
+          if (!mounted) return;
           await ref.read(profileGateProvider).refresh();
           if (!context.mounted) return;
           goNext();
@@ -186,8 +231,22 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
                   selectedClass: _selectedClass,
                   selectedSchoolTrack: _selectedSchoolTrack,
                   selectedDiet: _selectedDiet,
-                  showMealImages: _showMealImages,
+                  artsSubjectFieldKey: _artsSubjectFieldKey,
+                  languageSubjectFieldKey: _languageSubjectFieldKey,
+                  selectedArtsSubject: _selectedArtsSubject,
+                  selectedLanguageSubject: _selectedLanguageSubject,
+                  onArtsSubjectChanged: (value) => setState(() {
+                    _selectedArtsSubject = value;
+                    _draft.artsSubject = value;
+                  }),
+                  onLanguageSubjectChanged: (value) => setState(() {
+                    _selectedLanguageSubject = value;
+                    _draft.languageSubject = value;
+                  }),
                   classOptions: classOptions,
+                  classesLoading: classOptionsAsync.isLoading,
+                  onReloadClasses: () =>
+                      ref.invalidate(klassenRepositoryProvider),
                   onClassChanged: (value) => setState(() {
                     _selectedClass = value;
                     _draft.schoolClass = value;
@@ -199,10 +258,6 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
                   onDietChanged: (value) => setState(() {
                     _selectedDiet = value;
                     _draft.diet = value;
-                  }),
-                  onShowMealImagesChanged: (value) => setState(() {
-                    _showMealImages = value;
-                    _draft.showMealImages = value;
                   }),
                 ),
         ),

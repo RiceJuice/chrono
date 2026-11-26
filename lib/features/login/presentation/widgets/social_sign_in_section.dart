@@ -61,7 +61,8 @@ class SocialSignInSection extends StatelessWidget {
     return defaultTargetPlatform == TargetPlatform.iOS;
   }
 
-  bool get _useSquirclePanel => presentation == SocialSignInPresentation.startSheet;
+  bool get _useSquirclePanel =>
+      presentation == SocialSignInPresentation.startSheet;
 
   @override
   Widget build(BuildContext context) {
@@ -88,11 +89,7 @@ class SocialSignInSection extends StatelessWidget {
           variant: LoginAuthOptionButtonVariant.apple,
           compact: true,
           startScreenStyle: _useSquirclePanel,
-          leading: Icon(
-            LoginAuthIcons.apple,
-            size: 22,
-            color: appleForeground,
-          ),
+          leading: Icon(LoginAuthIcons.apple, size: 22, color: appleForeground),
           isLoading: busyProvider == SocialSignInProvider.apple,
           onPressed: onApplePressed,
         ),
@@ -157,9 +154,9 @@ class _OrDivider extends StatelessWidget {
             child: Text(
               'oder',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.65),
-                    fontSize: 12,
-                  ),
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.65),
+                fontSize: 12,
+              ),
             ),
           ),
         Expanded(child: Divider(color: dividerColor, height: 1)),
@@ -208,25 +205,25 @@ class LoginAuthOptionButton extends StatelessWidget {
     final (backgroundColor, textColor, borderColor) = switch (variant) {
       LoginAuthOptionButtonVariant.apple => loginAppleButtonColors(scheme),
       LoginAuthOptionButtonVariant.google when startScreenStyle => (
-          scheme.surfaceContainerHighest,
-          scheme.onSurface,
-          scheme.surfaceContainerHighest,
-        ),
+        scheme.surfaceContainerHighest,
+        scheme.onSurface,
+        scheme.surfaceContainerHighest,
+      ),
       LoginAuthOptionButtonVariant.google => (
-          scheme.surfaceContainer,
-          scheme.onSurface,
-          scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        ),
+        scheme.surfaceContainer,
+        scheme.onSurface,
+        scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+      ),
       _ when startScreenStyle => (
-          scheme.surfaceContainerHighest,
-          scheme.onSurface,
-          scheme.surfaceContainerHighest,
-        ),
+        scheme.surfaceContainerHighest,
+        scheme.onSurface,
+        scheme.surfaceContainerHighest,
+      ),
       _ => (
-          scheme.surfaceContainer,
-          scheme.onSurface,
-          scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        ),
+        scheme.surfaceContainer,
+        scheme.onSurface,
+        scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+      ),
     };
 
     return SizedBox(
@@ -255,7 +252,8 @@ class LoginAuthOptionButton extends StatelessWidget {
     bool isPrimary,
   ) {
     final themeStyle = Theme.of(context).elevatedButtonTheme.style;
-    final baseStyle = themeStyle ??
+    final baseStyle =
+        themeStyle ??
         ElevatedButton.styleFrom(
           padding: AppInsets.buttonContentWide,
           minimumSize: const Size(0, SocialSignInSection.buttonHeight),
@@ -263,8 +261,9 @@ class LoginAuthOptionButton extends StatelessWidget {
           shadowColor: Colors.transparent,
           shape: AppSquircle.shape(AppRadius.s),
         );
-    final backgroundColor =
-        isPrimary ? scheme.primary : scheme.surfaceContainerHighest;
+    final backgroundColor = isPrimary
+        ? scheme.primary
+        : scheme.surfaceContainerHighest;
     final foregroundColor = isPrimary ? Colors.black : scheme.onSurface;
 
     return SizedBox(
@@ -304,10 +303,7 @@ class LoginAuthOptionButton extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (leading != null) ...[
-          leading!,
-          const SizedBox(width: AppSpacing.s),
-        ],
+        if (leading != null) ...[leading!, const SizedBox(width: AppSpacing.s)],
         Text(
           label,
           style: TextStyle(

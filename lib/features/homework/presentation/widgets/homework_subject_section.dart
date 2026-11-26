@@ -5,6 +5,7 @@ import 'package:chronoapp/features/calendar/domain/models/calendar_subject.dart'
 import 'package:chronoapp/features/calendar/presentation/providers/subjects_providers.dart';
 import 'package:chronoapp/features/homework/presentation/widgets/homework_form_shell.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Leerer String = bewusst kein Fach gewählt; `null` = Sheet ohne Auswahl geschlossen.
@@ -26,22 +27,29 @@ class HomeworkSubjectPickerRow extends ConsumerWidget {
 
     return subjectsAsync.when(
       data: (subjects) {
-        if (subjects.isEmpty) return const SizedBox.shrink();
+        if (subjects.isEmpty) {
+          return const HomeworkFormField(
+            child: Text(
+              'Noch keine Fächer verfügbar. Bitte den Stundenplan synchronisieren.',
+            ),
+          );
+        }
 
         final selected = _findSubject(subjects, selectedSubjectId);
 
         return HomeworkFormPickerRow(
           label: 'Fach',
-          value: selected?.name ?? 'Keins',
+          value: selected?.name ?? 'Fach auswählen',
           leading: _SubjectColorDot(
-            color: selected?.defaultColor ??
-                Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
-                    .withValues(alpha: 0.35),
+            color:
+                selected?.defaultColor ??
+                Theme.of(
+                  context,
+                ).colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
             emphasized: selected != null,
           ),
           onTap: () async {
+            FocusManager.instance.primaryFocus?.unfocus();
             final result = await HomeworkSubjectPickerSheet.show(
               context,
               subjects: subjects,
@@ -66,7 +74,13 @@ class HomeworkSubjectPickerRow extends ConsumerWidget {
           ),
         ),
       ),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, _) => HomeworkFormField(
+        child: TextButton.icon(
+          onPressed: () => ref.invalidate(subjectsListProvider),
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Fächer erneut laden'),
+        ),
+      ),
     );
   }
 
@@ -103,6 +117,7 @@ class HomeworkSubjectPickerSheet extends StatelessWidget {
       sheetAnimationStyle: kSettingsChoiceSheetMotion,
       builder: (sheetContext) {
         return AppModalSheetChrome(
+          constraints: appModalChoiceSheetConstraints(sheetContext),
           child: HomeworkSubjectPickerSheet(
             subjects: subjects,
             selectedSubjectId: selectedSubjectId,
@@ -132,9 +147,9 @@ class HomeworkSubjectPickerSheet extends StatelessWidget {
             ),
             child: Text(
               'Fach wählen',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           Flexible(
@@ -199,6 +214,20 @@ class _SubjectPickerTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
+    if (homeworkUsesCupertino(context)) {
+      return CupertinoListTile(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        leading: _SubjectColorDot(
+          color: color ?? scheme.onSurfaceVariant,
+          emphasized: color != null,
+        ),
+        title: Text(label),
+        trailing: selected
+            ? Icon(CupertinoIcons.check_mark, color: scheme.primary, size: 20)
+            : null,
+        onTap: onTap,
+      );
+    }
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -224,8 +253,7 @@ class _SubjectPickerTile extends StatelessWidget {
           child: Row(
             children: [
               _SubjectColorDot(
-                color: color ??
-                    scheme.onSurfaceVariant.withValues(alpha: 0.35),
+                color: color ?? scheme.onSurfaceVariant.withValues(alpha: 0.35),
                 emphasized: color != null,
               ),
               const SizedBox(width: AppSpacing.m),
@@ -233,16 +261,12 @@ class _SubjectPickerTile extends StatelessWidget {
                 child: Text(
                   label,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      ),
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
                 ),
               ),
               if (selected)
-                Icon(
-                  Icons.check_rounded,
-                  size: 20,
-                  color: scheme.primary,
-                ),
+                Icon(Icons.check_rounded, size: 20, color: scheme.primary),
             ],
           ),
         ),
@@ -252,10 +276,7 @@ class _SubjectPickerTile extends StatelessWidget {
 }
 
 class _SubjectColorDot extends StatelessWidget {
-  const _SubjectColorDot({
-    required this.color,
-    required this.emphasized,
-  });
+  const _SubjectColorDot({required this.color, required this.emphasized});
 
   final Color color;
   final bool emphasized;

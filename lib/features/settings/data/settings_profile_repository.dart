@@ -1,4 +1,6 @@
+import 'package:chronoapp/core/database/school_subject_choices_cache.dart';
 import 'dart:async';
+import 'package:chronoapp/core/database/school_subject_choices.dart';
 
 import 'package:powersync/powersync.dart';
 import 'package:sqlite3/common.dart';
@@ -26,10 +28,8 @@ class _ProfileRowBundle {
 /// Liest das Profil aus PowerSync und ergänzt bei Bedarf per Supabase, solange
 /// der lokale Sync nach Onboarding/Profil-Updates noch hinterherhinkt.
 class SettingsProfileRepository {
-  SettingsProfileRepository(
-    this._db, {
-    SupabaseClient? supabase,
-  }) : _supabase = supabase ?? Supabase.instance.client;
+  SettingsProfileRepository(this._db, {SupabaseClient? supabase})
+    : _supabase = supabase ?? Supabase.instance.client;
 
   static const Duration _remoteFetchTimeout = Duration(seconds: 2);
 
@@ -59,7 +59,7 @@ class SettingsProfileRepository {
     try {
       await for (final _ in rebuilds.stream) {
         final local = await _readCurrentLocalBundle(userId);
-        if (_shouldFetchRemote(local?.snapshot)) {
+        if (_shouldFetchRemote(local)) {
           _cachedRemote = await _fetchRemoteBundle(userId);
         }
         yield _mergeBundles(local, _cachedRemote)?.snapshot;
@@ -75,7 +75,7 @@ class SettingsProfileRepository {
     try {
       final rows = await _db.getAll(
         '''
-        SELECT first_name, last_name, class_name, schooltrack, voice, role, choir, diet,
+        SELECT first_name, last_name, class_name, schooltrack, arts_subject, language_subject, timetable_subject_choices, voice, role, choir, diet,
                updated_at
         FROM $kProfilesTable
         WHERE id = ?
@@ -83,7 +83,13 @@ class SettingsProfileRepository {
         ''',
         [userId],
       );
-      return _mapFirstRowBundleOrNull(rows);
+      if (rows.isEmpty) return null;
+      return _mapRowBundle(
+        await SchoolSubjectChoicesCache.supplement(
+          userId,
+          Map<String, dynamic>.from(rows.first),
+        ),
+      );
     } catch (_) {
       return null;
     }
@@ -93,7 +99,7 @@ class SettingsProfileRepository {
     return _db
         .watch(
           '''
-          SELECT first_name, last_name, class_name, schooltrack, voice, role, choir, diet,
+          SELECT first_name, last_name, class_name, schooltrack, arts_subject, language_subject, timetable_subject_choices, voice, role, choir, diet,
                  updated_at
           FROM $kProfilesTable
           WHERE id = ?
@@ -105,10 +111,14 @@ class SettingsProfileRepository {
         .map(_mapFirstRowBundleOrNull);
   }
 
-  bool _shouldFetchRemote(ProfileSnapshot? local) {
-    if (_cachedRemote == null) return true;
-    if (local == null) return true;
-    return _isProfileEmpty(local);
+  bool _shouldFetchRemote(_ProfileRowBundle? local) {
+    final cached = _cachedRemote;
+    if (cached == null || local == null) return true;
+    final localUpdated = local.updatedAt;
+    final cachedUpdated = cached.updatedAt;
+    return _isProfileEmpty(local.snapshot) ||
+        (localUpdated != null &&
+            (cachedUpdated == null || localUpdated.isAfter(cachedUpdated)));
   }
 
   Future<_ProfileRowBundle?> _fetchRemoteBundle(String userId) async {
@@ -116,12 +126,16 @@ class SettingsProfileRepository {
       final row = await _supabase
           .from('profiles')
           .select(
-            'first_name, last_name, class_name, schooltrack, voice, role, choir, diet, updated_at',
+            'first_name, last_name, class_name, schooltrack, arts_subject, language_subject, timetable_subject_choices, voice, role, choir, diet, updated_at',
           )
           .eq('id', userId)
           .maybeSingle()
           .timeout(_remoteFetchTimeout);
       if (row == null) return null;
+      await SchoolSubjectChoicesCache.save(
+        userId,
+        Map<String, dynamic>.from(row),
+      );
       return _mapRowBundle(Map<String, dynamic>.from(row));
     } catch (_) {
       return _cachedRemote;
@@ -139,6 +153,11 @@ class SettingsProfileRepository {
       lastName: _asString(row['last_name']),
       className: _asString(row['class_name']),
       schoolTrack: _asString(row['schooltrack']),
+      artsSubject: _asString(row['arts_subject']),
+      languageSubject: _asString(row['language_subject']),
+      timetableChoices: decodeSchoolSubjectChoices(
+        row['timetable_subject_choices'],
+      ),
       voice: _asString(row['voice']),
       role: _asString(row['role']),
       choir: _asString(row['choir']),
@@ -165,7 +184,11 @@ class SettingsProfileRepository {
         : (localUpdated ?? remoteUpdated);
 
     return _ProfileRowBundle(
-      snapshot: _coalesceSnapshots(local.snapshot, remote.snapshot),
+      snapshot:
+          remoteUpdated != null &&
+              (localUpdated == null || remoteUpdated.isAfter(localUpdated))
+          ? remote.snapshot
+          : _coalesceSnapshots(local.snapshot, remote.snapshot),
       updatedAt: mergedUpdated,
     );
   }
@@ -179,6 +202,14 @@ class SettingsProfileRepository {
       lastName: _coalesceField(local.lastName, remote.lastName),
       className: _coalesceField(local.className, remote.className),
       schoolTrack: _coalesceField(local.schoolTrack, remote.schoolTrack),
+      artsSubject: _coalesceField(local.artsSubject, remote.artsSubject),
+      languageSubject: _coalesceField(
+        local.languageSubject,
+        remote.languageSubject,
+      ),
+      timetableChoices: local.timetableChoices.isNotEmpty
+          ? local.timetableChoices
+          : remote.timetableChoices,
       voice: _coalesceField(local.voice, remote.voice),
       role: _coalesceField(local.role, remote.role),
       choir: _coalesceField(local.choir, remote.choir),
@@ -225,6 +256,8 @@ class SettingsProfileRepository {
     String? voice,
     String? diet,
     String? choir,
+    String? artsSubject,
+    String? languageSubject,
   }) async {
     if (childId.trim().isEmpty) {
       throw SettingsProfileRepositoryException('Kein Kind ausgewählt.');
@@ -237,9 +270,27 @@ class SettingsProfileRepository {
     if (diet != null) updates['diet'] = diet;
     if (choir != null) updates['choir'] = choir;
 
+    if (artsSubject != null) updates['arts_subject'] = artsSubject;
+    if (languageSubject != null) updates['language_subject'] = languageSubject;
     if (updates.isEmpty) return;
 
     try {
+      if (artsSubject != null || languageSubject != null) {
+        final existing = await _supabase
+            .from('profiles')
+            .select('class_name,schooltrack,timetable_subject_choices')
+            .eq('id', childId)
+            .single();
+        updates['timetable_subject_choices'] = updateSchoolSubjectChoices(
+          existing: decodeSchoolSubjectChoices(
+            existing['timetable_subject_choices'],
+          ),
+          className: className ?? existing['class_name']?.toString(),
+          schoolTrack: schoolTrack ?? existing['schooltrack']?.toString(),
+          artsSubject: artsSubject,
+          languageSubject: languageSubject,
+        );
+      }
       final updatedRows = await _supabase
           .from('profiles')
           .update(updates)

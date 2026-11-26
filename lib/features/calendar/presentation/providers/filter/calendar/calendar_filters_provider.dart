@@ -1,4 +1,5 @@
 import 'package:chronoapp/core/startup/calendar_filter_startup_state.dart';
+import 'package:chronoapp/core/database/school_subject_choices.dart';
 import 'package:chronoapp/features/login/presentation/providers/profile_gate_provider.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_calendar_viewer.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_permissions.dart';
@@ -28,6 +29,9 @@ class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
       className: profile?.className,
       schoolTrack: profile?.schoolTrack,
       diet: profile?.diet,
+      artsSubject: profile?.artsSubject,
+      languageSubject: profile?.languageSubject,
+      timetableChoices: profile?.timetableChoices ?? const {},
     );
     initializeDefaults(
       choirs: defaults.choirs,
@@ -35,6 +39,9 @@ class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
       classNames: defaults.classNames,
       schoolTracks: defaults.schoolTracks,
       diets: defaults.diets,
+      artsSubject: defaults.artsSubject,
+      languageSubject: defaults.languageSubject,
+      timetableChoices: defaults.timetableChoices,
     );
   }
 
@@ -47,6 +54,9 @@ class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
       className: profile?.className,
       schoolTrack: profile?.schoolTrack,
       diet: profile?.diet,
+      artsSubject: profile?.artsSubject,
+      languageSubject: profile?.languageSubject,
+      timetableChoices: profile?.timetableChoices ?? const {},
     );
     state = next;
   }
@@ -59,6 +69,9 @@ class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
     String? className,
     String? schoolTrack,
     String? diet,
+    String? artsSubject,
+    String? languageSubject,
+    Map<String, dynamic>? timetableChoices,
   }) {
     final nextChoirs = choir == null
         ? state.choirs
@@ -82,9 +95,22 @@ class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
       classNames: nextClassNames,
       schoolTracks: nextSchoolTracks,
       diets: nextDiets,
+      artsSubject: artsSubject,
+      languageSubject: languageSubject,
+      timetableChoices:
+          timetableChoices ??
+          updateSchoolSubjectChoices(
+            existing: state.timetableChoices,
+            className: nextClassNames.firstOrNull,
+            schoolTrack: nextSchoolTracks.firstOrNull,
+            artsSubject: artsSubject,
+            languageSubject: languageSubject,
+          ),
       defaultChoirs: choir == null ? state.defaultChoirs : nextChoirs,
       defaultVoices: voice == null ? state.defaultVoices : nextVoices,
-      defaultClassNames: className == null ? state.defaultClassNames : nextClassNames,
+      defaultClassNames: className == null
+          ? state.defaultClassNames
+          : nextClassNames,
       defaultSchoolTracks: schoolTrack == null
           ? state.defaultSchoolTracks
           : nextSchoolTracks,
@@ -92,8 +118,12 @@ class CalendarFiltersNotifier extends CalendarFiltersNotifierBase {
       hasInitializedDefaults: true,
       isChoirExplicit: choir == null ? state.isChoirExplicit : false,
       isVoiceExplicit: voice == null ? state.isVoiceExplicit : false,
-      isClassNameExplicit: className == null ? state.isClassNameExplicit : false,
-      isSchoolTrackExplicit: schoolTrack == null ? state.isSchoolTrackExplicit : false,
+      isClassNameExplicit: className == null
+          ? state.isClassNameExplicit
+          : false,
+      isSchoolTrackExplicit: schoolTrack == null
+          ? state.isSchoolTrackExplicit
+          : false,
       isDietExplicit: diet == null ? state.isDietExplicit : false,
       hasUserOverrides: false,
     );

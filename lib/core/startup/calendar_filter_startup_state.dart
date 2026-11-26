@@ -7,6 +7,7 @@ import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_
 import 'package:powersync/powersync.dart';
 
 import '../../../core/database/powersync_schema.dart';
+import '../../../core/database/school_subject_choices.dart';
 
 /// Vorberechneter Kalender-Filter vor dem Verlassen des Ladescreens.
 class CalendarFilterStartupState {
@@ -29,6 +30,9 @@ class CalendarFilterStartupState {
         className: childProfile.className,
         schoolTrack: childProfile.schoolTrack,
         diet: childProfile.diet ?? diet,
+        artsSubject: childProfile.artsSubject,
+        languageSubject: childProfile.languageSubject,
+        timetableChoices: childProfile.timetableChoices,
       );
       return;
     }
@@ -39,6 +43,9 @@ class CalendarFilterStartupState {
       className: gateData.className,
       schoolTrack: gateData.schoolTrack,
       diet: diet,
+      artsSubject: gateData.artsSubject,
+      languageSubject: gateData.languageSubject,
+      timetableChoices: gateData.timetableChoices,
     );
   }
 
@@ -120,7 +127,7 @@ class CalendarFilterStartupState {
     try {
       final row = await db.getOptional(
         '''
-        SELECT first_name, last_name, class_name, schooltrack, voice, role, choir, diet
+        SELECT first_name, last_name, class_name, schooltrack, arts_subject, language_subject, timetable_subject_choices, voice, role, choir, diet
         FROM $kProfilesTable
         WHERE id = ?
         LIMIT 1
@@ -133,6 +140,11 @@ class CalendarFilterStartupState {
         lastName: row['last_name']?.toString(),
         className: row['class_name']?.toString(),
         schoolTrack: row['schooltrack']?.toString(),
+        artsSubject: row['arts_subject']?.toString(),
+        languageSubject: row['language_subject']?.toString(),
+        timetableChoices: decodeSchoolSubjectChoices(
+          row['timetable_subject_choices'],
+        ),
         voice: row['voice']?.toString(),
         role: row['role']?.toString(),
         choir: row['choir']?.toString(),

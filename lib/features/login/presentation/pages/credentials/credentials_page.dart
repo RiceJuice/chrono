@@ -192,7 +192,7 @@ class _CredentialsPageState extends ConsumerState<CredentialsPage> {
           await ref.read(profileGateProvider).refresh();
           if (!context.mounted) return;
           final target =
-              ref.read(profileGateProvider).requiredPath ?? LoginPaths.success;
+              ref.read(profileGateProvider).requiredPath ?? LoginPaths.notificationsIntro;
           context.go(target);
           return;
         }

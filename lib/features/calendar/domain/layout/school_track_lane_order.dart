@@ -1,3 +1,4 @@
+import '../filter/calendar_subject_choices.dart';
 import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filter_text.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
@@ -42,9 +43,7 @@ int compareCalendarEntriesForLaneOrder(
   final byTrack = schoolTrackLanePriority(
     a,
     ownSchoolTracks: ownSchoolTracks,
-  ).compareTo(
-    schoolTrackLanePriority(b, ownSchoolTracks: ownSchoolTracks),
-  );
+  ).compareTo(schoolTrackLanePriority(b, ownSchoolTracks: ownSchoolTracks));
   if (byTrack != 0) return byTrack;
 
   return a.id.compareTo(b.id);
@@ -80,6 +79,8 @@ bool lessonMatchesOwnSchoolProfile({
       return false;
     }
   }
+
+  if (calendarSubjectOverridesSchoolTrack(entry, filters)) return true;
 
   final ownTracks = filters.defaultSchoolTracks;
   if (ownTracks.isNotEmpty && entry.schoolTrack != BackendSchoolTrack.unknown) {

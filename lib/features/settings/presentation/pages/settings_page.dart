@@ -31,12 +31,14 @@ import 'package:chronoapp/features/settings/presentation/widgets/settings_scroll
 import 'package:chronoapp/features/settings/presentation/widgets/settings_sliver_header.dart';
 import 'package:chronoapp/features/settings/presentation/widgets/settings_tile.dart';
 import 'package:flutter/material.dart';
+import 'package:chronoapp/core/database/arts_subject.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/settings_profile_providers.dart';
 import '../widgets/guardian_children_section.dart';
+import '../widgets/profile_appearance.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -115,15 +117,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       gate: gateData,
       ownProfile: ownProfile,
     );
-    final isGuardianRole =
-        gateData.role?.trim() == LoginFlowRoleIds.guardian;
+    final isGuardianRole = gateData.role?.trim() == LoginFlowRoleIds.guardian;
     final isGuardianWaitingForChild =
         isGuardianRole && !gateData.hasConfirmedGuardianLink;
     final calendarFilters = ref.watch(calendarFiltersProvider);
-    final effectiveCalendarProfile =
-        ref.watch(effectiveCalendarProfileProvider).asData?.value;
-    final calendarProfile =
-        isGuardianViewer ? effectiveCalendarProfile : ownProfile;
+    final effectiveCalendarProfile = ref
+        .watch(effectiveCalendarProfileProvider)
+        .asData
+        ?.value;
+    final calendarProfile = isGuardianViewer
+        ? effectiveCalendarProfile
+        : ownProfile;
     final calendarEditValues = resolveCalendarDefaultsEditValues(
       profile: calendarProfile,
       gate: isGuardianViewer ? null : gateData,
@@ -131,9 +135,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
 
     final theme = Theme.of(context);
-    final bg = theme.scaffoldBackgroundColor;
+    final bg = isNativeAppleProfile
+        ? (theme.brightness == Brightness.dark
+              ? const Color(0xff000000)
+              : const Color(0xfff2f2f7))
+        : theme.scaffoldBackgroundColor;
+    final width = MediaQuery.sizeOf(context).width;
+    final horizontalPadding = isNativeAppleProfile && width >= 700
+        ? ((width - 660) / 2).clamp(24.0, double.infinity)
+        : 16.0;
 
     return Scaffold(
+      backgroundColor: bg,
       appBar: AppBar(
         toolbarHeight: 44,
         backgroundColor: bg,
@@ -148,9 +161,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             SettingsSliverHeader.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontSize: 18,
-            ),
+            style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
           ),
         ),
       ),
@@ -159,12 +170,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           CustomScrollView(
             controller: _scrollController,
             slivers: [
-              SettingsSliverHeader.largeTitleSliver(context),
+              SettingsSliverHeader.largeTitleSliver(
+                context,
+                horizontalPadding: horizontalPadding,
+              ),
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(
-                  16,
+                  horizontalPadding,
                   0,
-                  16,
+                  horizontalPadding,
                   24 + MediaQuery.paddingOf(context).bottom,
                 ),
                 sliver: SliverList.list(
@@ -173,6 +187,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ownProfileAsync.when(
                       data: (profile) => SettingsProfileHeaderCard(
                         profile: profile,
+                        showOwnAvatar: true,
                         onTap: _openProfile,
                       ),
                       loading: () => const _SettingsLoadingIsland(
@@ -241,50 +256,62 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ),
                     if (!isGuardianWaitingForChild)
                       SettingsCalendarDefaultsSection(
-                      readOnly: _saving,
-                      onEditClassName: () => _editChoiceField(
-                        title: 'Klasse auswählen',
-                        initialValue: calendarEditValues.className,
-                        options: classesAsync.maybeWhen(
-                          data: (classes) => classes,
-                          orElse: () => const [],
+                        readOnly: _saving,
+                        onEditClassName: () => _editChoiceField(
+                          title: 'Klasse auswählen',
+                          initialValue: calendarEditValues.className,
+                          options: classesAsync.maybeWhen(
+                            data: (classes) => classes,
+                            orElse: () => const [],
+                          ),
+                          onSave: (value) =>
+                              _updateCalendarDefaults(className: value),
                         ),
-                        onSave: (value) => _updateCalendarDefaults(
-                          className: value,
+                        onEditSchoolTrack: () => _editChoiceField(
+                          title: 'Schulzweig auswählen',
+                          initialValue: schoolTrackDisplayLabel(
+                            calendarEditValues.schoolTrack,
+                          ),
+                          options: settingsSchoolTrackOptions,
+                          onSave: (value) =>
+                              _updateCalendarDefaults(schoolTrack: value),
+                        ),
+                        onEditChoir: () => _editChoirField(
+                          initialChoirLabel: choirDisplayLabel(
+                            calendarEditValues.choir,
+                          ),
+                        ),
+                        onEditVoice: () => _editChoiceField(
+                          title: 'Stimme auswählen',
+                          initialValue: calendarEditValues.voice,
+                          options: settingsVoiceOptions,
+                          onSave: (value) =>
+                              _updateCalendarDefaults(voice: value),
+                        ),
+                        onEditLanguageSubject: () => _editChoiceField(
+                          title: 'Fremdsprache auswählen',
+                          initialValue: calendarEditValues.languageSubject,
+                          options: languageSubjectOptions,
+                          onSave: (value) =>
+                              _updateCalendarDefaults(languageSubject: value),
+                        ),
+                        onEditArtsSubject: () => _editChoiceField(
+                          title: 'Kunst oder Musik auswählen',
+                          initialValue: calendarEditValues.artsSubject,
+                          options: artsSubjectOptions,
+                          onSave: (value) =>
+                              _updateCalendarDefaults(artsSubject: value),
+                        ),
+                        onEditDiet: () => _editChoiceField(
+                          title: 'Ernährung auswählen',
+                          initialValue: dietDisplayLabel(
+                            calendarEditValues.diet,
+                          ),
+                          options: settingsDietOptions,
+                          onSave: (value) =>
+                              _updateCalendarDefaults(diet: value),
                         ),
                       ),
-                      onEditSchoolTrack: () => _editChoiceField(
-                        title: 'Schulzweig auswählen',
-                        initialValue: schoolTrackDisplayLabel(
-                          calendarEditValues.schoolTrack,
-                        ),
-                        options: settingsSchoolTrackOptions,
-                        onSave: (value) => _updateCalendarDefaults(
-                          schoolTrack: value,
-                        ),
-                      ),
-                      onEditChoir: () => _editChoirField(
-                        initialChoirLabel:
-                            choirDisplayLabel(calendarEditValues.choir),
-                      ),
-                      onEditVoice: () => _editChoiceField(
-                        title: 'Stimme auswählen',
-                        initialValue: calendarEditValues.voice,
-                        options: settingsVoiceOptions,
-                        onSave: (value) => _updateCalendarDefaults(
-                          voice: value,
-                        ),
-                      ),
-                      onEditDiet: () => _editChoiceField(
-                        title: 'Ernährung auswählen',
-                        initialValue:
-                            dietDisplayLabel(calendarEditValues.diet),
-                        options: settingsDietOptions,
-                        onSave: (value) => _updateCalendarDefaults(
-                          diet: value,
-                        ),
-                      ),
-                    ),
                     const SettingsNotificationsSection(),
                     const SettingsSectionLabel(title: 'Darstellung'),
                     SettingsIsland(
@@ -324,9 +351,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   void _openProfile() {
     HapticFeedback.heavyImpact();
     Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (context) => const SettingsProfilePage(),
-      ),
+      MaterialPageRoute(builder: (context) => const SettingsProfilePage()),
     );
   }
 
@@ -387,6 +412,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     String? voice,
     String? diet,
     String? choir,
+    String? artsSubject,
+    String? languageSubject,
   }) async {
     final gateData = ref.read(profileGateDataProvider);
     final ownProfile = ref.read(syncedProfileProvider).asData?.value;
@@ -402,6 +429,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         voice: voice,
         diet: diet,
         choir: choir,
+        artsSubject: artsSubject,
+        languageSubject: languageSubject,
       );
       return;
     }
@@ -412,6 +441,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       voice: voice,
       diet: diet,
       choir: choir,
+      artsSubject: artsSubject,
+      languageSubject: languageSubject,
     );
   }
 
@@ -421,6 +452,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     String? voice,
     String? diet,
     String? choir,
+    String? artsSubject,
+    String? languageSubject,
   }) async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -433,6 +466,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         voice: voice,
         diet: diet,
         choir: choir,
+        artsSubject: artsSubject,
+        languageSubject: languageSubject,
       );
     } on SettingsProfileRepositoryException catch (e) {
       if (!mounted) return;
@@ -456,6 +491,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     String? diet,
     String? role,
     String? choir,
+    String? artsSubject,
+    String? languageSubject,
   }) async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -472,6 +509,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             diet: diet,
             role: role,
             choir: choir,
+            artsSubject: artsSubject,
+            languageSubject: languageSubject,
           );
       await ref.read(profileGateProvider).refresh();
       ref.invalidate(syncedProfileProvider);
@@ -479,6 +518,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           .read(calendarFiltersProvider.notifier)
           .applyProfileFilterChanges(
             choir: choir,
+            artsSubject: artsSubject,
+            languageSubject: languageSubject,
             voice: voice,
             className: className,
             schoolTrack: schoolTrack,
@@ -557,9 +598,9 @@ class _GuardianWaitingForChildIsland extends StatelessWidget {
           subtitle: Text(
             'Sobald dein Kind die Verknüpfung bestätigt hat, werden hier '
             'die Kalender-Standardwerte angezeigt.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
         ),
       ],

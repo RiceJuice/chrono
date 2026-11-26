@@ -8,6 +8,9 @@ class ProfileGateData {
     required this.lastName,
     required this.className,
     required this.schoolTrack,
+    this.artsSubject,
+    this.languageSubject,
+    this.timetableChoices = const {},
     required this.role,
     required this.voice,
     required this.choir,
@@ -20,21 +23,24 @@ class ProfileGateData {
   });
 
   const ProfileGateData.signedOut()
-      : hasSession = false,
-        emailConfirmed = false,
-        firstName = null,
-        lastName = null,
-        className = null,
-        schoolTrack = null,
-        role = null,
-        voice = null,
-        choir = null,
-        diet = null,
-        onboardingCompletedAt = null,
-        activeChildId = null,
-        hasAnyGuardianLink = false,
-        hasConfirmedGuardianLink = false,
-        hasPendingGuardianLink = false;
+    : hasSession = false,
+      emailConfirmed = false,
+      firstName = null,
+      lastName = null,
+      className = null,
+      schoolTrack = null,
+      artsSubject = null,
+      languageSubject = null,
+      timetableChoices = const {},
+      role = null,
+      voice = null,
+      choir = null,
+      diet = null,
+      onboardingCompletedAt = null,
+      activeChildId = null,
+      hasAnyGuardianLink = false,
+      hasConfirmedGuardianLink = false,
+      hasPendingGuardianLink = false;
 
   final bool hasSession;
   final bool emailConfirmed;
@@ -42,6 +48,9 @@ class ProfileGateData {
   final String? lastName;
   final String? className;
   final String? schoolTrack;
+  final String? artsSubject;
+  final String? languageSubject;
+  final Map<String, dynamic> timetableChoices;
   final String? role;
   final String? voice;
   final String? choir;
@@ -61,6 +70,9 @@ class ProfileGateData {
     String? lastName,
     String? className,
     String? schoolTrack,
+    String? artsSubject,
+    String? languageSubject,
+    Map<String, dynamic>? timetableChoices,
     String? role,
     String? voice,
     String? choir,
@@ -78,6 +90,9 @@ class ProfileGateData {
       lastName: lastName ?? this.lastName,
       className: className ?? this.className,
       schoolTrack: schoolTrack ?? this.schoolTrack,
+      artsSubject: artsSubject ?? this.artsSubject,
+      languageSubject: languageSubject ?? this.languageSubject,
+      timetableChoices: timetableChoices ?? this.timetableChoices,
       role: role ?? this.role,
       voice: voice ?? this.voice,
       choir: choir ?? this.choir,

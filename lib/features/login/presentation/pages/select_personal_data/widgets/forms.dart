@@ -1,11 +1,11 @@
 import 'package:chronoapp/core/database/backend_enums.dart';
 import 'package:flutter/material.dart';
+import 'package:chronoapp/core/database/arts_subject.dart';
 
 import '../../../widgets/login_dropdown_field.dart';
 import '../../../widgets/login_flow_spacing.dart';
 import '../../../widgets/login_labeled_field.dart';
 import '../../../widgets/login_personal_name_fields.dart';
-import 'login_meal_images_preference_box.dart';
 
 final loginDietOptions = <String>[
   BackendDiet.noRestriction.displayLabel,
@@ -25,14 +25,22 @@ class LoginPersonalDataFields extends StatelessWidget {
     required this.selectedClass,
     required this.selectedSchoolTrack,
     required this.selectedDiet,
-    required this.showMealImages,
     required this.classOptions,
     required this.onClassChanged,
     required this.onSchoolTrackChanged,
     required this.onDietChanged,
-    required this.onShowMealImagesChanged,
+    this.classesLoading = false,
+    this.onReloadClasses,
+    this.artsSubjectFieldKey,
+    this.languageSubjectFieldKey,
+    this.selectedArtsSubject,
+    this.selectedLanguageSubject,
+    this.onArtsSubjectChanged,
+    this.onLanguageSubjectChanged,
   });
 
+  final bool classesLoading;
+  final VoidCallback? onReloadClasses;
   final GlobalKey<FormFieldState<dynamic>> firstNameFieldKey;
   final GlobalKey<FormFieldState<dynamic>> lastNameFieldKey;
   final GlobalKey<FormFieldState<dynamic>> classFieldKey;
@@ -43,12 +51,16 @@ class LoginPersonalDataFields extends StatelessWidget {
   final String? selectedClass;
   final String? selectedSchoolTrack;
   final String? selectedDiet;
-  final bool showMealImages;
+  final GlobalKey<FormFieldState<dynamic>>? artsSubjectFieldKey;
+  final GlobalKey<FormFieldState<dynamic>>? languageSubjectFieldKey;
+  final String? selectedArtsSubject;
+  final String? selectedLanguageSubject;
+  final ValueChanged<String?>? onArtsSubjectChanged;
+  final ValueChanged<String?>? onLanguageSubjectChanged;
   final List<String> classOptions;
   final ValueChanged<String?> onClassChanged;
   final ValueChanged<String?> onSchoolTrackChanged;
   final ValueChanged<String?> onDietChanged;
-  final ValueChanged<bool> onShowMealImagesChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -72,11 +84,15 @@ class LoginPersonalDataFields extends StatelessWidget {
             selectedValue: selectedClass,
             options: classOptions,
             label: 'Klasse',
-            hintText: 'z. B. 10a',
+            hintText: classesLoading
+                ? 'Klassen werden geladen …'
+                : 'Klasse auswählen',
             leadingIcon: const Icon(Icons.school_outlined),
             validator: (value) {
               if (classOptions.isEmpty) {
-                return 'Keine Klassen verfuegbar. Bitte spaeter erneut versuchen.';
+                return classesLoading
+                    ? 'Klassen werden noch geladen.'
+                    : 'Klassen konnten nicht geladen werden. Bitte erneut laden.';
               }
               if (value == null || value.trim().isEmpty) {
                 return 'Bitte eine Klasse auswaehlen.';
@@ -87,6 +103,12 @@ class LoginPersonalDataFields extends StatelessWidget {
           ),
         ),
         SizedBox(height: blockGap),
+        if (classOptions.isEmpty && !classesLoading)
+          TextButton.icon(
+            onPressed: onReloadClasses,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Klassen erneut laden'),
+          ),
         LoginLabeledField(
           label: 'Schulzweig',
           child: LoginDropdownField(
@@ -109,6 +131,42 @@ class LoginPersonalDataFields extends StatelessWidget {
           ),
         ),
         SizedBox(height: blockGap),
+        if (requiresLanguageSubject(selectedClass)) ...[
+          LoginLabeledField(
+            label: 'Fremdsprache',
+            child: LoginDropdownField(
+              key: ValueKey('language-$selectedClass'),
+              formFieldKey: languageSubjectFieldKey,
+              selectedValue: selectedLanguageSubject,
+              options: languageSubjectOptions,
+              label: 'Fremdsprache',
+              hintText: 'Latein oder Französisch',
+              validator: (value) => hasValidLanguageSubject(value)
+                  ? null
+                  : 'Bitte wähle deine Fremdsprache aus.',
+              onChanged: onLanguageSubjectChanged ?? (_) {},
+            ),
+          ),
+          SizedBox(height: blockGap),
+        ],
+        if (requiresArtsSubject(selectedClass, selectedSchoolTrack)) ...[
+          LoginLabeledField(
+            label: 'Kunst / Musik',
+            child: LoginDropdownField(
+              key: ValueKey('arts-$selectedClass-$selectedSchoolTrack'),
+              formFieldKey: artsSubjectFieldKey,
+              selectedValue: selectedArtsSubject,
+              options: artsSubjectOptions,
+              label: 'Kunst / Musik',
+              hintText: 'Kunst oder Musik',
+              validator: (value) => hasValidArtsSubject(value)
+                  ? null
+                  : 'Bitte wähle Kunst oder Musik aus.',
+              onChanged: onArtsSubjectChanged ?? (_) {},
+            ),
+          ),
+          SizedBox(height: blockGap),
+        ],
         LoginLabeledField(
           label: 'Ernährung',
           child: LoginDropdownField(
@@ -126,11 +184,6 @@ class LoginPersonalDataFields extends StatelessWidget {
             },
             onChanged: onDietChanged,
           ),
-        ),
-        SizedBox(height: blockGap),
-        LoginMealImagesPreferenceBox(
-          showMealImages: showMealImages,
-          onChanged: onShowMealImagesChanged,
         ),
       ],
     );

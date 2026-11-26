@@ -14,7 +14,7 @@ HomeworkFragment _book(String code, String page, [String? exercise]) {
     fields: {
       'code': code,
       'page': page,
-      if (exercise != null) 'exercise': exercise,
+      'exercise': ?exercise,
     },
   );
 }

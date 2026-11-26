@@ -12,6 +12,7 @@ import '../../features/calendar/timetable_live_activity/timetable_live_activity_
 import '../../features/calendar/presentation/pages/calendar_page.dart';
 import '../../features/login/presentation/providers/profile_gate_notifier.dart';
 import '../../features/login/presentation/routes/login_flow_specs.dart';
+import '../../features/login/presentation/routes/login_completion_gate.dart';
 import '../../features/login/presentation/routes/login_routes.dart';
 import '../../features/homework/presentation/pages/homework_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
@@ -48,22 +49,23 @@ class AppRouter {
     required ProfileGateNotifier profileGateNotifier,
     required ConnectivityNotifier connectivityNotifier,
     GlobalKey<NavigatorState>? navigatorKey,
-  })  : _startup = startupNotifier,
-        _gate = profileGateNotifier,
-        _connectivity = connectivityNotifier,
-        _navigatorKey = navigatorKey ?? rootNavigatorKey,
-        _refresh = Listenable.merge([
-          startupNotifier,
-          authSessionNotifier,
-          profileGateNotifier,
-          connectivityNotifier,
-        ]);
+  }) : _startup = startupNotifier,
+       _gate = profileGateNotifier,
+       _connectivity = connectivityNotifier,
+       _navigatorKey = navigatorKey ?? rootNavigatorKey,
+       _refresh = Listenable.merge([
+         startupNotifier,
+         authSessionNotifier,
+         profileGateNotifier,
+         connectivityNotifier,
+       ]);
 
   final AppStartupNotifier _startup;
   final ProfileGateNotifier _gate;
   final ConnectivityNotifier _connectivity;
   final GlobalKey<NavigatorState> _navigatorKey;
   final Listenable _refresh;
+  final _loginCompletion = LoginCompletionGate();
 
   late final router = GoRouter(
     navigatorKey: _navigatorKey,
@@ -111,6 +113,7 @@ class AppRouter {
       }
 
       if (!loggedIn) {
+        _loginCompletion.begin();
         final offline = _connectivity.isOffline;
 
         if (offline) {
@@ -128,9 +131,7 @@ class AppRouter {
           LoginRouteTransitionTracker.reset();
           return LoginPaths.login;
         }
-        if (loc == '/calendar' ||
-            loc == '/homework' ||
-            loc == '/settings') {
+        if (loc == '/calendar' || loc == '/homework' || loc == '/settings') {
           LoginRouteTransitionTracker.reset();
           return LoginPaths.login;
         }
@@ -152,14 +153,22 @@ class AppRouter {
       final requiredPath = _gate.requiredPath;
 
       if (requiredPath == null) {
+        final completionRedirect = _loginCompletion.redirectCompletedProfile(loc);
+        if (completionRedirect != null) return completionRedirect;
         if (scheduleEventId != null && !isLoadingRoute) {
           return '/calendar';
         }
         if (isLoadingRoute) return '/calendar';
-        if (loc == LoginPaths.success) return null;
+        if (loc == LoginPaths.success ||
+            loc == LoginPaths.notificationsIntro ||
+            loc == LoginPaths.notificationsPermission) {
+          return null;
+        }
         if (loc.startsWith(LoginPaths.login)) return '/calendar';
         return null;
       }
+
+      _loginCompletion.begin();
 
       // Onboarding noch offen: geschützte App-Bereiche und /loading auf den
       // richtigen Schritt umleiten. Vorherige Schritte bleiben erreichbar
@@ -177,9 +186,7 @@ class AppRouter {
         }
         final currentIdx = loginFlowOrderIndex(loc);
         final requiredIdx = loginFlowOrderIndex(requiredPath);
-        if (currentIdx >= 0 &&
-            requiredIdx >= 0 &&
-            currentIdx > requiredIdx) {
+        if (currentIdx >= 0 && requiredIdx >= 0 && currentIdx > requiredIdx) {
           return requiredPath;
         }
         return null;
@@ -190,10 +197,8 @@ class AppRouter {
     routes: [
       GoRoute(
         path: '/loading',
-        pageBuilder: (context, state) => NoTransitionPage(
-          key: state.pageKey,
-          child: const LoadingPage(),
-        ),
+        pageBuilder: (context, state) =>
+            NoTransitionPage(key: state.pageKey, child: const LoadingPage()),
       ),
       GoRoute(
         path: kNoConnectionPath,
@@ -205,7 +210,8 @@ class AppRouter {
       GoRoute(
         path: '/schedule',
         redirect: (context, state) {
-          final eventId = parseScheduleLiveActivityEventId(state.uri) ??
+          final eventId =
+              parseScheduleLiveActivityEventId(state.uri) ??
               state.uri.queryParameters['eventId']?.trim();
           if (eventId != null && eventId.isNotEmpty) {
             ScheduleLiveActivityDeepLinkPending.set(eventId);
@@ -213,10 +219,7 @@ class AppRouter {
           return '/calendar';
         },
       ),
-      GoRoute(
-        path: '/timetable',
-        redirect: (context, state) => '/calendar',
-      ),
+      GoRoute(path: '/timetable', redirect: (context, state) => '/calendar'),
       StatefulShellRoute.indexedStack(
         pageBuilder: (context, state, navigationShell) => NoTransitionPage(
           key: state.pageKey,

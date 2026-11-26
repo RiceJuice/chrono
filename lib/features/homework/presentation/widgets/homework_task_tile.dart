@@ -13,8 +13,10 @@ class HomeworkTaskTile extends StatelessWidget {
     required this.task,
     required this.subject,
     this.onToggleCompleted,
+    this.isFlagged = false,
   });
 
+  final bool isFlagged;
   final HomeworkTask task;
   final CalendarSubject? subject;
   final ValueChanged<bool>? onToggleCompleted;
@@ -68,7 +70,8 @@ class HomeworkTaskTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           subject!.name,
-                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
                                 color: contentColor.withValues(alpha: 0.8),
                                 fontWeight: FontWeight.w600,
                               ),
@@ -86,25 +89,28 @@ class HomeworkTaskTile extends StatelessWidget {
                       compact: true,
                     ),
                   ),
-                ] else if (task.title.isNotEmpty) ...[
-                  Text(
-                    task.title,
+                ],
+                if (task.title.isNotEmpty) ...[
+                  _AnimatedStrikeText(
+                    text: task.title,
+                    completed: completed,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: contentColor,
-                          decoration: completed ? TextDecoration.lineThrough : null,
-                          decorationColor: contentColor.withValues(alpha: 0.6),
-                        ),
+                      color: contentColor,
+
+                      decorationColor: contentColor.withValues(alpha: 0.6),
+                    ),
                   ),
                 ],
                 if (task.displayDescription.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    task.displayDescription,
+                  _AnimatedStrikeText(
+                    text: task.displayDescription,
+                    completed: completed,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: contentColor.withValues(alpha: 0.85),
-                          decoration: completed ? TextDecoration.lineThrough : null,
-                          decorationColor: contentColor.withValues(alpha: 0.5),
-                        ),
+                      color: contentColor.withValues(alpha: 0.85),
+
+                      decorationColor: contentColor.withValues(alpha: 0.5),
+                    ),
                   ),
                 ],
                 if (task.dueAt != null) ...[
@@ -112,18 +118,92 @@ class HomeworkTaskTile extends StatelessWidget {
                   Text(
                     'Fällig: ${formatHomeworkDueLabel(dueAt: task.dueAt!, dueSource: task.dueSource)}',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: isHomeworkTaskOverdue(task: task)
-                              ? scheme.error.withValues(alpha: 0.85)
-                              : contentColor.withValues(alpha: 0.75),
-                          fontWeight: FontWeight.w500,
-                        ),
+                      color: isHomeworkTaskOverdue(task: task)
+                          ? scheme.error.withValues(alpha: 0.85)
+                          : contentColor.withValues(alpha: 0.75),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ],
             ),
           ),
+          if (isFlagged) ...[
+            const SizedBox(width: AppSpacing.m),
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.flag_rounded,
+                color: Color(0xFF111827),
+                size: 30,
+                semanticLabel: 'Markiert',
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+class _AnimatedStrikeText extends StatelessWidget {
+  const _AnimatedStrikeText({
+    required this.text,
+    required this.completed,
+    this.style,
+  });
+  final String text;
+  final bool completed;
+  final TextStyle? style;
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween(end: completed ? 1 : 0),
+    duration: MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 300),
+    curve: Curves.easeInOutCubic,
+    builder: (context, progress, _) => LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: text, style: style),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout(maxWidth: constraints.maxWidth);
+        return CustomPaint(
+          foregroundPainter: _StrikePainter(
+            painter,
+            progress,
+            style?.color ?? Theme.of(context).colorScheme.onSurface,
+          ),
+          child: Text(text, style: style),
+        );
+      },
+    ),
+  );
+}
+
+class _StrikePainter extends CustomPainter {
+  _StrikePainter(this.text, this.progress, this.color);
+  final TextPainter text;
+  final double progress;
+  final Color color;
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress == 0) return;
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.65)
+      ..strokeWidth = 1.3
+      ..strokeCap = StrokeCap.round;
+    for (final line in text.computeLineMetrics()) {
+      final y = line.baseline - line.ascent * 0.35;
+      canvas.drawLine(
+        Offset(line.left, y),
+        Offset(line.left + line.width * progress, y),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StrikePainter old) => true;
 }
