@@ -7,8 +7,11 @@ import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/database/powersync_schema.dart';
+import '../../../music_lessons/data/music_lessons_repository.dart';
+import '../../../music_lessons/domain/music_lesson_schedule.dart';
 import '../../data/guardian_link_repository.dart';
 import '../../domain/models/guardian_child_link.dart';
+import '../../domain/models/login_flow_role_ids.dart';
 import '../../domain/models/profile_gate_data.dart';
 import '../routes/login_flow_specs.dart';
 
@@ -96,6 +99,27 @@ class ProfileGateNotifier extends ChangeNotifier {
     });
   }
 
+  Future<void> saveMusicLessons({
+    MusicLesson? voice,
+    MusicLesson? instrument,
+  }) => _persistMusicLessons(
+    (repository) => repository.save(voice: voice, instrument: instrument),
+  );
+
+  Future<void> saveMusicLesson(MusicLessonKind kind, MusicLesson? lesson) =>
+      _persistMusicLessons((repository) => repository.saveLesson(kind, lesson));
+
+  Future<void> _persistMusicLessons(
+    Future<MusicLessonSchedule> Function(MusicLessonsRepository) save,
+  ) async {
+    final userId = _client.auth.currentUser?.id;
+    final schedule = await save(MusicLessonsRepository(_client));
+    await _inFlightRefresh;
+    if (userId != null && _client.auth.currentUser?.id == userId) {
+      _setData(_data.copyWith(musicLessons: schedule));
+    }
+  }
+
   void _attachSyncListener() {
     final db = _localDb;
     if (db == null) return;
@@ -115,7 +139,8 @@ class ProfileGateNotifier extends ChangeNotifier {
       final localRow = await _loadLocalProfileRow(user.id);
       if (localRow != null) {
         final linkSummary = await _loadGuardianLinkSummary(user.id);
-        _setData(_profileDataFromRow(user, localRow, linkSummary));
+        final data = await _profileDataFromRow(user, localRow, linkSummary);
+        if (_client.auth.currentUser?.id == user.id) _setData(data);
       }
     }
     await refresh();
@@ -145,7 +170,8 @@ class ProfileGateNotifier extends ChangeNotifier {
         ? await _loadGuardianLinkSummary(user.id)
         : await _loadGuardianLinkSummaryLocal(user.id);
 
-    _setData(_profileDataFromRow(user, row, linkSummary));
+    final data = await _profileDataFromRow(user, row, linkSummary);
+    if (_client.auth.currentUser?.id == user.id) _setData(data);
   }
 
   Future<Map<String, dynamic>?> _fetchRemoteProfileRow(String userId) async {
@@ -153,11 +179,17 @@ class ProfileGateNotifier extends ChangeNotifier {
         .from('profiles')
         .select(
           'first_name, last_name, class_name, schooltrack, arts_subject, language_subject, timetable_subject_choices, voice, role, choir, diet, '
-          'onboarding_completed_at, active_child_id',
+          'onboarding_completed_at, active_child_id, student_music_lessons(*)',
         )
         .eq('id', userId)
         .maybeSingle();
-    if (row != null) await SchoolSubjectChoicesCache.save(userId, row);
+    if (row != null) {
+      await SchoolSubjectChoicesCache.save(userId, row);
+      await MusicLessonsRepository.cache(
+        userId,
+        row[MusicLessonsRepository.table] as Map<String, dynamic>?,
+      );
+    }
     return row;
   }
 
@@ -205,12 +237,15 @@ class ProfileGateNotifier extends ChangeNotifier {
     }
   }
 
-  ProfileGateData _profileDataFromRow(
+  Future<ProfileGateData> _profileDataFromRow(
     User user,
     Map<String, dynamic>? row,
     GuardianLinkSummary linkSummary,
-  ) {
+  ) async {
     final role = _asString(row?['role']);
+    final musicLessons = role == LoginFlowRoleIds.student
+        ? await MusicLessonsRepository.loadCached(user.id)
+        : null;
 
     return ProfileGateData(
       hasSession: true,
@@ -225,6 +260,7 @@ class ProfileGateNotifier extends ChangeNotifier {
         row?['timetable_subject_choices'],
       ),
       role: role,
+      musicLessons: musicLessons,
       voice: _asString(row?['voice']),
       choir: _asString(row?['choir']),
       diet: _asString(row?['diet']),

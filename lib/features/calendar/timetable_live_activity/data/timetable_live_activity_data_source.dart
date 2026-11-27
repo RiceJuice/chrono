@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:chronoapp/core/database/powersync_schema.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_filters_state.dart';
-import 'package:chronoapp/features/calendar/domain/meal_period.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/domain/repositories/calendar_repository.dart';
 import 'package:chronoapp/features/calendar/domain/filter/calendar_display_filters.dart';
@@ -60,7 +59,7 @@ class TimetableLiveActivityDataSource {
 
   /// Segmentgrenzen für lokale Timer (Start/Ende jedes Segments).
   Future<List<({String dayDateKey, String segmentId, DateTime at})>>
-      upcomingSegmentBoundaries({
+  upcomingSegmentBoundaries({
     required DateTime rangeStart,
     required DateTime rangeEndExclusive,
     required CalendarFiltersState filters,
@@ -72,24 +71,22 @@ class TimetableLiveActivityDataSource {
     while (!day.isAfter(endDay)) {
       final entries = await entriesForDay(day);
       final dayKey = _dayKey(day);
-      final filtered = applyCalendarDisplayFilters(
-        entries: entries,
-        filters: filters,
-        hideUnknownWhenFilterActive:
-            filters.hasInitializedDefaults && filters.hasActiveFilters,
-        forEventList: true,
-      ).where((entry) {
-        if (entry.type != CalendarEntryType.lesson &&
-            entry.type != CalendarEntryType.meal) {
-          return false;
-        }
-        if (entry.type == CalendarEntryType.meal &&
-            resolveMealPeriod(entry.startTime) != MealPeriod.lunch) {
-          return false;
-        }
-        return lessonMatchesOwnSchoolProfile(entry: entry, filters: filters);
-      }).toList()
-        ..sort((a, b) => a.startTime.compareTo(b.startTime));
+      final filtered =
+          applyCalendarDisplayFilters(
+              entries: entries,
+              filters: filters,
+              hideUnknownWhenFilterActive:
+                  filters.hasInitializedDefaults && filters.hasActiveFilters,
+              forEventList: true,
+            ).where((entry) {
+              if (entry.type != CalendarEntryType.lesson) return false;
+              if (!entry.endTime.isAfter(entry.startTime)) return false;
+              return lessonMatchesOwnSchoolProfile(
+                entry: entry,
+                filters: filters,
+              );
+            }).toList()
+            ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
       for (final entry in filtered) {
         final start = AppDateTime.toLocal(entry.startTime);

@@ -1,6 +1,7 @@
 import 'package:chronoapp/core/haptics/app_haptics.dart';
 import 'package:chronoapp/core/theme/theme_tokens.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
+import 'package:chronoapp/core/widgets/app_apply_button.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_subject.dart';
@@ -291,12 +292,19 @@ class _SchoolAssessmentDatePickerSheetState
               AppSpacing.xl,
               AppSpacing.m + bottomInset,
             ),
-            child: FilledButton(
-              onPressed: () {
-                AppHaptics.light();
-                Navigator.of(context).pop(_selectedDay);
-              },
-              child: const Text('Übernehmen'),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                AppApplyButton.cancel(
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                AppApplyButton(
+                  onPressed: () {
+                    AppHaptics.light();
+                    Navigator.of(context).pop(_selectedDay);
+                  },
+                ),
+              ],
             ),
           ),
         ],

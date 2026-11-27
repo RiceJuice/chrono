@@ -61,17 +61,6 @@ export function lessonMatchesProfile(
   return true;
 }
 
-function isLunchMeal(startTime: string): boolean {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: SCHEDULE_TIMEZONE,
-      hour: "numeric",
-      hour12: false,
-    }).format(new Date(startTime)),
-  );
-  return hour < 15;
-}
-
 function shortTitle(type: string, title: string): string {
   if (type === "meal") return "Essen";
   const trimmed = title.trim();
@@ -151,8 +140,8 @@ export function filterTimetableRows(
 ): CalendarRow[] {
   return rows
     .filter((row) => {
-      if (row.type !== "lesson" && row.type !== "meal") return false;
-      if (row.type === "meal" && !isLunchMeal(row.start_time)) return false;
+      if (row.type !== "lesson") return false;
+      if (!row.end_time || new Date(row.end_time) <= new Date(row.start_time)) return false;
       return lessonMatchesProfile(row, profile);
     })
     .sort((a, b) =>

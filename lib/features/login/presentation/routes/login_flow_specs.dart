@@ -52,6 +52,12 @@ final List<LoginFlowStepSpec> loginFlowSpecs = <LoginFlowStepSpec>[
             _isNonEmpty(data.diet)),
   ),
   LoginFlowStepSpec(
+    path: LoginPaths.musicLessons,
+    appliesTo: _isStudentProfile,
+    isSatisfiedBy: (data) =>
+        data.isOnboardingComplete || data.musicLessons != null,
+  ),
+  LoginFlowStepSpec(
     path: LoginPaths.choir,
     appliesTo: _isStudentProfile,
     isSatisfiedBy: (data) =>

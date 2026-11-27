@@ -5,6 +5,7 @@ import '../pages/credentials/credentials_page.dart';
 import '../pages/credentials/widgets/account_auth_mode.dart';
 import '../pages/email_confirmation/email_confirmation_page.dart';
 import '../pages/login_success/login_success_page.dart';
+import '../pages/music_lessons/music_lessons_page.dart';
 import '../pages/notifications/login_notifications_page.dart';
 import '../pages/select_child/select_child_page.dart';
 import '../pages/select_choir/select_choir.dart';
@@ -152,6 +153,11 @@ final List<RouteBase> loginRoutes = [
         path: LoginPaths.personalData,
         pageBuilder: (context, state) =>
             loginSlidePage(state: state, child: const PersonalDataPage()),
+      ),
+      GoRoute(
+        path: LoginPaths.musicLessons,
+        pageBuilder: (context, state) =>
+            loginSlidePage(state: state, child: const MusicLessonsPage()),
       ),
       GoRoute(
         path: LoginPaths.choir,

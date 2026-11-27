@@ -237,6 +237,7 @@ private struct TimetableLiveData {
   let imageUrl: String?
   let mealImagePath: String?
   let remainingLessons: Int
+  let isPreStart: Bool
 
   init(context: ActivityViewContext<LiveActivitiesAppAttributes>) {
     let source = LiveActivityDataSource(context: context)
@@ -258,6 +259,7 @@ private struct TimetableLiveData {
       resolvedAccentHex = "#124E30"
     }
     var resolvedIsMeal = source.bool("isMeal", stateValue: source.state.isMeal) ?? false
+    var resolvedIsPreStart = source.bool("isPreStart", stateValue: source.state.isPreStart) ?? false
     var resolvedRemainingLessons = source.int(
       "remainingLessons", stateValue: source.state.remainingLessons)
 
@@ -273,6 +275,7 @@ private struct TimetableLiveData {
       if let resolved = resolveTimetableSegment(
         segments: segments, activityStartMs: activityStartMs, nowMs: nowMs)
       {
+        resolvedIsPreStart = resolved.isPreStart
         startMs = resolved.segmentStartMs
         endMs = resolved.segmentEndMs
         let current = segments[resolved.index]
@@ -303,6 +306,7 @@ private struct TimetableLiveData {
     accentColor = parseHexColor(resolvedAccentHex)
     isMeal = resolvedIsMeal
     remainingLessons = resolvedRemainingLessons
+    isPreStart = resolvedIsPreStart
     segmentStart = Date(timeIntervalSince1970: startMs / 1000)
     segmentEnd = Date(timeIntervalSince1970: endMs / 1000)
     imageUrl = source.string("imageUrl", stateValue: source.state.imageUrl)
@@ -585,71 +589,85 @@ private struct LiveActivityProgressSection: View {
 private struct TimetableLiveActivityView: View {
   let data: TimetableLiveData
   let layout: ScheduleLiveActivityLayout
-  var showsRemainingLessons: Bool = true
 
   var body: some View {
-    VStack(alignment: .leading, spacing: layout.sectionSpacing) {
-      HStack(alignment: .top, spacing: layout.columnSpacing) {
-        ScheduleColumn(
-          title: data.currentTitle,
-          subtitle: data.currentSubtitle,
-          alignment: .leading,
-          titleSize: layout.titleSize,
-          subtitleSize: layout.subtitleSize
-        )
-        if data.isMeal {
-          Spacer(minLength: 8)
-          TimetableMealImageView(
-            appGroupPath: data.mealImagePath,
-            remoteUrl: data.imageUrl,
-            width: layout.titleSize + 18,
-            height: layout.titleSize + 18
-          )
-        } else if data.hasNext {
-          Image(systemName: "arrow.right")
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
-            .frame(width: 16)
-            .padding(.top, 2)
-          ScheduleColumn(
-            title: data.nextTitle,
-            subtitle: data.nextSubtitle,
-            alignment: .trailing,
-            titleSize: layout.titleSize,
-            subtitleSize: layout.subtitleSize
-          )
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(alignment: .top, spacing: 12) {
+        Image(systemName: data.isPreStart ? "clock" : "book.closed.fill")
+          .font(.title3)
+          .foregroundStyle(data.accentColor)
+          .frame(width: 36, height: 36)
+          .background(data.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        VStack(alignment: .leading, spacing: 3) {
+          Text(data.isPreStart ? "UNTERRICHT BEGINNT BALD" : "JETZT IM UNTERRICHT")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+          Text(data.currentTitle)
+            .font(.headline)
+            .lineLimit(1)
+          if !data.currentSubtitle.isEmpty {
+            Text(data.currentSubtitle)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
+        }
+        Spacer(minLength: 0)
+        VStack(alignment: .trailing, spacing: 3) {
+          Text(data.isPreStart ? "Beginnt in" : "Noch")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+          if data.segmentEnd > data.segmentStart {
+            Text(timerInterval: data.segmentStart...data.segmentEnd, countsDown: true, showsHours: false)
+              .font(.subheadline.weight(.semibold).monospacedDigit())
+              .multilineTextAlignment(.trailing)
+              .frame(width: 60)
+          }
         }
       }
-
-      if data.isMeal {
-        TimetableMealImageView(
-          appGroupPath: data.mealImagePath,
-          remoteUrl: data.imageUrl,
-          height: 92,
-          cornerRadius: 14,
-          fillsAvailableWidth: true
-        )
+      LessonProgressView(data: data)
+      HStack(spacing: 6) {
+        Image(systemName: data.hasNext ? "arrow.turn.down.right" : "checkmark.circle")
+        Text(data.hasNext ? "Danach" : "Danach Unterrichtsende")
+        if data.hasNext {
+          Text(data.nextTitle).fontWeight(.medium).foregroundStyle(.primary)
+          Spacer(minLength: 0)
+          if !data.nextSubtitle.isEmpty { Text(data.nextSubtitle) }
+        }
       }
-
-      if showsRemainingLessons && data.remainingLessons > 0 {
-        Text(remainingLessonsLabel(data.remainingLessons))
-          .font(.system(size: layout.timeFontSize, weight: .medium))
-          .foregroundColor(Color(red: 0.67, green: 0.67, blue: 0.67))
-      }
-
-      LiveActivityProgressSection(
-        segmentStart: data.segmentStart,
-        segmentEnd: data.segmentEnd,
-        fillColor: data.accentColor.opacity(0.92),
-        timeFontSize: layout.timeFontSize,
-        barOuterHeight: layout.barOuterHeight,
-        rowSpacing: 6
-      )
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .lineLimit(1)
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.horizontal, layout.horizontalPadding)
-    .padding(.top, layout.topPadding)
-    .padding(.bottom, layout.bottomPadding)
+    .padding(.horizontal, 16)
+    .padding(.vertical, 14)
+  }
+}
+
+@available(iOSApplicationExtension 16.1, *)
+private struct LessonProgressView: View {
+  let data: TimetableLiveData
+
+  var body: some View {
+    VStack(spacing: 5) {
+      if data.segmentEnd > data.segmentStart {
+        ProgressView(timerInterval: data.segmentStart...data.segmentEnd, countsDown: false) {
+          EmptyView()
+        } currentValueLabel: {
+          EmptyView()
+        }
+        .labelsHidden()
+        .tint(data.accentColor)
+        .accessibilityLabel(data.isPreStart ? "Zeit bis Unterrichtsbeginn" : "Fortschritt der Unterrichtsstunde")
+      }
+      HStack {
+        Text(data.isPreStart ? "Pause" : formatTime(data.segmentStart))
+        Spacer()
+        Text(formatTime(data.segmentEnd))
+      }
+      .font(.caption2.monospacedDigit())
+      .foregroundStyle(.secondary)
+    }
   }
 }
 
@@ -692,7 +710,7 @@ private struct TimetableDynamicIslandCenterView: View {
 
   var body: some View {
     VStack(spacing: 3) {
-      Text(data.currentTitle)
+      Text(data.isPreStart ? "Bald: \(data.currentTitle)" : data.currentTitle)
         .font(.system(size: 16, weight: .bold))
         .foregroundColor(.white)
         .lineLimit(1)
@@ -710,37 +728,23 @@ private struct TimetableDynamicIslandCenterView: View {
   }
 }
 
-/// Ausblick auf das nächste Fach bzw. verbleibende Stunden, rechts neben
-/// der Sensor-Aussparung.
+/// Restzeit bleibt rechts; der nächste Unterricht steht unter dem Fortschritt.
 @available(iOSApplicationExtension 16.1, *)
 private struct TimetableDynamicIslandTrailingView: View {
   let data: TimetableLiveData
 
   var body: some View {
     VStack(alignment: .trailing, spacing: 3) {
-      if data.hasNext {
-        Text("Nächstes")
-          .font(.system(size: 10, weight: .medium))
-          .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
-        Text(compactTitle(data.nextTitle))
-          .font(.system(size: 15, weight: .bold))
-          .foregroundColor(.white)
-          .lineLimit(1)
-          .minimumScaleFactor(0.7)
-      } else if data.remainingLessons > 0 {
-        Text("Noch")
-          .font(.system(size: 10, weight: .medium))
-          .foregroundColor(Color(red: 0.54, green: 0.54, blue: 0.54))
-        Text("\(data.remainingLessons)")
-          .font(.system(size: 15, weight: .bold))
-          .foregroundColor(.white)
-      } else {
-        Image(systemName: "flag.checkered")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundColor(.white)
+      Text(data.isPreStart ? "Beginnt in" : "Noch")
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+      if data.segmentEnd > data.segmentStart {
+        Text(timerInterval: data.segmentStart...data.segmentEnd, countsDown: true, showsHours: false)
+          .font(.subheadline.weight(.semibold).monospacedDigit())
+          .multilineTextAlignment(.trailing)
+          .frame(width: 54)
       }
     }
-    .frame(minWidth: 40)
   }
 }
 
@@ -750,31 +754,26 @@ private struct TimetableDynamicIslandBottomView: View {
   let layout: ScheduleLiveActivityLayout
 
   var body: some View {
-    LiveActivityProgressSection(
-      segmentStart: data.segmentStart,
-      segmentEnd: data.segmentEnd,
-      fillColor: data.accentColor.opacity(0.92),
-      timeFontSize: layout.timeFontSize,
-      barOuterHeight: layout.barOuterHeight,
-      rowSpacing: 6
-    )
-    .padding(.bottom, layout.bottomPadding)
+    VStack(alignment: .leading, spacing: 8) {
+      LessonProgressView(data: data)
+      if data.hasNext {
+        Text("Danach: \(data.nextTitle)" + (data.nextSubtitle.isEmpty ? "" : " · \(data.nextSubtitle)"))
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      } else {
+        Text("Danach Unterrichtsende").font(.caption).foregroundStyle(.secondary)
+      }
+    }
+    .padding(.bottom, 8)
   }
 }
 
 @available(iOSApplicationExtension 16.1, *)
 private struct TimetableLiveActivityLockScreenView: View {
   let data: TimetableLiveData
-  @Environment(\.showsWidgetContainerBackground) private var showsWidgetContainerBackground
-
   var body: some View {
     TimetableLiveActivityView(data: data, layout: .timetableLockScreen)
-      .background {
-        if showsWidgetContainerBackground {
-          ScheduleLiveActivityLockScreenGlassBackground()
-            .ignoresSafeArea()
-        }
-      }
   }
 }
 
@@ -992,8 +991,8 @@ struct ChronoScheduleLiveActivity: Widget {
         let data = TimetableLiveData(context: context)
         TimetableLiveActivityLockScreenView(data: data)
           .widgetURL(timetableDeepLink(for: data.dayDate))
-          .activityBackgroundTint(.clear)
-          .activitySystemActionForegroundColor(.white)
+          .activityBackgroundTint(nil)
+          .activitySystemActionForegroundColor(.primary)
       } else {
         let data = ScheduleLiveData(context: context)
         ScheduleLiveActivityLockScreenView(data: data)
@@ -1036,7 +1035,7 @@ struct ChronoScheduleLiveActivity: Widget {
               .foregroundColor(.white)
               .lineLimit(1)
               .minimumScaleFactor(0.85)
-              .frame(maxWidth: .infinity, alignment: .trailing)
+              .frame(width: 52, alignment: .trailing)
           }
         } minimal: {
           Image(systemName: "book")

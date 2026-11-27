@@ -109,7 +109,7 @@ class _PersonalDataPageState extends ConsumerState<PersonalDataPage> {
       subtitleOverride: _isGuardian
           ? 'Wie heißt du? Dein Kind sieht diesen Namen bei der Verknüpfung.'
           : null,
-      nextPath: _isGuardian ? LoginPaths.selectChild : LoginPaths.choir,
+      nextPath: _isGuardian ? LoginPaths.selectChild : LoginPaths.musicLessons,
       submitBusy: _busy,
       contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,

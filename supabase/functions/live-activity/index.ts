@@ -707,6 +707,10 @@ Deno.serve(async (req) => {
 
     const kind = body.kind ?? "event";
     const referenceId = body.reference_id;
+    // Initial rollout: only school lessons create or update Live Activities.
+    if (kind !== "timetable") {
+      return jsonResponse({ skipped: true, reason: "lessons_only" });
+    }
 
     if (body.mode === "dispatch") {
       if (!referenceId) {

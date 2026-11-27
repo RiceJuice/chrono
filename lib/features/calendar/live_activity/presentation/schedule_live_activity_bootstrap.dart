@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../../../login/presentation/providers/profile_gate_notifier.dart';
 import '../data/schedule_live_activity_repository.dart';
 import '../data/schedule_live_activity_service_provider.dart';
-import 'schedule_live_activity_coordinator.dart';
 import 'schedule_live_activity_deep_link_handler.dart';
 import '../../timetable_live_activity/presentation/timetable_live_activity_coordinator.dart';
 
@@ -18,9 +17,9 @@ class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
     required ProfileGateNotifier profileGate,
     required WidgetRef ref,
     required GoRouter router,
-  })  : _profileGate = profileGate,
-        _ref = ref,
-        _router = router {
+  }) : _profileGate = profileGate,
+       _ref = ref,
+       _router = router {
     WidgetsBinding.instance.addObserver(this);
     _profileGate.addListener(_onProfileGateChanged);
     _onProfileGateChanged();
@@ -30,7 +29,6 @@ class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
   final WidgetRef _ref;
   final GoRouter _router;
   ScheduleLiveActivityDeepLinkHandler? _deepLinkHandler;
-  ScheduleLiveActivityCoordinator? _coordinator;
   TimetableLiveActivityCoordinator? _timetableCoordinator;
   static ScheduleLiveActivityBootstrap? _instance;
 
@@ -54,7 +52,6 @@ class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
     final instance = _instance;
     _instance = null;
     unawaited(instance?._deepLinkHandler?.dispose());
-    unawaited(instance?._coordinator?.dispose());
     unawaited(instance?._timetableCoordinator?.dispose());
     instance?.dispose();
   }
@@ -91,27 +88,16 @@ class ScheduleLiveActivityBootstrap with WidgetsBindingObserver {
         );
       };
       service.onPushToStartToken = (token) {
-        unawaited(
-          ScheduleLiveActivityRepository().syncPushToStartToken(token),
-        );
+        unawaited(ScheduleLiveActivityRepository().syncPushToStartToken(token));
       };
 
-      final coordinator = _ref.read(scheduleLiveActivityCoordinatorProvider);
-      _coordinator = coordinator;
-      ScheduleLiveActivityCoordinator.instance = coordinator;
+      service.onUrlScheme = _deepLinkHandler?.handleUrlSchemeData;
 
-      final timetableCoordinator =
-          _ref.read(timetableLiveActivityCoordinatorProvider);
+      final timetableCoordinator = _ref.read(
+        timetableLiveActivityCoordinatorProvider,
+      );
       _timetableCoordinator = timetableCoordinator;
       TimetableLiveActivityCoordinator.instance = timetableCoordinator;
-
-      if (!coordinator.isRunning) {
-        await coordinator.start(
-          onUrlScheme: _deepLinkHandler?.handleUrlSchemeData,
-        );
-      } else {
-        await coordinator.refreshNow();
-      }
 
       if (!timetableCoordinator.isRunning) {
         await timetableCoordinator.start();

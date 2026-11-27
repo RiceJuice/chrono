@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:chronoapp/core/database/database_provider.dart';
 import 'package:chronoapp/core/time/app_date_time.dart';
-import 'package:chronoapp/features/calendar/data/calendar_image_url_resolver.dart';
 import 'package:chronoapp/features/calendar/domain/models/calendar_entry.dart';
 import 'package:chronoapp/features/calendar/live_activity/data/schedule_segment_timer_scheduler.dart';
-import 'package:chronoapp/features/calendar/data/calendar_signed_url_cache.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_accent_overrides_provider.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/calendar_providers.dart';
 import 'package:chronoapp/features/calendar/presentation/providers/subjects_providers.dart';
@@ -18,7 +16,6 @@ import 'package:chronoapp/features/calendar/timetable_live_activity/domain/timet
 import 'package:chronoapp/features/calendar/timetable_live_activity/timetable_live_activity_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Steuert Start/Ende der Stundenplan-Live-Activity (voller Tagesplan im Payload).
 class TimetableLiveActivityCoordinator {
@@ -27,20 +24,17 @@ class TimetableLiveActivityCoordinator {
     required TimetableLiveActivityService service,
     required TimetableLiveActivityLocalScheduler localScheduler,
     required ScheduleSegmentTimerScheduler segmentTimerScheduler,
-    required CalendarImageUrlResolver imageUrlResolver,
     required Ref ref,
-  })  : _dataSource = dataSource,
-        _service = service,
-        _localScheduler = localScheduler,
-        _segmentTimerScheduler = segmentTimerScheduler,
-        _imageUrlResolver = imageUrlResolver,
-        _ref = ref;
+  }) : _dataSource = dataSource,
+       _service = service,
+       _localScheduler = localScheduler,
+       _segmentTimerScheduler = segmentTimerScheduler,
+       _ref = ref;
 
   final TimetableLiveActivityDataSource _dataSource;
   final TimetableLiveActivityService _service;
   final TimetableLiveActivityLocalScheduler _localScheduler;
   final ScheduleSegmentTimerScheduler _segmentTimerScheduler;
-  final CalendarImageUrlResolver _imageUrlResolver;
   final Ref _ref;
 
   final Set<String> _activeCustomIds = {};
@@ -60,9 +54,7 @@ class TimetableLiveActivityCoordinator {
     final enabled = await _service.init();
     if (!enabled) return;
 
-    await _localScheduler.init(
-      onPayload: handleLocalNotificationPayload,
-    );
+    await _localScheduler.init(onPayload: handleLocalNotificationPayload);
     _running = true;
 
     _dbSub = watchTimetableCalendarChanges(_ref.read(dbProvider)).listen((_) {
@@ -169,12 +161,7 @@ class TimetableLiveActivityCoordinator {
         ),
       ],
       dayEnds: ends
-          .map(
-            (e) => (
-              eventId: e.dayDateKey,
-              at: AppDateTime.toLocal(e.end),
-            ),
-          )
+          .map((e) => (eventId: e.dayDateKey, at: AppDateTime.toLocal(e.end)))
           .toList(),
       onSegmentStart: (dayDateKey) {
         unawaited(_activateForDay(dayDateKey));
@@ -276,15 +263,11 @@ class TimetableLiveActivityCoordinator {
     final entries = await _dataSource.entriesForDay(day);
     final filters = _ref.read(calendarFiltersProvider);
 
-    await CalendarSignedUrlCache.shared.ensureLoaded();
-    await _ensureMealImageUrlsResolved(entries);
-
     return TimetableLiveActivityResolver.resolve(
       day: day,
       entries: entries,
       filters: filters,
       resolveAccent: (entry) => _resolveAccent(entry),
-      imageUrlForEntry: _peekMealImageUrl,
       now: now,
     );
   }
@@ -293,7 +276,7 @@ class TimetableLiveActivityCoordinator {
     if (entry.type == CalendarEntryType.lesson && entry.subjectId != null) {
       final subjectOverrides =
           _ref.read(subjectAccentOverridesProvider).value ??
-              const <String, Color>{};
+          const <String, Color>{};
       final subjectOverride = subjectOverrides[entry.subjectId!];
       if (subjectOverride != null) return subjectOverride;
       return entry.accentColor;
@@ -301,24 +284,6 @@ class TimetableLiveActivityCoordinator {
 
     final overrides = _ref.read(calendarAccentOverridesProvider);
     return overrides[entry.type] ?? entry.accentColor;
-  }
-
-  String? _peekMealImageUrl(CalendarEntry entry) {
-    final urls = entry.imageUrls;
-    if (urls != null && urls.isNotEmpty) return urls.first;
-
-    final resolved = _imageUrlResolver.peekResolvedUrls(entry.imagePaths);
-    return resolved?.firstOrNull;
-  }
-
-  Future<void> _ensureMealImageUrlsResolved(List<CalendarEntry> entries) async {
-    for (final entry in entries) {
-      if (entry.type != CalendarEntryType.meal) continue;
-      if (entry.imageUrls != null && entry.imageUrls!.isNotEmpty) continue;
-      final paths = entry.imagePaths;
-      if (paths == null || paths.isEmpty) continue;
-      await _imageUrlResolver.resolveSignedUrls(paths);
-    }
   }
 
   DateTime? _parseDayDateKey(String dayDateKey) {
@@ -334,19 +299,16 @@ class TimetableLiveActivityCoordinator {
 
 final timetableLiveActivityCoordinatorProvider =
     Provider<TimetableLiveActivityCoordinator>((ref) {
-  ref.keepAlive();
-  return TimetableLiveActivityCoordinator(
-    dataSource: TimetableLiveActivityDataSource(
-      ref.watch(calendarRepositoryProvider),
-    ),
-    service: TimetableLiveActivityService(
-      sharedService: ref.watch(scheduleLiveActivityServiceProvider),
-    ),
-    localScheduler: TimetableLiveActivityLocalScheduler(),
-    segmentTimerScheduler: ScheduleSegmentTimerScheduler(),
-    imageUrlResolver: CalendarImageUrlResolver(
-      supabase: Supabase.instance.client,
-    ),
-    ref: ref,
-  );
-});
+      ref.keepAlive();
+      return TimetableLiveActivityCoordinator(
+        dataSource: TimetableLiveActivityDataSource(
+          ref.watch(calendarRepositoryProvider),
+        ),
+        service: TimetableLiveActivityService(
+          sharedService: ref.watch(scheduleLiveActivityServiceProvider),
+        ),
+        localScheduler: TimetableLiveActivityLocalScheduler(),
+        segmentTimerScheduler: ScheduleSegmentTimerScheduler(),
+        ref: ref,
+      );
+    });

@@ -4,8 +4,7 @@ import '../../domain/models/login_flow_step.dart';
 enum _LoginFlowRoleKind {
   student,
   guardian,
-  other,
-  ;
+  other;
 
   static _LoginFlowRoleKind fromStoredLabel(String label) {
     switch (label.trim()) {
@@ -41,8 +40,8 @@ final class LoginFlowRoleUi {
           LoginFlowStep.guardianPending => 'Bestätigung ausstehend',
           LoginFlowStep.credentials ||
           LoginFlowStep.role ||
-          LoginFlowStep.choir =>
-            step.title,
+          LoginFlowStep.musicLessons ||
+          LoginFlowStep.choir => step.title,
         };
       case _LoginFlowRoleKind.student:
       case _LoginFlowRoleKind.other:

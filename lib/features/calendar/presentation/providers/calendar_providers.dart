@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as fr;
 import '../../../../core/haptics/app_haptics.dart';
 import '../../../../core/database/database_provider.dart';
 import '../../../../core/time/app_date_time.dart';
+import '../../../login/presentation/providers/profile_gate_provider.dart';
 import '../../domain/models/calendar_entry.dart';
 import '../../domain/repositories/calendar_repository.dart';
 
@@ -122,7 +123,10 @@ final weekScheduleScrollDayProvider =
 
 @riverpod
 CalendarRepository calendarRepository(Ref ref) {
-  return CalendarRepository(ref.watch(dbProvider));
+  final musicLessons = ref.watch(
+    profileGateDataProvider.select((profile) => profile.musicLessons),
+  );
+  return CalendarRepository(ref.watch(dbProvider), musicLessons: musicLessons);
 }
 
 @riverpod

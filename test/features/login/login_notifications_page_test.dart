@@ -1,7 +1,8 @@
 import 'dart:async';
 
+import 'package:chronoapp/features/login/presentation/pages/login_success/login_success_page.dart';
 import 'package:chronoapp/features/login/presentation/pages/notifications/login_notifications_page.dart';
-import 'package:chronoapp/features/login/presentation/routes/login_paths.dart';
+import 'package:chronoapp/features/login/presentation/routes/login_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,6 +48,37 @@ void main() {
     await tester.pumpAndSettle();
     return router;
   }
+
+  testWidgets('onboarding confirmation leads to the calendar', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final router = GoRouter(
+      initialLocation: LoginPaths.notificationsPermission,
+      routes: [
+        ...loginRoutes,
+        GoRoute(
+          path: '/calendar',
+          builder: (_, _) => const Scaffold(body: Text('Kalender')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Vielleicht später'));
+    await tester.tap(find.text('Vielleicht später'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Alles bereit!'), findsOneWidget);
+
+    await tester.pump(LoginSuccessPage.displayDuration);
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, '/calendar');
+    expect(find.text('Kalender'), findsOneWidget);
+  });
 
   testWidgets(
     'permission is requested only by button; repeated taps are blocked',

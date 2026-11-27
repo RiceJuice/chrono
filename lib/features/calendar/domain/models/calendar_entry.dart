@@ -58,6 +58,15 @@ class CalendarEntry {
   String get displayDescription => calendarEntryDisplayText(description);
   String get displayNote => calendarEntryDisplayText(note);
 
+  /// Individueller Musikunterricht hat eine eigene Farbe pro Unterrichtsart.
+  String? get accentPreferenceKey {
+    if (seriesId == 'music-lesson:voice' ||
+        seriesId == 'music-lesson:instrument') {
+      return seriesId;
+    }
+    return subjectId;
+  }
+
   CalendarEntry copyWith({
     List<String>? imageUrls,
     String? note,

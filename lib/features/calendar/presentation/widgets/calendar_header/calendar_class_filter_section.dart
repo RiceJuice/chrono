@@ -1,3 +1,4 @@
+import 'package:chronoapp/core/widgets/app_apply_button.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/haptics/app_haptics.dart';
@@ -187,14 +188,21 @@ class _ClassPickerState extends State<_ClassPicker> {
                         ),
                 ),
                 const SizedBox(height: 12),
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(
-                      context,
-                    ).pop(_options.where(_selected.contains).toList()),
-                    child: const Text('Auswahl übernehmen'),
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    AppApplyButton.cancel(
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    Flexible(
+                      child: AppApplyButton(
+                        label: 'Auswahl übernehmen',
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pop(_options.where(_selected.contains).toList()),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

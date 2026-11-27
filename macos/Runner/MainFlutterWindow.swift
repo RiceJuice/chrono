@@ -3,6 +3,7 @@ import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
   private var homeworkCreateChannel: AnyObject?
+  private var musicLessonEditorChannel: AnyObject?
   private weak var homeworkUndoToast: HomeworkUndoToast?
 
   override func awakeFromNib() {
@@ -21,6 +22,9 @@ class MainFlutterWindow: NSWindow {
         result(call.method == "isAvailable" ? true : FlutterMethodNotImplemented)
       }
 
+    if #available(macOS 13.0, *) {
+      musicLessonEditorChannel = MusicLessonEditorChannel(messenger: messenger) { [weak self] in self }
+    }
     if #available(macOS 11.0, *) {
       homeworkCreateChannel = HomeworkCreateChannel(messenger: messenger) { [weak self] in self }
     }
