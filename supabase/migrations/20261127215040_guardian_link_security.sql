@@ -25,6 +25,14 @@ ALTER TABLE public.guardian_child_links ADD COLUMN revision bigint NOT NULL DEFA
   ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now(),
   ADD COLUMN requested_at timestamptz NOT NULL DEFAULT now();
 REVOKE INSERT, UPDATE, DELETE ON public.guardian_child_links FROM anon, authenticated;
+-- Explicit column grants survive REVOKE on the table itself.
+DO $$ DECLARE c record; BEGIN
+ FOR c IN SELECT table_name,column_name FROM information_schema.columns
+ WHERE table_schema='public' AND table_name IN ('profiles','guardian_child_links') LOOP
+ EXECUTE format('REVOKE INSERT (%I), UPDATE (%I) ON public.%I FROM anon,authenticated',c.column_name,c.column_name,c.table_name);
+ END LOOP;
+END $$;
+
 DROP POLICY IF EXISTS profiles_select_students_for_guardians ON public.profiles;
 DROP POLICY IF EXISTS profiles_select_linked_children ON public.profiles;
 DROP POLICY IF EXISTS profiles_update_linked_children_for_guardian ON public.profiles;
@@ -34,7 +42,7 @@ $$;
 GRANT USAGE ON SCHEMA guardian_private TO authenticated;
 GRANT EXECUTE ON FUNCTION guardian_private.is_admin() TO authenticated;
 REVOKE EXECUTE ON FUNCTION guardian_private.is_admin() FROM PUBLIC;
-CREATE POLICY profiles_select_admin ON public.profiles FOR SELECT TO authenticated USING (guardian_private.is_admin());
+CREATE POLICY profiles_select_admin ON public.profiles FOR SELECT TO authenticated USING (guardian_private.is_admin() AND role::text IN ('Schüler','Admin') AND onboarding_completed_at IS NOT NULL);
 -- Close every legacy overload, including the unfiltered directory endpoint.
 DO $$ DECLARE f record; BEGIN
  FOR f IN SELECT oid::regprocedure AS signature FROM pg_proc WHERE pronamespace='public'::regnamespace
@@ -82,6 +90,7 @@ CREATE TRIGGER a_guardian_protect_profile BEFORE INSERT OR UPDATE ON public.prof
 FOR EACH ROW EXECUTE FUNCTION guardian_private.protect_profile();
 -- Keep existing self-edit fields, remove table-wide grants and managed columns.
 REVOKE UPDATE, INSERT ON public.profiles FROM authenticated,anon;
+GRANT INSERT(id,first_name,last_name) ON public.profiles TO authenticated;
 GRANT UPDATE(first_name,last_name,class_name,schooltrack,arts_subject,language_subject,
  timetable_subject_choices,voice,choir,diet,role,calendar_preferences,active_child_id,
  guardian_search_classes,fcm_token,fcm_token_updated_at,updated_at) ON public.profiles TO authenticated;
@@ -98,7 +107,7 @@ FOR EACH ROW EXECUTE FUNCTION guardian_private.version_link();
 
 CREATE TABLE guardian_private.notification_outbox (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), link_id uuid NOT NULL REFERENCES public.guardian_child_links(id) ON DELETE CASCADE,
- revision bigint NOT NULL, action text NOT NULL, attempts integer NOT NULL DEFAULT 0,
+ revision bigint NOT NULL, request_generation timestamptz NOT NULL, action text NOT NULL, attempts integer NOT NULL DEFAULT 0,
  available_at timestamptz NOT NULL DEFAULT now(), claimed_at timestamptz,
  completed_at timestamptz, accepted integer NOT NULL DEFAULT 0, failed integer NOT NULL DEFAULT 0,
  UNIQUE(link_id,revision,action)
@@ -107,8 +116,8 @@ ALTER TABLE guardian_private.notification_outbox ENABLE ROW LEVEL SECURITY;
 CREATE FUNCTION guardian_private.enqueue_link() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
  IF TG_OP='INSERT' OR NEW.status IS DISTINCT FROM OLD.status THEN
- INSERT INTO guardian_private.notification_outbox(link_id,revision,action)
- VALUES(NEW.id,NEW.revision,CASE NEW.status WHEN 'pending' THEN 'request' ELSE NEW.status END)
+ INSERT INTO guardian_private.notification_outbox(link_id,revision,request_generation,action)
+ VALUES(NEW.id,NEW.revision,NEW.requested_at,CASE NEW.status WHEN 'pending' THEN 'request' ELSE NEW.status END)
  ON CONFLICT DO NOTHING;
  END IF;
  RETURN NEW;
@@ -116,14 +125,15 @@ END $$;
 CREATE TRIGGER guardian_enqueue_link AFTER INSERT OR UPDATE ON public.guardian_child_links
 FOR EACH ROW EXECUTE FUNCTION guardian_private.enqueue_link();
 
-CREATE OR REPLACE FUNCTION public.request_guardian_links(p_child_ids uuid[])
-RETURNS TABLE(id uuid,guardian_id uuid,child_id uuid,status text,created_at timestamptz,was_inserted boolean)
+DROP FUNCTION IF EXISTS public.request_guardian_links(uuid[]);
+CREATE FUNCTION public.request_guardian_links(p_child_ids uuid[])
+RETURNS SETOF jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE c uuid; l public.guardian_child_links; changed boolean;
 BEGIN
- IF NOT EXISTS(SELECT 1 FROM public.profiles WHERE profiles.id=auth.uid() AND role::text='Elternteil') THEN
+ IF NOT EXISTS(SELECT 1 FROM public.profiles WHERE profiles.id=auth.uid() AND role::text='Elternteil' AND nullif(btrim(first_name),'') IS NOT NULL AND nullif(btrim(last_name),'') IS NOT NULL) THEN
  RAISE EXCEPTION 'Forbidden' USING ERRCODE='42501'; END IF;
- IF cardinality(p_child_ids) NOT BETWEEN 1 AND 5 THEN RAISE EXCEPTION 'Bitte 1 bis 5 Kinder auswählen.'; END IF;
+ IF p_child_ids IS NULL OR cardinality(p_child_ids) NOT BETWEEN 1 AND 5 THEN RAISE EXCEPTION 'Bitte 1 bis 5 Kinder auswählen.'; END IF;
  PERFORM guardian_private.limit_action('request',10,interval '1 day');
  -- Serializes same-parent requests, including first inserts and repeat requests.
  PERFORM pg_advisory_xact_lock(hashtextextended(auth.uid()::text,17));
@@ -135,11 +145,11 @@ BEGIN
   IF NOT FOUND THEN
    INSERT INTO public.guardian_child_links(guardian_id,child_id) VALUES(auth.uid(),c) RETURNING * INTO l; changed:=true;
   ELSIF l.status IN ('rejected','revoked') THEN
-   IF l.updated_at>now()-interval '7 days' THEN RAISE EXCEPTION 'Eine neue Anfrage ist nach sieben Tagen möglich.'; END IF;
+   IF coalesce(l.responded_at,l.updated_at)>now()-interval '7 days' THEN RAISE EXCEPTION 'Eine neue Anfrage ist nach sieben Tagen möglich.'; END IF;
    UPDATE public.guardian_child_links g SET status='pending',child_share_permissions='{}',responded_at=NULL,
     reminder_sent_at=NULL,requested_at=now() WHERE g.id=l.id RETURNING * INTO l; changed:=true;
   END IF;
-  RETURN QUERY SELECT l.id,l.guardian_id,l.child_id,l.status,l.created_at,changed;
+  RETURN NEXT to_jsonb(l)||jsonb_build_object('was_inserted',changed);
  END LOOP;
 END $$;
 REVOKE ALL ON FUNCTION public.request_guardian_links(uuid[]) FROM PUBLIC,anon;
@@ -152,9 +162,9 @@ BEGIN
  SELECT * INTO l FROM public.guardian_child_links WHERE id=p_link_id FOR UPDATE;
  IF NOT FOUND OR auth.uid() IS NULL OR auth.uid() NOT IN (l.child_id,l.guardian_id) THEN
  RAISE EXCEPTION 'Anfrage nicht verfügbar.' USING ERRCODE='42501'; END IF;
- IF p_action NOT IN ('confirm','reject','permissions','revoke') THEN RAISE EXCEPTION 'Invalid action'; END IF;
+ IF p_action IS NULL OR p_revision IS NULL OR p_action NOT IN ('confirm','reject','permissions','revoke') THEN RAISE EXCEPTION 'Invalid action'; END IF;
  IF p_action<>'revoke' AND auth.uid()<>l.child_id THEN RAISE EXCEPTION 'Forbidden' USING ERRCODE='42501'; END IF;
- IF jsonb_typeof(p_permissions)<>'object' OR EXISTS(SELECT 1 FROM jsonb_each(p_permissions) e
+ IF p_permissions IS NULL OR jsonb_typeof(p_permissions)<>'object' OR EXISTS(SELECT 1 FROM jsonb_each(p_permissions) e
  WHERE e.key NOT IN ('school','meal','choir','homework') OR jsonb_typeof(e.value)<>'boolean') THEN
  RAISE EXCEPTION 'Invalid permissions'; END IF;
  desired:=CASE p_action WHEN 'confirm' THEN 'confirmed' WHEN 'reject' THEN 'rejected' WHEN 'revoke' THEN 'revoked' ELSE 'confirmed' END;
@@ -231,7 +241,8 @@ BEGIN
  RAISE EXCEPTION 'Eine Erinnerung ist erst nach 24 Stunden möglich.'; END IF;
  -- Timestamp reserves an attempt, not proof of delivery. Failures use the outbox retry.
  UPDATE public.guardian_child_links SET reminder_sent_at=now() WHERE id=l.id RETURNING * INTO l;
- INSERT INTO guardian_private.notification_outbox(link_id,revision,action) VALUES(l.id,l.revision,'reminder') RETURNING id INTO job;
+ UPDATE guardian_private.notification_outbox SET completed_at=now() WHERE link_id=l.id AND completed_at IS NULL AND action IN ('request','reminder');
+ INSERT INTO guardian_private.notification_outbox(link_id,revision,request_generation,action) VALUES(l.id,l.revision,l.requested_at,'reminder') RETURNING id INTO job;
  RETURN job;
 END $$;
 REVOKE ALL ON FUNCTION public.request_guardian_reminder(uuid) FROM PUBLIC,anon;
@@ -263,6 +274,40 @@ BEGIN PERFORM public._refresh_guardian_school_profile(coalesce(NEW.guardian_id,O
 CREATE TRIGGER guardian_refresh_parent AFTER INSERT OR UPDATE OR DELETE ON public.guardian_child_links
 FOR EACH ROW EXECUTE FUNCTION guardian_private.refresh_parent();
 
+CREATE FUNCTION guardian_private.active_child_changed() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN PERFORM public._refresh_guardian_school_profile(NEW.id); RETURN NEW; END $$;
+CREATE TRIGGER guardian_active_child_changed AFTER UPDATE OF active_child_id ON public.profiles
+FOR EACH ROW WHEN (NEW.active_child_id IS DISTINCT FROM OLD.active_child_id)
+EXECUTE FUNCTION guardian_private.active_child_changed();
+
+-- Event push targeting must use the child's consent, not copied parent fields.
+-- Keep this compatible with installations that have not installed event pushes.
+DO $migration$ BEGIN
+ IF to_regprocedure('public.notify_event_change_targets(jsonb,jsonb,text,uuid)') IS NOT NULL THEN
+ EXECUTE $definition$
+ CREATE OR REPLACE FUNCTION public.notify_event_change_targets(p_audience_before jsonb,p_audience_after jsonb,p_event_type text,p_editor_id uuid)
+ RETURNS TABLE(id uuid,user_id uuid,fcm_token text,platform text,match_type text)
+ LANGUAGE sql SECURITY DEFINER SET search_path='' AS $function$
+ SELECT DISTINCT ON(d.id) d.id,d.user_id,d.fcm_token,d.platform,
+ CASE WHEN public._profile_matches_audience(target::public.profiles,p_audience_after,p_event_type) THEN 'changed' ELSE 'removed' END
+ FROM public.profile_push_devices d JOIN public.profiles owner ON owner.id=d.user_id
+ CROSS JOIN LATERAL (
+  SELECT owner.* WHERE owner.role::text<>'Elternteil'
+  UNION ALL
+  SELECT child.* FROM public.profiles child JOIN public.guardian_child_links g ON g.child_id=child.id
+  WHERE g.guardian_id=owner.id AND g.status='confirmed'
+  AND g.child_share_permissions->>(CASE lower(p_event_type) WHEN 'lesson' THEN 'school' WHEN 'meal' THEN 'meal' WHEN 'choir' THEN 'choir' WHEN 'event' THEN 'choir' ELSE '' END)='true'
+ ) AS target
+ WHERE nullif(btrim(d.fcm_token),'') IS NOT NULL AND d.user_id<>p_editor_id
+ AND (public._profile_matches_audience(target::public.profiles,p_audience_before,p_event_type) OR public._profile_matches_audience(target::public.profiles,p_audience_after,p_event_type))
+ ORDER BY d.id;
+ $function$;
+ $definition$;
+ REVOKE ALL ON FUNCTION public.notify_event_change_targets(jsonb,jsonb,text,uuid) FROM PUBLIC,anon,authenticated;
+ GRANT EXECUTE ON FUNCTION public.notify_event_change_targets(jsonb,jsonb,text,uuid) TO service_role;
+ END IF;
+END $migration$;
+
 -- Worker-only leasing. A crashed invocation becomes eligible after five minutes.
 CREATE FUNCTION public.claim_guardian_notifications(p_link_id uuid DEFAULT NULL)
 RETURNS SETOF jsonb LANGUAGE sql SECURITY DEFINER SET search_path='' AS $$
@@ -286,7 +331,23 @@ REVOKE ALL ON FUNCTION public.claim_guardian_notifications(uuid), public.finish_
 GRANT EXECUTE ON FUNCTION public.claim_guardian_notifications(uuid), public.finish_guardian_notification(uuid,integer,integer,integer,boolean) TO service_role;
 -- Populate projections without sending historical notifications. Status/consent remain intact.
 UPDATE public.guardian_child_links SET child_id=child_id;
+SELECT public._refresh_guardian_school_profile(id) FROM public.profiles WHERE role::text='Elternteil';
 -- Trigger functions are not public RPCs.
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA guardian_private FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION guardian_private.is_admin() TO authenticated;
+CREATE TABLE guardian_private.notification_devices (
+ job_id uuid REFERENCES guardian_private.notification_outbox(id) ON DELETE CASCADE,
+ device_id uuid NOT NULL, PRIMARY KEY(job_id,device_id)
+);
+ALTER TABLE guardian_private.notification_devices ENABLE ROW LEVEL SECURITY;
+CREATE FUNCTION public.guardian_notification_device_accepted(p_job uuid,p_device uuid) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER SET search_path='' AS $$
+ SELECT EXISTS(SELECT 1 FROM guardian_private.notification_devices WHERE job_id=p_job AND device_id=p_device);
+$$;
+CREATE FUNCTION public.record_guardian_notification_device(p_job uuid,p_device uuid) RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path='' AS $$
+ INSERT INTO guardian_private.notification_devices VALUES(p_job,p_device) ON CONFLICT DO NOTHING;
+$$;
+REVOKE ALL ON FUNCTION public.guardian_notification_device_accepted(uuid,uuid),public.record_guardian_notification_device(uuid,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.guardian_notification_device_accepted(uuid,uuid),public.record_guardian_notification_device(uuid,uuid) TO service_role;
 COMMIT;

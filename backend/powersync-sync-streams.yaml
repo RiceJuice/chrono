@@ -73,17 +73,6 @@ streams:
       FROM profiles
       WHERE id = auth.user_id()
 
-  profile_linked_children:
-    auto_subscribe: true
-    query: |
-      SELECT id, first_name, last_name, class_name, schooltrack, arts_subject, language_subject, timetable_subject_choices, voice, choir, diet, role,
-             created_at, updated_at, onboarding_completed_at
-      FROM profiles
-      WHERE id IN (
-        SELECT child_id FROM guardian_child_links
-        WHERE guardian_id = auth.user_id() AND status = 'confirmed'
-      )
-
   guardian_links:
     auto_subscribe: true
     query: |
@@ -95,7 +84,22 @@ streams:
         created_at,
         responded_at,
         reminder_sent_at,
-        child_share_permissions
+        child_share_permissions,
+        revision,
+        guardian_first_name,
+        guardian_last_name,
+        child_first_name,
+        child_last_name,
+        child_class_name,
+        child_schooltrack,
+        child_arts_subject,
+        child_language_subject,
+        child_timetable_subject_choices,
+        child_choir,
+        child_voice,
+        child_diet,
+        updated_at,
+        requested_at
       FROM guardian_child_links
       WHERE guardian_id = auth.user_id()
          OR child_id = auth.user_id()
