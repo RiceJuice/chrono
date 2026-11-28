@@ -47,7 +47,7 @@ class PushNotificationService {
 
   void _handleForegroundMessage(RemoteMessage message) {
     final data = _stringifyData(message.data);
-    if (_handleGuardianLinkData(data)) return;
+    if (_handleGuardianLinkData({...data, 'opened': 'false'})) return;
     if (data['type'] == 'schedule_live_activity') {
       unawaited(ScheduleLiveActivityCoordinator.instance?.handleFcmData(data));
       return;
@@ -63,7 +63,7 @@ class PushNotificationService {
 
   void _handleOpenedMessage(RemoteMessage message) {
     final data = _stringifyData(message.data);
-    if (_handleGuardianLinkData(data)) return;
+    if (_handleGuardianLinkData({...data, 'opened': 'true'})) return;
     if (data['type'] == 'schedule_live_activity') {
       unawaited(ScheduleLiveActivityCoordinator.instance?.handleFcmData(data));
       return;

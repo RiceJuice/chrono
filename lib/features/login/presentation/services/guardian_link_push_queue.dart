@@ -1,9 +1,6 @@
 /// Push-Payload für ausstehende Eltern-Verknüpfungsanfragen (Cold-Start-Puffer).
 class GuardianLinkPushPayload {
-  const GuardianLinkPushPayload({
-    required this.linkId,
-    this.guardianName,
-  });
+  const GuardianLinkPushPayload({required this.linkId, this.guardianName});
 
   final String linkId;
   final String? guardianName;
@@ -20,8 +17,7 @@ class GuardianLinkPushQueue {
     _pending.add(payload);
   }
 
-  GuardianLinkPushPayload? peek() =>
-      _pending.isEmpty ? null : _pending.first;
+  GuardianLinkPushPayload? peek() => _pending.isEmpty ? null : _pending.first;
 
   void remove(String linkId) {
     _pending.removeWhere((p) => p.linkId == linkId);
@@ -33,6 +29,8 @@ class GuardianLinkPushQueue {
     }
     _pending.clear();
   }
+
+  void clear() => _pending.clear();
 
   bool get isEmpty => _pending.isEmpty;
 

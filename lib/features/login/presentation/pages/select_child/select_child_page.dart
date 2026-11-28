@@ -50,8 +50,8 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
   final Set<String> _notifiedConfirmedChildIds = {};
   String? _reminderBusyLinkId;
   String _lastQuery = '';
+  String? _searchError;
   Timer? _searchDebounce;
-
 
   @override
   void dispose() {
@@ -92,7 +92,7 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
       if (!mounted) return;
       showAppToast(
         context,
-        'Erinnerung an ${link.childDisplayName} wurde gesendet.',
+        'Der Push-Dienst hat die Erinnerung angenommen.',
         kind: AppToastKind.success,
       );
     } on GuardianLinkRepositoryException catch (e) {
@@ -105,11 +105,12 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
 
   Future<void> _runSearch(String query) async {
     final trimmed = query.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < 3) {
       setState(() {
         _results = const [];
         _searching = false;
         _lastQuery = trimmed;
+        _searchError = null;
       });
       return;
     }
@@ -117,11 +118,14 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     setState(() {
       _searching = true;
       _lastQuery = trimmed;
+      _searchError = null;
+      _results = const [];
     });
 
     try {
-      final results =
-          await ref.read(guardianLinkRepositoryProvider).searchStudents(trimmed);
+      final results = await ref
+          .read(guardianLinkRepositoryProvider)
+          .searchStudents(trimmed);
       if (!mounted || _searchController.text.trim() != trimmed) return;
       setState(() {
         _results = results;
@@ -129,8 +133,11 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
       });
     } on GuardianLinkRepositoryException catch (e) {
       if (!mounted) return;
-      setState(() => _searching = false);
-      showAppToast(context, e.message, kind: AppToastKind.error);
+      if (_searchController.text.trim() != trimmed) return;
+      setState(() {
+        _searching = false;
+        _searchError = e.message;
+      });
     }
   }
 
@@ -164,7 +171,7 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     if (result.anyPushFailed) {
       showAppToast(
         context,
-        'Anfragen gespeichert. Push konnte nicht an alle Kinder zugestellt werden.',
+        'Anfragen gespeichert. Dein Kind kann sie in Chrono öffnen.',
         kind: AppToastKind.info,
       );
     } else {
@@ -188,8 +195,9 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
 
   Future<void> _proceedToSuccess(List<GuardianChildLink> ownLinks) async {
     final router = GoRouter.of(context);
-    final confirmed =
-        ownLinks.where((l) => l.isConfirmed).toList(growable: false);
+    final confirmed = ownLinks
+        .where((l) => l.isConfirmed)
+        .toList(growable: false);
     if (confirmed.isEmpty) {
       if (!context.mounted) return;
       showAppToast(
@@ -206,24 +214,21 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     router.go(LoginPaths.notificationsIntro);
   }
 
-  static const Color _infoTextColor = Color(0xFFCBBBA0);
-
   Widget _buildInfoText(ThemeData theme) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(
+        Icon(
           Icons.info_outline_rounded,
           size: 20,
-          color: _infoTextColor,
+          color: theme.colorScheme.onSurfaceVariant,
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Du kannst mehrere Kinder auswählen. Jedes Kind '
-            'bestätigt die Anfrage einzeln in der App.',
+            'Dein Kind entscheidet in Chrono, was es mit dir teilen möchte. Falls keine Mitteilung erscheint, kann es die Anfrage in der App öffnen.',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: _infoTextColor,
+              color: theme.colorScheme.onSurfaceVariant,
               height: 1.4,
             ),
           ),
@@ -268,7 +273,7 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
     final hasPending = ownLinks.any((l) => l.isPending);
     final isWaiting = ownLinks.isNotEmpty && hasPending && !hasConfirmed;
     final canProceed = hasConfirmed;
-    final showSendButton = selectedCount > 0 && !canProceed;
+    final showSendButton = selectedCount > 0;
 
     return LoginStepScaffold(
       step: LoginFlowStep.selectChild,
@@ -276,19 +281,19 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
       subtitleOverride: canProceed
           ? 'Mindestens ein Kind hat bestätigt. Du kannst fortfahren.'
           : isWaiting
-              ? 'Wir warten auf die Bestätigung durch dein Kind.'
-              : 'Suche deine Kinder und wähle alle aus, die du verknüpfen möchtest.',
+          ? 'Wir warten auf die Bestätigung durch dein Kind.'
+          : 'Suche deine Kinder und wähle alle aus, die du verknüpfen möchtest.',
       showPrimaryButton: canProceed || showSendButton,
-      submitLabel: canProceed
+      submitLabel: canProceed && !showSendButton
           ? 'Weiter'
           : selectedCount == 1
-              ? 'Anfrage senden'
-              : 'Anfragen senden ($selectedCount)',
+          ? 'Anfrage senden'
+          : 'Anfragen senden ($selectedCount)',
       submitBusy: _submitting || _proceeding,
       contentMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       primaryButtonMaxWidth: LoginStepScaffold.defaultContentMaxWidth,
       onAsyncProceed: (_) async {
-        if (canProceed) {
+        if (canProceed && !showSendButton) {
           setState(() => _proceeding = true);
           try {
             await _proceedToSuccess(ownLinks);
@@ -318,12 +323,38 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            TextButton.icon(
+              onPressed: () async {
+                try {
+                  if (userId != null) {
+                    await ref
+                        .read(guardianLinkRepositoryProvider)
+                        .loadLinksRemote(userId);
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    showAppToast(
+                      context,
+                      'Status nicht erreichbar. Bitte Verbindung prüfen.',
+                      kind: AppToastKind.error,
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Status aktualisieren'),
+            ),
+            if (linksAsync.isLoading) const LinearProgressIndicator(),
+            if (linksAsync.hasError)
+              const Text(
+                'Status konnte nicht aktualisiert werden. Offline-Daten können veraltet sein.',
+              ),
             TextField(
               controller: _searchController,
               enabled: !_submitting && !_proceeding,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: 'z. B. Vorname, Nachname oder beides',
+                hintText: 'Name (mindestens 3 Zeichen)',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searching
                     ? const Padding(
@@ -347,43 +378,49 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
             ),
             if (_results.isNotEmpty) ...[
               const SizedBox(height: 8),
-              ..._results.map(
-                (student) {
-                  final isSelected = _selected.containsKey(student.id);
-                  return Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: _submitting || _proceeding
-                          ? null
-                          : () => _toggleStudent(student),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          children: [
-                            AnimatedCircleCheckbox(
-                              selected: isSelected,
-                              enabled: !_submitting && !_proceeding,
-                              onChanged: _submitting || _proceeding
-                                  ? null
-                                  : (_) => _toggleStudent(student),
+              ..._results.map((student) {
+                final isSelected = _selected.containsKey(student.id);
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: _submitting || _proceeding
+                        ? null
+                        : () => _toggleStudent(student),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Row(
+                        children: [
+                          AnimatedCircleCheckbox(
+                            selected: isSelected,
+                            enabled: !_submitting && !_proceeding,
+                            onChanged: _submitting || _proceeding
+                                ? null
+                                : (_) => _toggleStudent(student),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              student.displaySubtitle,
+                              style: theme.textTheme.bodyLarge,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                student.displaySubtitle,
-                                style: theme.textTheme.bodyLarge,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              }),
             ],
-            if (_lastQuery.length >= 2 && !_searching && _results.isEmpty) ...[
+            if (_searchError != null)
+              Text(
+                _searchError!,
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            if (_searchError == null &&
+                _lastQuery.length >= 3 &&
+                !_searching &&
+                _results.isEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 'Niemand mit diesem Profilnamen gefunden. '
@@ -398,23 +435,55 @@ class _SelectChildPageState extends ConsumerState<SelectChildPage> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _selected.values.map((student) {
-                  return InputChip(
-                    label: Text(student.displaySubtitle),
-                    onDeleted: _submitting || _proceeding
-                        ? null
-                        : () => _toggleStudent(student),
-                    deleteIcon: const Icon(Icons.close, size: 18),
-                  );
-                }).toList(growable: false),
+                children: _selected.values
+                    .map((student) {
+                      return InputChip(
+                        label: Text(student.displaySubtitle),
+                        onDeleted: _submitting || _proceeding
+                            ? null
+                            : () => _toggleStudent(student),
+                        deleteIcon: const Icon(Icons.close, size: 18),
+                      );
+                    })
+                    .toList(growable: false),
               ),
             ],
-            if (!isSettingsFlow && ownLinks.isNotEmpty) ...[
+            if (ownLinks.isNotEmpty) ...[
               const SizedBox(height: 20),
               GuardianPendingStatusList(
                 links: ownLinks,
                 reminderBusyLinkId: _reminderBusyLinkId,
                 onSendReminder: _sendReminder,
+                onRevoke: (link) async {
+                  try {
+                    await ref
+                        .read(guardianLinkRepositoryProvider)
+                        .revokeLink(link.id);
+                  } catch (_) {
+                    if (context.mounted) {
+                      showAppToast(
+                        context,
+                        'Trennen fehlgeschlagen. Bitte erneut versuchen.',
+                        kind: AppToastKind.error,
+                      );
+                    }
+                  }
+                },
+                onRequestAgain: (link) async {
+                  try {
+                    await ref
+                        .read(guardianLinkRepositoryProvider)
+                        .requestLink(link.childId);
+                  } catch (e) {
+                    if (context.mounted) {
+                      showAppToast(
+                        context,
+                        e.toString(),
+                        kind: AppToastKind.error,
+                      );
+                    }
+                  }
+                },
               ),
             ],
             const SizedBox(height: 20),

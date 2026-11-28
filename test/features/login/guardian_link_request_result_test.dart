@@ -18,12 +18,12 @@ void main() {
 
   group('NotifyLinkResult', () {
     test('markiert erfolgreiche Zustellung ab sent > 0', () {
-      const delivered = NotifyLinkResult(pushDelivered: true, sent: 2, failed: 0);
+      const delivered = NotifyLinkResult(pushAccepted: true, sent: 2, failed: 0);
       const notDelivered =
-          NotifyLinkResult(pushDelivered: false, sent: 0, failed: 1);
+          NotifyLinkResult(pushAccepted: false, sent: 0, failed: 1);
 
-      expect(delivered.pushDelivered, isTrue);
-      expect(notDelivered.pushDelivered, isFalse);
+      expect(delivered.pushAccepted, isTrue);
+      expect(notDelivered.pushAccepted, isFalse);
     });
   });
 }

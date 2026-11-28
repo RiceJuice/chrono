@@ -21,7 +21,10 @@ class GuardianLinkPendingBanner extends ConsumerWidget {
     final pendingAsync = ref.watch(pendingGuardianLinksProvider);
     return pendingAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, _) => TextButton(
+        onPressed: () => GuardianLinkBootstrap.requestProcessQueue(),
+        child: const Text('Anfragen nicht erreichbar · Erneut prüfen'),
+      ),
       data: (pending) {
         if (pending.isEmpty) return const SizedBox.shrink();
 
@@ -52,11 +55,11 @@ class GuardianLinkPendingBanner extends ConsumerWidget {
                       child: Text(
                         label,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     Icon(

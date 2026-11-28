@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'guardian_child_share_permissions.dart';
 
 /// Status einer Eltern-Kind-Verknüpfung (Werte wie in Postgres CHECK).
@@ -22,9 +23,10 @@ class StudentSearchResult {
   final String? className;
 
   String get displayName {
-    final parts = [firstName, lastName]
-        .map((p) => p.trim())
-        .where((p) => p.isNotEmpty);
+    final parts = [
+      firstName,
+      lastName,
+    ].map((p) => p.trim()).where((p) => p.isNotEmpty);
     return parts.join(' ');
   }
 
@@ -61,6 +63,9 @@ class GuardianChildLink {
     required this.guardianId,
     required this.childId,
     required this.status,
+    this.revision = 0,
+    this.updatedAt,
+    this.requestedAt,
     this.createdAt,
     this.respondedAt,
     this.reminderSentAt,
@@ -70,6 +75,9 @@ class GuardianChildLink {
     this.childChoir,
     this.childVoice,
     this.childSchoolTrack,
+    this.childArtsSubject,
+    this.childLanguageSubject,
+    this.childTimetableChoices = const {},
     this.childDiet,
     this.guardianFirstName,
     this.guardianLastName,
@@ -80,6 +88,9 @@ class GuardianChildLink {
   final String guardianId;
   final String childId;
   final String status;
+  final int revision;
+  final DateTime? updatedAt;
+  final DateTime? requestedAt;
   final DateTime? createdAt;
   final DateTime? respondedAt;
   final DateTime? reminderSentAt;
@@ -89,6 +100,9 @@ class GuardianChildLink {
   final String? childChoir;
   final String? childVoice;
   final String? childSchoolTrack;
+  final String? childArtsSubject;
+  final String? childLanguageSubject;
+  final Map<String, dynamic> childTimetableChoices;
   final String? childDiet;
   final String? guardianFirstName;
   final String? guardianLastName;
@@ -96,6 +110,7 @@ class GuardianChildLink {
 
   bool get isPending => status == GuardianLinkStatus.pending;
   bool get isConfirmed => status == GuardianLinkStatus.confirmed;
+  bool get isRevoked => status == GuardianLinkStatus.revoked;
   bool get isRejected => status == GuardianLinkStatus.rejected;
 
   GuardianChildLink copyWithStatus(String status) {
@@ -104,6 +119,9 @@ class GuardianChildLink {
       guardianId: guardianId,
       childId: childId,
       status: status,
+      revision: revision,
+      updatedAt: updatedAt,
+      requestedAt: requestedAt,
       createdAt: createdAt,
       respondedAt: respondedAt,
       reminderSentAt: reminderSentAt,
@@ -113,6 +131,9 @@ class GuardianChildLink {
       childChoir: childChoir,
       childVoice: childVoice,
       childSchoolTrack: childSchoolTrack,
+      childArtsSubject: childArtsSubject,
+      childLanguageSubject: childLanguageSubject,
+      childTimetableChoices: childTimetableChoices,
       childDiet: childDiet,
       guardianFirstName: guardianFirstName,
       guardianLastName: guardianLastName,
@@ -128,6 +149,9 @@ class GuardianChildLink {
       guardianId: guardianId,
       childId: childId,
       status: status,
+      revision: revision,
+      updatedAt: updatedAt,
+      requestedAt: requestedAt,
       createdAt: createdAt,
       respondedAt: respondedAt,
       reminderSentAt: reminderSentAt,
@@ -137,6 +161,9 @@ class GuardianChildLink {
       childChoir: childChoir,
       childVoice: childVoice,
       childSchoolTrack: childSchoolTrack,
+      childArtsSubject: childArtsSubject,
+      childLanguageSubject: childLanguageSubject,
+      childTimetableChoices: childTimetableChoices,
       childDiet: childDiet,
       guardianFirstName: guardianFirstName,
       guardianLastName: guardianLastName,
@@ -145,20 +172,46 @@ class GuardianChildLink {
   }
 
   String get childDisplayName {
-    final parts = [childFirstName, childLastName]
-        .map((p) => p?.trim())
-        .whereType<String>()
-        .where((p) => p.isNotEmpty);
+    final parts = [
+      childFirstName,
+      childLastName,
+    ].map((p) => p?.trim()).whereType<String>().where((p) => p.isNotEmpty);
     return parts.isEmpty ? 'Kind' : parts.join(' ');
   }
 
   String get guardianDisplayName {
-    final parts = [guardianFirstName, guardianLastName]
-        .map((p) => p?.trim())
-        .whereType<String>()
-        .where((p) => p.isNotEmpty);
+    final parts = [
+      guardianFirstName,
+      guardianLastName,
+    ].map((p) => p?.trim()).whereType<String>().where((p) => p.isNotEmpty);
     return parts.isEmpty ? 'Elternteil' : parts.join(' ');
   }
+
+  Map<String, dynamic> toRow() => {
+    'id': id,
+    'guardian_id': guardianId,
+    'child_id': childId,
+    'status': status,
+    'revision': revision,
+    'updated_at': updatedAt?.toIso8601String(),
+    'requested_at': requestedAt?.toIso8601String(),
+    'created_at': createdAt?.toIso8601String(),
+    'responded_at': respondedAt?.toIso8601String(),
+    'reminder_sent_at': reminderSentAt?.toIso8601String(),
+    'guardian_first_name': guardianFirstName,
+    'guardian_last_name': guardianLastName,
+    'child_first_name': childFirstName,
+    'child_last_name': childLastName,
+    'child_class_name': childClassName,
+    'child_schooltrack': childSchoolTrack,
+    'child_arts_subject': childArtsSubject,
+    'child_language_subject': childLanguageSubject,
+    'child_timetable_subject_choices': childTimetableChoices,
+    'child_choir': childChoir,
+    'child_voice': childVoice,
+    'child_diet': childDiet,
+    'child_share_permissions': sharePermissions.toJson(),
+  };
 
   factory GuardianChildLink.fromRow(Map<String, dynamic> row) {
     return GuardianChildLink(
@@ -166,6 +219,9 @@ class GuardianChildLink {
       guardianId: row['guardian_id']?.toString() ?? '',
       childId: row['child_id']?.toString() ?? '',
       status: _normalizeStatus(row['status']?.toString()),
+      revision: int.tryParse('${row['revision']}') ?? 0,
+      updatedAt: _parseDateTime(row['updated_at']),
+      requestedAt: _parseDateTime(row['requested_at']),
       createdAt: _parseDateTime(row['created_at']),
       respondedAt: _parseDateTime(row['responded_at']),
       reminderSentAt: _parseDateTime(row['reminder_sent_at']),
@@ -175,6 +231,11 @@ class GuardianChildLink {
       childChoir: row['child_choir']?.toString(),
       childVoice: row['child_voice']?.toString(),
       childSchoolTrack: row['child_schooltrack']?.toString(),
+      childArtsSubject: row['child_arts_subject']?.toString(),
+      childLanguageSubject: row['child_language_subject']?.toString(),
+      childTimetableChoices: _parseChoices(
+        row['child_timetable_subject_choices'],
+      ),
       childDiet: row['child_diet']?.toString(),
       guardianFirstName: row['guardian_first_name']?.toString(),
       guardianLastName: row['guardian_last_name']?.toString(),
@@ -195,7 +256,16 @@ class GuardianChildLink {
       case GuardianLinkStatus.pending:
         return GuardianLinkStatus.pending;
       default:
-        return GuardianLinkStatus.pending;
+        return GuardianLinkStatus.revoked;
+    }
+  }
+
+  static Map<String, dynamic> _parseChoices(Object? raw) {
+    try {
+      final value = raw is String ? jsonDecode(raw) : raw;
+      return value is Map ? Map<String, dynamic>.from(value) : const {};
+    } catch (_) {
+      return const {};
     }
   }
 

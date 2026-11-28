@@ -1,26 +1,23 @@
 import 'package:flutter/material.dart';
-
 import '../../../domain/models/guardian_child_link.dart';
+import '../../../../../../core/theme/theme_tokens.dart';
 
-enum GuardianPendingLinkStatus {
-  waiting,
-  confirmed,
-  rejected,
-}
+enum GuardianPendingLinkStatus { waiting, confirmed, rejected, revoked }
 
-GuardianPendingLinkStatus pendingLinkStatus(GuardianChildLink link) {
-  if (link.isConfirmed) return GuardianPendingLinkStatus.confirmed;
-  if (link.isRejected) return GuardianPendingLinkStatus.rejected;
-  return GuardianPendingLinkStatus.waiting;
-}
-
-String pendingLinkStatusLabel(GuardianPendingLinkStatus status) {
-  return switch (status) {
-    GuardianPendingLinkStatus.waiting => 'Wartet',
-    GuardianPendingLinkStatus.confirmed => 'Bestätigt',
-    GuardianPendingLinkStatus.rejected => 'Abgelehnt',
-  };
-}
+GuardianPendingLinkStatus pendingLinkStatus(GuardianChildLink link) =>
+    switch (link.status) {
+      'pending' => GuardianPendingLinkStatus.waiting,
+      'confirmed' => GuardianPendingLinkStatus.confirmed,
+      'rejected' => GuardianPendingLinkStatus.rejected,
+      _ => GuardianPendingLinkStatus.revoked,
+    };
+String pendingLinkStatusLabel(GuardianPendingLinkStatus status) =>
+    switch (status) {
+      GuardianPendingLinkStatus.waiting => 'Bestätigung ausstehend',
+      GuardianPendingLinkStatus.confirmed => 'Bestätigt',
+      GuardianPendingLinkStatus.rejected => 'Abgelehnt',
+      GuardianPendingLinkStatus.revoked => 'Getrennt',
+    };
 
 class GuardianPendingStatusList extends StatelessWidget {
   const GuardianPendingStatusList({
@@ -28,101 +25,97 @@ class GuardianPendingStatusList extends StatelessWidget {
     required this.links,
     this.reminderBusyLinkId,
     this.onSendReminder,
+    this.onRevoke,
+    this.onRequestAgain,
   });
-
   final List<GuardianChildLink> links;
   final String? reminderBusyLinkId;
-  final void Function(GuardianChildLink link)? onSendReminder;
-
+  final void Function(GuardianChildLink)? onSendReminder,
+      onRevoke,
+      onRequestAgain;
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: links.map((link) {
-        final status = pendingLinkStatus(link);
-        final chipColors = _chipColors(scheme, status);
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Material(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-            borderRadius: BorderRadius.circular(14),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          link.childDisplayName,
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: chipColors.background,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            pendingLinkStatusLabel(status),
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: chipColors.foreground,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
+      children: [
+        for (final link in links)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.m),
+            child: Material(
+              color: theme.colorScheme.surfaceContainerHighest,
+              shape: AppSquircle.shape(AppRadius.l),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.l),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      link.childDisplayName,
+                      style: theme.textTheme.titleMedium,
                     ),
-                  ),
-                  if (status == GuardianPendingLinkStatus.waiting &&
-                      onSendReminder != null)
-                    TextButton(
-                      onPressed: reminderBusyLinkId == link.id
-                          ? null
-                          : () => onSendReminder!(link),
-                      child: reminderBusyLinkId == link.id
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Erinnern'),
-                    ),
-                ],
+                    Text(pendingLinkStatusLabel(pendingLinkStatus(link))),
+                    if (link.isPending)
+                      const Text(
+                        'Anfrage gespeichert. Dein Kind entscheidet in der App.',
+                      ),
+                    if (link.isConfirmed &&
+                        !link.sharePermissions.sharesAnything)
+                      const Text(
+                        'Verbunden. Dein Kind teilt derzeit keine Inhalte.',
+                      ),
+                    if (link.isRejected)
+                      const Text(
+                        'Dein Kind möchte derzeit keine Verbindung. Bitte respektiere seine Entscheidung.',
+                      ),
+                    if (link.isPending && onSendReminder != null)
+                      TextButton(
+                        onPressed:
+                            reminderBusyLinkId == link.id || !_canRemind(link)
+                            ? null
+                            : () => onSendReminder!(link),
+                        child: Text(
+                          _canRemind(link)
+                              ? 'Erinnern'
+                              : 'Erinnern nach 24 Stunden',
+                        ),
+                      ),
+                    if ((link.isPending || link.isConfirmed) &&
+                        onRevoke != null)
+                      TextButton(
+                        onPressed: () => onRevoke!(link),
+                        child: Text(
+                          link.isPending
+                              ? 'Anfrage zurückziehen'
+                              : 'Verbindung trennen',
+                        ),
+                      ),
+                    if ((link.isRejected || link.isRevoked) &&
+                        onRequestAgain != null)
+                      TextButton(
+                        onPressed:
+                            (link.respondedAt ?? link.updatedAt) != null &&
+                                DateTime.now()
+                                        .difference(
+                                          (link.respondedAt ?? link.updatedAt)!,
+                                        )
+                                        .inDays >=
+                                    7
+                            ? () => onRequestAgain!(link)
+                            : null,
+                        child: const Text('Erneut anfragen (nach 7 Tagen)'),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
-        );
-      }).toList(growable: false),
+      ],
     );
   }
 
-  ({Color background, Color foreground}) _chipColors(
-    ColorScheme scheme,
-    GuardianPendingLinkStatus status,
-  ) {
-    return switch (status) {
-      GuardianPendingLinkStatus.waiting => (
-          background: scheme.primaryContainer.withValues(alpha: 0.7),
-          foreground: scheme.onPrimaryContainer,
-        ),
-      GuardianPendingLinkStatus.confirmed => (
-          background: scheme.tertiaryContainer.withValues(alpha: 0.8),
-          foreground: scheme.onTertiaryContainer,
-        ),
-      GuardianPendingLinkStatus.rejected => (
-          background: scheme.errorContainer.withValues(alpha: 0.7),
-          foreground: scheme.onErrorContainer,
-        ),
-    };
+  bool _canRemind(GuardianChildLink l) {
+    final last = l.reminderSentAt ?? l.requestedAt ?? l.createdAt;
+    return last != null && DateTime.now().difference(last).inHours >= 24;
   }
 }

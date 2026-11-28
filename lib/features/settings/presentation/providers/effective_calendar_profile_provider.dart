@@ -11,58 +11,73 @@ import 'settings_profile_providers.dart';
 
 final linkedChildProfileProvider =
     StreamProvider.family<ProfileSnapshot?, String>((ref, childId) {
-  if (childId.isEmpty) {
-    return Stream<ProfileSnapshot?>.value(null);
-  }
-  return ref
-      .watch(settingsProfileRepositoryProvider)
-      .watchProfileByUserId(childId);
-});
-
-final effectiveCalendarProfileProvider =
-    Provider<AsyncValue<ProfileSnapshot?>>((ref) {
-  final ownAsync = ref.watch(syncedProfileProvider);
-  final gate = ref.watch(profileGateDataProvider);
-
-  return ownAsync.when(
-    loading: () => ownAsync,
-    error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
-    data: (own) {
-      if (!isGuardianCalendarViewer(gate: gate, ownProfile: own)) {
-        return AsyncValue.data(own);
+      if (childId.isEmpty) {
+        return Stream<ProfileSnapshot?>.value(null);
       }
-
-      final userId = ref.watch(authUserIdProvider).value;
-      if (userId == null) return const AsyncValue.data(null);
-
-      final linksAsync = ref.watch(guardianLinksProvider);
-      return linksAsync.when(
-        loading: () => const AsyncValue.loading(),
-        error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
-        data: (links) {
-          final confirmed =
-              confirmedGuardianOwnLinks(links: links, guardianId: userId);
-          if (confirmed.isEmpty) return const AsyncValue.data(null);
-
-          final activeLink = resolveActiveGuardianChildLink(
-            confirmed: confirmed,
-            activeChildId: gate.activeChildId,
-          );
-
-          final profileAsync =
-              ref.watch(linkedChildProfileProvider(activeLink.childId));
-          return profileAsync.when(
-            loading: () => const AsyncValue.loading(),
-            error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
-            data: (loaded) => AsyncValue.data(
-              guardianChildProfileSnapshot(
-                link: activeLink,
-                loaded: loaded,
-              ),
-            ),
-          );
-        },
+      final user = ref.watch(authUserIdProvider).value;
+      final links = ref.watch(guardianLinksProvider);
+      return links.when(
+        data: (items) => Stream.value(
+          items
+              .where(
+                (l) =>
+                    l.childId == childId &&
+                    l.guardianId == user &&
+                    l.isConfirmed,
+              )
+              .map((l) => guardianChildProfileSnapshot(link: l, loaded: null))
+              .firstOrNull,
+        ),
+        error: (error, stack) => Stream.error(error, stack),
+        loading: () => const Stream.empty(),
       );
-    },
-  );
-});
+    });
+
+final effectiveCalendarProfileProvider = Provider<AsyncValue<ProfileSnapshot?>>(
+  (ref) {
+    final ownAsync = ref.watch(syncedProfileProvider);
+    final gate = ref.watch(profileGateDataProvider);
+
+    return ownAsync.when(
+      loading: () => ownAsync,
+      error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
+      data: (own) {
+        if (!isGuardianCalendarViewer(gate: gate, ownProfile: own)) {
+          return AsyncValue.data(own);
+        }
+
+        final userId = ref.watch(authUserIdProvider).value;
+        if (userId == null) return const AsyncValue.data(null);
+
+        final linksAsync = ref.watch(guardianLinksProvider);
+        return linksAsync.when(
+          loading: () => const AsyncValue.loading(),
+          error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
+          data: (links) {
+            final confirmed = confirmedGuardianOwnLinks(
+              links: links,
+              guardianId: userId,
+            );
+            if (confirmed.isEmpty) return const AsyncValue.data(null);
+
+            final activeLink = resolveActiveGuardianChildLink(
+              confirmed: confirmed,
+              activeChildId: gate.activeChildId,
+            );
+
+            final profileAsync = ref.watch(
+              linkedChildProfileProvider(activeLink.childId),
+            );
+            return profileAsync.when(
+              loading: () => const AsyncValue.loading(),
+              error: (error, stackTrace) => AsyncValue.error(error, stackTrace),
+              data: (loaded) => AsyncValue.data(
+                guardianChildProfileSnapshot(link: activeLink, loaded: loaded),
+              ),
+            );
+          },
+        );
+      },
+    );
+  },
+);

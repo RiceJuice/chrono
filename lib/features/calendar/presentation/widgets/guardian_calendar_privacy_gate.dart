@@ -36,15 +36,19 @@ class GuardianCalendarPrivacyEmptyState extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Kein Kalender freigegeben',
+              gate.hasConfirmedGuardianLink
+                  ? 'Kein Kalender freigegeben'
+                  : 'Kein bestätigtes Kind',
               style: theme.textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Dein Kind hat noch keine Kalender-Bereiche freigegeben. '
-              'Stundenplan, Speiseplan und Chor können in der App des Kindes '
-              'freigeschaltet werden.',
+              gate.hasConfirmedGuardianLink
+                  ? 'Dein Kind hat noch keine Kalender-Bereiche freigegeben. '
+                        'Stundenplan, Speiseplan und Chor können in der App des Kindes '
+                        'freigeschaltet werden.'
+                  : 'Eine bestätigte Verbindung ist erforderlich. Du kannst den Status und neue Anfragen in den Einstellungen verwalten.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
               ),
@@ -59,10 +63,7 @@ class GuardianCalendarPrivacyEmptyState extends ConsumerWidget {
 
 /// Zeigt [child] oder den Privatsphäre-Hinweis für Eltern.
 class GuardianCalendarPrivacyGate extends ConsumerWidget {
-  const GuardianCalendarPrivacyGate({
-    super.key,
-    required this.child,
-  });
+  const GuardianCalendarPrivacyGate({super.key, required this.child});
 
   final Widget child;
 

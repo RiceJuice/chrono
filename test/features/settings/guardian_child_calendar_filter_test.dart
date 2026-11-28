@@ -3,6 +3,7 @@ import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart'
 import 'package:chronoapp/features/settings/data/models/profile_snapshot.dart';
 import 'package:chronoapp/features/settings/presentation/helpers/guardian_child_profile_display.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:chronoapp/features/login/domain/models/guardian_child_share_permissions.dart';
 
 GuardianChildLink _link({
   String? childClassName,
@@ -16,6 +17,11 @@ GuardianChildLink _link({
     guardianId: 'guardian-1',
     childId: 'child-1',
     status: GuardianLinkStatus.confirmed,
+    sharePermissions: const GuardianChildSharePermissions(
+      shareSchool: true,
+      shareChoir: true,
+      shareMeal: true,
+    ),
     childClassName: childClassName,
     childChoir: childChoir,
     childVoice: childVoice,
@@ -45,24 +51,27 @@ void main() {
       expect(profile.diet, 'Normal');
     });
 
-    test('bevorzugt geladenes Profil gegenüber Link-Fallback', () {
-      final profile = guardianChildProfileSnapshot(
-        link: _link(childChoir: 'Giehl', childVoice: 'Tenor'),
-        loaded: const ProfileSnapshot(
-          firstName: null,
-          lastName: null,
-          className: null,
-          schoolTrack: null,
-          voice: 'Bass',
-          role: null,
-          choir: 'DKM',
-          diet: null,
-        ),
-      );
+    test(
+      'verwendet freigegebene Projektion statt altem vollständigem Profil',
+      () {
+        final profile = guardianChildProfileSnapshot(
+          link: _link(childChoir: 'Giehl', childVoice: 'Tenor'),
+          loaded: const ProfileSnapshot(
+            firstName: null,
+            lastName: null,
+            className: null,
+            schoolTrack: null,
+            voice: 'Bass',
+            role: null,
+            choir: 'DKM',
+            diet: null,
+          ),
+        );
 
-      expect(profile.choir, 'DKM');
-      expect(profile.voice, 'Bass');
-    });
+        expect(profile.choir, 'Giehl');
+        expect(profile.voice, 'Tenor');
+      },
+    );
   });
 
   group('Kalenderfilter aus Kind-Link', () {

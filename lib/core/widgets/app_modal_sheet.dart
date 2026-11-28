@@ -117,16 +117,12 @@ double appSheetHeightBelowSystemUi(BuildContext context) {
 
 /// Aufgaben-Formular — volle Höhe unter der Statusleiste für genug Scrollraum.
 BoxConstraints appModalHomeworkFormSheetConstraints(BuildContext context) {
-  return BoxConstraints.tightFor(
-    height: appSheetHeightBelowSystemUi(context),
-  );
+  return BoxConstraints.tightFor(height: appSheetHeightBelowSystemUi(context));
 }
 
 /// Termin-Formular (Erstellen & Bearbeiten).
 BoxConstraints appModalEventFormSheetConstraints(BuildContext context) {
-  return BoxConstraints.tightFor(
-    height: appSheetHeightBelowSystemUi(context),
-  );
+  return BoxConstraints.tightFor(height: appSheetHeightBelowSystemUi(context));
 }
 
 /// Einheitliche Konfiguration für alle App-Modals / Bottom-Sheets.
@@ -137,12 +133,15 @@ abstract final class AppModalSheet {
     bool isScrollControlled = true,
     bool useSafeArea = false,
     bool showDragHandle = false,
+    bool isDismissible = true,
+    bool enableDrag = true,
     AnimationStyle? sheetAnimationStyle,
     Color? barrierColor,
     Color? backgroundColor,
   }) {
     final theme = Theme.of(context);
-    final sheetBg = backgroundColor ??
+    final sheetBg =
+        backgroundColor ??
         theme.bottomSheetTheme.modalBackgroundColor ??
         theme.bottomSheetTheme.backgroundColor ??
         theme.colorScheme.surfaceContainer;
@@ -151,6 +150,8 @@ abstract final class AppModalSheet {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: isScrollControlled,
+      isDismissible: isDismissible,
+      enableDrag: enableDrag,
       // Root-Navigator: Sheet liegt über dem Shell-Scaffold inkl. bottomNavigationBar.
       // Ohne das landet die Route im Branch-Navigator unter der Main-Navigation.
       useRootNavigator: true,
@@ -188,7 +189,8 @@ class AppModalSheetChrome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bg = color ??
+    final bg =
+        color ??
         theme.bottomSheetTheme.modalBackgroundColor ??
         theme.colorScheme.surfaceContainer;
 

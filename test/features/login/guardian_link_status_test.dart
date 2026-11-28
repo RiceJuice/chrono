@@ -15,12 +15,12 @@ GuardianChildLink _link(String status) {
 
 void main() {
   group('mergeGuardianChildLinks', () {
-    test('bevorzugt bestätigt gegenüber ausstehend (lokal)', () {
+    test('Remote-Zustand ersetzt unversionierten lokalen Zustand', () {
       final merged = mergeGuardianChildLinks(
         _link(GuardianLinkStatus.confirmed),
         _link(GuardianLinkStatus.pending),
       );
-      expect(merged.isConfirmed, isTrue);
+      expect(merged.isPending, isTrue);
     });
 
     test('bevorzugt bestätigt gegenüber ausstehend (remote)', () {
@@ -47,7 +47,7 @@ void main() {
       expect(merged.single.isConfirmed, isTrue);
     });
 
-    test('behält lokale Links ohne Remote-Eintrag', () {
+    test('entfernt lokal vorhandene, serverseitig gelöschte Links', () {
       final localOnly = GuardianChildLink(
         id: 'link-local',
         guardianId: 'guardian-1',
@@ -60,11 +60,8 @@ void main() {
 
       final merged = mergeGuardianLinkCollections([localOnly], remote);
 
-      expect(merged, hasLength(2));
-      expect(
-        merged.where((link) => link.id == 'link-local').single.isPending,
-        isTrue,
-      );
+      expect(merged, hasLength(1));
+      expect(merged.any((link) => link.id == 'link-local'), isFalse);
     });
   });
 }

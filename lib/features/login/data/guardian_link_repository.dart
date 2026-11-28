@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../domain/guardian_link_status.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
@@ -22,12 +24,12 @@ class GuardianLinkRepositoryException implements Exception {
 
 class NotifyLinkResult {
   const NotifyLinkResult({
-    required this.pushDelivered,
+    required this.pushAccepted,
     this.sent = 0,
     this.failed = 0,
   });
 
-  final bool pushDelivered;
+  final bool pushAccepted;
   final int sent;
   final int failed;
 }
@@ -37,11 +39,13 @@ class RequestLinksResult {
     required this.createdLinks,
     required this.skippedChildIds,
     required this.anyPushFailed,
+    this.notifyResults = const {},
   });
 
   final List<GuardianChildLink> createdLinks;
   final List<String> skippedChildIds;
   final bool anyPushFailed;
+  final Map<String, NotifyLinkResult> notifyResults;
 
   bool get hasCreatedLinks => createdLinks.isNotEmpty;
 }
@@ -57,23 +61,103 @@ class GuardianLinkRequestResult {
 }
 
 class GuardianLinkRepository {
-  GuardianLinkRepository(
-    this._db, {
-    SupabaseClient? supabase,
-  }) : _supabase = supabase ?? Supabase.instance.client;
+  GuardianLinkRepository(this._db, {SupabaseClient? supabase})
+    : _supabase = supabase ?? Supabase.instance.client;
 
   final PowerSyncDatabase? _db;
   final SupabaseClient _supabase;
 
-  static const _linkSelectColumns =
-      'id, guardian_id, child_id, status, created_at, responded_at, '
-      'reminder_sent_at, child_share_permissions';
-
+  final _snapshots = <String, List<GuardianChildLink>>{};
+  final _changes = StreamController<String>.broadcast();
   String? get _userId => _supabase.auth.currentUser?.id;
+
+  int _sessionEpoch = 0;
+  final _requests = <String, int>{};
+  final _appliedRequests = <String, int>{};
+  Future<void> _cacheWrite = Future.value();
+  static const _cachePrefix = 'guardian_snapshot_v1_';
+
+  Future<void> _persist(String user, List<GuardianChildLink> links) {
+    // Serialize disk writes: a delayed older write must not restore permission.
+    final encoded = jsonEncode(links.map((link) => link.toRow()).toList());
+    _cacheWrite = _cacheWrite
+        .then((_) async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('$_cachePrefix$user', encoded);
+        })
+        .catchError((Object _) {});
+    return _cacheWrite;
+  }
+
+  Future<List<GuardianChildLink>?> _readPersisted(String user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('$_cachePrefix$user');
+      if (raw == null) return null;
+      return (jsonDecode(raw) as List)
+          .map(
+            (row) => GuardianChildLink.fromRow(Map<String, dynamic>.from(row)),
+          )
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _accept(String user, List<GuardianChildLink> links) async {
+    _snapshots[user] = links;
+    _changes.add(user);
+    await _persist(user, links);
+  }
+
+  Future<void> _refreshAfterCommit(String user) async {
+    try {
+      await loadLinksRemote(user);
+    } catch (_) {
+      // A committed mutation is successful even if the follow-up read is offline.
+    }
+  }
+
+  void clearSession() {
+    _sessionEpoch++;
+    _snapshots.clear();
+    _requests.clear();
+    _appliedRequests.clear();
+  }
+
+  GuardianLinkSummary? cachedSummary(String userId) {
+    final links = _snapshots[userId];
+    if (links == null) return null;
+    return GuardianLinkSummary(
+      confirmedLinks: links
+          .where((l) => l.guardianId == userId && l.isConfirmed)
+          .toList(),
+      pendingLinks: links
+          .where((l) => l.guardianId == userId && l.isPending)
+          .toList(),
+    );
+  }
+
+  Future<GuardianLinkSummary> loadCachedSummaryForGuardian(
+    String userId,
+  ) async {
+    if (_userId != userId) {
+      return const GuardianLinkSummary(confirmedLinks: [], pendingLinks: []);
+    }
+    if (!_snapshots.containsKey(userId)) {
+      final epoch = _sessionEpoch;
+      final links = await _loadLinksLocal(userId);
+      if (_userId != userId || epoch != _sessionEpoch) {
+        return const GuardianLinkSummary(confirmedLinks: [], pendingLinks: []);
+      }
+      _snapshots.putIfAbsent(userId, () => links);
+    }
+    return cachedSummary(userId)!;
+  }
 
   Future<List<StudentSearchResult>> searchStudents(String query) async {
     final trimmed = query.trim();
-    if (trimmed.length < 2) return const [];
+    if (trimmed.length < 3) return const [];
 
     if (_userId == null) {
       throw GuardianLinkRepositoryException('Nicht angemeldet.');
@@ -85,7 +169,7 @@ class GuardianLinkRepository {
     } on PostgrestException catch (e) {
       if (kDebugMode) {
         debugPrint(
-          'search_students_for_guardian RPC fehlgeschlagen: ${e.message}',
+          'search_students_for_guardian RPC fehlgeschlagen: ${e.code}',
         );
       }
       throw GuardianLinkRepositoryException(_mapSearchError(e));
@@ -112,8 +196,8 @@ class GuardianLinkRepository {
     final rawList = rows is List
         ? rows
         : rows is Map
-            ? [rows]
-            : const [];
+        ? [rows]
+        : const [];
 
     final results = <StudentSearchResult>[];
     for (final row in rawList) {
@@ -138,24 +222,13 @@ class GuardianLinkRepository {
         .eq('id', userId)
         .maybeSingle();
     final role = row?['role']?.toString().trim();
-    if (role == LoginFlowRoleIds.guardian ||
-        role == ProfileRoleIds.admin) {
+    if (role == LoginFlowRoleIds.guardian || role == ProfileRoleIds.admin) {
       return;
     }
 
-    final updated = await _supabase
-        .from('profiles')
-        .update({'role': LoginFlowRoleIds.guardian})
-        .eq('id', userId)
-        .select('role')
-        .maybeSingle();
-    final afterRole = updated?['role']?.toString().trim();
-    if (afterRole != LoginFlowRoleIds.guardian &&
-        afterRole != ProfileRoleIds.admin) {
-      throw GuardianLinkRepositoryException(
-        'Rolle konnte nicht gespeichert werden. Bitte erneut versuchen.',
-      );
-    }
+    throw GuardianLinkRepositoryException(
+      'Nur Elternteile können Kinder anfragen.',
+    );
   }
 
   String _mapSearchError(PostgrestException e) {
@@ -181,41 +254,13 @@ class GuardianLinkRepository {
       throw GuardianLinkRepositoryException('Nicht angemeldet.');
     }
 
-    try {
-      final inserted = await _supabase
-          .from('guardian_child_links')
-          .insert({
-            'guardian_id': userId,
-            'child_id': childId,
-            'status': GuardianLinkStatus.pending,
-          })
-          .select('id, guardian_id, child_id, status, created_at')
-          .single();
-
-      final link = GuardianChildLink.fromRow(
-        Map<String, dynamic>.from(inserted),
-      );
-      await _upsertLinkLocally(link);
-
-      final notifyResult = await _notifyLinkAction(link.id, 'request');
-
-      return GuardianLinkRequestResult(link: link, notifyResult: notifyResult);
-    } on PostgrestException catch (e) {
-      if (e.code == '23505') {
-        throw GuardianLinkRepositoryException(
-          'Anfrage an dieses Kind wurde bereits gesendet.',
-        );
-      }
-      throw GuardianLinkRepositoryException(
-        'Verknüpfungsanfrage fehlgeschlagen. Bitte erneut versuchen.',
-      );
-    } on GuardianLinkRepositoryException {
-      rethrow;
-    } catch (e) {
-      throw GuardianLinkRepositoryException(
-        'Verknüpfungsanfrage fehlgeschlagen. Bitte erneut versuchen.',
-      );
-    }
+    final result = await requestLinks([childId]);
+    return GuardianLinkRequestResult(
+      link: result.createdLinks.single,
+      notifyResult:
+          result.notifyResults[result.createdLinks.single.id] ??
+          const NotifyLinkResult(pushAccepted: false),
+    );
   }
 
   Future<RequestLinksResult> requestLinks(List<String> childIds) async {
@@ -230,6 +275,7 @@ class GuardianLinkRepository {
       throw GuardianLinkRepositoryException('Nicht angemeldet.');
     }
 
+    final epoch = _sessionEpoch;
     try {
       final rows = await _supabase.rpc(
         'request_guardian_links',
@@ -240,7 +286,12 @@ class GuardianLinkRepository {
       final skippedChildIds = <String>[];
       final seenChildIds = <String>{};
 
-      final rawList = rows is List ? rows : const [];
+      if (rows is! List) {
+        throw GuardianLinkRepositoryException(
+          'Ungültige Serverantwort. Bitte Status aktualisieren.',
+        );
+      }
+      final rawList = rows;
       for (final row in rawList) {
         if (row is! Map) continue;
         final data = Map<String, dynamic>.from(row);
@@ -249,7 +300,6 @@ class GuardianLinkRepository {
         final wasInserted = data['was_inserted'] == true;
         if (wasInserted) {
           createdLinks.add(link);
-          await _upsertLinkLocally(link);
         } else {
           skippedChildIds.add(link.childId);
         }
@@ -261,14 +311,26 @@ class GuardianLinkRepository {
         }
       }
 
+      if (_userId != userId || epoch != _sessionEpoch) {
+        throw GuardianLinkRepositoryException('Sitzung geändert.');
+      }
+      final existing = _snapshots[userId] ?? const <GuardianChildLink>[];
+      await _accept(userId, [
+        for (final link in existing)
+          if (!createdLinks.any((c) => c.id == link.id)) link,
+        ...createdLinks,
+      ]);
+      await _refreshAfterCommit(userId);
       var anyPushFailed = false;
+      final byLink = <String, NotifyLinkResult>{};
       if (createdLinks.isNotEmpty) {
         final notifyResults = await Future.wait(
-          createdLinks.map(
-            (link) => _notifyLinkAction(link.id, 'request'),
-          ),
+          createdLinks.map((link) => _notifyLinkAction(link.id, 'request')),
         );
-        anyPushFailed = notifyResults.any((result) => !result.pushDelivered);
+        anyPushFailed = notifyResults.any((result) => !result.pushAccepted);
+        for (var i = 0; i < createdLinks.length; i++) {
+          byLink[createdLinks[i].id] = notifyResults[i];
+        }
       }
 
       if (createdLinks.isEmpty && skippedChildIds.length == childIds.length) {
@@ -281,11 +343,10 @@ class GuardianLinkRepository {
         createdLinks: createdLinks,
         skippedChildIds: skippedChildIds.toList(growable: false),
         anyPushFailed: anyPushFailed,
+        notifyResults: byLink,
       );
-    } on PostgrestException {
-      throw GuardianLinkRepositoryException(
-        'Verknüpfungsanfrage fehlgeschlagen. Bitte erneut versuchen.',
-      );
+    } on PostgrestException catch (e) {
+      throw GuardianLinkRepositoryException(e.message);
     } on GuardianLinkRepositoryException {
       rethrow;
     } catch (e) {
@@ -298,6 +359,7 @@ class GuardianLinkRepository {
   Future<void> respondToLink({
     required String linkId,
     required bool accept,
+    int? expectedRevision,
     GuardianChildSharePermissions sharePermissions =
         GuardianChildSharePermissions.minimal,
   }) async {
@@ -306,111 +368,108 @@ class GuardianLinkRepository {
       throw GuardianLinkRepositoryException('Nicht angemeldet.');
     }
 
-    final status =
-        accept ? GuardianLinkStatus.confirmed : GuardianLinkStatus.rejected;
-
-    try {
-      final updated = await _supabase
-          .from('guardian_child_links')
-          .update({
-            'status': status,
-            'responded_at': DateTime.now().toUtc().toIso8601String(),
-            if (accept) 'child_share_permissions': sharePermissions.toJson(),
-          })
-          .eq('id', linkId)
-          .eq('child_id', userId)
-          .eq('status', GuardianLinkStatus.pending)
-          .select('id')
-          .maybeSingle();
-
-      if (updated == null) {
-        throw GuardianLinkRepositoryException(
-          'Antwort konnte nicht gespeichert werden.',
-        );
-      }
-
-      await _patchLinkStatusLocally(
-        linkId: linkId,
-        status: status,
-        respondedAt: DateTime.now().toUtc(),
-        sharePermissions: accept ? sharePermissions : null,
-      );
-
-      if (accept) {
-        unawaited(_notifyLinkAction(linkId, 'confirmed'));
-      } else {
-        unawaited(_notifyLinkAction(linkId, 'rejected'));
-      }
-    } on GuardianLinkRepositoryException {
-      rethrow;
-    } catch (_) {
-      throw GuardianLinkRepositoryException(
-        'Antwort konnte nicht gespeichert werden.',
-      );
-    }
+    await _changeLink(
+      linkId,
+      accept ? 'confirm' : 'reject',
+      sharePermissions,
+      expectedRevision: expectedRevision,
+    );
   }
 
   Future<void> updateSharePermissions({
     required String linkId,
     required GuardianChildSharePermissions sharePermissions,
+    int? expectedRevision,
+  }) => _changeLink(
+    linkId,
+    'permissions',
+    sharePermissions,
+    expectedRevision: expectedRevision,
+  );
+
+  Future<void> revokeLink(String linkId) =>
+      _changeLink(linkId, 'revoke', GuardianChildSharePermissions.minimal);
+
+  Future<void> _changeLink(
+    String id,
+    String action,
+    GuardianChildSharePermissions permissions, {
+    int? expectedRevision,
   }) async {
-    final userId = _userId;
-    if (userId == null) {
+    final user = _userId;
+    final epoch = _sessionEpoch;
+    if (user == null) {
       throw GuardianLinkRepositoryException('Nicht angemeldet.');
     }
-
     try {
-      final updated = await _supabase
-          .from('guardian_child_links')
-          .update({
-            'child_share_permissions': sharePermissions.toJson(),
-          })
-          .eq('id', linkId)
-          .eq('child_id', userId)
-          .eq('status', GuardianLinkStatus.confirmed)
-          .select('id')
-          .maybeSingle();
-
-      if (updated == null) {
-        throw GuardianLinkRepositoryException(
-          'Freigaben konnten nicht gespeichert werden.',
-        );
+      final link = await fetchLinkById(id);
+      if (_userId != user || epoch != _sessionEpoch || link == null) {
+        throw GuardianLinkRepositoryException('Anfrage nicht mehr verfügbar.');
       }
+      final response = await _supabase
+          .rpc(
+            'change_guardian_link',
+            params: {
+              'p_link_id': id,
+              'p_action': action,
+              'p_revision': expectedRevision ?? link.revision,
+              'p_permissions': permissions.toJson(),
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+      if (_userId != user || epoch != _sessionEpoch) return;
+      final changed = GuardianChildLink.fromRow(
+        Map<String, dynamic>.from(response as Map),
+      );
+      final current = _snapshots[user] ?? const <GuardianChildLink>[];
+      await _accept(user, [
+        for (final existing in current)
+          if (existing.id != changed.id)
+            existing
+          else
+            mergeGuardianChildLinks(existing, changed),
+        if (!current.any((l) => l.id == changed.id)) changed,
+      ]);
+      unawaited(_notifyLinkAction(id, action));
+      await _refreshAfterCommit(user);
     } on GuardianLinkRepositoryException {
       rethrow;
+    } on PostgrestException catch (e) {
+      throw GuardianLinkRepositoryException(e.message);
     } catch (_) {
       throw GuardianLinkRepositoryException(
-        'Freigaben konnten nicht gespeichert werden.',
+        'Änderung konnte nicht bestätigt werden. Bitte Verbindung prüfen und erneut versuchen.',
       );
     }
   }
 
   Future<void> sendReminder(String linkId) async {
-    final userId = _userId;
-    if (userId == null) {
+    final user = _userId;
+    final epoch = _sessionEpoch;
+    if (user == null) {
       throw GuardianLinkRepositoryException('Nicht angemeldet.');
     }
-
-    final link = await _fetchLinkRemote(linkId);
-    if (link == null || link.guardianId != userId) {
-      throw GuardianLinkRepositoryException('Anfrage nicht gefunden.');
-    }
-    if (!link.isPending) {
-      throw GuardianLinkRepositoryException(
-        'Erinnerung nur für ausstehende Anfragen möglich.',
-      );
-    }
-
-    if (link.reminderSentAt != null) {
-      final elapsed = DateTime.now().difference(link.reminderSentAt!);
-      if (elapsed.inHours < 24) {
+    try {
+      await _supabase
+          .rpc('request_guardian_reminder', params: {'p_link_id': linkId})
+          .timeout(const Duration(seconds: 15));
+      if (_userId != user || epoch != _sessionEpoch) return;
+      final result = await _notifyLinkAction(linkId, 'reminder');
+      await _refreshAfterCommit(user);
+      if (!result.pushAccepted) {
         throw GuardianLinkRepositoryException(
-          'Erinnerung kann erst nach 24 Stunden erneut gesendet werden.',
+          'Erinnerung vorgemerkt. Der Push-Dienst hat noch keine Nachricht angenommen.',
         );
       }
+    } on GuardianLinkRepositoryException {
+      rethrow;
+    } on PostgrestException catch (e) {
+      throw GuardianLinkRepositoryException(e.message);
+    } catch (_) {
+      throw GuardianLinkRepositoryException(
+        'Erinnerung konnte nicht bestätigt werden. Bitte Verbindung prüfen und den Status aktualisieren.',
+      );
     }
-
-    await _notifyLinkAction(linkId, 'reminder');
   }
 
   Future<void> setActiveChild(String childId) async {
@@ -432,55 +491,102 @@ class GuardianLinkRepository {
   }
 
   Stream<List<GuardianChildLink>> watchLinksForUser(String userId) {
-    final db = _db;
-    if (db == null) {
-      return Stream.fromFuture(_loadLinksRemote(userId));
-    }
-
-    final controller = StreamController<List<GuardianChildLink>>.broadcast();
-    StreamSubscription<dynamic>? sub;
-
-    Future<void> emit() async {
-      if (controller.isClosed) return;
+    late StreamController<List<GuardianChildLink>> controller;
+    StreamSubscription? changes;
+    StreamSubscription? local;
+    Timer? poll;
+    bool busy = false;
+    bool closed = false;
+    Future<void> refresh() async {
+      if (closed || busy || _userId != userId) return;
+      busy = true;
       try {
-        final links = await _loadLinksLocal(userId);
-        if (!controller.isClosed) controller.add(links);
-      } catch (_) {
-        if (!controller.isClosed) controller.add(const []);
+        await loadLinksRemote(userId);
+      } catch (error, stack) {
+        if (!closed) controller.addError(error, stack);
+      } finally {
+        busy = false;
       }
     }
 
-    controller.onListen = () async {
-      await emit();
-      sub = db
-          .watch(
-            '''
-            SELECT id FROM $kGuardianChildLinksTable
-            WHERE guardian_id = ? OR child_id = ?
-            ''',
-            parameters: [userId, userId],
-          )
-          .listen((_) => unawaited(emit()));
-    };
-
-    controller.onCancel = () async {
-      await sub?.cancel();
-      sub = null;
-    };
-
+    controller = StreamController<List<GuardianChildLink>>(
+      onListen: () async {
+        changes = _changes.stream.where((id) => id == userId).listen((_) {
+          if (!closed && _userId == userId) {
+            controller.add(_snapshots[userId] ?? []);
+          }
+        });
+        if (_snapshots.containsKey(userId)) {
+          controller.add(_snapshots[userId]!);
+        } else {
+          try {
+            final cache = await _loadLinksLocal(userId);
+            if (!closed &&
+                _userId == userId &&
+                !_snapshots.containsKey(userId)) {
+              controller.add(cache);
+            }
+          } catch (_) {
+            /* The authoritative refresh reports failures below. */
+          }
+        }
+        if (closed) return;
+        local = _db
+            ?.watch(
+              'SELECT * FROM $kGuardianChildLinksTable WHERE guardian_id = ? OR child_id = ?',
+              parameters: [userId, userId],
+            )
+            .listen((rows) {
+              if (closed || _userId != userId) return;
+              final localLinks = rows
+                  .map(
+                    (r) =>
+                        GuardianChildLink.fromRow(Map<String, dynamic>.from(r)),
+                  )
+                  .toList();
+              final current = _snapshots[userId];
+              if (current != null) {
+                final byId = {for (final link in localLinks) link.id: link};
+                final merged = [
+                  for (final link in current)
+                    if (byId[link.id] != null &&
+                        byId[link.id]!.revision > link.revision)
+                      byId[link.id]!
+                    else
+                      link,
+                ];
+                if (merged.asMap().entries.any(
+                  (e) => !identical(e.value, current[e.key]),
+                )) {
+                  unawaited(_accept(userId, merged));
+                }
+              }
+              unawaited(refresh());
+            }, onError: (Object _) {});
+        poll = Timer.periodic(
+          const Duration(seconds: 30),
+          (_) => unawaited(refresh()),
+        );
+        await refresh();
+      },
+      onCancel: () async {
+        closed = true;
+        poll?.cancel();
+        await changes?.cancel();
+        await local?.cancel();
+      },
+    );
     return controller.stream;
   }
 
-  Stream<List<GuardianChildLink>> watchPendingForChild(String childId) {
-    return watchLinksForUser(childId).map(
-      (links) => links.where((l) => l.isPending).toList(growable: false),
-    );
-  }
+  Stream<List<GuardianChildLink>> watchPendingForChild(String childId) =>
+      watchLinksForUser(
+        childId,
+      ).map((links) => pendingLinksForChild(links, childId));
 
-  Future<List<GuardianChildLink>> loadPendingLinksForChild(String childId) async {
-    final links = await _loadLinksLocal(childId);
-    return pendingLinksForChild(links, childId);
-  }
+  Future<List<GuardianChildLink>> loadPendingLinksForChild(
+    String childId,
+  ) async => pendingLinksForChild(await loadLinksRemote(childId), childId);
 
   /// Filtert aus einer Link-Liste die ausstehenden Anfragen für ein Kind.
   @visibleForTesting
@@ -493,51 +599,84 @@ class GuardianLinkRepository {
         .toList(growable: false);
   }
 
-  Future<List<GuardianChildLink>> loadLinksRemote(String userId) =>
-      _loadLinksRemote(userId);
+  Future<List<GuardianChildLink>> loadLinksRemote(String userId) async {
+    if (_userId != userId) {
+      throw GuardianLinkRepositoryException('Sitzung geändert.');
+    }
+    final epoch = _sessionEpoch;
+    final request = (_requests[userId] ?? 0) + 1;
+    _requests[userId] = request;
+    final rows = await _supabase
+        .rpc('guardian_link_snapshot')
+        .timeout(const Duration(seconds: 12));
+    if (_userId != userId || epoch != _sessionEpoch) {
+      throw GuardianLinkRepositoryException('Sitzung geändert.');
+    }
+    if (rows is! List) {
+      throw GuardianLinkRepositoryException('Ungültige Serverantwort.');
+    }
+    final links = rows
+        .map(
+          (row) =>
+              GuardianChildLink.fromRow(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList();
+    if ((_appliedRequests[userId] ?? 0) > request) {
+      return _snapshots[userId] ?? links;
+    }
+    _appliedRequests[userId] = request;
+    final merged = mergeGuardianLinkCollections(
+      _snapshots[userId] ?? const [],
+      links,
+    );
+    await _accept(userId, merged);
+    return merged;
+  }
 
   Future<GuardianLinkSummary> loadSummaryForGuardian(String guardianId) async {
-    final localLinks = await _loadLinksLocal(guardianId);
-    final own = localLinks
-        .where((link) => link.guardianId == guardianId)
-        .toList(growable: false);
-
+    final own = (await loadLinksRemote(
+      guardianId,
+    )).where((link) => link.guardianId == guardianId);
     return GuardianLinkSummary(
-      confirmedLinks:
-          own.where((link) => link.isConfirmed).toList(growable: false),
-      pendingLinks:
-          own.where((link) => link.isPending).toList(growable: false),
+      confirmedLinks: own.where((l) => l.isConfirmed).toList(),
+      pendingLinks: own.where((l) => l.isPending).toList(),
     );
   }
 
   Future<GuardianChildLink?> fetchLinkById(String linkId) async {
-    return await _fetchLinkRemote(linkId) ?? await _fetchLinkLocal(linkId);
+    final user = _userId;
+    if (user == null) return null;
+    final links = await loadLinksRemote(user);
+    for (final link in links) {
+      if (link.id == linkId) return link;
+    }
+    return null;
   }
 
-  Future<NotifyLinkResult> _notifyLinkAction(String linkId, String action) async {
+  Future<NotifyLinkResult> _notifyLinkAction(
+    String linkId,
+    String action,
+  ) async {
     try {
       final response = await _supabase.functions.invoke(
         'notify-guardian-link',
-        body: {
-          'link_id': linkId,
-          'action': action,
-        },
+        body: {'link_id': linkId, 'action': action},
       );
 
       final data = response.data;
       if (data is Map) {
-        final sent = _parseInt(data['sent']);
+        final sent = _parseInt(data['accepted']);
         final failed = _parseInt(data['failed']);
         return NotifyLinkResult(
-          pushDelivered: sent > 0,
+          pushAccepted: sent > 0,
           sent: sent,
           failed: failed,
         );
       }
 
-      return const NotifyLinkResult(pushDelivered: true);
+      return const NotifyLinkResult(pushAccepted: false);
     } catch (_) {
-      return const NotifyLinkResult(pushDelivered: false);
+      return const NotifyLinkResult(pushAccepted: false);
     }
   }
 
@@ -546,158 +685,17 @@ class GuardianLinkRepository {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  Future<GuardianChildLink?> _fetchLinkRemote(String linkId) async {
-    try {
-      final row = await _supabase
-          .from('guardian_child_links')
-          .select(_linkSelectColumns)
-          .eq('id', linkId)
-          .maybeSingle();
-      if (row == null) return null;
-      return GuardianChildLink.fromRow(Map<String, dynamic>.from(row));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<GuardianChildLink?> _fetchLinkLocal(String linkId) async {
-    final db = _db;
-    if (db == null) return _fetchLinkRemote(linkId);
-    try {
-      final rows = await db.getAll(
-        '''
-        SELECT id, guardian_id, child_id, status, created_at, responded_at,
-               reminder_sent_at, child_share_permissions
-        FROM $kGuardianChildLinksTable
-        WHERE id = ?
-        LIMIT 1
-        ''',
-        [linkId],
-      );
-      if (rows.isEmpty) return null;
-      return GuardianChildLink.fromRow(Map<String, dynamic>.from(rows.first));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<List<GuardianChildLink>> _loadLinksRemote(String userId) async {
-    try {
-      final rows = await _supabase
-          .from('guardian_child_links')
-          .select(_linkSelectColumns)
-          .or('guardian_id.eq.$userId,child_id.eq.$userId')
-          .order('created_at', ascending: false);
-      return (rows as List)
-          .map((row) => GuardianChildLink.fromRow(
-                Map<String, dynamic>.from(row as Map),
-              ))
-          .toList(growable: false);
-    } catch (_) {
-      return const [];
-    }
-  }
-
   Future<List<GuardianChildLink>> _loadLinksLocal(String userId) async {
-    final db = _db;
-    if (db == null) return _loadLinksRemote(userId);
-    try {
-      final rows = await db.getAll(
-        '''
-        SELECT
-          gcl.id,
-          gcl.guardian_id,
-          gcl.child_id,
-          gcl.status,
-          gcl.created_at,
-          gcl.responded_at,
-          gcl.reminder_sent_at,
-          gcl.child_share_permissions,
-          cp.first_name AS child_first_name,
-          cp.last_name AS child_last_name,
-          cp.class_name AS child_class_name,
-          cp.choir AS child_choir,
-          cp.voice AS child_voice,
-          cp.schooltrack AS child_schooltrack,
-          cp.diet AS child_diet,
-          gp.first_name AS guardian_first_name,
-          gp.last_name AS guardian_last_name
-        FROM $kGuardianChildLinksTable gcl
-        LEFT JOIN $kProfilesTable cp ON cp.id = gcl.child_id
-        LEFT JOIN $kProfilesTable gp ON gp.id = gcl.guardian_id
-        WHERE gcl.guardian_id = ? OR gcl.child_id = ?
-        ORDER BY gcl.created_at DESC
-        ''',
-        [userId, userId],
-      );
-      return rows
-          .map((row) => GuardianChildLink.fromRow(
-                Map<String, dynamic>.from(row),
-              ))
-          .toList(growable: false);
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  Future<void> _upsertLinkLocally(GuardianChildLink link) async {
-    final db = _db;
-    if (db == null) return;
-    try {
-      await db.execute(
-        '''
-        INSERT INTO $kGuardianChildLinksTable
-          (id, guardian_id, child_id, status, created_at, responded_at,
-           reminder_sent_at, child_share_permissions)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          status = excluded.status,
-          responded_at = excluded.responded_at,
-          reminder_sent_at = excluded.reminder_sent_at,
-          child_share_permissions = excluded.child_share_permissions
-        ''',
-        [
-          link.id,
-          link.guardianId,
-          link.childId,
-          link.status,
-          link.createdAt?.toUtc().toIso8601String(),
-          link.respondedAt?.toUtc().toIso8601String(),
-          link.reminderSentAt?.toUtc().toIso8601String(),
-          jsonEncode(link.sharePermissions.toJson()),
-        ],
-      );
-    } catch (_) {
-      // PowerSync-Sync holt den Eintrag nach — UI bleibt über Stream konsistent.
-    }
-  }
-
-  Future<void> _patchLinkStatusLocally({
-    required String linkId,
-    required String status,
-    required DateTime respondedAt,
-    GuardianChildSharePermissions? sharePermissions,
-  }) async {
-    final db = _db;
-    if (db == null) return;
-    try {
-      await db.execute(
-        '''
-        UPDATE $kGuardianChildLinksTable
-        SET status = ?, responded_at = ?,
-            child_share_permissions = COALESCE(?, child_share_permissions)
-        WHERE id = ?
-        ''',
-        [
-          status,
-          respondedAt.toUtc().toIso8601String(),
-          sharePermissions != null ? jsonEncode(sharePermissions.toJson()) : null,
-          linkId,
-        ],
-      );
-    } catch (_) {
-      // Best effort — Server-Update war erfolgreich.
-    }
+    final persisted = await _readPersisted(userId);
+    if (persisted != null) return persisted;
+    if (_db == null) return const [];
+    final rows = await _db.getAll(
+      'SELECT * FROM $kGuardianChildLinksTable WHERE guardian_id = ? OR child_id = ?',
+      [userId, userId],
+    );
+    return rows
+        .map((row) => GuardianChildLink.fromRow(Map<String, dynamic>.from(row)))
+        .toList();
   }
 }
 

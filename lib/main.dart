@@ -30,6 +30,9 @@ import 'features/calendar/presentation/providers/calendar_view_options.dart';
 import 'features/calendar/home_widget/presentation/calendar_home_widget_bootstrap.dart';
 import 'features/calendar/live_activity/presentation/schedule_live_activity_bootstrap.dart';
 import 'features/login/data/guardian_link_repository.dart';
+import 'features/login/presentation/providers/guardian_link_providers.dart';
+import 'features/settings/presentation/helpers/guardian_active_child_id.dart';
+import 'features/settings/presentation/helpers/guardian_child_profile_display.dart';
 import 'features/login/presentation/services/guardian_link_bootstrap.dart';
 import 'features/login/presentation/providers/profile_gate_notifier.dart';
 import 'features/login/presentation/providers/profile_gate_provider.dart';
@@ -43,9 +46,7 @@ Future<void> _initializeFirebaseCore() async {
   if (!DefaultFirebaseOptions.isConfigured) return;
   if (!PushNotificationService.supportsPush) return;
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 }
 
@@ -55,7 +56,7 @@ Future<void> _registerPushListeners() async {
 
   try {
     await PushNotificationService().registerListeners();
-  } catch (e, st) { 
+  } catch (e, st) {
     if (kDebugMode) {
       debugPrint('[FCM] Push listener registration failed: $e\n$st');
     }
@@ -68,16 +69,16 @@ void main() async {
   // Web: statt grauer Flaeche den Fehlertext anzeigen (Diagnose auf iPhone/Safari).
   if (kIsWeb) {
     ErrorWidget.builder = (details) => Material(
-          color: const Color(0xFFFFF1F1),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: SelectableText(
-              'Fehler: ${details.exceptionAsString()}\n\n'
-              '${details.stack.toString().split('\n').take(12).join('\n')}',
-              style: const TextStyle(color: Color(0xFF8B0000), fontSize: 12),
-            ),
-          ),
-        );
+      color: const Color(0xFFFFF1F1),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: SelectableText(
+          'Fehler: ${details.exceptionAsString()}\n\n'
+          '${details.stack.toString().split('\n').take(12).join('\n')}',
+          style: const TextStyle(color: Color(0xFF8B0000), fontSize: 12),
+        ),
+      ),
+    );
   }
 
   await Inspire.warmUp();
@@ -100,15 +101,17 @@ void main() async {
   final startupNotifier = AppStartupNotifier();
   final authSessionNotifier = AuthSessionNotifier();
   final connectivityNotifier = ConnectivityNotifier();
+  final guardianLinks = GuardianLinkRepository(powerSyncDb);
   final profileGateNotifier = ProfileGateNotifier(
     localDb: powerSyncDb,
-    guardianLinkRepository: GuardianLinkRepository(powerSyncDb),
+    guardianLinkRepository: guardianLinks,
   );
 
   runApp(
     ProviderScope(
       overrides: [
         dbProvider.overrideWithValue(powerSyncDb),
+        guardianLinkRepositoryProvider.overrideWithValue(guardianLinks),
         profileGateProvider.overrideWithValue(profileGateNotifier),
       ],
       child: MyApp(
@@ -125,6 +128,7 @@ void main() async {
     startupNotifier: startupNotifier,
     profileGateNotifier: profileGateNotifier,
     powerSyncDb: powerSyncDb,
+    guardianLinks: guardianLinks,
   );
 }
 
@@ -151,6 +155,7 @@ Future<void> _finishStartup({
   required AppStartupNotifier startupNotifier,
   required ProfileGateNotifier profileGateNotifier,
   required PowerSyncDatabase powerSyncDb,
+  required GuardianLinkRepository guardianLinks,
 }) async {
   final view = PlatformDispatcher.instance.views.first;
   final pixelRatio = view.devicePixelRatio;
@@ -177,11 +182,14 @@ Future<void> _finishStartup({
         : await _loadLocalProfileDiet(powerSyncDb, userId);
     ProfileSnapshot? childProfile;
     if (userId != null) {
-      childProfile = await CalendarFilterStartupState.loadChildProfileForStartup(
-        db: powerSyncDb,
-        gateData: gateData,
-        userId: userId,
-      );
+      final summary = await guardianLinks.loadCachedSummaryForGuardian(userId);
+      if (summary.confirmedLinks.isNotEmpty) {
+        final link = resolveActiveGuardianChildLink(
+          confirmed: summary.confirmedLinks,
+          activeChildId: gateData.activeChildId,
+        );
+        childProfile = guardianChildProfileSnapshot(link: link, loaded: null);
+      }
     }
     CalendarFilterStartupState.preload(
       gateData: gateData,
@@ -195,7 +203,7 @@ Future<void> _finishStartup({
   GuardianLinkBootstrap.start(
     profileGate: profileGateNotifier,
     navigatorKey: rootNavigatorKey,
-    guardianLinkRepository: GuardianLinkRepository(powerSyncDb),
+    guardianLinkRepository: guardianLinks,
   );
 
   startupNotifier.setReady();

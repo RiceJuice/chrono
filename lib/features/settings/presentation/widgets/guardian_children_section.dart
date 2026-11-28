@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:chronoapp/features/login/presentation/pages/guardian_pending/guardian_pending_status_list.dart';
+import 'package:chronoapp/core/widgets/app_toast.dart';
 
 import 'package:chronoapp/core/auth/auth_user_id_provider.dart';
 import 'package:chronoapp/core/widgets/app_modal_sheet.dart';
@@ -55,7 +57,7 @@ class GuardianChildProfileCards extends ConsumerWidget {
           SettingsIsland(
             children: [
               SettingsTile(
-                title: 'Kind hinzufügen',
+                title: 'Weiteres Kind hinzufügen',
                 icon: SettingsIcons.addChild,
                 trailing: PhosphorIcon(
                   PhosphorIcons.plus(PhosphorIconsStyle.bold),
@@ -77,20 +79,34 @@ class GuardianChildProfileCards extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final link in ownLinks) ...[
-              const SizedBox(height: 8),
+            GuardianPendingStatusList(
+              links: ownLinks,
+              onRevoke: (link) async {
+                try {
+                  await ref
+                      .read(guardianLinkRepositoryProvider)
+                      .revokeLink(link.id);
+                } catch (_) {
+                  if (context.mounted) {
+                    showAppToast(
+                      context,
+                      'Verbindung konnte nicht getrennt werden.',
+                      kind: AppToastKind.error,
+                    );
+                  }
+                }
+              },
+            ),
+            for (final link in ownLinks.where((l) => l.isConfirmed))
               _GuardianChildProfileCard(
                 link: link,
-                onTap: guardianChildCardIsTappable(link)
-                    ? () => _openChildProfile(context, link)
-                    : null,
+                onTap: () => _openChildProfile(context, link),
               ),
-            ],
             const SizedBox(height: 12),
             SettingsIsland(
               children: [
                 SettingsTile(
-                  title: 'Kind hinzufügen',
+                  title: 'Weiteres Kind hinzufügen',
                   icon: SettingsIcons.addChild,
                   trailing: PhosphorIcon(
                     PhosphorIcons.plus(PhosphorIconsStyle.bold),
@@ -108,10 +124,7 @@ class GuardianChildProfileCards extends ConsumerWidget {
 }
 
 class _GuardianChildProfileCard extends ConsumerWidget {
-  const _GuardianChildProfileCard({
-    required this.link,
-    required this.onTap,
-  });
+  const _GuardianChildProfileCard({required this.link, required this.onTap});
 
   final GuardianChildLink link;
   final VoidCallback? onTap;
@@ -122,10 +135,7 @@ class _GuardianChildProfileCard extends ConsumerWidget {
 
     return profileAsync.when(
       data: (loaded) => SettingsProfileHeaderCard(
-        profile: guardianChildProfileSnapshot(
-          link: link,
-          loaded: loaded,
-        ),
+        profile: guardianChildProfileSnapshot(link: link, loaded: loaded),
         onTap: onTap,
         compact: true,
       ),

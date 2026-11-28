@@ -14,10 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SettingsLinkedChildPage extends ConsumerStatefulWidget {
-  const SettingsLinkedChildPage({
-    super.key,
-    required this.link,
-  });
+  const SettingsLinkedChildPage({super.key, required this.link});
 
   final GuardianChildLink link;
 
@@ -26,7 +23,8 @@ class SettingsLinkedChildPage extends ConsumerStatefulWidget {
       _SettingsLinkedChildPageState();
 }
 
-class _SettingsLinkedChildPageState extends ConsumerState<SettingsLinkedChildPage> {
+class _SettingsLinkedChildPageState
+    extends ConsumerState<SettingsLinkedChildPage> {
   bool _switching = false;
 
   Future<void> _switchActiveChild() async {
@@ -49,7 +47,9 @@ class _SettingsLinkedChildPageState extends ConsumerState<SettingsLinkedChildPag
 
   @override
   Widget build(BuildContext context) {
-    final profileAsync = ref.watch(linkedChildProfileProvider(widget.link.childId));
+    final profileAsync = ref.watch(
+      linkedChildProfileProvider(widget.link.childId),
+    );
     final activeChildId = ref.watch(profileGateDataProvider).activeChildId;
     final isActive = widget.link.childId == activeChildId;
     final theme = Theme.of(context);
@@ -78,29 +78,30 @@ class _SettingsLinkedChildPageState extends ConsumerState<SettingsLinkedChildPag
         ),
       ),
       body: profileAsync.when(
-        data: (profile) => ListView(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            8,
-            16,
-            24 + mainShellBottomContentInset(context),
-          ),
-          children: [
-            SettingsProfileHeaderCard(profile: profile),
-            if (widget.link.isConfirmed) ...[
-              const SizedBox(height: 18),
-              _CalendarSwitchCard(
-                isActive: isActive,
-                switching: _switching,
-                onTap: isActive || _switching ? null : _switchActiveChild,
+        data: (profile) => profile == null
+            ? const Center(
+                child: Text('Keine bestätigte Verbindung verfügbar.'),
+              )
+            : ListView(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  8,
+                  16,
+                  24 + mainShellBottomContentInset(context),
+                ),
+                children: [
+                  SettingsProfileHeaderCard(profile: profile),
+                  if (widget.link.isConfirmed) ...[
+                    const SizedBox(height: 18),
+                    _CalendarSwitchCard(
+                      isActive: isActive,
+                      switching: _switching,
+                      onTap: isActive || _switching ? null : _switchActiveChild,
+                    ),
+                  ],
+                  SettingsProfileSections(profile: profile, readOnly: true),
+                ],
               ),
-            ],
-            SettingsProfileSections(
-              profile: profile,
-              readOnly: true,
-            ),
-          ],
-        ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
           child: Padding(
@@ -142,9 +143,9 @@ class _CalendarSwitchCard extends StatelessWidget {
               children: [
                 Text(
                   isActive ? 'Kalender aktiv' : 'Kalender anzeigen',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -152,8 +153,8 @@ class _CalendarSwitchCard extends StatelessWidget {
                       ? 'Du siehst aktuell den Kalender dieses Kindes.'
                       : 'Kalender und Termine auf dieses Kind umschalten.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),

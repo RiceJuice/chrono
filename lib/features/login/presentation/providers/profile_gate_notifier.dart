@@ -208,6 +208,10 @@ class ProfileGateNotifier extends ChangeNotifier {
   Future<GuardianLinkSummary> _loadGuardianLinkSummaryLocal(
     String userId,
   ) async {
+    final repository = _guardianLinks;
+    if (repository != null) {
+      return repository.loadCachedSummaryForGuardian(userId);
+    }
     final db = _localDb;
     if (db == null) {
       return const GuardianLinkSummary(confirmedLinks: [], pendingLinks: []);

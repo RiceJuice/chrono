@@ -26,18 +26,13 @@ const _gateWithConfirmedLink = ProfileGateData(
 void main() {
   group('isGuardianCalendarViewer', () {
     test('erkennt Elternteil mit bestätigter Verknüpfung', () {
-      expect(
-        isGuardianCalendarViewer(gate: _gateWithConfirmedLink),
-        isTrue,
-      );
+      expect(isGuardianCalendarViewer(gate: _gateWithConfirmedLink), isTrue);
     });
 
     test('erkennt Admin-Elternteil mit bestätigter Verknüpfung', () {
       expect(
         isGuardianCalendarViewer(
-          gate: _gateWithConfirmedLink.copyWith(
-            role: ProfileRoleIds.admin,
-          ),
+          gate: _gateWithConfirmedLink.copyWith(role: ProfileRoleIds.admin),
         ),
         isTrue,
       );
@@ -68,26 +63,29 @@ void main() {
       );
     });
 
-    test('ignoriert Elternteil ohne bestätigte Verknüpfung', () {
-      expect(
-        isGuardianCalendarViewer(
-          gate: _gateWithConfirmedLink.copyWith(
-            role: LoginFlowRoleIds.guardian,
-            hasConfirmedGuardianLink: false,
+    test(
+      'Eltern ohne bestätigte Verbindung bleiben eingeschränkte Betrachter',
+      () {
+        expect(
+          isGuardianCalendarViewer(
+            gate: _gateWithConfirmedLink.copyWith(
+              role: LoginFlowRoleIds.guardian,
+              hasConfirmedGuardianLink: false,
+            ),
+            ownProfile: const ProfileSnapshot(
+              firstName: 'Erika',
+              lastName: 'Muster',
+              className: null,
+              schoolTrack: null,
+              voice: null,
+              role: LoginFlowRoleIds.guardian,
+              choir: null,
+              diet: null,
+            ),
           ),
-          ownProfile: const ProfileSnapshot(
-            firstName: 'Erika',
-            lastName: 'Muster',
-            className: null,
-            schoolTrack: null,
-            voice: null,
-            role: LoginFlowRoleIds.guardian,
-            choir: null,
-            diet: null,
-          ),
-        ),
-        isFalse,
-      );
-    });
+          isTrue,
+        );
+      },
+    );
   });
 }

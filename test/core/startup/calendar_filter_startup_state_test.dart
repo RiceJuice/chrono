@@ -50,11 +50,24 @@ void main() {
     });
 
     test('setzt keine Guardian-Filter ohne Kindprofil', () {
-      CalendarFilterStartupState.preload(
-        gateData: _guardianGate(),
-      );
+      CalendarFilterStartupState.preload(gateData: _guardianGate());
 
-      expect(CalendarFilterStartupState.consume(), isNull);
+      expect(CalendarFilterStartupState.consume()!.hasActiveFilters, isFalse);
+    });
+
+    test('Entzug des letzten Kindes verwirft alte Eltern-Profilfilter', () {
+      CalendarFilterStartupState.preload(
+        gateData: _guardianGate().copyWith(
+          hasConfirmedGuardianLink: false,
+          className: '10',
+          choir: 'Giehl',
+        ),
+        diet: 'Vegetarisch',
+      );
+      final state = CalendarFilterStartupState.consume()!;
+      expect(state.hasActiveFilters, isFalse);
+      expect(state.classNames, isEmpty);
+      expect(state.diets, isEmpty);
     });
 
     test('setzt Schüler-Filter aus Gate-Daten', () {

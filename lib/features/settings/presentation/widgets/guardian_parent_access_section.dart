@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:chronoapp/features/login/presentation/widgets/guardian_link_pending_banner.dart';
 
 import 'package:chronoapp/core/auth/auth_user_id_provider.dart';
 import 'package:chronoapp/core/widgets/app_toast.dart';
@@ -28,21 +29,19 @@ class GuardianParentAccessSection extends ConsumerWidget {
         final confirmed = links
             .where((link) => link.isConfirmed && link.childId == userId)
             .toList(growable: false);
-        if (confirmed.isEmpty) return const SizedBox.shrink();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const GuardianLinkPendingBanner(),
             const SettingsSectionLabel(title: 'Elternteil', top: 22),
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 'Was deine Eltern sehen dürfen',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
             for (final link in confirmed) ...[
@@ -67,7 +66,8 @@ class _GuardianAccessCard extends ConsumerStatefulWidget {
 }
 
 class _GuardianAccessCardState extends ConsumerState<_GuardianAccessCard> {
-  late GuardianChildSharePermissions _permissions = widget.link.sharePermissions;
+  late GuardianChildSharePermissions _permissions =
+      widget.link.sharePermissions;
   bool _saving = false;
 
   @override
@@ -85,9 +85,12 @@ class _GuardianAccessCardState extends ConsumerState<_GuardianAccessCard> {
       _saving = true;
     });
     try {
-      await ref.read(guardianLinkRepositoryProvider).updateSharePermissions(
+      await ref
+          .read(guardianLinkRepositoryProvider)
+          .updateSharePermissions(
             linkId: widget.link.id,
             sharePermissions: next,
+            expectedRevision: widget.link.revision,
           );
       if (!mounted) return;
     } on GuardianLinkRepositoryException catch (e) {
@@ -102,14 +105,18 @@ class _GuardianAccessCardState extends ConsumerState<_GuardianAccessCard> {
   void _toggle(String key, bool value) {
     if (_saving) return;
     final next = switch (key) {
-      GuardianChildSharePermissions.schoolKey =>
-        _permissions.copyWith(shareSchool: value),
-      GuardianChildSharePermissions.mealKey =>
-        _permissions.copyWith(shareMeal: value),
-      GuardianChildSharePermissions.choirKey =>
-        _permissions.copyWith(shareChoir: value),
-      GuardianChildSharePermissions.homeworkKey =>
-        _permissions.copyWith(shareHomework: value),
+      GuardianChildSharePermissions.schoolKey => _permissions.copyWith(
+        shareSchool: value,
+      ),
+      GuardianChildSharePermissions.mealKey => _permissions.copyWith(
+        shareMeal: value,
+      ),
+      GuardianChildSharePermissions.choirKey => _permissions.copyWith(
+        shareChoir: value,
+      ),
+      GuardianChildSharePermissions.homeworkKey => _permissions.copyWith(
+        shareHomework: value,
+      ),
       _ => _permissions.copyWith(extra: {..._permissions.extra, key: value}),
     };
     unawaited(_save(next));
@@ -119,9 +126,30 @@ class _GuardianAccessCardState extends ConsumerState<_GuardianAccessCard> {
   Widget build(BuildContext context) {
     return SettingsIsland(
       children: [
-        ListTile(
-          title: Text(widget.link.guardianDisplayName),
+        TextButton(
+          onPressed: _saving
+              ? null
+              : () async {
+                  setState(() => _saving = true);
+                  try {
+                    await ref
+                        .read(guardianLinkRepositoryProvider)
+                        .revokeLink(widget.link.id);
+                  } catch (_) {
+                    if (context.mounted) {
+                      showAppToast(
+                        context,
+                        'Verbindung konnte nicht getrennt werden.',
+                        kind: AppToastKind.error,
+                      );
+                    }
+                  } finally {
+                    if (mounted) setState(() => _saving = false);
+                  }
+                },
+          child: const Text('Verbindung trennen'),
         ),
+        ListTile(title: Text(widget.link.guardianDisplayName)),
         for (final option in guardianSharePermissionOptions)
           SwitchListTile(
             title: Text(option.label),

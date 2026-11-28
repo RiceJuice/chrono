@@ -12,7 +12,9 @@ List<GuardianChildLink> mergeGuardianOwnLinks({
   final ownRemote = remoteLinks
       .where((link) => link.guardianId == guardianId)
       .toList(growable: false);
-  final merged = mergeGuardianLinkCollections(ownStream, ownRemote);
+  final merged = ownRemote.isEmpty
+      ? ownStream
+      : mergeGuardianLinkCollections(ownStream, ownRemote);
   merged.sort(
     (a, b) =>
         (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),

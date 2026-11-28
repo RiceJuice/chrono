@@ -17,13 +17,13 @@ GuardianChildLink _link({
 
 void main() {
   group('mergePendingGuardianLinks', () {
-    test('fügt neue Pending-Links hinzu', () {
+    test('ersetzt die Queue durch den vollständigen Bestand', () {
       final existing = [_link(id: 'link-1', childId: 'child-a')];
       final incoming = [_link(id: 'link-2', childId: 'child-a')];
 
       final merged = mergePendingGuardianLinks(existing, incoming);
 
-      expect(merged.map((link) => link.id), ['link-1', 'link-2']);
+      expect(merged.map((link) => link.id), ['link-2']);
     });
 
     test('vermeidet Duplikate und aktualisiert bestehende Einträge', () {
@@ -60,15 +60,15 @@ void main() {
 
       final merged = mergePendingGuardianLinks(existing, incoming);
 
-      expect(merged.map((link) => link.id), ['link-2']);
+      expect(merged, isEmpty);
     });
 
-    test('behält Remote-Einträge bei leerem Stream', () {
+    test('entfernt Remote-Einträge bei leerem Stream', () {
       final existing = [_link(id: 'link-remote', childId: 'child-a')];
 
       final merged = mergePendingGuardianLinks(existing, const []);
 
-      expect(merged.map((link) => link.id), ['link-remote']);
+      expect(merged, isEmpty);
     });
   });
 }

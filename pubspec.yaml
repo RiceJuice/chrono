@@ -83,6 +83,7 @@ dependencies:
   flutter_3d_controller: ^2.3.0
 
 dev_dependencies:
+  http: 1.6.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

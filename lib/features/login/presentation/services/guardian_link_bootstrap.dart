@@ -1,33 +1,20 @@
 import 'dart:async';
-
-import 'package:chronoapp/core/widgets/app_toast.dart';
-import 'package:chronoapp/features/login/data/guardian_link_repository.dart';
-import 'package:chronoapp/features/login/domain/models/guardian_child_link.dart';
-import 'package:chronoapp/core/auth/profile_role_ids.dart';
-import 'package:chronoapp/features/login/domain/models/login_flow_role_ids.dart';
-import 'package:chronoapp/features/login/presentation/providers/profile_gate_notifier.dart';
-import 'package:chronoapp/features/login/presentation/services/guardian_link_push_queue.dart';
-import 'package:chronoapp/features/login/presentation/widgets/guardian_link_confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/guardian_link_repository.dart';
+import '../../domain/models/guardian_child_link.dart';
+import '../providers/profile_gate_notifier.dart';
+import '../widgets/guardian_link_confirm_dialog.dart';
+import '../../../../core/widgets/app_toast.dart';
+import 'guardian_link_push_queue.dart';
 
-/// Fügt ausstehende Links in [queue] ein oder entfernt nicht mehr pending Einträge.
 @visibleForTesting
 List<GuardianChildLink> mergePendingGuardianLinks(
   List<GuardianChildLink> queue,
   Iterable<GuardianChildLink> incoming,
-) {
-  final merged = List<GuardianChildLink>.from(queue);
-  for (final link in incoming) {
-    merged.removeWhere((existing) => existing.id == link.id);
-    if (link.isPending) {
-      merged.add(link);
-    }
-  }
-  return merged;
-}
+) => incoming.where((l) => l.isPending).toList();
 
-/// Zeigt ausstehende Eltern-Verknüpfungsanfragen für Schüler und Admins.
+/// Sync only updates the banner. A sheet requires a tap on the banner or push.
 class GuardianLinkBootstrap with WidgetsBindingObserver {
   GuardianLinkBootstrap({
     required ProfileGateNotifier profileGate,
@@ -36,37 +23,35 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
     SupabaseClient? supabase,
     GuardianLinkPushQueue? pushQueue,
     GuardianLinkPushQueue? deferredPushQueue,
-  })  : _profileGate = profileGate,
-        _navigatorKey = navigatorKey,
-        _guardianLinks = guardianLinkRepository,
-        _supabase = supabase ?? Supabase.instance.client,
-        _pushQueue = pushQueue ?? GuardianLinkPushQueue(),
-        _deferredPushQueue = deferredPushQueue ?? _sharedDeferredPushQueue {
+  }) : _profileGate = profileGate,
+       _navigatorKey = navigatorKey,
+       _guardianLinks = guardianLinkRepository,
+       _supabase = supabase ?? Supabase.instance.client,
+       _pushQueue = pushQueue ?? GuardianLinkPushQueue() {
+    (deferredPushQueue ?? _sharedDeferredPushQueue).transferAllTo(_pushQueue);
     WidgetsBinding.instance.addObserver(this);
     _profileGate.addListener(_onProfileGateChanged);
-    _deferredPushQueue.transferAllTo(_pushQueue);
+    _authSub = _supabase.auth.onAuthStateChange.listen(
+      (_) => _onProfileGateChanged(),
+    );
     _onProfileGateChanged();
-    unawaited(_refreshPendingFromRemote());
-    unawaited(_processQueue());
   }
-
   final ProfileGateNotifier _profileGate;
   final GlobalKey<NavigatorState> _navigatorKey;
   final GuardianLinkRepository _guardianLinks;
   final SupabaseClient _supabase;
   final GuardianLinkPushQueue _pushQueue;
-  final GuardianLinkPushQueue _deferredPushQueue;
-
-  StreamSubscription<List<GuardianChildLink>>? _linksSub;
-  final List<GuardianChildLink> _queue = [];
-  bool _dialogOpen = false;
-  int _navigatorRetryCount = 0;
-  bool _refreshInFlight = false;
-
-  static const int _maxNavigatorRetryDelayMs = 5000;
+  StreamSubscription? _authSub;
+  StreamSubscription? _linksSub;
+  String? _userId;
+  int _epoch = 0;
+  bool _disposed = false, _processing = false, _refreshing = false;
+  ValueNotifier<bool>? _sheetValid;
+  bool _wasReady = false;
+  bool _waitingForNavigator = false;
+  int _navigatorRetries = 0;
   static GuardianLinkBootstrap? _instance;
-  static final GuardianLinkPushQueue _sharedDeferredPushQueue =
-      GuardianLinkPushQueue();
+  static final _sharedDeferredPushQueue = GuardianLinkPushQueue();
 
   static void start({
     required ProfileGateNotifier profileGate,
@@ -84,242 +69,179 @@ class GuardianLinkBootstrap with WidgetsBindingObserver {
   static void disposeInstance() {
     _instance?.dispose();
     _instance = null;
+    _sharedDeferredPushQueue.clear();
   }
 
+  bool _valid(int epoch, String user) =>
+      !_disposed &&
+      epoch == _epoch &&
+      _userId == user &&
+      _supabase.auth.currentUser?.id == user;
+
   static void handlePushPayload(Map<String, String> data) {
-    final type = data['type'];
-    if (type == 'guardian_link_request') {
-      final linkId = data['link_id']?.trim();
-      if (linkId == null || linkId.isEmpty) return;
-      final guardianName = data['guardian_name']?.trim();
-      final payload = GuardianLinkPushPayload(
-        linkId: linkId,
-        guardianName: guardianName?.isNotEmpty == true ? guardianName : null,
-      );
-      final instance = _instance;
-      if (instance != null) {
-        instance._pushQueue.enqueue(payload);
-        instance._navigatorRetryCount = 0;
-        unawaited(instance._processQueue());
-      } else {
-        _sharedDeferredPushQueue.enqueue(payload);
+    final instance = _instance;
+    if (data['type'] == 'guardian_link_request' && data['opened'] == 'true') {
+      final id = data['link_id'];
+      if (id != null && id.isNotEmpty) {
+        final payload = GuardianLinkPushPayload(linkId: id);
+        if (instance == null) {
+          _sharedDeferredPushQueue.enqueue(payload);
+        } else {
+          instance._pushQueue.enqueue(payload);
+          unawaited(instance._processQueue());
+        }
       }
-      return;
     }
-    if (type == 'guardian_link_confirmed' || type == 'guardian_link_rejected') {
-      unawaited(_instance?._profileGate.refresh(remote: false));
-    }
+    unawaited(instance?._refresh());
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      unawaited(_refreshPendingFromRemote());
-    }
+    if (state == AppLifecycleState.resumed) unawaited(_refresh());
   }
 
   void _onProfileGateChanged() {
-    if (!_profileGate.isReady || !_profileGate.data.hasSession) {
+    if (_disposed) return;
+    final user = _supabase.auth.currentUser?.id;
+    if (user != _userId) {
+      final hadUser = _userId != null;
+      _epoch++;
+      _sheetValid?.value = false;
       unawaited(_linksSub?.cancel());
       _linksSub = null;
-      return;
+      if (hadUser) _guardianLinks.clearSession();
+      if (hadUser) {
+        _pushQueue.clear();
+        _sharedDeferredPushQueue.clear();
+      }
+      _userId = user;
+      _wasReady = false;
     }
-
-    final role = _profileGate.data.role?.trim();
-    if (role != LoginFlowRoleIds.student && role != ProfileRoleIds.admin) {
-      unawaited(_linksSub?.cancel());
-      _linksSub = null;
-      return;
-    }
-
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return;
-
-    _linksSub ??= _guardianLinks.watchPendingForChild(userId).listen((links) {
-      final merged = mergePendingGuardianLinks(_queue, links);
-      _queue
-        ..clear()
-        ..addAll(merged);
-      unawaited(_processQueue());
-    });
-    unawaited(_refreshPendingFromRemote());
-    unawaited(_processQueue());
+    if (user == null || !_profileGate.isReady) return;
+    final becameReady = !_wasReady;
+    _wasReady = true;
+    final epoch = _epoch;
+    _linksSub ??= _guardianLinks.watchLinksForUser(user).listen((_) {
+      if (_valid(epoch, user)) unawaited(_profileGate.refresh(remote: false));
+    }, onError: (Object _) {});
+    if (becameReady && !_pushQueue.isEmpty) unawaited(_processQueue());
   }
 
-  Future<void> _refreshPendingFromRemote() async {
-    if (_refreshInFlight) return;
-    if (!_profileGate.isReady || !_profileGate.data.hasSession) return;
-
-    final role = _profileGate.data.role?.trim();
-    if (role != LoginFlowRoleIds.student && role != ProfileRoleIds.admin) {
-      return;
-    }
-
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return;
-
-    _refreshInFlight = true;
+  Future<void> _refresh() async {
+    if (_disposed || _refreshing || _userId == null) return;
+    final user = _userId!;
+    final epoch = _epoch;
+    _refreshing = true;
     try {
-      final pending = await _guardianLinks.loadPendingLinksForChild(userId);
-      if (pending.isNotEmpty) {
-        _queue
-          ..clear()
-          ..addAll(mergePendingGuardianLinks(_queue, pending));
-        _navigatorRetryCount = 0;
-      }
-      if (_hasWork()) {
-        unawaited(_processQueue());
-      }
+      await _guardianLinks.loadLinksRemote(user);
+      if (_valid(epoch, user)) await _profileGate.refresh();
     } catch (_) {
-      if (_hasWork()) {
-        unawaited(_processQueue());
-      }
+      /* Stream/UI retains an explicit refresh error. */
     } finally {
-      _refreshInFlight = false;
+      _refreshing = false;
     }
   }
 
-  Future<void> _processQueue() async {
-    if (_dialogOpen) return;
-
-    final context = _navigatorKey.currentContext;
-    if (context == null || !context.mounted) {
-      if (_hasWork()) {
-        _scheduleNavigatorRetry();
+  Future<void> _processQueue({bool fromBanner = false}) async {
+    if (_disposed || _processing || _userId == null || !_profileGate.isReady) {
+      return;
+    }
+    if (_navigatorKey.currentContext == null) {
+      if (!_waitingForNavigator && _navigatorRetries < 3) {
+        _waitingForNavigator = true;
+        _navigatorRetries++;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _waitingForNavigator = false;
+          if (!_disposed) unawaited(_processQueue(fromBanner: fromBanner));
+        });
+        WidgetsBinding.instance.scheduleFrame();
       }
       return;
     }
-    _navigatorRetryCount = 0;
-
-    final pushPayload = _pushQueue.peek();
-    GuardianChildLink? link;
-    GuardianLinkPushPayload? resolvedPushPayload;
-
-    if (pushPayload != null) {
-      link = await _guardianLinks.fetchLinkById(pushPayload.linkId);
-      if (link == null) {
-        _scheduleProcessRetry();
-        return;
-      }
-      if (!link.isPending) {
-        _pushQueue.remove(pushPayload.linkId);
-        link = null;
-      } else {
-        resolvedPushPayload = pushPayload;
-      }
-    }
-
-    link ??= _queue.isNotEmpty ? _queue.first : null;
-    if (link == null || !link.isPending) return;
-
-    final guardianNameOverride = resolvedPushPayload?.guardianName;
-    if (resolvedPushPayload != null) {
-      _pushQueue.remove(resolvedPushPayload.linkId);
-    }
-
-    final dialogContext = _navigatorKey.currentContext;
-    if (dialogContext == null || !dialogContext.mounted) {
-      if (resolvedPushPayload != null) {
-        _pushQueue.enqueue(resolvedPushPayload);
-      }
-      _scheduleNavigatorRetry();
-      return;
-    }
-
-    _dialogOpen = true;
+    _navigatorRetries = 0;
+    // Lock before the first fetch: push, resume and banner cannot race.
+    _processing = true;
+    final epoch = _epoch;
+    final user = _userId!;
     try {
-      final linkForDialog = link;
-      final result = await showGuardianLinkConfirmDialog(
-        dialogContext,
-        link: linkForDialog,
-        guardianNameOverride: guardianNameOverride,
-      );
-      if (result == null || result.accept == null) return;
-
-      await _guardianLinks.respondToLink(
-        linkId: linkForDialog.id,
-        accept: result.accept!,
-        sharePermissions: result.sharePermissions,
-      );
-
-      final toastContext = _navigatorKey.currentContext;
-      if (toastContext == null || !toastContext.mounted) return;
-      showAppToast(
-        toastContext,
-        result.accept!
-            ? 'Verknüpfung bestätigt.'
-            : 'Verknüpfung abgelehnt.',
-        kind: result.accept!
-            ? AppToastKind.success
-            : AppToastKind.info,
-      );
-
-      _queue.removeWhere((l) => l.id == linkForDialog.id);
+      final links = await _guardianLinks.loadLinksRemote(user);
+      if (!_valid(epoch, user)) return;
+      GuardianChildLink? selected;
+      while (!_pushQueue.isEmpty) {
+        final id = _pushQueue.peek()!.linkId;
+        _pushQueue.remove(id);
+        for (final link in links) {
+          if (link.id == id && link.childId == user && link.isPending) {
+            selected = link;
+          }
+        }
+        if (selected != null) break;
+      }
+      if (selected == null && fromBanner) {
+        for (final link in links) {
+          if (link.childId == user && link.isPending) {
+            selected = link;
+            break;
+          }
+        }
+      }
+      if (selected == null) return;
+      final context = _navigatorKey.currentContext;
+      if (context == null || !context.mounted) return;
+      final link = selected;
+      final validity = ValueNotifier(true);
+      _sheetValid = validity;
+      try {
+        await showGuardianLinkConfirmDialog(
+          context,
+          link: link,
+          sessionValid: validity,
+          onSubmit: (result) async {
+            if (!_valid(epoch, user)) {
+              throw GuardianLinkRepositoryException('Sitzung geändert.');
+            }
+            await _guardianLinks.respondToLink(
+              linkId: link.id,
+              accept: result.accept!,
+              expectedRevision: link.revision,
+              sharePermissions: result.sharePermissions,
+            );
+          },
+        );
+      } finally {
+        if (identical(_sheetValid, validity)) _sheetValid = null;
+        _pushQueue.remove(link.id);
+        validity.dispose();
+      }
     } catch (_) {
-      final toastContext = _navigatorKey.currentContext;
-      if (toastContext != null && toastContext.mounted) {
+      final context = _navigatorKey.currentContext;
+      if (_valid(epoch, user) && context != null && context.mounted) {
         showAppToast(
-          toastContext,
-          'Antwort konnte nicht gespeichert werden.',
+          context,
+          'Anfrage konnte nicht geladen werden. Bitte online erneut öffnen.',
           kind: AppToastKind.error,
         );
       }
     } finally {
-      _dialogOpen = false;
-      if (_hasWork()) {
-        unawaited(
-          Future<void>.delayed(
-            const Duration(milliseconds: 300),
-            _processQueue,
-          ),
-        );
-      }
+      _processing = false;
     }
+    // No automatic reopening, retry timers or forced processing of the next child.
   }
 
-  void _scheduleNavigatorRetry() {
-    if (!_hasWork()) return;
-    _navigatorRetryCount++;
-    final delayMs = (200 * _navigatorRetryCount).clamp(
-      200,
-      _maxNavigatorRetryDelayMs,
-    );
-    unawaited(
-      Future<void>.delayed(
-        Duration(milliseconds: delayMs),
-        _processQueue,
-      ),
-    );
-  }
-
-  void _scheduleProcessRetry() {
-    if (!_hasWork()) return;
-    _navigatorRetryCount++;
-    final delayMs = (200 * _navigatorRetryCount).clamp(
-      200,
-      _maxNavigatorRetryDelayMs,
-    );
-    unawaited(
-      Future<void>.delayed(
-        Duration(milliseconds: delayMs),
-        _processQueue,
-      ),
-    );
-  }
-
-  bool _hasWork() => _queue.isNotEmpty || !_pushQueue.isEmpty;
+  Future<void> openPendingRequests() => _processQueue(fromBanner: true);
 
   static void requestProcessQueue() {
-    final instance = _instance;
-    if (instance == null) return;
-    unawaited(instance._refreshPendingFromRemote());
-    unawaited(instance._processQueue());
+    unawaited(_instance?._processQueue(fromBanner: true));
   }
 
   void dispose() {
+    _disposed = true;
+    _epoch++;
+    _sheetValid?.value = false;
     WidgetsBinding.instance.removeObserver(this);
     _profileGate.removeListener(_onProfileGateChanged);
     unawaited(_linksSub?.cancel());
-    _linksSub = null;
+    unawaited(_authSub?.cancel());
+    _pushQueue.clear();
   }
 }

@@ -83,14 +83,14 @@ void main() {
   });
 
   group('guardianChildProfileSnapshot', () {
-    test('nutzt geladenes Profil mit Link-Fallback', () {
+    test('verwirft private Profilfelder ohne Freigabe', () {
       final snapshot = guardianChildProfileSnapshot(
         link: _link(childFirstName: 'Fallback'),
         loaded: _loadedProfile,
       );
 
       expect(snapshot.firstName, 'Anna');
-      expect(snapshot.className, '8a');
+      expect(snapshot.className, isNull);
     });
 
     test('fällt auf Link-Daten zurück', () {
@@ -105,7 +105,7 @@ void main() {
 
       expect(snapshot.firstName, 'Ben');
       expect(snapshot.lastName, 'Test');
-      expect(snapshot.className, '9b');
+      expect(snapshot.className, isNull);
     });
   });
 }
